@@ -1,0 +1,374 @@
+{
+  "$defs": {
+    "AbstractionLevel": {
+      "enum": [
+        "actor",
+        "event_role",
+        "collective_causal_chain"
+      ],
+      "title": "AbstractionLevel",
+      "type": "string"
+    },
+    "AllenRelation": {
+      "enum": [
+        "before",
+        "after",
+        "meets",
+        "met_by",
+        "overlaps",
+        "overlapped_by",
+        "starts",
+        "started_by",
+        "during",
+        "contains",
+        "finishes",
+        "finished_by",
+        "equals"
+      ],
+      "title": "AllenRelation",
+      "type": "string"
+    },
+    "EvidenceBadge": {
+      "additionalProperties": false,
+      "properties": {
+        "available": {
+          "title": "Available",
+          "type": "boolean"
+        },
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "count": {
+          "minimum": 0,
+          "title": "Count",
+          "type": "integer"
+        },
+        "evidence_ids": {
+          "items": {
+            "maxLength": 192,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "available",
+        "evidence_ids",
+        "count"
+      ],
+      "title": "EvidenceBadge",
+      "type": "object"
+    },
+    "ExplicitValueState": {
+      "enum": [
+        "known",
+        "unknown",
+        "not_applicable",
+        "horizon_withheld",
+        "invalid"
+      ],
+      "title": "ExplicitValueState",
+      "type": "string"
+    },
+    "PartialOrderConstraint": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "left_id": {
+          "maxLength": 192,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+          "title": "Left Id",
+          "type": "string"
+        },
+        "relation": {
+          "$ref": "#/$defs/AllenRelation"
+        },
+        "right_id": {
+          "maxLength": 192,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+          "title": "Right Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "left_id",
+        "relation",
+        "right_id"
+      ],
+      "title": "PartialOrderConstraint",
+      "type": "object"
+    },
+    "ReleaseClass": {
+      "enum": [
+        "public",
+        "restricted"
+      ],
+      "title": "ReleaseClass",
+      "type": "string"
+    },
+    "StoryTime": {
+      "additionalProperties": false,
+      "description": "Time at which an event occurs in the story world.",
+      "properties": {
+        "anchor_id": {
+          "anyOf": [
+            {
+              "maxLength": 192,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Anchor Id"
+        },
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "end": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End"
+        },
+        "kind": {
+          "$ref": "#/$defs/TemporalKind"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "partial_order": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PartialOrderConstraint"
+          },
+          "title": "Partial Order",
+          "type": "array"
+        },
+        "point": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Point"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "relation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AllenRelation"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "start": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Start"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "StoryTime",
+      "type": "object"
+    },
+    "TemporalKind": {
+      "enum": [
+        "point",
+        "interval",
+        "relative",
+        "partial_order",
+        "unknown",
+        "not_applicable",
+        "horizon_withheld",
+        "invalid"
+      ],
+      "title": "TemporalKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "abstraction": {
+      "$ref": "#/$defs/AbstractionLevel"
+    },
+    "confidence": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Confidence",
+      "type": "number"
+    },
+    "content_hash": {
+      "default": "",
+      "pattern": "^(?:|[0-9a-f]{64})$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "contextual_label": {
+      "minLength": 1,
+      "title": "Contextual Label",
+      "type": "string"
+    },
+    "contextual_role": {
+      "minLength": 1,
+      "title": "Contextual Role",
+      "type": "string"
+    },
+    "contextual_type_id": {
+      "maxLength": 192,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+      "title": "Contextual Type Id",
+      "type": "string"
+    },
+    "description": {
+      "minLength": 1,
+      "title": "Description",
+      "type": "string"
+    },
+    "description_assertion_ids": {
+      "items": {
+        "maxLength": 192,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+        "type": "string"
+      },
+      "title": "Description Assertion Ids",
+      "type": "array"
+    },
+    "evidence_badge": {
+      "$ref": "#/$defs/EvidenceBadge"
+    },
+    "projection_object_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Projection Object Hash",
+      "type": "string"
+    },
+    "projection_object_id": {
+      "maxLength": 192,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+      "title": "Projection Object Id",
+      "type": "string"
+    },
+    "release_class": {
+      "$ref": "#/$defs/ReleaseClass"
+    },
+    "schema_version": {
+      "const": "1.0.0",
+      "default": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "temporal_state": {
+      "$ref": "#/$defs/StoryTime"
+    },
+    "uncertainty": {
+      "$ref": "#/$defs/ExplicitValueState"
+    },
+    "visualization_node_id": {
+      "maxLength": 192,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+      "title": "Visualization Node Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "visualization_node_id",
+    "projection_object_id",
+    "projection_object_hash",
+    "contextual_label",
+    "contextual_type_id",
+    "contextual_role",
+    "abstraction",
+    "temporal_state",
+    "uncertainty",
+    "confidence",
+    "evidence_badge",
+    "description",
+    "description_assertion_ids",
+    "release_class"
+  ],
+  "title": "VisualizationNode",
+  "type": "object"
+}

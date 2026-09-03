@@ -1,0 +1,449 @@
+{
+  "$defs": {
+    "AllenRelation": {
+      "enum": [
+        "before",
+        "after",
+        "meets",
+        "met_by",
+        "overlaps",
+        "overlapped_by",
+        "starts",
+        "started_by",
+        "during",
+        "contains",
+        "finishes",
+        "finished_by",
+        "equals"
+      ],
+      "title": "AllenRelation",
+      "type": "string"
+    },
+    "DiscoursePosition": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "passage_order": {
+          "minimum": 0,
+          "title": "Passage Order",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "sentence_order": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Sentence Order",
+          "type": "integer"
+        },
+        "token_order": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Token Order",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "passage_order"
+      ],
+      "title": "DiscoursePosition",
+      "type": "object"
+    },
+    "EventCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate_id": {
+          "maxLength": 192,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "evidence_id": {
+          "maxLength": 192,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "participant_mention_candidate_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 192,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+            "type": "string"
+          },
+          "title": "Participant Mention Candidate Ids",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "trigger_end_char": {
+          "exclusiveMinimum": 0,
+          "title": "Trigger End Char",
+          "type": "integer"
+        },
+        "trigger_start_char": {
+          "minimum": 0,
+          "title": "Trigger Start Char",
+          "type": "integer"
+        },
+        "trigger_surface": {
+          "minLength": 1,
+          "title": "Trigger Surface",
+          "type": "string"
+        }
+      },
+      "required": [
+        "candidate_id",
+        "evidence_id",
+        "trigger_start_char",
+        "trigger_end_char",
+        "trigger_surface",
+        "confidence"
+      ],
+      "title": "EventCandidate",
+      "type": "object"
+    },
+    "MentionCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "alias_candidate_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 192,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+            "type": "string"
+          },
+          "title": "Alias Candidate Ids",
+          "type": "array"
+        },
+        "candidate_id": {
+          "maxLength": 192,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "coreference_scores": {
+          "patternProperties": {
+            "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$": {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 192,
+            "minLength": 1
+          },
+          "title": "Coreference Scores",
+          "type": "object"
+        },
+        "end_char": {
+          "exclusiveMinimum": 0,
+          "title": "End Char",
+          "type": "integer"
+        },
+        "evidence_id": {
+          "maxLength": 192,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "provisional_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Provisional Type"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "start_char": {
+          "minimum": 0,
+          "title": "Start Char",
+          "type": "integer"
+        },
+        "surface": {
+          "minLength": 1,
+          "title": "Surface",
+          "type": "string"
+        },
+        "surface_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Surface Hash",
+          "type": "string"
+        }
+      },
+      "required": [
+        "candidate_id",
+        "evidence_id",
+        "start_char",
+        "end_char",
+        "surface",
+        "surface_hash"
+      ],
+      "title": "MentionCandidate",
+      "type": "object"
+    },
+    "RelationPhraseCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate_id": {
+          "maxLength": 192,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "evidence_id": {
+          "maxLength": 192,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "object_mention_candidate_id": {
+          "anyOf": [
+            {
+              "maxLength": 192,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Object Mention Candidate Id"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "subject_mention_candidate_id": {
+          "maxLength": 192,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+          "title": "Subject Mention Candidate Id",
+          "type": "string"
+        },
+        "surface_phrase": {
+          "minLength": 1,
+          "title": "Surface Phrase",
+          "type": "string"
+        }
+      },
+      "required": [
+        "candidate_id",
+        "evidence_id",
+        "subject_mention_candidate_id",
+        "surface_phrase",
+        "confidence"
+      ],
+      "title": "RelationPhraseCandidate",
+      "type": "object"
+    },
+    "TemporalClue": {
+      "additionalProperties": false,
+      "properties": {
+        "clue_id": {
+          "maxLength": 192,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+          "title": "Clue Id",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "evidence_id": {
+          "maxLength": 192,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "normalized_expression": {
+          "minLength": 1,
+          "title": "Normalized Expression",
+          "type": "string"
+        },
+        "relation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AllenRelation"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "target_candidate_ids": {
+          "items": {
+            "maxLength": 192,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+            "type": "string"
+          },
+          "title": "Target Candidate Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "clue_id",
+        "evidence_id",
+        "normalized_expression",
+        "target_candidate_ids",
+        "confidence"
+      ],
+      "title": "TemporalClue",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Strict allowlist for evidence passed to a model.",
+  "properties": {
+    "content_hash": {
+      "default": "",
+      "pattern": "^(?:|[0-9a-f]{64})$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "discourse_position": {
+      "$ref": "#/$defs/DiscoursePosition"
+    },
+    "event_candidates": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/EventCandidate"
+      },
+      "title": "Event Candidates",
+      "type": "array"
+    },
+    "evidence_id": {
+      "maxLength": 192,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+      "title": "Evidence Id",
+      "type": "string"
+    },
+    "mention_candidates": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/MentionCandidate"
+      },
+      "title": "Mention Candidates",
+      "type": "array"
+    },
+    "relation_phrase_candidates": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/RelationPhraseCandidate"
+      },
+      "title": "Relation Phrase Candidates",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "1.0.0",
+      "default": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "temporal_clues": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/TemporalClue"
+      },
+      "title": "Temporal Clues",
+      "type": "array"
+    },
+    "text": {
+      "minLength": 1,
+      "title": "Text",
+      "type": "string"
+    }
+  },
+  "required": [
+    "evidence_id",
+    "text",
+    "discourse_position"
+  ],
+  "title": "ModelVisibleEvidenceRecord",
+  "type": "object"
+}

@@ -1,0 +1,563 @@
+{
+  "request_id": "phase1-c2-query-request-v1",
+  "condition": "C2",
+  "snapshot_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+  "packet": {
+    "packet_hash": "5555555555555555555555555555555555555555555555555555555555555555",
+    "evidence": [
+      {
+        "evidence_id": "ev-01",
+        "text": "At dawn, courier Lio arrived at North Gate carrying a copper seal.",
+        "discourse_position": {
+          "passage_order": 1
+        },
+        "mention_candidates": [
+          {
+            "candidate_id": "m-lio-01",
+            "evidence_id": "ev-01",
+            "start_char": 17,
+            "end_char": 20,
+            "surface": "Lio",
+            "surface_hash": "766c3046cbb2471e13255a42638c44daba5347fc2a2bbc9e0ae183c2f599861c",
+            "provisional_type": "person"
+          },
+          {
+            "candidate_id": "m-gate-01",
+            "evidence_id": "ev-01",
+            "start_char": 32,
+            "end_char": 42,
+            "surface": "North Gate",
+            "surface_hash": "f495697877e78ba39ad4e9e1604f638ee5e755d3ff9cfd64ea2345a47878a20a",
+            "provisional_type": "place"
+          },
+          {
+            "candidate_id": "m-seal-01",
+            "evidence_id": "ev-01",
+            "start_char": 61,
+            "end_char": 65,
+            "surface": "seal",
+            "surface_hash": "f0f668bf610e5cf9f11d2aa50f924ada10797100e8f05de085842ddb6370a867",
+            "provisional_type": "object"
+          }
+        ],
+        "event_candidates": [
+          {
+            "candidate_id": "event-candidate-arrival",
+            "evidence_id": "ev-01",
+            "trigger_start_char": 21,
+            "trigger_end_char": 28,
+            "trigger_surface": "arrived",
+            "participant_mention_candidate_ids": [
+              "m-lio-01",
+              "m-gate-01"
+            ],
+            "confidence": 0.96
+          }
+        ],
+        "relation_phrase_candidates": [
+          {
+            "candidate_id": "relation-candidate-arrived-at",
+            "evidence_id": "ev-01",
+            "subject_mention_candidate_id": "m-lio-01",
+            "object_mention_candidate_id": "m-gate-01",
+            "surface_phrase": "arrived at",
+            "confidence": 0.97
+          }
+        ],
+        "temporal_clues": [
+          {
+            "clue_id": "time-clue-dawn",
+            "evidence_id": "ev-01",
+            "normalized_expression": "day-1-dawn",
+            "target_candidate_ids": [
+              "event-candidate-arrival"
+            ],
+            "confidence": 0.9
+          }
+        ]
+      },
+      {
+        "evidence_id": "ev-02",
+        "text": "The guard called the courier 'Ash'; a roster lists Lio and Ash with the same copper seal.",
+        "discourse_position": {
+          "passage_order": 2
+        },
+        "mention_candidates": [
+          {
+            "candidate_id": "m-ash-courier",
+            "evidence_id": "ev-02",
+            "start_char": 30,
+            "end_char": 33,
+            "surface": "Ash",
+            "surface_hash": "bda94d3dce78637e7e47c7ea19824b93a643d023947dbf12ab3afc7032bb2597",
+            "provisional_type": "person",
+            "alias_candidate_ids": [
+              "m-lio-01",
+              "m-lio-roster"
+            ],
+            "coreference_scores": {
+              "m-lio-01": 0.8,
+              "m-lio-roster": 0.9
+            }
+          },
+          {
+            "candidate_id": "m-lio-roster",
+            "evidence_id": "ev-02",
+            "start_char": 51,
+            "end_char": 54,
+            "surface": "Lio",
+            "surface_hash": "766c3046cbb2471e13255a42638c44daba5347fc2a2bbc9e0ae183c2f599861c",
+            "provisional_type": "person",
+            "alias_candidate_ids": [
+              "m-ash-courier"
+            ],
+            "coreference_scores": {
+              "m-ash-courier": 0.9
+            }
+          },
+          {
+            "candidate_id": "m-seal-02",
+            "evidence_id": "ev-02",
+            "start_char": 84,
+            "end_char": 88,
+            "surface": "seal",
+            "surface_hash": "f0f668bf610e5cf9f11d2aa50f924ada10797100e8f05de085842ddb6370a867",
+            "provisional_type": "object",
+            "alias_candidate_ids": [
+              "m-seal-01"
+            ]
+          }
+        ]
+      },
+      {
+        "evidence_id": "ev-03",
+        "text": "Separately, mechanic Ash repaired the river pump while courier Lio remained at North Gate.",
+        "discourse_position": {
+          "passage_order": 3
+        },
+        "mention_candidates": [
+          {
+            "candidate_id": "m-ash-mechanic",
+            "evidence_id": "ev-03",
+            "start_char": 21,
+            "end_char": 24,
+            "surface": "Ash",
+            "surface_hash": "bda94d3dce78637e7e47c7ea19824b93a643d023947dbf12ab3afc7032bb2597",
+            "provisional_type": "person",
+            "coreference_scores": {
+              "m-ash-courier": 0.2
+            }
+          },
+          {
+            "candidate_id": "m-pump-03",
+            "evidence_id": "ev-03",
+            "start_char": 38,
+            "end_char": 48,
+            "surface": "river pump",
+            "surface_hash": "fcc91bad7a6a7d4096f0a4155df95d88e0dfc08566aa2550996815e50edbeb63",
+            "provisional_type": "infrastructure"
+          },
+          {
+            "candidate_id": "m-lio-03",
+            "evidence_id": "ev-03",
+            "start_char": 63,
+            "end_char": 66,
+            "surface": "Lio",
+            "surface_hash": "766c3046cbb2471e13255a42638c44daba5347fc2a2bbc9e0ae183c2f599861c",
+            "provisional_type": "person",
+            "alias_candidate_ids": [
+              "m-lio-01",
+              "m-ash-courier"
+            ]
+          },
+          {
+            "candidate_id": "m-gate-03",
+            "evidence_id": "ev-03",
+            "start_char": 79,
+            "end_char": 89,
+            "surface": "North Gate",
+            "surface_hash": "f495697877e78ba39ad4e9e1604f638ee5e755d3ff9cfd64ea2345a47878a20a",
+            "provisional_type": "place",
+            "alias_candidate_ids": [
+              "m-gate-01"
+            ]
+          }
+        ],
+        "event_candidates": [
+          {
+            "candidate_id": "event-candidate-repair",
+            "evidence_id": "ev-03",
+            "trigger_start_char": 25,
+            "trigger_end_char": 33,
+            "trigger_surface": "repaired",
+            "participant_mention_candidate_ids": [
+              "m-ash-mechanic",
+              "m-pump-03"
+            ],
+            "confidence": 0.98
+          }
+        ],
+        "relation_phrase_candidates": [
+          {
+            "candidate_id": "relation-candidate-repaired",
+            "evidence_id": "ev-03",
+            "subject_mention_candidate_id": "m-ash-mechanic",
+            "object_mention_candidate_id": "m-pump-03",
+            "surface_phrase": "repaired",
+            "confidence": 0.98
+          },
+          {
+            "candidate_id": "relation-candidate-remained-at",
+            "evidence_id": "ev-03",
+            "subject_mention_candidate_id": "m-lio-03",
+            "object_mention_candidate_id": "m-gate-03",
+            "surface_phrase": "remained at",
+            "confidence": 0.95
+          }
+        ]
+      },
+      {
+        "evidence_id": "ev-04",
+        "text": "After Lio delivered the seal, the council opened the floodgate; water reached the farms before dusk.",
+        "discourse_position": {
+          "passage_order": 4
+        },
+        "mention_candidates": [
+          {
+            "candidate_id": "m-lio-04",
+            "evidence_id": "ev-04",
+            "start_char": 6,
+            "end_char": 9,
+            "surface": "Lio",
+            "surface_hash": "766c3046cbb2471e13255a42638c44daba5347fc2a2bbc9e0ae183c2f599861c",
+            "provisional_type": "person",
+            "alias_candidate_ids": [
+              "m-lio-01",
+              "m-ash-courier"
+            ]
+          },
+          {
+            "candidate_id": "m-seal-04",
+            "evidence_id": "ev-04",
+            "start_char": 24,
+            "end_char": 28,
+            "surface": "seal",
+            "surface_hash": "f0f668bf610e5cf9f11d2aa50f924ada10797100e8f05de085842ddb6370a867",
+            "provisional_type": "object",
+            "alias_candidate_ids": [
+              "m-seal-01",
+              "m-seal-02"
+            ]
+          },
+          {
+            "candidate_id": "m-council-04",
+            "evidence_id": "ev-04",
+            "start_char": 34,
+            "end_char": 41,
+            "surface": "council",
+            "surface_hash": "a0c7ec73f6d7f2b4f3e6de3769d290d4f877ff97bad08b675f9abd0c8ee97dff",
+            "provisional_type": "collective"
+          },
+          {
+            "candidate_id": "m-floodgate-04",
+            "evidence_id": "ev-04",
+            "start_char": 53,
+            "end_char": 62,
+            "surface": "floodgate",
+            "surface_hash": "4d1d9d2445e197e6a450bb6cae9688fb86ae561aef50c263544a1869dda7ea71",
+            "provisional_type": "infrastructure"
+          }
+        ],
+        "event_candidates": [
+          {
+            "candidate_id": "event-candidate-delivery",
+            "evidence_id": "ev-04",
+            "trigger_start_char": 10,
+            "trigger_end_char": 19,
+            "trigger_surface": "delivered",
+            "participant_mention_candidate_ids": [
+              "m-lio-04",
+              "m-seal-04"
+            ],
+            "confidence": 0.98
+          },
+          {
+            "candidate_id": "event-candidate-opening",
+            "evidence_id": "ev-04",
+            "trigger_start_char": 42,
+            "trigger_end_char": 48,
+            "trigger_surface": "opened",
+            "participant_mention_candidate_ids": [
+              "m-council-04",
+              "m-floodgate-04"
+            ],
+            "confidence": 0.98
+          }
+        ],
+        "temporal_clues": [
+          {
+            "clue_id": "time-clue-after-delivery",
+            "evidence_id": "ev-04",
+            "normalized_expression": "opening-after-delivery-on-day-2",
+            "target_candidate_ids": [
+              "event-candidate-delivery",
+              "event-candidate-opening"
+            ],
+            "relation": "before",
+            "confidence": 0.97
+          }
+        ]
+      },
+      {
+        "evidence_id": "ev-05",
+        "text": "Mara reported that the bridge was safe, but she had not inspected it.",
+        "discourse_position": {
+          "passage_order": 5
+        },
+        "mention_candidates": [
+          {
+            "candidate_id": "m-mara-05",
+            "evidence_id": "ev-05",
+            "start_char": 0,
+            "end_char": 4,
+            "surface": "Mara",
+            "surface_hash": "d48c6c588f9a21165dd21fbccc19588d42016c92529029d66b4acb57075366d1",
+            "provisional_type": "person"
+          },
+          {
+            "candidate_id": "m-bridge-05",
+            "evidence_id": "ev-05",
+            "start_char": 23,
+            "end_char": 29,
+            "surface": "bridge",
+            "surface_hash": "17f29b073143d8cd97b5bbe492bdeffec1c5fee55cc1fe2112c8b9335f8b6121",
+            "provisional_type": "infrastructure"
+          },
+          {
+            "candidate_id": "m-safe-05",
+            "evidence_id": "ev-05",
+            "start_char": 34,
+            "end_char": 38,
+            "surface": "safe",
+            "surface_hash": "8b3369944dd2a3fab39e32d1aeb1f763946a458ae3e6368a46432adc8f3a0860",
+            "provisional_type": "state"
+          }
+        ],
+        "event_candidates": [
+          {
+            "candidate_id": "event-candidate-report",
+            "evidence_id": "ev-05",
+            "trigger_start_char": 5,
+            "trigger_end_char": 13,
+            "trigger_surface": "reported",
+            "participant_mention_candidate_ids": [
+              "m-mara-05",
+              "m-bridge-05"
+            ],
+            "confidence": 0.99
+          }
+        ],
+        "relation_phrase_candidates": [
+          {
+            "candidate_id": "relation-candidate-reported-safe",
+            "evidence_id": "ev-05",
+            "subject_mention_candidate_id": "m-mara-05",
+            "object_mention_candidate_id": "m-bridge-05",
+            "surface_phrase": "reported that the bridge was safe",
+            "confidence": 0.99
+          }
+        ]
+      },
+      {
+        "evidence_id": "ev-06",
+        "text": "A single scratched mark on the seal matched the floodgate key; without that mark, guards would have refused it.",
+        "discourse_position": {
+          "passage_order": 6
+        },
+        "mention_candidates": [
+          {
+            "candidate_id": "m-mark-06",
+            "evidence_id": "ev-06",
+            "start_char": 9,
+            "end_char": 23,
+            "surface": "scratched mark",
+            "surface_hash": "33b35954d9bf316a66ed24d7a0dff09697aea5869497fd5a24aa6e3ddd4907ed",
+            "provisional_type": "mark"
+          },
+          {
+            "candidate_id": "m-seal-06",
+            "evidence_id": "ev-06",
+            "start_char": 31,
+            "end_char": 35,
+            "surface": "seal",
+            "surface_hash": "f0f668bf610e5cf9f11d2aa50f924ada10797100e8f05de085842ddb6370a867",
+            "provisional_type": "object",
+            "alias_candidate_ids": [
+              "m-seal-01",
+              "m-seal-02",
+              "m-seal-04"
+            ]
+          },
+          {
+            "candidate_id": "m-key-06",
+            "evidence_id": "ev-06",
+            "start_char": 48,
+            "end_char": 61,
+            "surface": "floodgate key",
+            "surface_hash": "1cde3baa7d72fad9dd2397ec4fcb6727752dc21f613ef5f4de6c2612089a1e2f",
+            "provisional_type": "credential"
+          }
+        ],
+        "relation_phrase_candidates": [
+          {
+            "candidate_id": "relation-candidate-mark-matched",
+            "evidence_id": "ev-06",
+            "subject_mention_candidate_id": "m-mark-06",
+            "object_mention_candidate_id": "m-key-06",
+            "surface_phrase": "matched",
+            "confidence": 0.99
+          }
+        ]
+      },
+      {
+        "evidence_id": "ev-07",
+        "text": "The town bell rang hourly while market vendors traded in the square.",
+        "discourse_position": {
+          "passage_order": 7
+        },
+        "mention_candidates": [
+          {
+            "candidate_id": "m-bell-07",
+            "evidence_id": "ev-07",
+            "start_char": 4,
+            "end_char": 13,
+            "surface": "town bell",
+            "surface_hash": "d36d0913ad0af96af707aadf5f3cc810d8c3b8d5f4f455efe2f98d38fe141b55",
+            "provisional_type": "object"
+          },
+          {
+            "candidate_id": "m-vendors-07",
+            "evidence_id": "ev-07",
+            "start_char": 32,
+            "end_char": 46,
+            "surface": "market vendors",
+            "surface_hash": "640d5abe882523fb9856f943a4636c07f25b9091404afd773c60e38ae2a6428b",
+            "provisional_type": "collective"
+          }
+        ]
+      }
+    ],
+    "ordered_evidence_ids": [
+      "ev-01",
+      "ev-02",
+      "ev-03",
+      "ev-04",
+      "ev-05",
+      "ev-06",
+      "ev-07"
+    ],
+    "retrieval_method": "all_admissible"
+  },
+  "context": {
+    "wording": "How did Lio's credential enable the floodgate opening, while distinguishing the people called Ash and treating Mara's bridge claim only as her report?",
+    "lens": "credential-mediated causal chain with identity and epistemic qualification",
+    "target": "seal delivery and floodgate opening",
+    "story_scope": {
+      "kind": "interval",
+      "start": 1,
+      "end": 3,
+      "label": "days one through three"
+    },
+    "spoiler_horizon": {
+      "horizon_id": "harbor-horizon-07",
+      "max_discourse_position": {
+        "passage_order": 7
+      },
+      "max_revelation_position": {
+        "revelation_order": 7,
+        "label": "through the market account"
+      },
+      "withheld_after_horizon": true
+    },
+    "viewpoint": {
+      "holder_id": "m-mara-05",
+      "attitude_scope": "reported"
+    },
+    "abstraction": "collective_causal_chain",
+    "budgets": {
+      "node_budget": 20,
+      "assertion_budget": 20,
+      "display_node_budget": 15,
+      "display_assertion_budget": 15,
+      "repair_attempt_budget": 1
+    }
+  },
+  "upper_ontology": {
+    "ontology_id": "upper-narrative-v1",
+    "primitive_types": [
+      "entity",
+      "person",
+      "collective",
+      "place",
+      "artifact",
+      "infrastructure",
+      "event",
+      "proposition",
+      "state"
+    ],
+    "primitive_relations": [
+      "related_to",
+      "participates_in",
+      "located_at",
+      "precedes",
+      "causes",
+      "has_status",
+      "reports"
+    ],
+    "temporal_terms": [
+      "story_time",
+      "validity_time",
+      "discourse_position",
+      "revelation_position",
+      "spoiler_horizon"
+    ],
+    "epistemic_terms": [
+      "known",
+      "believed",
+      "reported",
+      "denied",
+      "uncertain"
+    ],
+    "revision": "phase1-upper-v1"
+  },
+  "budgets": {
+    "node_budget": 20,
+    "assertion_budget": 20,
+    "display_node_budget": 15,
+    "display_assertion_budget": 15,
+    "repair_attempt_budget": 1
+  },
+  "capabilities": {
+    "create_entities": true,
+    "merge_split": true,
+    "create_schema_predicates": true,
+    "reify_events": true,
+    "change_abstraction": true,
+    "add_temporal_qualification": true,
+    "add_epistemic_qualification": true,
+    "select_existing": true,
+    "compress_existing": true,
+    "write_supported_descriptions": true
+  },
+  "runtime": {
+    "backend": "vllm_gpu",
+    "model_id": "Qwen/Qwen3-14B-AWQ",
+    "model_revision": "1a6fe1ecf891437a270cce11ad54d796c4f56ce0",
+    "tokenizer_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+    "runtime_version": "phase1-fixture-v1",
+    "prompt_hash": "940ac8f56f457f5a2051f8548eac52e7aa2a9c1d11da9a4c8391b368dc28d71a",
+    "output_schema_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+    "decoding_config_hash": "4444444444444444444444444444444444444444444444444444444444444444"
+  },
+  "requested_at": "2026-09-03T12:00:01Z"
+}

@@ -36,6 +36,12 @@ dev = [
   "pytest-cov>=6,<8",
   "ruff>=0.9,<1",
 ]
+gpu = [
+  # vLLM 0.10.2 matches the pod image's immutable torch 2.8.0/CUDA 12.8
+  # stack. The environment installer must reuse those base packages.
+  "transformers==4.55.2",
+  "vllm==0.10.2",
+]
 
 [project.scripts]
 story-projection-onto = "story_projection_onto.cli:main"
@@ -58,4 +64,3 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
-

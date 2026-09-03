@@ -1,0 +1,625 @@
+{
+  "$defs": {
+    "ArtifactHashReference": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Artifact Hash",
+          "type": "string"
+        },
+        "artifact_name": {
+          "maxLength": 192,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+          "title": "Artifact Name",
+          "type": "string"
+        },
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "release_class": {
+          "$ref": "#/$defs/ReleaseClass"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifact_name",
+        "artifact_hash",
+        "release_class"
+      ],
+      "title": "ArtifactHashReference",
+      "type": "object"
+    },
+    "ConditionName": {
+      "enum": [
+        "C0",
+        "C1",
+        "C2",
+        "A-FixedSelect",
+        "A-NoContext",
+        "A-NoTemporalEpistemic",
+        "A-NoRareGuard"
+      ],
+      "title": "ConditionName",
+      "type": "string"
+    },
+    "ExplicitValueState": {
+      "enum": [
+        "known",
+        "unknown",
+        "not_applicable",
+        "horizon_withheld",
+        "invalid"
+      ],
+      "title": "ExplicitValueState",
+      "type": "string"
+    },
+    "FailureLineage": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "diagnostic_blob_hash": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Diagnostic Blob Hash"
+        },
+        "failed_at": {
+          "format": "date-time",
+          "title": "Failed At",
+          "type": "string"
+        },
+        "failure_code": {
+          "maxLength": 192,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+          "title": "Failure Code",
+          "type": "string"
+        },
+        "failure_id": {
+          "maxLength": 192,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+          "title": "Failure Id",
+          "type": "string"
+        },
+        "parent_attempt_manifest_hash": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent Attempt Manifest Hash"
+        },
+        "public_summary": {
+          "minLength": 1,
+          "title": "Public Summary",
+          "type": "string"
+        },
+        "retry_class": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RetryClass"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "failure_id",
+        "failure_code",
+        "public_summary",
+        "failed_at"
+      ],
+      "title": "FailureLineage",
+      "type": "object"
+    },
+    "ReleaseClass": {
+      "enum": [
+        "public",
+        "restricted"
+      ],
+      "title": "ReleaseClass",
+      "type": "string"
+    },
+    "RetryClass": {
+      "enum": [
+        "long",
+        "standard",
+        "short"
+      ],
+      "title": "RetryClass",
+      "type": "string"
+    },
+    "RunOutcome": {
+      "enum": [
+        "planned",
+        "running",
+        "succeeded",
+        "invalid",
+        "failed",
+        "timed_out",
+        "interrupted"
+      ],
+      "title": "RunOutcome",
+      "type": "string"
+    },
+    "RunResourceUsage": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "cpu_worker_threads": {
+          "exclusiveMinimum": 0,
+          "title": "Cpu Worker Threads",
+          "type": "integer"
+        },
+        "final_project_storage_bytes": {
+          "minimum": 0,
+          "title": "Final Project Storage Bytes",
+          "type": "integer"
+        },
+        "minimum_free_storage_bytes": {
+          "minimum": 0,
+          "title": "Minimum Free Storage Bytes",
+          "type": "integer"
+        },
+        "peak_gpu_vram_bytes": {
+          "minimum": 0,
+          "title": "Peak Gpu Vram Bytes",
+          "type": "integer"
+        },
+        "peak_process_ram_bytes": {
+          "minimum": 0,
+          "title": "Peak Process Ram Bytes",
+          "type": "integer"
+        },
+        "peak_project_storage_bytes": {
+          "minimum": 0,
+          "title": "Peak Project Storage Bytes",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "peak_gpu_vram_bytes",
+        "peak_process_ram_bytes",
+        "peak_project_storage_bytes",
+        "final_project_storage_bytes",
+        "minimum_free_storage_bytes",
+        "cpu_worker_threads"
+      ],
+      "title": "RunResourceUsage",
+      "type": "object"
+    },
+    "RunTiming": {
+      "additionalProperties": false,
+      "properties": {
+        "allocated_gpu_seconds": {
+          "minimum": 0.0,
+          "title": "Allocated Gpu Seconds",
+          "type": "number"
+        },
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "ended_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ended At"
+        },
+        "failed_request_seconds": {
+          "default": 0.0,
+          "minimum": 0.0,
+          "title": "Failed Request Seconds",
+          "type": "number"
+        },
+        "inference_seconds": {
+          "default": 0.0,
+          "minimum": 0.0,
+          "title": "Inference Seconds",
+          "type": "number"
+        },
+        "model_loading_seconds": {
+          "default": 0.0,
+          "minimum": 0.0,
+          "title": "Model Loading Seconds",
+          "type": "number"
+        },
+        "repair_seconds": {
+          "default": 0.0,
+          "minimum": 0.0,
+          "title": "Repair Seconds",
+          "type": "number"
+        },
+        "restart_seconds": {
+          "default": 0.0,
+          "minimum": 0.0,
+          "title": "Restart Seconds",
+          "type": "number"
+        },
+        "runpod_session_wall_seconds": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Runpod Session Wall Seconds"
+        },
+        "schema_probe_seconds": {
+          "default": 0.0,
+          "minimum": 0.0,
+          "title": "Schema Probe Seconds",
+          "type": "number"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "started_at": {
+          "format": "date-time",
+          "title": "Started At",
+          "type": "string"
+        },
+        "warmup_seconds": {
+          "default": 0.0,
+          "minimum": 0.0,
+          "title": "Warmup Seconds",
+          "type": "number"
+        }
+      },
+      "required": [
+        "started_at",
+        "allocated_gpu_seconds"
+      ],
+      "title": "RunTiming",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "attempt_number": {
+      "default": 1,
+      "exclusiveMinimum": 0,
+      "title": "Attempt Number",
+      "type": "integer"
+    },
+    "awq_config_hash": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Awq Config Hash"
+    },
+    "chat_template_hash": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Chat Template Hash"
+    },
+    "code_revision": {
+      "pattern": "^[0-9a-f]{40}$",
+      "title": "Code Revision",
+      "type": "string"
+    },
+    "condition": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ConditionName"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "config_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Config Hash",
+      "type": "string"
+    },
+    "content_hash": {
+      "default": "",
+      "pattern": "^(?:|[0-9a-f]{64})$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "dirty_patch_hash": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Dirty Patch Hash"
+    },
+    "dirty_worktree": {
+      "title": "Dirty Worktree",
+      "type": "boolean"
+    },
+    "environment_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Environment Hash",
+      "type": "string"
+    },
+    "failure_lineage": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FailureLineage"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "input_artifacts": {
+      "items": {
+        "$ref": "#/$defs/ArtifactHashReference"
+      },
+      "title": "Input Artifacts",
+      "type": "array"
+    },
+    "manifest_id": {
+      "maxLength": 192,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+      "title": "Manifest Id",
+      "type": "string"
+    },
+    "model_file_manifest_hash": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Model File Manifest Hash"
+    },
+    "model_id": {
+      "anyOf": [
+        {
+          "maxLength": 192,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Model Id"
+    },
+    "model_revision": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Model Revision"
+    },
+    "model_stack_reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Model Stack Reason"
+    },
+    "model_stack_status": {
+      "$ref": "#/$defs/ExplicitValueState"
+    },
+    "outcome": {
+      "$ref": "#/$defs/RunOutcome"
+    },
+    "output_artifacts": {
+      "items": {
+        "$ref": "#/$defs/ArtifactHashReference"
+      },
+      "title": "Output Artifacts",
+      "type": "array"
+    },
+    "parent_manifest_hashes": {
+      "default": [],
+      "items": {
+        "pattern": "^[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "title": "Parent Manifest Hashes",
+      "type": "array"
+    },
+    "prompt_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Prompt Hash",
+      "type": "string"
+    },
+    "release_class": {
+      "$ref": "#/$defs/ReleaseClass"
+    },
+    "resources": {
+      "$ref": "#/$defs/RunResourceUsage"
+    },
+    "retry_of_manifest_hash": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Retry Of Manifest Hash"
+    },
+    "run_role": {
+      "minLength": 1,
+      "title": "Run Role",
+      "type": "string"
+    },
+    "runtime_hash": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Runtime Hash"
+    },
+    "schema_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Schema Hash",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1.0.0",
+      "default": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "seed": {
+      "minimum": 0,
+      "title": "Seed",
+      "type": "integer"
+    },
+    "seed_manifest_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Seed Manifest Hash",
+      "type": "string"
+    },
+    "timing": {
+      "$ref": "#/$defs/RunTiming"
+    },
+    "tokenizer_hash": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Tokenizer Hash"
+    }
+  },
+  "required": [
+    "manifest_id",
+    "run_role",
+    "code_revision",
+    "dirty_worktree",
+    "environment_hash",
+    "model_stack_status",
+    "prompt_hash",
+    "schema_hash",
+    "config_hash",
+    "seed",
+    "seed_manifest_hash",
+    "input_artifacts",
+    "output_artifacts",
+    "timing",
+    "resources",
+    "release_class",
+    "outcome"
+  ],
+  "title": "RunManifest",
+  "type": "object"
+}

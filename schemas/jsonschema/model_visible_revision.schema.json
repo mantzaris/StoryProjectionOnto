@@ -1,0 +1,528 @@
+{
+  "$defs": {
+    "AllenRelation": {
+      "enum": [
+        "before",
+        "after",
+        "meets",
+        "met_by",
+        "overlaps",
+        "overlapped_by",
+        "starts",
+        "started_by",
+        "during",
+        "contains",
+        "finishes",
+        "finished_by",
+        "equals"
+      ],
+      "title": "AllenRelation",
+      "type": "string"
+    },
+    "ConditionName": {
+      "enum": [
+        "C0",
+        "C1",
+        "C2",
+        "A-FixedSelect",
+        "A-NoContext",
+        "A-NoTemporalEpistemic",
+        "A-NoRareGuard"
+      ],
+      "title": "ConditionName",
+      "type": "string"
+    },
+    "FeedbackAction": {
+      "enum": [
+        "REFINE_CONTEXT",
+        "REQUEST_MERGE_SPLIT"
+      ],
+      "title": "FeedbackAction",
+      "type": "string"
+    },
+    "FeedbackAnchor": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "maxLength": 192,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "mention_candidate_ids": {
+          "items": {
+            "maxLength": 192,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+            "type": "string"
+          },
+          "title": "Mention Candidate Ids",
+          "type": "array"
+        },
+        "requested_semantic_signature": {
+          "minLength": 1,
+          "title": "Requested Semantic Signature",
+          "type": "string"
+        },
+        "role_constraint": {
+          "anyOf": [
+            {
+              "maxLength": 192,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Role Constraint"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "time_constraint": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StoryTime"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "evidence_ids",
+        "mention_candidate_ids",
+        "requested_semantic_signature"
+      ],
+      "title": "FeedbackAnchor",
+      "type": "object"
+    },
+    "FeedbackResolution": {
+      "additionalProperties": false,
+      "properties": {
+        "after_projection_hash": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "After Projection Hash"
+        },
+        "after_projection_id": {
+          "anyOf": [
+            {
+              "maxLength": 192,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "After Projection Id"
+        },
+        "before_projection_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Before Projection Hash",
+          "type": "string"
+        },
+        "before_projection_id": {
+          "maxLength": 192,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+          "title": "Before Projection Id",
+          "type": "string"
+        },
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "receiving_condition": {
+          "$ref": "#/$defs/ConditionName"
+        },
+        "resolution_id": {
+          "maxLength": 192,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+          "title": "Resolution Id",
+          "type": "string"
+        },
+        "resolved_at": {
+          "format": "date-time",
+          "title": "Resolved At",
+          "type": "string"
+        },
+        "resolved_object_ids": {
+          "items": {
+            "maxLength": 192,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+            "type": "string"
+          },
+          "title": "Resolved Object Ids",
+          "type": "array"
+        },
+        "resolver_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Resolver Hash",
+          "type": "string"
+        },
+        "revision_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Revision Hash",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "seed": {
+          "minimum": 0,
+          "title": "Seed",
+          "type": "integer"
+        },
+        "status": {
+          "$ref": "#/$defs/FeedbackResolutionStatus"
+        }
+      },
+      "required": [
+        "resolution_id",
+        "revision_hash",
+        "receiving_condition",
+        "resolved_object_ids",
+        "status",
+        "before_projection_id",
+        "before_projection_hash",
+        "resolver_hash",
+        "seed",
+        "resolved_at"
+      ],
+      "title": "FeedbackResolution",
+      "type": "object"
+    },
+    "FeedbackResolutionStatus": {
+      "enum": [
+        "resolved",
+        "capability_limited",
+        "invalid"
+      ],
+      "title": "FeedbackResolutionStatus",
+      "type": "string"
+    },
+    "PartialOrderConstraint": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "left_id": {
+          "maxLength": 192,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+          "title": "Left Id",
+          "type": "string"
+        },
+        "relation": {
+          "$ref": "#/$defs/AllenRelation"
+        },
+        "right_id": {
+          "maxLength": 192,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+          "title": "Right Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "left_id",
+        "relation",
+        "right_id"
+      ],
+      "title": "PartialOrderConstraint",
+      "type": "object"
+    },
+    "StoryTime": {
+      "additionalProperties": false,
+      "description": "Time at which an event occurs in the story world.",
+      "properties": {
+        "anchor_id": {
+          "anyOf": [
+            {
+              "maxLength": 192,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Anchor Id"
+        },
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "end": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End"
+        },
+        "kind": {
+          "$ref": "#/$defs/TemporalKind"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "partial_order": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PartialOrderConstraint"
+          },
+          "title": "Partial Order",
+          "type": "array"
+        },
+        "point": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Point"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "relation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AllenRelation"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "start": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Start"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "StoryTime",
+      "type": "object"
+    },
+    "TemporalKind": {
+      "enum": [
+        "point",
+        "interval",
+        "relative",
+        "partial_order",
+        "unknown",
+        "not_applicable",
+        "horizon_withheld",
+        "invalid"
+      ],
+      "title": "TemporalKind",
+      "type": "string"
+    },
+    "UserRevision": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "$ref": "#/$defs/FeedbackAction"
+        },
+        "after_context_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "After Context Hash",
+          "type": "string"
+        },
+        "anchors": {
+          "items": {
+            "$ref": "#/$defs/FeedbackAnchor"
+          },
+          "title": "Anchors",
+          "type": "array"
+        },
+        "before_context_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Before Context Hash",
+          "type": "string"
+        },
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "rationale": {
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "requested_change": {
+          "minLength": 1,
+          "title": "Requested Change",
+          "type": "string"
+        },
+        "revision_id": {
+          "maxLength": 192,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+          "title": "Revision Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "sequence": {
+          "exclusiveMinimum": 0,
+          "title": "Sequence",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "revision_id",
+        "action",
+        "anchors",
+        "requested_change",
+        "rationale",
+        "sequence",
+        "before_context_hash",
+        "after_context_hash",
+        "created_at"
+      ],
+      "title": "UserRevision",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "content_hash": {
+      "default": "",
+      "pattern": "^(?:|[0-9a-f]{64})$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "own_resolution": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FeedbackResolution"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "revision": {
+      "$ref": "#/$defs/UserRevision"
+    },
+    "schema_version": {
+      "const": "1.0.0",
+      "default": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "revision"
+  ],
+  "title": "ModelVisibleRevision",
+  "type": "object"
+}

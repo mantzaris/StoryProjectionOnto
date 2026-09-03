@@ -1,0 +1,60 @@
+[
+  {
+    "condition": "C1",
+    "tokenizer_revision": "tokenizer@immutable-phase1-revision",
+    "maximum_model_tokens": 12288,
+    "maximum_input_tokens": 10240,
+    "reserved_output_tokens": 2048,
+    "input_token_count": 2080,
+    "sections": [
+      {"name": "system_prompt", "section_content_hash": "d6091ab01236e9e4c1164cf94f53ee4a9292dc1c4d482bdf18d0a40640c5fbe8", "token_count": 330},
+      {"name": "output_schema", "section_content_hash": "3333333333333333333333333333333333333333333333333333333333333333", "token_count": 640},
+      {"name": "upper_ontology", "section_content_hash": "7777777777777777777777777777777777777777777777777777777777777777", "token_count": 110},
+      {"name": "evidence_snapshot", "section_content_hash": "1111111111111111111111111111111111111111111111111111111111111111", "token_count": 1000}
+    ],
+    "required_section_names": ["system_prompt", "output_schema", "upper_ontology", "evidence_snapshot"],
+    "complete_evidence_snapshot": true,
+    "truncation_applied": false,
+    "omitted_section_names": []
+  },
+  {
+    "condition": "C2",
+    "tokenizer_revision": "tokenizer@immutable-phase1-revision",
+    "maximum_model_tokens": 12288,
+    "maximum_input_tokens": 10240,
+    "reserved_output_tokens": 2048,
+    "input_token_count": 2330,
+    "sections": [
+      {"name": "system_prompt", "section_content_hash": "940ac8f56f457f5a2051f8548eac52e7aa2a9c1d11da9a4c8391b368dc28d71a", "token_count": 500},
+      {"name": "output_schema", "section_content_hash": "3333333333333333333333333333333333333333333333333333333333333333", "token_count": 640},
+      {"name": "upper_ontology", "section_content_hash": "7777777777777777777777777777777777777777777777777777777777777777", "token_count": 110},
+      {"name": "query_context", "section_content_hash": "8888888888888888888888888888888888888888888888888888888888888888", "token_count": 180},
+      {"name": "evidence_packet", "section_content_hash": "5555555555555555555555555555555555555555555555555555555555555555", "token_count": 900}
+    ],
+    "required_section_names": ["system_prompt", "output_schema", "upper_ontology", "query_context", "evidence_packet"],
+    "complete_evidence_packet": true,
+    "truncation_applied": false,
+    "omitted_section_names": []
+  },
+  {
+    "condition": "A-FixedSelect",
+    "tokenizer_revision": "tokenizer@immutable-phase1-revision",
+    "maximum_model_tokens": 12288,
+    "maximum_input_tokens": 10240,
+    "reserved_output_tokens": 2048,
+    "input_token_count": 3910,
+    "sections": [
+      {"name": "system_prompt", "section_content_hash": "9b71fe11c3ce74908b11214d2623f5b6a28b1f475e557739b3e0569faef6a018", "token_count": 400},
+      {"name": "output_schema", "section_content_hash": "3333333333333333333333333333333333333333333333333333333333333333", "token_count": 640},
+      {"name": "upper_ontology", "section_content_hash": "7777777777777777777777777777777777777777777777777777777777777777", "token_count": 110},
+      {"name": "query_context", "section_content_hash": "8888888888888888888888888888888888888888888888888888888888888888", "token_count": 180},
+      {"name": "evidence_packet", "section_content_hash": "5555555555555555555555555555555555555555555555555555555555555555", "token_count": 900},
+      {"name": "sealed_ontology", "section_content_hash": "6666666666666666666666666666666666666666666666666666666666666666", "token_count": 1680}
+    ],
+    "required_section_names": ["system_prompt", "output_schema", "upper_ontology", "query_context", "evidence_packet", "sealed_ontology"],
+    "complete_evidence_packet": true,
+    "complete_sealed_ontology": true,
+    "truncation_applied": false,
+    "omitted_section_names": []
+  }
+]
