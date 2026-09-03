@@ -1009,6 +1009,22 @@ class ConstructionCapabilities(ImmutableRecord):
     write_supported_descriptions: bool = True
 
     @classmethod
+    def prequery_construction(cls) -> ConstructionCapabilities:
+        """Comprehensive construction without query-time selection or compression."""
+
+        return cls(
+            create_entities=True,
+            merge_split=True,
+            create_schema_predicates=True,
+            reify_events=True,
+            change_abstraction=True,
+            add_temporal_qualification=True,
+            add_epistemic_qualification=True,
+            select_existing=False,
+            compress_existing=False,
+        )
+
+    @classmethod
     def active_construction(cls) -> ConstructionCapabilities:
         return cls(
             create_entities=True,
@@ -1532,7 +1548,7 @@ class PreconstructionRequest(ImmutableRecord):
 
     @model_validator(mode="after")
     def preconstruction_has_active_capabilities(self) -> Self:
-        if self.capabilities != ConstructionCapabilities.active_construction():
+        if self.capabilities != ConstructionCapabilities.prequery_construction():
             raise ValueError("C1 preconstruction requires the complete construction capability set")
         return self
 

@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0.0",
+  "config_id": "c0-rules-v1",
+  "backend": "spacy-plus-deterministic-rules-v1",
+  "query_blind": true,
+  "alias_suffix_merge": true,
+  "local_pronoun_coreference": true,
+  "event_triggers": [
+    "arrived",
+    "attacked",
+    "betrayed",
+    "closed",
+    "departed",
+    "died",
+    "fled",
+    "joined",
+    "left",
+    "met",
+    "opened",
+    "reported",
+    "rescued",
+    "revealed",
+    "warned"
+  ],
+  "fixed_query_time_weights": {
+    "lexical_context": 1.0,
+    "time_compatibility": 0.2,
+    "confidence_support": 0.1,
+    "low_frequency_support": 0.12,
+    "typed_path_continuity": 0.15
+  },
+  "frozen_on": "development_only_before_held_out_reveal",
+  "prohibited_query_time_operations": [
+    "create_entity",
+    "merge_split",
+    "create_schema_or_predicate",
+    "event_reification",
+    "abstraction_change",
+    "temporal_or_epistemic_qualification"
+  ]
+}

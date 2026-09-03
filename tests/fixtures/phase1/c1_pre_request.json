@@ -405,8 +405,8 @@
     "change_abstraction": true,
     "add_temporal_qualification": true,
     "add_epistemic_qualification": true,
-    "select_existing": true,
-    "compress_existing": true,
+    "select_existing": false,
+    "compress_existing": false,
     "write_supported_descriptions": true
   },
   "runtime": {
