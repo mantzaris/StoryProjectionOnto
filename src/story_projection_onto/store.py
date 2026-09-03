@@ -32,7 +32,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, ClassVar
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 DECIMAL_GIGABYTE = 1_000_000_000
 DEFAULT_TOTAL_ALLOCATION_BYTES = 30 * DECIMAL_GIGABYTE
 DEFAULT_MAX_OCCUPIED_BYTES = 25 * DECIMAL_GIGABYTE
@@ -156,6 +156,9 @@ class GpuEventKind(enum.StrEnum):
     RESTART = "restart"
     FALLBACK_TEST = "fallback_test"
     RERUN = "rerun"
+    # Durable complement of classified events within a live model-service
+    # session. Stored in gpu_service_sessions, never as an enclosing event.
+    SERVICE_OVERHEAD = "service_overhead"
 
 
 class InputKind(enum.StrEnum):
@@ -312,10 +315,33 @@ class GpuEvent:
 
 
 @dataclass(frozen=True)
+class GpuServiceSession:
+    """Durable, non-double-counting reconciliation of one live GPU service."""
+
+    service_session_id: str
+    session_id: str
+    service_microseconds: int
+    classified_event_microseconds: int
+    overhead_microseconds: int
+    started_at: str
+    ended_at: str
+    details_json: str
+
+    @property
+    def service_seconds(self) -> float:
+        return self.service_microseconds / 1_000_000
+
+    @property
+    def overhead_seconds(self) -> float:
+        return self.overhead_microseconds / 1_000_000
+
+
+@dataclass(frozen=True)
 class GpuSummary:
     total_allocated_microseconds: int
     event_count: int
     by_kind_microseconds: tuple[tuple[GpuEventKind, int], ...]
+    service_session_count: int = 0
 
     @property
     def total_allocated_seconds(self) -> float:
@@ -827,6 +853,7 @@ class Ledger:
         "inputs",
         "evidence_snapshots",
         "gpu_events",
+        "gpu_service_sessions",
         "model_calls",
         "validations",
         "projections",
@@ -975,6 +1002,21 @@ class Ledger:
             job_id TEXT REFERENCES jobs(job_id),
             attempt_id TEXT REFERENCES attempts(attempt_id),
             details_json TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS gpu_service_sessions (
+            service_session_id TEXT PRIMARY KEY,
+            session_id TEXT NOT NULL,
+            service_microseconds INTEGER NOT NULL CHECK (service_microseconds >= 0),
+            classified_event_microseconds INTEGER NOT NULL
+                CHECK (classified_event_microseconds >= 0),
+            overhead_microseconds INTEGER NOT NULL CHECK (overhead_microseconds >= 0),
+            started_at TEXT NOT NULL,
+            ended_at TEXT NOT NULL,
+            details_json TEXT NOT NULL,
+            CHECK (service_microseconds >= classified_event_microseconds),
+            CHECK (
+                overhead_microseconds = service_microseconds - classified_event_microseconds
+            )
         );
         CREATE TABLE IF NOT EXISTS storage_samples (
             sample_id TEXT PRIMARY KEY,
@@ -2590,6 +2632,10 @@ class Ledger:
         if not event_id:
             raise ValueError("event_id must be nonempty")
         kind = GpuEventKind(event_kind)
+        if kind is GpuEventKind.SERVICE_OVERHEAD:
+            raise ValueError(
+                "service_overhead is session-derived; use record_gpu_service_session"
+            )
         micros = _seconds_to_microseconds(allocated_seconds)
         start = _normalise_timestamp(started_at)
         end = _normalise_timestamp(ended_at)
@@ -2680,16 +2726,126 @@ class Ledger:
             details_json=row["details_json"],
         )
 
+    def record_gpu_service_session(
+        self,
+        *,
+        service_session_id: str,
+        session_id: str,
+        service_seconds: Any,
+        classified_event_seconds: Any,
+        started_at: Any,
+        ended_at: Any,
+        details: Mapping[str, Any] | None = None,
+    ) -> GpuServiceSession:
+        """Persist only the unclassified complement of a service session.
+
+        Classified load/inference/repair/etc. intervals already live in
+        ``gpu_events``. The session row stores the complete service duration and
+        its classified subtotal, while :meth:`gpu_summary` adds only their
+        difference. Thus allocation between calls survives controller restarts
+        without recording an overlapping enclosing GPU event.
+        """
+
+        if not service_session_id or not session_id:
+            raise ValueError("GPU service session identifiers must be nonempty")
+        service_micros = _seconds_to_microseconds(service_seconds)
+        classified_micros = _seconds_to_microseconds(classified_event_seconds)
+        # Each classified interval and the encompassing monotonic service duration
+        # are rounded independently to integer microseconds.  A valid set of
+        # nested intervals can therefore exceed the rounded service total by a
+        # few microseconds. Never lose already-accounted work or fail shutdown:
+        # conservatively promote the durable service total to that subtotal.
+        service_micros = max(service_micros, classified_micros)
+        overhead_micros = service_micros - classified_micros
+        start = _normalise_timestamp(started_at)
+        end = _normalise_timestamp(ended_at)
+        if _parse_timestamp(end) < _parse_timestamp(start):
+            raise ValueError("GPU service session end precedes its start")
+        details_json = canonical_json(details or {})
+        values = (
+            session_id,
+            service_micros,
+            classified_micros,
+            overhead_micros,
+            start,
+            end,
+            details_json,
+        )
+        existing = self._connection.execute(
+            "SELECT * FROM gpu_service_sessions WHERE service_session_id = ?",
+            (service_session_id,),
+        ).fetchone()
+        if existing is not None:
+            actual = tuple(
+                existing[key]
+                for key in (
+                    "session_id",
+                    "service_microseconds",
+                    "classified_event_microseconds",
+                    "overhead_microseconds",
+                    "started_at",
+                    "ended_at",
+                    "details_json",
+                )
+            )
+            if actual != values:
+                raise DuplicateConflictError(
+                    "GPU service_session_id was reused with different content"
+                )
+            return self._gpu_service_session_from_row(existing)
+        with self._transaction() as cursor:
+            cursor.execute(
+                "INSERT INTO gpu_service_sessions VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (service_session_id, *values),
+            )
+        return GpuServiceSession(
+            service_session_id=service_session_id,
+            session_id=session_id,
+            service_microseconds=service_micros,
+            classified_event_microseconds=classified_micros,
+            overhead_microseconds=overhead_micros,
+            started_at=start,
+            ended_at=end,
+            details_json=details_json,
+        )
+
+    @staticmethod
+    def _gpu_service_session_from_row(row: sqlite3.Row) -> GpuServiceSession:
+        return GpuServiceSession(
+            service_session_id=row["service_session_id"],
+            session_id=row["session_id"],
+            service_microseconds=row["service_microseconds"],
+            classified_event_microseconds=row["classified_event_microseconds"],
+            overhead_microseconds=row["overhead_microseconds"],
+            started_at=row["started_at"],
+            ended_at=row["ended_at"],
+            details_json=row["details_json"],
+        )
+
     def gpu_summary(self) -> GpuSummary:
         rows = self._connection.execute(
             """SELECT event_kind, SUM(allocated_microseconds) AS total, COUNT(*) AS count
                FROM gpu_events GROUP BY event_kind ORDER BY event_kind"""
         ).fetchall()
-        by_kind = tuple((GpuEventKind(row["event_kind"]), int(row["total"])) for row in rows)
+        by_kind_values = {
+            GpuEventKind(row["event_kind"]): int(row["total"])
+            for row in rows
+        }
+        service_row = self._connection.execute(
+            """SELECT COALESCE(SUM(overhead_microseconds), 0) AS total, COUNT(*) AS count
+               FROM gpu_service_sessions"""
+        ).fetchone()
+        service_overhead = int(service_row["total"])
+        if service_overhead:
+            by_kind_values[GpuEventKind.SERVICE_OVERHEAD] = (
+                by_kind_values.get(GpuEventKind.SERVICE_OVERHEAD, 0) + service_overhead
+            )
+        by_kind = tuple(sorted(by_kind_values.items(), key=lambda item: item[0].value))
         return GpuSummary(
             total_allocated_microseconds=sum(value for _, value in by_kind),
             event_count=sum(int(row["count"]) for row in rows),
             by_kind_microseconds=by_kind,
+            service_session_count=int(service_row["count"]),
         )
 
     def require_gpu_capacity(
@@ -2934,6 +3090,7 @@ __all__ = [
     "GpuBudgetExceeded",
     "GpuEvent",
     "GpuEventKind",
+    "GpuServiceSession",
     "GpuSummary",
     "InputKind",
     "InputRecord",

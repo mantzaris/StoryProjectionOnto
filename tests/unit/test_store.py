@@ -395,6 +395,44 @@ def test_gpu_accounting_counts_load_failure_and_restart_and_is_monotonic(
         ledger.require_gpu_capacity(2.75, hard_limit_seconds=10)
 
 
+def test_gpu_service_reconciliation_absorbs_only_microsecond_rounding(
+    ledger: Ledger,
+) -> None:
+    for event_id in ("rounded-a", "rounded-b"):
+        ledger.record_gpu_event(
+            event_id=event_id,
+            event_kind=GpuEventKind.INFERENCE,
+            allocated_seconds=0.0000005,
+            started_at=T0,
+            ended_at=T0,
+            succeeded=True,
+        )
+    assert ledger.gpu_summary().total_allocated_microseconds == 2
+
+    session = ledger.record_gpu_service_session(
+        service_session_id="rounded-session",
+        session_id="rounding-regression",
+        service_seconds=0.0000014,
+        classified_event_seconds=0.000002,
+        started_at=T0,
+        ended_at=T0,
+    )
+    assert session.service_microseconds == 2
+    assert session.classified_event_microseconds == 2
+    assert session.overhead_microseconds == 0
+    assert ledger.gpu_summary().total_allocated_microseconds == 2
+
+    with pytest.raises(ValueError, match="session-derived"):
+        ledger.record_gpu_event(
+            event_id="forbidden-synthetic-overhead",
+            event_kind=GpuEventKind.SERVICE_OVERHEAD,
+            allocated_seconds=1,
+            started_at=T0,
+            ended_at=T1,
+            succeeded=True,
+        )
+
+
 def test_storage_preflight_enforces_25gb_occupied_and_5gb_headroom(
     tmp_path: Path, ledger: Ledger
 ) -> None:
@@ -730,10 +768,10 @@ def test_phase_one_metadata_families_are_typed_deduplicated_and_append_only(
     assert canary not in database.read_bytes()
 
 
-def test_v1_ledger_migrates_additively_without_rewriting_existing_rows(
+def test_v2_ledger_migrates_additively_without_rewriting_existing_rows(
     tmp_path: Path,
 ) -> None:
-    database = tmp_path / "v1-ledger.sqlite3"
+    database = tmp_path / "v2-ledger.sqlite3"
     legacy = sqlite3.connect(str(database))
     try:
         legacy.executescript(
@@ -765,6 +803,10 @@ def test_v1_ledger_migrates_additively_without_rewriting_existing_rows(
             ("2026-09-03T11:59:00.000000Z",),
         )
         legacy.execute(
+            "INSERT INTO schema_metadata VALUES (2, ?)",
+            ("2026-09-03T11:59:30.000000Z",),
+        )
+        legacy.execute(
             "INSERT INTO jobs VALUES (?, ?, ?, ?, ?)",
             (HASH_A, HASH_A, '{"legacy":true}', "public", T0),
         )
@@ -777,13 +819,14 @@ def test_v1_ledger_migrates_additively_without_rewriting_existing_rows(
         legacy.close()
 
     with Ledger(database) as migrated:
-        assert migrated.schema_versions() == (1, 2)
+        assert migrated.schema_versions() == (1, 2, 3)
         assert migrated.get_job(HASH_A).state is JobState.PLANNED
         expected_new_tables = {
             "studies",
             "study_jobs",
             "inputs",
             "evidence_snapshots",
+            "gpu_service_sessions",
             "model_calls",
             "validations",
             "projections",

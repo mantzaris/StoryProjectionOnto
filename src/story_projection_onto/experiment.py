@@ -21,7 +21,13 @@ from pathlib import Path
 from types import MappingProxyType, TracebackType
 from typing import Any, Self
 
-from story_projection_onto.store import GpuBudgetExceeded, GpuEvent, GpuEventKind, Ledger
+from story_projection_onto.store import (
+    GpuBudgetExceeded,
+    GpuEvent,
+    GpuEventKind,
+    GpuServiceSession,
+    Ledger,
+)
 
 REGISTERED_INFERENCE_ATTEMPTS = 278
 REGISTERED_SESSION_STARTS = 8
@@ -1017,6 +1023,42 @@ class AllocatedGPUMeter:
                 f"exceeds the scheduled {self.scheduled_limit_seconds:.6f}s envelope"
             )
 
+    def reconcile_service_session(
+        self,
+        *,
+        service_session_id: str,
+        session_id: str,
+        service_seconds: float,
+        classified_event_seconds: float,
+        started_at: datetime,
+        ended_at: datetime,
+        details: Mapping[str, object] | None = None,
+    ) -> GpuServiceSession:
+        """Durably add only service time not already represented by GPU events."""
+
+        record = self.ledger.record_gpu_service_session(
+            service_session_id=service_session_id,
+            session_id=session_id,
+            service_seconds=_nonnegative_finite("service_seconds", service_seconds),
+            classified_event_seconds=_nonnegative_finite(
+                "classified_event_seconds", classified_event_seconds
+            ),
+            started_at=started_at,
+            ended_at=ended_at,
+            details=details,
+        )
+        current = self.ledger.gpu_summary().total_allocated_seconds
+        if current + 1e-9 < self._last_observed_seconds:
+            raise GpuAccountingRegression(
+                "GPU ledger total decreased after service-session reconciliation"
+            )
+        self._last_observed_seconds = current
+        if current >= self.hard_limit_seconds:
+            raise GpuBudgetExceeded(
+                "actual allocated GPU time reached/crossed the strict hard-stop boundary"
+            )
+        return record
+
     def allocation(
         self,
         *,
@@ -1032,10 +1074,15 @@ class AllocatedGPUMeter:
     ) -> _AllocationContext:
         if not event_id:
             raise ValueError("event_id must be nonempty")
+        normalized_kind = GpuEventKind(event_kind)
+        if normalized_kind is GpuEventKind.SERVICE_OVERHEAD:
+            raise ValueError(
+                "service_overhead is session-derived; use reconcile_service_session"
+            )
         return _AllocationContext(
             self,
             event_id=event_id,
-            event_kind=GpuEventKind(event_kind),
+            event_kind=normalized_kind,
             maximum_seconds=_nonnegative_finite("maximum_seconds", maximum_seconds),
             remaining_required_seconds=_nonnegative_finite(
                 "remaining_required_seconds", remaining_required_seconds
@@ -1108,6 +1155,10 @@ class AllocatedGPUMeter:
         attempt_id: str | None,
         details: Mapping[str, object],
     ) -> GpuEvent:
+        if event_kind is GpuEventKind.SERVICE_OVERHEAD:
+            raise ValueError(
+                "service_overhead is session-derived; use reconcile_service_session"
+            )
         event = self.ledger.record_gpu_event(
             event_id=event_id,
             event_kind=event_kind,
