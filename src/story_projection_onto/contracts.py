@@ -1358,6 +1358,17 @@ class GoldAssertionAnnotation(ImmutableRecord):
     is_pivotal: bool
     support_path_assertion_ids: tuple[Identifier, ...] = ()
 
+    @model_validator(mode="after")
+    def pivotal_path_is_normalized(self) -> Self:
+        if self.support_path_assertion_ids != tuple(dict.fromkeys(self.support_path_assertion_ids)):
+            raise ValueError("gold support-path assertion IDs must be unique and ordered")
+        if self.is_rare and self.is_pivotal:
+            if not self.support_path_assertion_ids:
+                raise ValueError("rare-pivotal assertions require a support path")
+            if self.assertion_id not in self.support_path_assertion_ids:
+                raise ValueError("rare-pivotal support paths must contain their assertion")
+        return self
+
 
 class GoldCommunityAssignment(ImmutableRecord):
     anchor_id: Identifier
@@ -1430,6 +1441,16 @@ class GoldContextualProjection(ImmutableRecord):
         if len(mention_ids) != len(set(mention_ids)):
             raise ValueError("a mention anchor cannot belong to two gold entity clusters")
 
+        event_ids = [event.event_id for event in self.events]
+        if len(event_ids) != len(set(event_ids)):
+            raise ValueError("gold event IDs must be unique")
+        if set(cluster_ids).intersection(event_ids):
+            raise ValueError("gold entity-cluster and event IDs must be disjoint")
+        node_target_kinds = {
+            **{item: GoldTargetKind.ENTITY_CLUSTER for item in cluster_ids},
+            **{item: GoldTargetKind.EVENT for item in event_ids},
+        }
+
         assertion_ids = [item.assertion_id for item in self.qualified_assertions]
         annotation_ids = [item.assertion_id for item in self.assertion_annotations]
         if len(assertion_ids) != len(set(assertion_ids)):
@@ -1439,12 +1460,59 @@ class GoldContextualProjection(ImmutableRecord):
         ):
             raise ValueError("every gold assertion requires exactly one rare/pivotal annotation")
 
+        assertion_id_set = set(assertion_ids)
+        for annotation in self.assertion_annotations:
+            unknown_path_ids = set(annotation.support_path_assertion_ids) - assertion_id_set
+            if unknown_path_ids:
+                raise ValueError(
+                    f"gold support paths reference unknown assertions: {sorted(unknown_path_ids)}"
+                )
+            if annotation.is_rare and annotation.is_pivotal:
+                if not annotation.support_path_assertion_ids:
+                    raise ValueError("rare-pivotal assertions require a support path")
+                if annotation.assertion_id not in annotation.support_path_assertion_ids:
+                    raise ValueError("rare-pivotal support paths must contain their assertion")
+
+        schema_predicate_ids = {item.predicate_id for item in self.local_schema.predicates}
+        known_node_ids = set(node_target_kinds)
+        for assertion in self.qualified_assertions:
+            if assertion.predicate_id not in schema_predicate_ids:
+                raise ValueError("gold assertions must use a predicate from the local schema")
+            referenced_nodes = {
+                item for item in (assertion.subject_id, assertion.object_id) if item is not None
+            }
+            referenced_nodes.update(role.object_id for role in assertion.roles)
+            if assertion.epistemic_scope is not None:
+                referenced_nodes.add(assertion.epistemic_scope.holder_id)
+            unknown_nodes = referenced_nodes - known_node_ids
+            if unknown_nodes:
+                raise ValueError(
+                    "gold assertions reference unknown entity/event targets: "
+                    f"{sorted(unknown_nodes)}"
+                )
+
         relevance_targets = [item.target_id for item in self.relevance]
         if len(relevance_targets) != len(set(relevance_targets)):
             raise ValueError("gold relevance targets must be unique")
+        known_target_kinds = {
+            **node_target_kinds,
+            **{item: GoldTargetKind.ASSERTION for item in assertion_ids},
+        }
+        for annotation in self.relevance:
+            expected_kind = known_target_kinds.get(annotation.target_id)
+            if expected_kind is None:
+                raise ValueError("gold relevance references an unknown target")
+            if annotation.target_kind is not expected_kind:
+                raise ValueError("gold relevance target kind disagrees with its target")
         community_anchors = [item.anchor_id for item in self.communities]
         if len(community_anchors) != len(set(community_anchors)):
             raise ValueError("gold community anchors must be unique")
+        unknown_community_anchors = set(community_anchors) - known_node_ids
+        if unknown_community_anchors:
+            raise ValueError(
+                "gold communities reference unknown entity/event targets: "
+                f"{sorted(unknown_community_anchors)}"
+            )
 
         reviewed = self.review_status in {
             GoldReviewStatus.REVIEWED,
@@ -1452,13 +1520,9 @@ class GoldContextualProjection(ImmutableRecord):
         }
         if reviewed != (self.independent_review_record_hash is not None):
             raise ValueError("completed independent review requires exactly one review record hash")
-        if (
-            self.adjudication_status is GoldAdjudicationStatus.ADJUDICATED
-            and self.adjudication_record_hash is None
-        ):
-            raise ValueError("adjudicated gold requires an adjudication record hash")
-        elif self.adjudication_record_hash is not None:
-            raise ValueError("non-adjudicated gold cannot carry an adjudication record hash")
+        adjudicated = self.adjudication_status is GoldAdjudicationStatus.ADJUDICATED
+        if adjudicated != (self.adjudication_record_hash is not None):
+            raise ValueError("adjudicated gold requires exactly one adjudication record hash")
         if (
             self.review_status is GoldReviewStatus.DISAGREEMENT_LOGGED
             and self.adjudication_status is GoldAdjudicationStatus.NOT_REQUIRED
@@ -1521,6 +1585,14 @@ class GoldAlternativeSet(ImmutableRecord):
     def alternative_set_is_nonempty(self) -> Self:
         if not self.permissible_projection_ids and not self.constraint_alternatives:
             raise ValueError("gold alternatives require a projection ID or constraints")
+        projection_ids = self.permissible_projection_ids
+        constraint_ids = tuple(item.alternative_id for item in self.constraint_alternatives)
+        if len(projection_ids) != len(set(projection_ids)):
+            raise ValueError("permissible projection IDs must be unique")
+        if len(constraint_ids) != len(set(constraint_ids)):
+            raise ValueError("constraint alternative IDs must be unique")
+        if set(projection_ids).intersection(constraint_ids):
+            raise ValueError("projection and constraint alternative IDs must be disjoint")
         return self
 
 

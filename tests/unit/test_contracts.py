@@ -509,6 +509,25 @@ def test_gold_projection_is_scorer_only_anchor_based_and_review_audited() -> Non
             }
         )
 
+    adjudicated = GoldContextualProjection(
+        **{
+            **gold.model_dump(mode="python", exclude={"content_hash"}),
+            "review_status": GoldReviewStatus.DISAGREEMENT_LOGGED,
+            "adjudication_status": GoldAdjudicationStatus.ADJUDICATED,
+            "independent_review_record_hash": digest("independent-review"),
+            "adjudication_record_hash": digest("adjudication"),
+        }
+    )
+    assert adjudicated.adjudication_record_hash == digest("adjudication")
+
+    with pytest.raises(ValidationError, match="exactly one adjudication"):
+        GoldContextualProjection(
+            **{
+                **adjudicated.model_dump(mode="python", exclude={"content_hash"}),
+                "adjudication_record_hash": None,
+            }
+        )
+
 
 def test_gold_rare_and_pivotal_labels_are_independent() -> None:
     rare_nonpivotal = GoldAssertionAnnotation(
@@ -523,6 +542,63 @@ def test_gold_rare_and_pivotal_labels_are_independent() -> None:
     )
     assert rare_nonpivotal.is_rare and not rare_nonpivotal.is_pivotal
     assert common_pivotal.is_pivotal and not common_pivotal.is_rare
+
+    with pytest.raises(ValidationError, match="require a support path"):
+        GoldAssertionAnnotation(
+            assertion_id="assertion-rare-pivotal",
+            is_rare=True,
+            is_pivotal=True,
+        )
+
+
+def test_gold_relevance_and_community_references_must_resolve() -> None:
+    base = GoldContextualProjection(
+        gold_projection_id="gold-projection-integrity",
+        split=BenchmarkSplit.DEVELOPMENT,
+        world_id="world-integrity",
+        query_id="query-integrity",
+        local_schema=local_schema(),
+        entity_partition=(
+            GoldEntityCluster(
+                cluster_id="cluster-mira",
+                mention_candidate_ids=("mention-mira-1",),
+            ),
+        ),
+        events=(),
+        qualified_assertions=(),
+        relevance=(),
+        assertion_annotations=(),
+        matcher_revision="matcher-v1",
+        review_status=GoldReviewStatus.NOT_SELECTED,
+        adjudication_status=GoldAdjudicationStatus.NOT_REQUIRED,
+        compiled_at=NOW,
+    )
+    with pytest.raises(ValidationError, match="unknown target"):
+        GoldContextualProjection(
+            **{
+                **base.model_dump(mode="python", exclude={"content_hash"}),
+                "relevance": (
+                    GoldRelevanceAnnotation(
+                        target_id="missing-target",
+                        target_kind=GoldTargetKind.ENTITY_CLUSTER,
+                        is_relevant=True,
+                    ),
+                ),
+            }
+        )
+    with pytest.raises(ValidationError, match="target kind"):
+        GoldContextualProjection(
+            **{
+                **base.model_dump(mode="python", exclude={"content_hash"}),
+                "relevance": (
+                    GoldRelevanceAnnotation(
+                        target_id="cluster-mira",
+                        target_kind=GoldTargetKind.EVENT,
+                        is_relevant=True,
+                    ),
+                ),
+            }
+        )
 
 
 def test_gold_alternatives_cannot_be_empty_or_enter_model_visible_registry() -> None:
@@ -554,6 +630,14 @@ def test_gold_alternatives_cannot_be_empty_or_enter_model_visible_registry() -> 
         contracts_module.MODEL_VISIBLE_SCHEMA_TYPES
     )
     assert not hasattr(contracts_module, "to_model_visible_gold")
+
+    with pytest.raises(ValidationError, match="projection IDs must be unique"):
+        GoldAlternativeSet(
+            **{
+                **alternatives.model_dump(mode="python", exclude={"content_hash"}),
+                "permissible_projection_ids": ("permissible-1", "permissible-1"),
+            }
+        )
 
 
 def test_parent_projection_reference_is_same_context_lineage_not_evidence() -> None:
