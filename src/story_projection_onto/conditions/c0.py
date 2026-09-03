@@ -83,6 +83,20 @@ _DAY_RANGE_PATTERN = re.compile(
 )
 _DAY_POINT_PATTERN = re.compile(r"\b(?:on\s+)?day\s+(\d+)\b", re.IGNORECASE)
 _PRONOUNS = frozenset({"he", "her", "hers", "him", "his", "she", "they", "them", "their"})
+_DEPENDENCY_SUBJECTS = frozenset({"csubj", "nsubj"})
+_DEPENDENCY_PASSIVE_SUBJECTS = frozenset({"csubjpass", "csubj:pass", "nsubjpass", "nsubj:pass"})
+_DEPENDENCY_OBJECTS = frozenset({"attr", "dative", "dobj", "obj", "oprd"})
+_DEPENDENCY_PREPOSITIONS = frozenset({"agent", "prep"})
+_DEPENDENCY_PREPOSITION_OBJECTS = frozenset({"obl", "pobj"})
+_DEPENDENCY_NOMINAL_ARGUMENTS = (
+    _DEPENDENCY_SUBJECTS
+    | _DEPENDENCY_PASSIVE_SUBJECTS
+    | _DEPENDENCY_OBJECTS
+    | _DEPENDENCY_PREPOSITION_OBJECTS
+)
+_DEPENDENCY_NOMINAL_PARTS = frozenset({"compound", "flat", "name"})
+_DEPENDENCY_NOMINAL_POS = frozenset({"NOUN", "PRON", "PROPN"})
+_SPACY_ENTITY_LABELS = frozenset({"FAC", "GPE", "LOC", "NORP", "ORG", "PER", "PERSON"})
 _NAME_STOPWORDS = frozenset(
     {
         "After",
@@ -244,11 +258,17 @@ def _classify_entity(
     surface: str, provisional_type: str | None, config: ClassicalRuleConfig
 ) -> ClassicalEntityKind:
     type_hint = (provisional_type or "").casefold()
-    if any(token in type_hint for token in ("person", "actor", "character", "human")):
+    if type_hint in {"per", "person"} or any(
+        token in type_hint for token in ("actor", "character", "human")
+    ):
         return ClassicalEntityKind.PERSON
-    if any(token in type_hint for token in ("collective", "group", "organization", "army")):
+    if type_hint in {"norp", "org"} or any(
+        token in type_hint for token in ("collective", "group", "organization", "army")
+    ):
         return ClassicalEntityKind.COLLECTIVE
-    if any(token in type_hint for token in ("place", "location", "geo")):
+    if type_hint in {"fac", "gpe", "loc"} or any(
+        token in type_hint for token in ("place", "location", "geo")
+    ):
         return ClassicalEntityKind.PLACE
     surface_words = _words(surface)
     if surface_words & config.collective_markers:
@@ -434,11 +454,13 @@ class SpacyCandidateBackend:
 
     The adapter never downloads a model.  When ``ner`` or ``parser`` is absent it
     retains indexed candidates and fills only missing candidate families through
-    :class:`RuleCandidateBackend`.  This keeps setup bounded while exposing the
-    planned tokenizer/NER/dependency hook for the frozen study environment.
+    :class:`RuleCandidateBackend`.  With a parser, indexed candidates remain intact
+    while dependency arguments add explicit relation/event candidates that the
+    neutral index omitted.  The adapter creates candidates only; the query-blind
+    :class:`ClassicalPreBuilder` still owns every final ontology decision.
     """
 
-    backend_name = "spacy-plus-deterministic-rules-v1"
+    backend_name = "spacy-ner-dependency-plus-deterministic-rules-v2"
 
     def __init__(self, nlp: object) -> None:
         if not callable(nlp):
@@ -454,11 +476,15 @@ class SpacyCandidateBackend:
         base = self._fallback.analyze(evidence, config)
         doc = self._nlp(evidence.text)
         mentions = list(base.mentions)
-        occupied = {(item.start_char, item.end_char) for item in mentions}
+        indexed_mention_ids = {item.candidate_id for item in evidence.mention_candidates}
+        occupied = [(item.start_char, item.end_char) for item in mentions]
         for index, entity in enumerate(getattr(doc, "ents", ())):
+            entity_label = str(getattr(entity, "label_", "")).upper()
+            if entity_label not in _SPACY_ENTITY_LABELS:
+                continue
             start = int(entity.start_char)
             end = int(entity.end_char)
-            if (start, end) in occupied:
+            if _span_overlaps_any(start, end, occupied):
                 continue
             surface = str(entity.text)
             mentions.append(
@@ -470,24 +496,423 @@ class SpacyCandidateBackend:
                     surface=surface,
                     start_char=start,
                     end_char=end,
-                    entity_kind=_classify_entity(
-                        surface, str(getattr(entity, "label_", "")), config
-                    ),
+                    entity_kind=_classify_entity(surface, entity_label, config),
                     confidence=0.8,
                 )
             )
-        # Indexed relation/event candidates remain authoritative inputs.  Dependency
-        # parse availability is recorded so the frozen competence report is honest.
+            occupied.append((start, end))
+
         pipe_names = set(getattr(self._nlp, "pipe_names", ()))
-        backend = self.backend_name if "parser" in pipe_names else f"{self.backend_name}:no-parser"
+        if "parser" not in pipe_names:
+            return ClassicalEvidenceAnalysis(
+                evidence_id=base.evidence_id,
+                mentions=tuple(
+                    sorted(mentions, key=lambda item: (item.start_char, item.mention_id))
+                ),
+                relations=base.relations,
+                events=base.events,
+                temporal_expressions=base.temporal_expressions,
+                dependency_backend=f"{self.backend_name}:no-parser",
+            )
+
+        tokens = tuple(doc)
+        for token in tokens:
+            dep = _dependency_label(token)
+            pos = str(getattr(token, "pos_", "")).upper()
+            if dep not in _DEPENDENCY_NOMINAL_ARGUMENTS or pos not in _DEPENDENCY_NOMINAL_POS:
+                continue
+            start, end = _nominal_argument_span(token)
+            if start < 0 or end <= start or _span_overlaps_any(start, end, occupied):
+                continue
+            surface = evidence.text[start:end]
+            if not surface.strip():
+                continue
+            if pos == "NOUN" and not (
+                _words(surface) & (config.collective_markers | config.place_markers)
+            ):
+                continue
+            mention = ClassicalMention(
+                mention_id=_identifier(
+                    "c0-spacy-argument",
+                    evidence.evidence_id,
+                    _token_index(token),
+                    start,
+                    surface,
+                ),
+                evidence_id=evidence.evidence_id,
+                surface=surface,
+                start_char=start,
+                end_char=end,
+                entity_kind=_classify_entity(surface, pos, config),
+                is_pronoun=surface.casefold() in _PRONOUNS,
+                confidence=0.72 if pos == "PROPN" else 0.68,
+            )
+            mentions.append(mention)
+            occupied.append((start, end))
+
+        mentions.sort(key=lambda item: (item.start_char, item.end_char, item.mention_id))
+        parsed_relations = _dependency_relations(
+            evidence=evidence,
+            tokens=tokens,
+            mentions=mentions,
+            indexed_mention_ids=indexed_mention_ids,
+            config=config,
+        )
+        parsed_events = _dependency_events(
+            evidence=evidence,
+            tokens=tokens,
+            mentions=mentions,
+            indexed_mention_ids=indexed_mention_ids,
+            config=config,
+        )
+        relations = _merge_relation_candidates(
+            base=base.relations,
+            indexed_ids={item.candidate_id for item in evidence.relation_phrase_candidates},
+            parsed=parsed_relations,
+        )
+        events = _merge_event_candidates(
+            base=base.events,
+            indexed_ids={item.candidate_id for item in evidence.event_candidates},
+            parsed=parsed_events,
+        )
         return ClassicalEvidenceAnalysis(
             evidence_id=base.evidence_id,
-            mentions=tuple(sorted(mentions, key=lambda item: (item.start_char, item.mention_id))),
-            relations=base.relations,
-            events=base.events,
+            mentions=tuple(mentions),
+            relations=relations,
+            events=events,
             temporal_expressions=base.temporal_expressions,
-            dependency_backend=backend,
+            dependency_backend=self.backend_name,
         )
+
+
+def _span_overlaps_any(start: int, end: int, occupied: Sequence[tuple[int, int]]) -> bool:
+    return any(
+        start < occupied_end and occupied_start < end for occupied_start, occupied_end in occupied
+    )
+
+
+def _dependency_label(token: object) -> str:
+    return str(getattr(token, "dep_", "")).casefold()
+
+
+def _token_index(token: object) -> int:
+    return int(getattr(token, "i", 0))
+
+
+def _token_start(token: object) -> int:
+    return int(getattr(token, "idx", -1))
+
+
+def _token_end(token: object) -> int:
+    start = _token_start(token)
+    return start + len(str(getattr(token, "text", "")))
+
+
+def _token_children(token: object) -> tuple[object, ...]:
+    return tuple(getattr(token, "children", ()))
+
+
+def _nominal_argument_span(token: object) -> tuple[int, int]:
+    parts = [token]
+    parts.extend(
+        child
+        for child in _token_children(token)
+        if _dependency_label(child) in _DEPENDENCY_NOMINAL_PARTS
+    )
+    starts = [_token_start(item) for item in parts if _token_start(item) >= 0]
+    ends = [_token_end(item) for item in parts if _token_start(item) >= 0]
+    return (min(starts), max(ends)) if starts else (-1, -1)
+
+
+def _mention_for_token(
+    token: object,
+    mentions: Sequence[ClassicalMention],
+    indexed_mention_ids: frozenset[str] | set[str],
+) -> ClassicalMention | None:
+    start = _token_start(token)
+    end = _token_end(token)
+    candidates = [
+        mention for mention in mentions if mention.start_char <= start and end <= mention.end_char
+    ]
+    if not candidates:
+        candidates = [
+            mention for mention in mentions if start < mention.end_char and mention.start_char < end
+        ]
+    if not candidates:
+        return None
+    return min(
+        candidates,
+        key=lambda mention: (
+            mention.mention_id not in indexed_mention_ids,
+            mention.end_char - mention.start_char,
+            mention.start_char,
+            mention.mention_id,
+        ),
+    )
+
+
+def _expanded_conjuncts(token: object) -> tuple[object, ...]:
+    values: list[object] = []
+    pending = [token]
+    visited: set[int] = set()
+    while pending:
+        current = pending.pop()
+        identity = id(current)
+        if identity in visited:
+            continue
+        visited.add(identity)
+        values.append(current)
+        pending.extend(
+            child for child in _token_children(current) if _dependency_label(child) == "conj"
+        )
+    return tuple(sorted(values, key=_token_index))
+
+
+def _dependents(token: object, labels: frozenset[str]) -> tuple[object, ...]:
+    direct = [child for child in _token_children(token) if _dependency_label(child) in labels]
+    if not direct and _dependency_label(token) == "conj":
+        head = getattr(token, "head", token)
+        if head is not token:
+            direct = [
+                child for child in _token_children(head) if _dependency_label(child) in labels
+            ]
+    expanded = [item for dependent in direct for item in _expanded_conjuncts(dependent)]
+    return tuple(sorted(expanded, key=_token_index))
+
+
+def _preposition_objects(preposition: object) -> tuple[object, ...]:
+    return _dependents(preposition, _DEPENDENCY_PREPOSITION_OBJECTS | _DEPENDENCY_OBJECTS)
+
+
+def _relation_match(
+    token: object, config: ClassicalRuleConfig
+) -> tuple[str, str, object | None] | None:
+    lookup = {
+        " ".join(_WORD_PATTERN.findall(phrase.casefold())): predicate
+        for phrase, predicate in config.relation_lemmas.items()
+    }
+    token_forms = tuple(
+        dict.fromkeys(
+            value
+            for value in (
+                str(getattr(token, "text", "")).casefold(),
+                str(getattr(token, "lemma_", "")).casefold(),
+            )
+            if value
+        )
+    )
+    modifiers = tuple(
+        child
+        for child in _token_children(token)
+        if _dependency_label(child) in _DEPENDENCY_PREPOSITIONS | {"prt"}
+    )
+    candidates: list[tuple[str, object | None]] = []
+    for form in token_forms:
+        for modifier in modifiers:
+            modifier_forms = tuple(
+                dict.fromkeys(
+                    value
+                    for value in (
+                        str(getattr(modifier, "text", "")).casefold(),
+                        str(getattr(modifier, "lemma_", "")).casefold(),
+                    )
+                    if value
+                )
+            )
+            candidates.extend(
+                (f"{form} {modifier_form}", modifier) for modifier_form in modifier_forms
+            )
+        candidates.append((form, None))
+    for phrase, modifier in candidates:
+        normalized = " ".join(_WORD_PATTERN.findall(phrase))
+        if normalized in lookup:
+            return lookup[normalized], normalized, modifier
+    return None
+
+
+def _relation_arguments(
+    token: object, matched_modifier: object | None
+) -> tuple[tuple[object, ...], tuple[object, ...]]:
+    passive_objects = _dependents(token, _DEPENDENCY_PASSIVE_SUBJECTS)
+    agents: tuple[object, ...] = ()
+    for child in _token_children(token):
+        if _dependency_label(child) == "agent":
+            agents += _preposition_objects(child)
+    if passive_objects and agents:
+        return agents, passive_objects
+
+    subjects = _dependents(token, _DEPENDENCY_SUBJECTS | _DEPENDENCY_PASSIVE_SUBJECTS)
+    objects = _dependents(token, _DEPENDENCY_OBJECTS)
+    if matched_modifier is not None:
+        modifier_objects = _preposition_objects(matched_modifier)
+        if modifier_objects:
+            objects = modifier_objects
+    if not objects:
+        preposition_objects: list[object] = []
+        for child in _token_children(token):
+            if _dependency_label(child) in _DEPENDENCY_PREPOSITIONS:
+                preposition_objects.extend(_preposition_objects(child))
+        objects = tuple(sorted(preposition_objects, key=_token_index))
+    return subjects, objects
+
+
+def _dependency_relations(
+    *,
+    evidence: EvidenceRecord,
+    tokens: Sequence[object],
+    mentions: Sequence[ClassicalMention],
+    indexed_mention_ids: set[str],
+    config: ClassicalRuleConfig,
+) -> tuple[ClassicalRelation, ...]:
+    relations: list[ClassicalRelation] = []
+    seen: set[tuple[str, str, str]] = set()
+    for token in sorted(tokens, key=_token_index):
+        match = _relation_match(token, config)
+        if match is None:
+            continue
+        predicate, surface_phrase, modifier = match
+        subjects, objects = _relation_arguments(token, modifier)
+        for subject_token in subjects:
+            subject = _mention_for_token(subject_token, mentions, indexed_mention_ids)
+            if subject is None:
+                continue
+            for object_token in objects:
+                object_ = _mention_for_token(object_token, mentions, indexed_mention_ids)
+                if object_ is None or object_.mention_id == subject.mention_id:
+                    continue
+                signature = (subject.mention_id, predicate, object_.mention_id)
+                if signature in seen:
+                    continue
+                seen.add(signature)
+                relations.append(
+                    ClassicalRelation(
+                        relation_id=_identifier(
+                            "c0-spacy-relation",
+                            evidence.evidence_id,
+                            _token_index(token),
+                            *signature,
+                        ),
+                        evidence_id=evidence.evidence_id,
+                        subject_mention_id=subject.mention_id,
+                        object_mention_id=object_.mention_id,
+                        predicate=predicate,
+                        surface_phrase=surface_phrase,
+                        confidence=0.82,
+                    )
+                )
+    return tuple(relations)
+
+
+def _event_participant_tokens(token: object) -> tuple[object, ...]:
+    passive_objects = _dependents(token, _DEPENDENCY_PASSIVE_SUBJECTS)
+    agents: list[object] = []
+    for child in _token_children(token):
+        if _dependency_label(child) == "agent":
+            agents.extend(_preposition_objects(child))
+    if passive_objects and agents:
+        participants = [*agents, *passive_objects]
+    else:
+        participants = [
+            *_dependents(token, _DEPENDENCY_SUBJECTS | _DEPENDENCY_PASSIVE_SUBJECTS),
+            *_dependents(token, _DEPENDENCY_OBJECTS),
+        ]
+    for child in _token_children(token):
+        if _dependency_label(child) == "prep":
+            participants.extend(_preposition_objects(child))
+    return tuple(dict.fromkeys(participants))
+
+
+def _dependency_events(
+    *,
+    evidence: EvidenceRecord,
+    tokens: Sequence[object],
+    mentions: Sequence[ClassicalMention],
+    indexed_mention_ids: set[str],
+    config: ClassicalRuleConfig,
+) -> tuple[ClassicalEvent, ...]:
+    triggers = {
+        " ".join(_WORD_PATTERN.findall(value.casefold())) for value in config.event_triggers
+    }
+    events: list[ClassicalEvent] = []
+    for token in sorted(tokens, key=_token_index):
+        forms = (
+            str(getattr(token, "text", "")).casefold(),
+            str(getattr(token, "lemma_", "")).casefold(),
+        )
+        trigger = next((form for form in forms if form in triggers), None)
+        if trigger is None:
+            continue
+        participants = tuple(
+            dict.fromkeys(
+                mention.mention_id
+                for participant in _event_participant_tokens(token)
+                if (mention := _mention_for_token(participant, mentions, indexed_mention_ids))
+                is not None
+            )
+        )
+        events.append(
+            ClassicalEvent(
+                event_candidate_id=_identifier(
+                    "c0-spacy-event",
+                    evidence.evidence_id,
+                    _token_index(token),
+                    _token_start(token),
+                    trigger,
+                ),
+                evidence_id=evidence.evidence_id,
+                trigger=trigger,
+                participant_mention_ids=participants,
+                confidence=0.84 if participants else 0.7,
+            )
+        )
+    return tuple(events)
+
+
+def _merge_relation_candidates(
+    *,
+    base: Sequence[ClassicalRelation],
+    indexed_ids: set[str],
+    parsed: Sequence[ClassicalRelation],
+) -> tuple[ClassicalRelation, ...]:
+    indexed = [item for item in base if item.relation_id in indexed_ids]
+    seen = {(item.subject_mention_id, item.predicate, item.object_mention_id) for item in indexed}
+    merged = list(indexed)
+    for candidate in (*parsed, *(item for item in base if item.relation_id not in indexed_ids)):
+        signature = (
+            candidate.subject_mention_id,
+            candidate.predicate,
+            candidate.object_mention_id,
+        )
+        if signature in seen:
+            continue
+        seen.add(signature)
+        merged.append(candidate)
+    return tuple(sorted(merged, key=lambda item: item.relation_id))
+
+
+def _merge_event_candidates(
+    *,
+    base: Sequence[ClassicalEvent],
+    indexed_ids: set[str],
+    parsed: Sequence[ClassicalEvent],
+) -> tuple[ClassicalEvent, ...]:
+    indexed = [item for item in base if item.event_candidate_id in indexed_ids]
+    seen = {(item.trigger.casefold(), frozenset(item.participant_mention_ids)) for item in indexed}
+    parsed_triggers = {item.trigger.casefold() for item in parsed}
+    merged = list(indexed)
+    fallback = (
+        item
+        for item in base
+        if item.event_candidate_id not in indexed_ids
+        and item.trigger.casefold() not in parsed_triggers
+    )
+    for candidate in (*parsed, *fallback):
+        signature = (candidate.trigger.casefold(), frozenset(candidate.participant_mention_ids))
+        if signature in seen:
+            continue
+        seen.add(signature)
+        merged.append(candidate)
+    return tuple(sorted(merged, key=lambda item: item.event_candidate_id))
 
 
 class _UnionFind:

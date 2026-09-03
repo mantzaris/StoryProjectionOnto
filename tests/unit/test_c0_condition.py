@@ -7,9 +7,11 @@ import pytest
 
 from story_projection_onto.conditions.base import ProduceInputs, RunConditionConfig
 from story_projection_onto.conditions.c0 import (
+    ClassicalEntityKind,
     ClassicalPreBuilder,
     ClassicalRuleConfig,
     RuleCandidateBackend,
+    SpacyCandidateBackend,
 )
 from story_projection_onto.contracts import (
     AbstractionLevel,
@@ -421,3 +423,245 @@ def test_regex_fallback_is_deterministic_without_downloaded_spacy_model() -> Non
     assert first == second
     assert {item.surface for item in first.mentions} == {"Mira", "Rowan"}
     assert first.events and first.temporal_expressions
+
+
+class FakeSpacyToken:
+    def __init__(
+        self,
+        *,
+        text: str,
+        index: int,
+        start_char: int,
+        lemma: str,
+        dependency: str,
+        part_of_speech: str,
+    ) -> None:
+        self.text = text
+        self.i = index
+        self.idx = start_char
+        self.lemma_ = lemma
+        self.dep_ = dependency
+        self.pos_ = part_of_speech
+        self.head: FakeSpacyToken = self
+        self._children: list[FakeSpacyToken] = []
+
+    @property
+    def children(self) -> tuple[FakeSpacyToken, ...]:
+        return tuple(self._children)
+
+
+class FakeSpacyEntity:
+    def __init__(self, *, text: str, start_char: int, label: str) -> None:
+        self.text = text
+        self.start_char = start_char
+        self.end_char = start_char + len(text)
+        self.label_ = label
+
+
+class FakeSpacyDoc:
+    def __init__(
+        self,
+        tokens: tuple[FakeSpacyToken, ...],
+        entities: tuple[FakeSpacyEntity, ...],
+    ) -> None:
+        self._tokens = tokens
+        self.ents = entities
+
+    def __iter__(self):
+        return iter(self._tokens)
+
+
+class FakeSpacyLanguage:
+    pipe_names = ("tok2vec", "ner", "parser")
+
+    def __init__(self, *, text: str, doc: FakeSpacyDoc) -> None:
+        self._text = text
+        self._doc = doc
+
+    def __call__(self, text: str) -> FakeSpacyDoc:
+        assert text == self._text
+        return self._doc
+
+
+def fake_token(
+    text: str,
+    surface: str,
+    index: int,
+    dependency: str,
+    part_of_speech: str,
+    *,
+    lemma: str | None = None,
+    after: int = 0,
+) -> FakeSpacyToken:
+    return FakeSpacyToken(
+        text=surface,
+        index=index,
+        start_char=text.index(surface, after),
+        lemma=lemma or surface.casefold(),
+        dependency=dependency,
+        part_of_speech=part_of_speech,
+    )
+
+
+def attach(child: FakeSpacyToken, head: FakeSpacyToken) -> None:
+    child.head = head
+    head._children.append(child)
+
+
+def test_spacy_dependencies_fill_missing_relations_and_events_without_replacing_indexed() -> None:
+    text = "Rowan was warned by Mira before Taren joined Harbor Guild."
+    mira = mention("spacy-evidence", "m-mira", text, "Mira", "person")
+    rowan = mention("spacy-evidence", "m-rowan", text, "Rowan", "person")
+    taren = mention("spacy-evidence", "m-taren", text, "Taren", "person")
+    guild = mention("spacy-evidence", "m-guild", text, "Harbor Guild", "collective")
+    record = EvidenceRecord(
+        evidence_id="spacy-evidence",
+        passage_id="spacy-passage",
+        text=text,
+        text_hash=digest(text),
+        discourse_position=DiscoursePosition(passage_order=1),
+        mention_candidates=(mira, rowan, taren, guild),
+        event_candidates=(
+            EventCandidate(
+                candidate_id="event-indexed-warn",
+                evidence_id="spacy-evidence",
+                trigger_start_char=text.index("warned"),
+                trigger_end_char=text.index("warned") + len("warned"),
+                trigger_surface="warned",
+                participant_mention_candidate_ids=("m-mira", "m-rowan"),
+                confidence=0.97,
+            ),
+        ),
+        relation_phrase_candidates=(
+            RelationPhraseCandidate(
+                candidate_id="relation-indexed-warn",
+                evidence_id="spacy-evidence",
+                subject_mention_candidate_id="m-mira",
+                object_mention_candidate_id="m-rowan",
+                surface_phrase="warned",
+                confidence=0.96,
+            ),
+        ),
+        provenance=ProvenanceReference(
+            provenance_id="spacy-provenance",
+            evidence_id="spacy-evidence",
+            extraction_method="fixture",
+            locator="fixture:spacy",
+            confidence=1.0,
+        ),
+        confidence=1.0,
+        release_class=ReleaseClass.PUBLIC,
+    )
+
+    rowan_token = fake_token(text, "Rowan", 0, "nsubjpass", "PROPN")
+    warned = fake_token(text, "warned", 2, "ROOT", "VERB", lemma="warn")
+    by_token = fake_token(text, "by", 3, "agent", "ADP")
+    mira_token = fake_token(text, "Mira", 4, "pobj", "PROPN")
+    taren_token = fake_token(text, "Taren", 6, "nsubj", "PROPN")
+    joined = fake_token(text, "joined", 7, "advcl", "VERB", lemma="join")
+    harbor_token = fake_token(text, "Harbor", 8, "compound", "PROPN")
+    guild_token = fake_token(text, "Guild", 9, "dobj", "PROPN")
+    attach(rowan_token, warned)
+    attach(by_token, warned)
+    attach(mira_token, by_token)
+    attach(taren_token, joined)
+    attach(guild_token, joined)
+    attach(harbor_token, guild_token)
+    doc = FakeSpacyDoc(
+        (
+            rowan_token,
+            warned,
+            by_token,
+            mira_token,
+            taren_token,
+            joined,
+            harbor_token,
+            guild_token,
+        ),
+        (),
+    )
+    backend = SpacyCandidateBackend(FakeSpacyLanguage(text=text, doc=doc))
+
+    analysis = backend.analyze(record, ClassicalRuleConfig())
+
+    assert analysis.dependency_backend == backend.backend_name
+    assert "relation-indexed-warn" in {item.relation_id for item in analysis.relations}
+    warned_relations = [item for item in analysis.relations if item.predicate == "warned"]
+    assert len(warned_relations) == 1
+    assert warned_relations[0].subject_mention_id == "m-mira"
+    assert warned_relations[0].object_mention_id == "m-rowan"
+    joined_relation = next(item for item in analysis.relations if item.predicate == "member_of")
+    assert joined_relation.subject_mention_id == "m-taren"
+    assert joined_relation.object_mention_id == "m-guild"
+    assert joined_relation.relation_id.startswith("c0-spacy-relation-")
+    assert "event-indexed-warn" in {item.event_candidate_id for item in analysis.events}
+    warned_events = [item for item in analysis.events if item.trigger == "warned"]
+    assert len(warned_events) == 1
+    assert warned_events[0].participant_mention_ids == ("m-mira", "m-rowan")
+    joined_event = next(item for item in analysis.events if item.trigger == "joined")
+    assert joined_event.participant_mention_ids == ("m-taren", "m-guild")
+    assert joined_event.event_candidate_id.startswith("c0-spacy-event-")
+    assert backend.analyze(record, ClassicalRuleConfig()) == analysis
+
+
+def test_spacy_ner_and_dependency_arguments_ground_a_missing_place_participant() -> None:
+    text = "On day 5, Mira arrived at the harbor."
+    record = EvidenceRecord(
+        evidence_id="spacy-ner-evidence",
+        passage_id="spacy-ner-passage",
+        text=text,
+        text_hash=digest(text),
+        discourse_position=DiscoursePosition(passage_order=1),
+        provenance=ProvenanceReference(
+            provenance_id="spacy-ner-provenance",
+            evidence_id="spacy-ner-evidence",
+            extraction_method="fixture",
+            locator="fixture:spacy-ner",
+            confidence=1.0,
+        ),
+        confidence=1.0,
+        release_class=ReleaseClass.PUBLIC,
+    )
+
+    on_token = fake_token(text, "On", 0, "prep", "ADP")
+    day_token = fake_token(text, "day", 1, "pobj", "NOUN")
+    mira_token = fake_token(text, "Mira", 3, "nsubj", "PROPN")
+    arrived = fake_token(text, "arrived", 4, "ROOT", "VERB", lemma="arrive")
+    at_token = fake_token(text, "at", 5, "prep", "ADP")
+    the_token = fake_token(text, "the", 6, "det", "DET")
+    harbor_token = fake_token(text, "harbor", 7, "pobj", "NOUN")
+    attach(on_token, arrived)
+    attach(day_token, on_token)
+    attach(mira_token, arrived)
+    attach(at_token, arrived)
+    attach(harbor_token, at_token)
+    attach(the_token, harbor_token)
+    harbor_entity = FakeSpacyEntity(
+        text="the harbor",
+        start_char=text.index("the harbor"),
+        label="LOC",
+    )
+    date_entity = FakeSpacyEntity(
+        text="day 5",
+        start_char=text.index("day 5"),
+        label="DATE",
+    )
+    doc = FakeSpacyDoc(
+        (on_token, day_token, mira_token, arrived, at_token, the_token, harbor_token),
+        (date_entity, harbor_entity),
+    )
+    backend = SpacyCandidateBackend(FakeSpacyLanguage(text=text, doc=doc))
+
+    analysis = backend.analyze(record, ClassicalRuleConfig())
+
+    harbor = next(item for item in analysis.mentions if item.surface == "the harbor")
+    assert harbor.entity_kind is ClassicalEntityKind.PLACE
+    assert not any("day" in item.surface.casefold() for item in analysis.mentions)
+    arrived_events = [item for item in analysis.events if item.trigger == "arrived"]
+    assert len(arrived_events) == 1
+    participants = arrived_events[0].participant_mention_ids
+    assert harbor.mention_id in participants
+    assert (
+        next(item for item in analysis.mentions if item.surface == "Mira").mention_id
+        in participants
+    )
