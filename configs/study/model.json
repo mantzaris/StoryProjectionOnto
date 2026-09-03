@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0.0",
+  "repository": "Qwen/Qwen3-14B-AWQ",
+  "revision": "1a6fe1ecf891437a270cce11ad54d796c4f56ce0",
+  "quantization": "awq",
+  "runtime": "vllm",
+  "tensor_parallel_size": 1,
+  "max_model_len": 12288,
+  "gpu_memory_utilization_pilot": 0.88,
+  "cpu_offload_gb": 0,
+  "thinking_mode": false,
+  "prefix_decoding": false,
+  "speculative_decoding": false,
+  "request_concurrency": 1
+}
+

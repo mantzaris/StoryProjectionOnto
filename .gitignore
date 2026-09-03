@@ -1,0 +1,29 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.hypothesis/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+.venv/
+.cache/
+*.egg-info/
+dist/
+build/
+
+# Restricted/copyrighted inputs and derived private indexes never enter Git.
+.local_data/
+artifacts/restricted/
+artifacts/blobs/
+artifacts/tmp/
+artifacts/quarantine/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# Local execution metadata that can contain host-specific paths.
+.env
+.runpod/
+

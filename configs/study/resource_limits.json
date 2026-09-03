@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0.0",
+  "maximum_cpu_workers": 8,
+  "maximum_process_ram_bytes": 26843545600,
+  "maximum_peak_vram_bytes": 24696061952,
+  "maximum_project_occupied_bytes": 26843545600,
+  "minimum_storage_headroom_bytes": 5368709120,
+  "maximum_project_allocation_bytes": 32212254720,
+  "scheduled_gpu_seconds": 32400,
+  "preferred_forecast_gpu_seconds": 29700,
+  "hard_gpu_seconds": 36000,
+  "model_cpu_offload_allowed": false,
+  "generation_concurrency": 1
+}
+
