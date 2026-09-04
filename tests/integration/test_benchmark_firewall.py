@@ -18,15 +18,18 @@ from story_projection_onto.benchmark import (
     load_model_eligible_query,
     load_model_eligible_world,
     materialize_benchmark,
+    refresh_benchmark_lineage,
     verify_materialized_benchmark,
 )
 from story_projection_onto.benchmark_runtime import (
     RuntimeStageKind,
     RuntimeStagingManifest,
+    load_staged_neutral_evidence,
     load_staged_world,
     model_request_payload,
     preconstruction_request_payload,
     scan_model_payload,
+    verify_neutral_evidence_projection,
 )
 from story_projection_onto.contracts import canonical_sha256
 
@@ -57,6 +60,38 @@ def test_materialized_runtime_stage_is_opaque_and_scorer_unreachable(tmp_path: P
     with pytest.raises(GoldFirewallError):
         load_staged_world(staging_alias / "evidence.json", staging_alias, runtime_manifest)
     assert "query" not in preconstruction_request_payload(loaded)
+    neutral_stage = tmp_path / routing[0]["relative_neutral_evidence_stage_path"]
+    assert neutral_stage.parts[-3:-1] == ("condition_inputs", "neutral_evidence")
+    assert {item.name for item in neutral_stage.iterdir()} == {
+        "neutral_evidence.json",
+        "equivalence.json",
+        "manifest.json",
+    }
+    neutral_manifest = RuntimeStagingManifest.model_validate_json(
+        (neutral_stage / "manifest.json").read_text(encoding="utf-8")
+    )
+    neutral, equivalence = load_staged_neutral_evidence(
+        neutral_stage,
+        tmp_path / "condition_inputs/neutral_evidence",
+        neutral_manifest,
+        loaded,
+    )
+    assert neutral.snapshot.world_or_window_id.startswith("unit_")
+    assert len(neutral.snapshot.world_or_window_id) == len("unit_") + 20
+    assert all(item.provenance and item.text_hash for item in neutral.evidence)
+    assert equivalence.model_visible_evidence_artifact_hash == loaded.content_hash
+
+    neutral_payload = neutral.model_dump(mode="json")
+    forbidden_keys = {"world_id", "split", "difficulty", "factor", "factors", "gold"}
+
+    def keys(value: object) -> set[str]:
+        if isinstance(value, dict):
+            return set(value) | {key for child in value.values() for key in keys(child)}
+        if isinstance(value, list):
+            return {key for child in value for key in keys(child)}
+        return set()
+
+    assert keys(neutral_payload).isdisjoint(forbidden_keys)
     query_hashes = []
     for query_relative in routing[0]["relative_query_stage_paths"]:
         query_stage = tmp_path / query_relative
@@ -93,6 +128,8 @@ def test_model_payload_is_invariant_to_scorer_gold_mutation() -> None:
     world_id = "syn-test-01"
     reveal = build.query_reveals_by_world[world_id][0]
     before = model_request_payload(build.model_artifacts[world_id], reveal)
+    neutral_before = build.neutral_evidence_artifacts[world_id].content_hash
+    equivalence_before = build.evidence_equivalence_certificates[world_id].content_hash
     scorer_dump = build.scorer_artifacts[world_id].model_dump(mode="python")
     annotation = scorer_dump["gold_projections"][0]["assertion_annotations"][0]
     annotation["is_rare"] = not annotation["is_rare"]
@@ -100,6 +137,13 @@ def test_model_payload_is_invariant_to_scorer_gold_mutation() -> None:
     assert canonical_sha256(
         model_request_payload(build.model_artifacts[world_id], reveal)
     ) == canonical_sha256(before)
+    assert build.neutral_evidence_artifacts[world_id].content_hash == neutral_before
+    assert build.evidence_equivalence_certificates[world_id].content_hash == equivalence_before
+    verify_neutral_evidence_projection(
+        build.neutral_evidence_artifacts[world_id],
+        build.model_artifacts[world_id],
+        build.evidence_equivalence_certificates[world_id],
+    )
 
 
 @pytest.mark.integration
@@ -133,6 +177,14 @@ def test_worker_process_runs_with_only_runtime_contracts_and_one_stage(tmp_path:
     source_stage = tmp_path / "corpus" / routing[0]["relative_query_stage_paths"][0]
     worker_stage = tmp_path / "worker_stage"
     shutil.copytree(source_stage, worker_stage)
+    prequery_source = tmp_path / "corpus" / routing[0]["relative_prequery_stage_path"]
+    worker_prequery = tmp_path / "worker_corpus/model_visible/prequery/artifact"
+    shutil.copytree(prequery_source, worker_prequery)
+    neutral_source = tmp_path / "corpus" / routing[0]["relative_neutral_evidence_stage_path"]
+    worker_neutral = (
+        tmp_path / "worker_corpus/condition_inputs/neutral_evidence" / neutral_source.name
+    )
+    shutil.copytree(neutral_source, worker_neutral)
     runtime_package = tmp_path / "runtime_only/story_projection_onto"
     runtime_package.mkdir(parents=True)
     (runtime_package / "__init__.py").write_text("", encoding="utf-8")
@@ -142,14 +194,32 @@ def test_worker_process_runs_with_only_runtime_contracts_and_one_stage(tmp_path:
     script = """
 import importlib.util
 from pathlib import Path
-from story_projection_onto.benchmark_runtime import RuntimeStagingManifest, load_staged_query
+from story_projection_onto.benchmark_runtime import (
+    RuntimeStagingManifest,
+    load_staged_neutral_evidence,
+    load_staged_query,
+    load_staged_world,
+)
 stage = Path(__import__('sys').argv[1])
+prequery = Path(__import__('sys').argv[2])
+neutral_stage = Path(__import__('sys').argv[3])
 assert importlib.util.find_spec('story_projection_onto.synthetic_benchmark') is None
 manifest = RuntimeStagingManifest.model_validate_json(
     (stage / 'manifest.json').read_text(encoding='utf-8')
 )
 evidence, reveal = load_staged_query(stage, manifest)
 assert reveal.evidence_artifact_hash == evidence.content_hash
+prequery_manifest = RuntimeStagingManifest.model_validate_json(
+    (prequery / 'manifest.json').read_text(encoding='utf-8')
+)
+model_visible = load_staged_world(prequery / 'evidence.json', prequery, prequery_manifest)
+neutral_manifest = RuntimeStagingManifest.model_validate_json(
+    (neutral_stage / 'manifest.json').read_text(encoding='utf-8')
+)
+neutral, certificate = load_staged_neutral_evidence(
+    neutral_stage, neutral_stage.parent, neutral_manifest, model_visible
+)
+assert certificate.neutral_evidence_artifact_hash == neutral.content_hash
 """
     environment = {
         "PATH": os.environ.get("PATH", ""),
@@ -157,7 +227,15 @@ assert reveal.evidence_artifact_hash == evidence.content_hash
         "PYTHONPATH": os.pathsep.join((str(tmp_path / "runtime_only"), str(site_packages))),
     }
     completed = subprocess.run(
-        [sys.executable, "-S", "-c", script, str(worker_stage)],
+        [
+            sys.executable,
+            "-S",
+            "-c",
+            script,
+            str(worker_stage),
+            str(worker_prequery),
+            str(worker_neutral),
+        ],
         cwd=worker_stage,
         env=environment,
         check=False,
@@ -165,6 +243,35 @@ assert reveal.evidence_artifact_hash == evidence.content_hash
         text=True,
     )
     assert completed.returncode == 0, completed.stderr
+
+
+@pytest.mark.integration
+def test_neutral_evidence_tamper_is_rejected_before_condition_use(tmp_path: Path) -> None:
+    corpus = tmp_path / "corpus"
+    materialize_benchmark(corpus)
+    routing = json.loads(
+        (corpus / "scorer_only/routing/model_artifacts.json").read_text(encoding="utf-8")
+    )
+    route = routing[0]
+    prequery = corpus / route["relative_prequery_stage_path"]
+    prequery_manifest = RuntimeStagingManifest.model_validate_json(
+        (prequery / "manifest.json").read_text(encoding="utf-8")
+    )
+    model_visible = load_staged_world(prequery / "evidence.json", prequery, prequery_manifest)
+    source = corpus / route["relative_neutral_evidence_stage_path"]
+    neutral_root = tmp_path / "tamper/condition_inputs/neutral_evidence"
+    stage = neutral_root / source.name
+    shutil.copytree(source, stage)
+    payload_path = stage / "neutral_evidence.json"
+    payload = json.loads(payload_path.read_text(encoding="utf-8"))
+    payload["evidence"][0]["text"] += " tampered"
+    payload_path.write_text(json.dumps(payload), encoding="utf-8")
+    manifest = RuntimeStagingManifest.model_validate_json(
+        (stage / "manifest.json").read_text(encoding="utf-8")
+    )
+
+    with pytest.raises((GoldFirewallError, ValueError), match="hash"):
+        load_staged_neutral_evidence(stage, neutral_root, manifest, model_visible)
 
 
 @pytest.mark.integration
@@ -270,3 +377,41 @@ def test_two_fresh_regenerations_are_byte_identical(tmp_path: Path) -> None:
         if path.is_file()
     }
     assert first_bytes == second_bytes
+
+
+@pytest.mark.integration
+def test_lineage_refresh_changes_only_the_two_source_bound_files(tmp_path: Path) -> None:
+    materialize_benchmark(tmp_path)
+    before = {
+        str(path.relative_to(tmp_path)): path.read_bytes()
+        for path in tmp_path.rglob("*")
+        if path.is_file()
+    }
+    draft_path = tmp_path / "scorer_only/held_out/draft_seal.json"
+    draft_path.write_bytes(draft_path.read_bytes() + b"\n")
+
+    refresh_benchmark_lineage(tmp_path)
+
+    after = {
+        str(path.relative_to(tmp_path)): path.read_bytes()
+        for path in tmp_path.rglob("*")
+        if path.is_file()
+    }
+    changed = {path for path in before if before[path] != after[path]}
+    assert changed <= {
+        "scorer_only/held_out/draft_seal.json",
+        "manifests/benchmark_manifest.json",
+    }
+    assert after["scorer_only/held_out/draft_seal.json"] == before[
+        "scorer_only/held_out/draft_seal.json"
+    ]
+
+
+@pytest.mark.integration
+def test_lineage_refresh_rejects_any_substantive_artifact_drift(tmp_path: Path) -> None:
+    materialize_benchmark(tmp_path)
+    evidence_path = next((tmp_path / "model_visible/prequery_stages").glob("*/evidence.json"))
+    evidence_path.write_bytes(evidence_path.read_bytes() + b"\n")
+
+    with pytest.raises(BenchmarkDriftError, match="scientific benchmark content"):
+        refresh_benchmark_lineage(tmp_path)

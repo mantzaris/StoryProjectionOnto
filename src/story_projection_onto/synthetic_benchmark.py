@@ -25,16 +25,21 @@ from typing import Annotated, Any, Literal, Self
 from pydantic import AwareDatetime, Field, model_validator
 
 from story_projection_onto.benchmark_runtime import (
+    EvidenceProjectionEquivalenceCertificate,
     GoldFirewallError,
     ModelEligibleWorldArtifact,
+    NeutralEvidenceArtifact,
     QueryRevealArtifact,
     RuntimeStageKind,
     RuntimeStagingManifest,
+    build_evidence_projection_equivalence_certificate,
+    load_staged_neutral_evidence,
     load_staged_query,
     load_staged_world,
     model_request_payload,
     preconstruction_request_payload,
     scan_model_payload,
+    verify_neutral_evidence_projection,
 )
 from story_projection_onto.contracts import (
     AbstractionLevel,
@@ -96,8 +101,16 @@ from story_projection_onto.contracts import (
 DEFAULT_CONFIG_PATH = Path("configs/study/synthetic_benchmark.json")
 DEFAULT_OUTPUT_ROOT = Path("data/synthetic")
 MODEL_VISIBLE_DIRECTORY = "model_visible"
+CONDITION_INPUT_DIRECTORY = "condition_inputs"
+NEUTRAL_EVIDENCE_DIRECTORY = "neutral_evidence"
 SCORER_ONLY_DIRECTORY = "scorer_only"
 MANIFEST_DIRECTORY = "manifests"
+LINEAGE_REFRESH_PATHS = frozenset(
+    {
+        f"{SCORER_ONLY_DIRECTORY}/held_out/draft_seal.json",
+        f"{MANIFEST_DIRECTORY}/benchmark_manifest.json",
+    }
+)
 
 
 def _source_file_hash(path: Path) -> str:
@@ -4282,8 +4295,11 @@ class ModelRoutingEntry(ImmutableRecord):
     split: BenchmarkSplit
     artifact_id: Identifier
     relative_prequery_stage_path: str
+    relative_neutral_evidence_stage_path: str
     relative_query_stage_paths: tuple[str, str, str]
     artifact_hash: Sha256Digest
+    neutral_evidence_artifact_hash: Sha256Digest
+    evidence_equivalence_certificate_hash: Sha256Digest
     query_reveal_hashes: tuple[Sha256Digest, Sha256Digest, Sha256Digest]
 
 
@@ -4302,7 +4318,7 @@ class GeneratedFileRecord(ImmutableRecord):
     byte_count: Annotated[int, Field(ge=0)]
     sha256: Sha256Digest
     release_class: ReleaseClass
-    namespace: Literal["model_visible", "scorer_only", "manifest"]
+    namespace: Literal["condition_input", "model_visible", "scorer_only", "manifest"]
 
 
 class SyntheticBenchmarkManifest(ImmutableRecord):
@@ -4315,6 +4331,8 @@ class SyntheticBenchmarkManifest(ImmutableRecord):
     development_world_count: Literal[4]
     held_out_world_count: Literal[12]
     held_out_context_count: Literal[36]
+    neutral_evidence_artifact_count: Literal[16]
+    evidence_equivalence_certificate_count: Literal[16]
     paraphrase_context_count: Literal[12]
     review_world_count: Literal[3]
     review_projection_count: Literal[9]
@@ -5269,6 +5287,8 @@ class BenchmarkBuild:
     world_specs: tuple[WorldSpec, ...]
     query_sampling_audit: QuerySamplingAudit
     model_artifacts: Mapping[str, ModelEligibleWorldArtifact]
+    neutral_evidence_artifacts: Mapping[str, NeutralEvidenceArtifact]
+    evidence_equivalence_certificates: Mapping[str, EvidenceProjectionEquivalenceCertificate]
     query_reveals_by_world: Mapping[
         str, tuple[QueryRevealArtifact, QueryRevealArtifact, QueryRevealArtifact]
     ]
@@ -5349,6 +5369,8 @@ def compile_benchmark(config_path: Path = DEFAULT_CONFIG_PATH) -> BenchmarkBuild
     review_selection = select_independent_review_worlds(held_out, seeds)
     reviewed_worlds = {item.world_id for item in review_selection.selected}
     model_artifacts: dict[str, ModelEligibleWorldArtifact] = {}
+    neutral_evidence_artifacts: dict[str, NeutralEvidenceArtifact] = {}
+    evidence_equivalence_certificates: dict[str, EvidenceProjectionEquivalenceCertificate] = {}
     query_reveals_by_world: dict[
         str, tuple[QueryRevealArtifact, QueryRevealArtifact, QueryRevealArtifact]
     ] = {}
@@ -5357,6 +5379,26 @@ def compile_benchmark(config_path: Path = DEFAULT_CONFIG_PATH) -> BenchmarkBuild
     narratives: dict[str, NarrativeProducts] = {}
     for spec in specs:
         narrative = realize_narrative(spec, config, seeds)
+        artifact = ModelEligibleWorldArtifact(
+            artifact_id=_opaque("artifact", spec.world_id),
+            snapshot=narrative.snapshot,
+            evidence=tuple(to_model_visible_evidence(item) for item in narrative.evidence),
+        )
+        neutral_artifact = NeutralEvidenceArtifact(
+            artifact_id=_opaque("neutral", spec.world_id),
+            snapshot=narrative.snapshot,
+            evidence=narrative.evidence,
+        )
+        equivalence = build_evidence_projection_equivalence_certificate(
+            neutral_artifact,
+            artifact,
+            certificate_id=_opaque(
+                "equivalence", neutral_artifact.content_hash, artifact.content_hash
+            ),
+        )
+        model_artifacts[spec.world_id] = artifact
+        neutral_evidence_artifacts[spec.world_id] = neutral_artifact
+        evidence_equivalence_certificates[spec.world_id] = equivalence
         assignment = assignments[spec.world_id]
         contexts = compile_query_contexts(spec, assignment, narrative, config)
         products = [
@@ -5451,11 +5493,6 @@ def compile_benchmark(config_path: Path = DEFAULT_CONFIG_PATH) -> BenchmarkBuild
                 ),
                 query_dependent_semantic_hash=_compiled_product_semantic_hash(query_dependent),
             )
-        artifact = ModelEligibleWorldArtifact(
-            artifact_id=_opaque("artifact", spec.world_id),
-            snapshot=narrative.snapshot,
-            evidence=tuple(to_model_visible_evidence(item) for item in narrative.evidence),
-        )
         reveals = tuple(
             QueryRevealArtifact(
                 reveal_id=_opaque("reveal", spec.world_id, index),
@@ -5468,7 +5505,6 @@ def compile_benchmark(config_path: Path = DEFAULT_CONFIG_PATH) -> BenchmarkBuild
         scan_model_payload(preconstruction_request_payload(artifact))
         for reveal in reveals:
             scan_model_payload(model_request_payload(artifact, reveal))
-        model_artifacts[spec.world_id] = artifact
         query_reveals_by_world[spec.world_id] = reveals  # type: ignore[assignment]
         scorer_artifacts[spec.world_id] = ScorerWorldArtifact(
             world_spec=spec,
@@ -5559,6 +5595,8 @@ def compile_benchmark(config_path: Path = DEFAULT_CONFIG_PATH) -> BenchmarkBuild
         world_specs=specs,
         query_sampling_audit=audit,
         model_artifacts=model_artifacts,
+        neutral_evidence_artifacts=neutral_evidence_artifacts,
+        evidence_equivalence_certificates=evidence_equivalence_certificates,
         query_reveals_by_world=query_reveals_by_world,
         scorer_artifacts=scorer_artifacts,
         contexts_by_world=contexts_by_world,
@@ -5795,6 +5833,15 @@ def validate_compiled_benchmark(build: BenchmarkBuild) -> None:
         {HorizonBlock.INTERMEDIATE: 6, HorizonBlock.FINAL: 6}
     ):
         raise ValueError("held-out horizons must be balanced 6/6")
+    world_ids = {item.world_id for item in build.world_specs}
+    evidence_namespaces = (
+        set(build.model_artifacts),
+        set(build.neutral_evidence_artifacts),
+        set(build.evidence_equivalence_certificates),
+        set(build.narratives),
+    )
+    if any(namespace != world_ids for namespace in evidence_namespaces):
+        raise ValueError("every world requires one model, neutral, and narrative artifact")
     held_structure_ids = {item.structure_template_id for item in held_out}
     dev_structure_ids = {item.structure_template_id for item in development}
     held_signatures = {_world_structure_signature(item) for item in held_out}
@@ -5867,9 +5914,15 @@ def validate_compiled_benchmark(build: BenchmarkBuild) -> None:
     fixed_friendly_count = 0
     for spec in build.world_specs:
         model = build.model_artifacts[spec.world_id]
+        neutral = build.neutral_evidence_artifacts[spec.world_id]
+        equivalence = build.evidence_equivalence_certificates[spec.world_id]
+        narrative = build.narratives[spec.world_id]
         scorer = build.scorer_artifacts[spec.world_id]
         contexts = build.contexts_by_world[spec.world_id]
         reveals = build.query_reveals_by_world[spec.world_id]
+        if neutral.snapshot != narrative.snapshot or neutral.evidence != narrative.evidence:
+            raise ValueError("neutral evidence must be compiled directly from the narrative")
+        verify_neutral_evidence_projection(neutral, model, equivalence)
         if len(contexts) != 3 or len(reveals) != 3 or len(scorer.gold_projections) != 3:
             raise ValueError("every world must have three isolated reveals and gold projections")
         if model.snapshot.sealed_at >= min(item.revealed_at for item in contexts):
@@ -6118,8 +6171,12 @@ def _json_bytes(value: Any) -> bytes:
     return (canonical_json(value) + "\n").encode("utf-8")
 
 
-def _namespace(relative_path: str) -> Literal["model_visible", "scorer_only", "manifest"]:
+def _namespace(
+    relative_path: str,
+) -> Literal["condition_input", "model_visible", "scorer_only", "manifest"]:
     first = Path(relative_path).parts[0]
+    if first == CONDITION_INPUT_DIRECTORY:
+        return "condition_input"
     if first == MODEL_VISIBLE_DIRECTORY:
         return "model_visible"
     if first == SCORER_ONLY_DIRECTORY:
@@ -6134,6 +6191,20 @@ def build_file_payloads(
     routing: list[ModelRoutingEntry] = []
     runtime_artifacts = sorted(build.model_artifacts.items(), key=lambda item: item[1].artifact_id)
     for world_id, artifact in runtime_artifacts:
+        neutral = build.neutral_evidence_artifacts[world_id]
+        equivalence = build.evidence_equivalence_certificates[world_id]
+        neutral_relative = (
+            f"{CONDITION_INPUT_DIRECTORY}/{NEUTRAL_EVIDENCE_DIRECTORY}/{neutral.artifact_id}"
+        )
+        neutral_manifest = RuntimeStagingManifest(
+            stage_id=_opaque("neutralstage", neutral.content_hash),
+            stage_kind=RuntimeStageKind.NEUTRAL_EVIDENCE,
+            artifact_hashes=(neutral.content_hash, equivalence.content_hash),
+            file_names=("neutral_evidence.json", "equivalence.json"),
+        )
+        payloads[f"{neutral_relative}/neutral_evidence.json"] = _json_bytes(neutral)
+        payloads[f"{neutral_relative}/equivalence.json"] = _json_bytes(equivalence)
+        payloads[f"{neutral_relative}/manifest.json"] = _json_bytes(neutral_manifest)
         prequery_relative = f"{MODEL_VISIBLE_DIRECTORY}/prequery_stages/{artifact.artifact_id}"
         prequery_manifest = RuntimeStagingManifest(
             stage_id=_opaque("stage", artifact.content_hash, "prequery"),
@@ -6163,8 +6234,11 @@ def build_file_payloads(
                 split=build.scorer_artifacts[world_id].world_spec.split,
                 artifact_id=artifact.artifact_id,
                 relative_prequery_stage_path=prequery_relative,
+                relative_neutral_evidence_stage_path=neutral_relative,
                 relative_query_stage_paths=tuple(query_stage_paths),
                 artifact_hash=artifact.content_hash,
+                neutral_evidence_artifact_hash=neutral.content_hash,
+                evidence_equivalence_certificate_hash=equivalence.content_hash,
                 query_reveal_hashes=tuple(item.content_hash for item in reveals),
             )
         )
@@ -6216,6 +6290,9 @@ def build_file_payloads(
     payloads[f"{MANIFEST_DIRECTORY}/seed_manifest.json"] = _json_bytes(build.seeds)
     readme = (
         b"# Synthetic benchmark v3\n\n"
+        b"Each directory below `condition_inputs/neutral_evidence` contains one query-blind "
+        b"full-evidence artifact and a certificate proving its deterministic projection to "
+        b"the corresponding model-visible artifact. It contains no query or scorer metadata. "
         b"Each directory below `model_visible/prequery_stages` is an exact evidence-only C1 "
         b"worker sandbox. Each directory below `model_visible/query_stages` contains the same "
         b"sealed evidence and exactly one revealed query. Workers receive one directory, never "
@@ -6247,6 +6324,8 @@ def build_file_payloads(
         development_world_count=4,
         held_out_world_count=12,
         held_out_context_count=36,
+        neutral_evidence_artifact_count=len(build.neutral_evidence_artifacts),
+        evidence_equivalence_certificate_count=len(build.evidence_equivalence_certificates),
         paraphrase_context_count=12,
         review_world_count=3,
         review_projection_count=9,
@@ -6306,6 +6385,50 @@ def materialize_benchmark(
     return manifest
 
 
+def refresh_benchmark_lineage(
+    output_root: Path = DEFAULT_OUTPUT_ROOT,
+    config_path: Path = DEFAULT_CONFIG_PATH,
+) -> SyntheticBenchmarkManifest:
+    """Refresh source-bound draft lineage without changing benchmark contents.
+
+    This operation is intentionally narrower than regeneration.  It is permitted
+    only while the draft benchmark has exactly the expected file set and every
+    non-lineage artifact is byte-identical to a fresh deterministic compilation.
+    Any scientific-content drift, extra review artifact, or symlink fails closed.
+    """
+
+    build = compile_benchmark(config_path)
+    payloads, manifest = build_file_payloads(build)
+    if output_root.is_symlink():
+        raise BenchmarkDriftError("synthetic output root cannot be a symlink")
+    if not output_root.is_dir():
+        raise BenchmarkDriftError("lineage refresh requires a materialized benchmark root")
+    expected_files = set(payloads)
+    actual_files = {
+        str(path.relative_to(output_root)) for path in output_root.rglob("*") if path.is_file()
+    }
+    if actual_files != expected_files:
+        raise BenchmarkDriftError(
+            "lineage refresh requires the exact draft artifact set; "
+            f"missing={sorted(expected_files - actual_files)}, "
+            f"unexpected={sorted(actual_files - expected_files)}"
+        )
+    for relative, expected_content in sorted(payloads.items()):
+        target = output_root / relative
+        if target.is_symlink():
+            raise BenchmarkDriftError(f"refusing synthetic artifact symlink: {target}")
+        if relative in LINEAGE_REFRESH_PATHS:
+            continue
+        if target.read_bytes() != expected_content:
+            raise BenchmarkDriftError(
+                "lineage refresh cannot change scientific benchmark content: " f"{target}"
+            )
+    for relative in sorted(LINEAGE_REFRESH_PATHS):
+        (output_root / relative).write_bytes(payloads[relative])
+    verify_materialized_benchmark(output_root, config_path)
+    return manifest
+
+
 def verify_materialized_benchmark(
     output_root: Path = DEFAULT_OUTPUT_ROOT,
     config_path: Path = DEFAULT_CONFIG_PATH,
@@ -6351,11 +6474,17 @@ def verify_materialized_benchmark(
         raise BenchmarkDriftError("runtime routing must cover exactly sixteen unique worlds")
     for entry in routing:
         prequery_parts = Path(entry.relative_prequery_stage_path).parts
+        neutral_parts = Path(entry.relative_neutral_evidence_stage_path).parts
         if (
             prequery_parts[:2] != (MODEL_VISIBLE_DIRECTORY, "prequery_stages")
             or len(prequery_parts) != 3
         ):
             raise BenchmarkDriftError("pre-query route escapes its isolated stage namespace")
+        if (
+            neutral_parts[:2] != (CONDITION_INPUT_DIRECTORY, NEUTRAL_EVIDENCE_DIRECTORY)
+            or len(neutral_parts) != 3
+        ):
+            raise BenchmarkDriftError("neutral route escapes its condition-input namespace")
         if any(
             Path(relative).parts[:2] != (MODEL_VISIBLE_DIRECTORY, "query_stages")
             or len(Path(relative).parts) != 3
@@ -6371,6 +6500,21 @@ def verify_materialized_benchmark(
         )
         if evidence.content_hash != entry.artifact_hash:
             raise BenchmarkDriftError("pre-query route names the wrong evidence artifact")
+        neutral_root = output_root / entry.relative_neutral_evidence_stage_path
+        neutral_manifest = RuntimeStagingManifest.model_validate_json(
+            (neutral_root / "manifest.json").read_text(encoding="utf-8")
+        )
+        neutral, equivalence = load_staged_neutral_evidence(
+            neutral_root,
+            output_root / CONDITION_INPUT_DIRECTORY / NEUTRAL_EVIDENCE_DIRECTORY,
+            neutral_manifest,
+            evidence,
+        )
+        if (
+            neutral.content_hash != entry.neutral_evidence_artifact_hash
+            or equivalence.content_hash != entry.evidence_equivalence_certificate_hash
+        ):
+            raise BenchmarkDriftError("neutral route names the wrong evidence or certificate")
         for relative, reveal_hash in zip(
             entry.relative_query_stage_paths, entry.query_reveal_hashes, strict=True
         ):

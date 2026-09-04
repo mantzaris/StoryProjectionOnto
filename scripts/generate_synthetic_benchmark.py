@@ -11,6 +11,7 @@ from story_projection_onto.benchmark import (
     DEFAULT_CONFIG_PATH,
     DEFAULT_OUTPUT_ROOT,
     materialize_benchmark,
+    refresh_benchmark_lineage,
     verify_materialized_benchmark,
 )
 
@@ -24,14 +25,38 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="verify existing artifacts without attempting to materialize missing files",
     )
+    parser.add_argument(
+        "--refresh-lineage-only",
+        action="store_true",
+        help=(
+            "refresh only the source-bound draft seal and manifest after proving "
+            "all substantive benchmark artifacts are byte-identical"
+        ),
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+    if args.verify_only and args.refresh_lineage_only:
+        raise SystemExit("--verify-only and --refresh-lineage-only are mutually exclusive")
     if args.verify_only:
         verify_materialized_benchmark(args.output_root, args.config)
         print(json.dumps({"status": "verified", "output_root": str(args.output_root)}))
+        return
+    if args.refresh_lineage_only:
+        manifest = refresh_benchmark_lineage(args.output_root, args.config)
+        print(
+            json.dumps(
+                {
+                    "status": "lineage_refreshed_and_verified",
+                    "output_root": str(args.output_root),
+                    "benchmark_manifest_hash": manifest.content_hash,
+                    "draft_seal_hash": manifest.draft_seal_hash,
+                },
+                sort_keys=True,
+            )
+        )
         return
     manifest = materialize_benchmark(args.output_root, args.config)
     print(
