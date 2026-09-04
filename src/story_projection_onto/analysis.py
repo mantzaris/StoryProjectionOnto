@@ -51,6 +51,8 @@ class MetricObservation:
     value: float | None
     output_valid: bool = True
     gold_nonempty: bool = True
+    gold_count: int | None = None
+    scorer_plan_hash: str | None = None
 
     def __post_init__(self) -> None:
         for name in ("condition", "world_id", "context_id", "metric_name"):
@@ -61,6 +63,16 @@ class MetricObservation:
             raise ValueError("seed_block must be positive when present")
         if self.value is not None and not math.isfinite(self.value):
             raise ValueError("metric value must be finite or None")
+        if self.gold_count is not None:
+            if self.gold_count < 0:
+                raise ValueError("gold_count must be nonnegative")
+            if self.gold_nonempty != (self.gold_count > 0):
+                raise ValueError("gold_nonempty must agree with gold_count")
+        if self.scorer_plan_hash is not None and (
+            len(self.scorer_plan_hash) != 64
+            or any(character not in "0123456789abcdef" for character in self.scorer_plan_hash)
+        ):
+            raise ValueError("scorer_plan_hash must be a lowercase SHA-256 digest")
 
 
 @dataclass(frozen=True)
@@ -85,6 +97,7 @@ class RarePivotalCountObservation:
     true_positive_count: int
     gold_count: int
     output_valid: bool = True
+    scorer_plan_hash: str | None = None
 
     def __post_init__(self) -> None:
         for name in ("condition", "world_id", "context_id"):
@@ -97,6 +110,11 @@ class RarePivotalCountObservation:
             raise ValueError("rare-pivotal counts must be nonnegative")
         if self.true_positive_count > self.gold_count:
             raise ValueError("rare-pivotal true positives cannot exceed gold count")
+        if self.scorer_plan_hash is not None and (
+            len(self.scorer_plan_hash) != 64
+            or any(character not in "0123456789abcdef" for character in self.scorer_plan_hash)
+        ):
+            raise ValueError("scorer_plan_hash must be a lowercase SHA-256 digest")
 
 
 @dataclass(frozen=True)
@@ -227,7 +245,7 @@ class CrossingObservation:
     condition: str
     world_id: str
     context_id: str
-    seed_block: int
+    seed_block: int | None
     crossing_count: int | None
     opportunity_count: int | None
 
@@ -236,8 +254,8 @@ class CrossingObservation:
             value = getattr(self, name)
             if not value or value.strip() != value:
                 raise ValueError(f"{name} must be nonempty and stripped")
-        if self.seed_block <= 0:
-            raise ValueError("seed_block must be positive")
+        if self.seed_block is not None and self.seed_block <= 0:
+            raise ValueError("seed_block must be positive when present")
         if (self.crossing_count is None) != (self.opportunity_count is None):
             raise ValueError("crossing and opportunity counts must be jointly numeric or NA")
         if self.crossing_count is None:
@@ -298,6 +316,105 @@ def _semantic_value(
     if not row.output_valid and row.gold_nonempty and invalid_with_nonempty_gold_scores_zero:
         return 0.0
     return row.value
+
+
+def validate_cross_condition_metric_design(
+    observations: Iterable[MetricObservation],
+    *,
+    metric_names: Sequence[str],
+    conditions: Sequence[str],
+    require_scorer_bindings: bool = False,
+) -> None:
+    """Require the same world/context and scorer-gold cells across conditions."""
+
+    rows = tuple(
+        row
+        for row in observations
+        if row.metric_name in set(metric_names) and row.condition in set(conditions)
+    )
+    for metric_name in metric_names:
+        metric_rows = tuple(row for row in rows if row.metric_name == metric_name)
+        panels: dict[
+            str, dict[tuple[str, str], tuple[bool, int | None, str | None]]
+        ] = {}
+        for condition in conditions:
+            condition_rows = tuple(row for row in metric_rows if row.condition == condition)
+            if not condition_rows:
+                raise ValueError(f"missing {metric_name!r} rows for condition {condition!r}")
+            cells: dict[
+                tuple[str, str], tuple[bool, int | None, str | None]
+            ] = {}
+            for row in condition_rows:
+                key = (row.world_id, row.context_id)
+                if require_scorer_bindings and (
+                    row.gold_count is None or row.scorer_plan_hash is None
+                ):
+                    raise ValueError(
+                        "registered analysis requires gold_count and scorer_plan_hash "
+                        f"for {condition}/{row.world_id}/{row.context_id}"
+                    )
+                binding = (row.gold_nonempty, row.gold_count, row.scorer_plan_hash)
+                previous = cells.setdefault(key, binding)
+                if previous != binding:
+                    raise ValueError(
+                        "scorer/gold binding differs within "
+                        f"{condition}/{row.world_id}/{row.context_id}"
+                    )
+            panels[condition] = cells
+        reference_condition = conditions[0]
+        reference = panels[reference_condition]
+        for condition in conditions[1:]:
+            if set(panels[condition]) != set(reference):
+                raise ValueError(
+                    f"{metric_name!r} world/context cells differ between "
+                    f"{reference_condition!r} and {condition!r}"
+                )
+            if panels[condition] != reference:
+                raise ValueError(
+                    f"{metric_name!r} scorer/gold bindings differ across conditions"
+                )
+
+
+def validate_cross_condition_rare_design(
+    observations: Iterable[RarePivotalCountObservation],
+    *,
+    conditions: Sequence[str],
+    require_scorer_bindings: bool = False,
+) -> None:
+    """Require identical context identities and rare-gold denominators by condition."""
+
+    rows = tuple(row for row in observations if row.condition in set(conditions))
+    panels: dict[str, dict[tuple[str, str], tuple[int, str | None]]] = {}
+    for condition in conditions:
+        condition_rows = tuple(row for row in rows if row.condition == condition)
+        if not condition_rows:
+            raise ValueError(f"missing rare-pivotal rows for condition {condition!r}")
+        cells: dict[tuple[str, str], tuple[int, str | None]] = {}
+        for row in condition_rows:
+            key = (row.world_id, row.context_id)
+            if require_scorer_bindings and row.scorer_plan_hash is None:
+                raise ValueError(
+                    "registered rare-pivotal analysis requires scorer_plan_hash "
+                    f"for {condition}/{row.world_id}/{row.context_id}"
+                )
+            binding = (row.gold_count, row.scorer_plan_hash)
+            previous = cells.setdefault(key, binding)
+            if previous != binding:
+                raise ValueError(
+                    f"rare scorer/gold binding differs within {condition}/{row.world_id}/"
+                    f"{row.context_id}"
+                )
+        panels[condition] = cells
+    reference_condition = conditions[0]
+    reference = panels[reference_condition]
+    for condition in conditions[1:]:
+        if set(panels[condition]) != set(reference):
+            raise ValueError(
+                f"rare-pivotal world/context cells differ between {reference_condition!r} "
+                f"and {condition!r}"
+            )
+        if panels[condition] != reference:
+            raise ValueError("rare-pivotal scorer/gold bindings differ across conditions")
 
 
 def aggregate_world_means(
@@ -826,6 +943,15 @@ def _condition_panel(
         raise ValueError(f"{metric_name} is missing condition {condition!r}") from error
     if not values:
         raise ValueError(f"{metric_name}/{condition} has no world values")
+    for world_id, value in values.items():
+        if not world_id or world_id.strip() != world_id:
+            raise ValueError(f"{metric_name}/{condition} has an invalid world ID")
+        if value is not None and (
+            not math.isfinite(value) or not 0.0 <= value <= 1.0
+        ):
+            raise ValueError(
+                f"registered rate {metric_name}/{condition}/{world_id} must lie in [0, 1]"
+            )
     return values
 
 
@@ -1061,6 +1187,18 @@ def run_registered_analysis_from_observations(
     rare_rows = tuple(
         row for row in rare_pivotal_observations if row.condition in registered_conditions
     )
+    ordered_conditions = (c0_condition, c1_condition, c2_condition, fixed_select_condition)
+    validate_cross_condition_metric_design(
+        metric_rows,
+        metric_names=(PRIMARY_SEMANTIC_METRIC, PRIMARY_ORGANIZATION_METRIC),
+        conditions=ordered_conditions,
+        require_scorer_bindings=True,
+    )
+    validate_cross_condition_rare_design(
+        rare_rows,
+        conditions=ordered_conditions,
+        require_scorer_bindings=True,
+    )
     semantic_worlds = aggregate_world_means(
         metric_rows,
         metric_name=PRIMARY_SEMANTIC_METRIC,
@@ -1158,10 +1296,10 @@ def compare_crossing_profiles(
 ) -> CrossingComparisonResult:
     """Apply the registered opportunity/conditional crossing comparison.
 
-    Geometry is paired at world/context/seed.  Available matched pairs are averaged
-    within world so outputs are never treated as independent inferential units.
-    Conditional rates retain only matched pairs for which both outputs have at least
-    one crossing opportunity.  Exposure-weighted rates are separately descriptive.
+    Seeded conditions are paired at world/context/seed.  When exactly one condition
+    is deterministic (C0), its one unseeded output is compared with the other
+    condition's seed mean at world/context; the deterministic graph is never copied
+    into artificial seed rows. Exposure-weighted rates remain separately descriptive.
     """
 
     if treatment_condition == comparator_condition:
@@ -1173,62 +1311,137 @@ def compare_crossing_profiles(
     )
     if not selected:
         raise ValueError("crossing comparison has no observations")
-    by_condition: dict[str, dict[tuple[str, str, int], CrossingObservation]] = {
-        treatment_condition: {},
-        comparator_condition: {},
+    grouped: dict[str, dict[tuple[str, str], list[CrossingObservation]]] = {
+        treatment_condition: defaultdict(list),
+        comparator_condition: defaultdict(list),
     }
     for row in selected:
-        key = (row.world_id, row.context_id, row.seed_block)
-        condition_rows = by_condition[row.condition]
-        if key in condition_rows:
-            raise ValueError(f"duplicate crossing observation for {row.condition}/{key!r}")
-        condition_rows[key] = row
-    treatment_rows = by_condition[treatment_condition]
-    comparator_rows = by_condition[comparator_condition]
-    if set(treatment_rows) != set(comparator_rows):
-        raise ValueError("crossing conditions have different world/context/seed keys")
-    keys = tuple(sorted(treatment_rows))
-    worlds = tuple(sorted({key[0] for key in keys}))
+        grouped[row.condition][(row.world_id, row.context_id)].append(row)
+    if set(grouped[treatment_condition]) != set(grouped[comparator_condition]):
+        raise ValueError("crossing conditions have different world/context cells")
+    cells = tuple(sorted(grouped[treatment_condition]))
+    worlds = tuple(sorted({key[0] for key in cells}))
+
+    deterministic: dict[str, bool] = {}
+    for condition in (treatment_condition, comparator_condition):
+        seed_kinds = {
+            row.seed_block is None
+            for rows in grouped[condition].values()
+            for row in rows
+        }
+        if len(seed_kinds) != 1:
+            raise ValueError(f"crossing condition {condition!r} mixes seeded and unseeded rows")
+        deterministic[condition] = True in seed_kinds
+    paired_by_seed = not (
+        deterministic[treatment_condition] or deterministic[comparator_condition]
+    )
+
     if require_complete_design:
         if len(worlds) != REGISTERED_WORLD_COUNT:
             raise ValueError(
                 f"crossing comparison requires exactly {REGISTERED_WORLD_COUNT} worlds"
             )
         for world_id in worlds:
-            world_keys = tuple(key for key in keys if key[0] == world_id)
-            contexts = {key[1] for key in world_keys}
+            world_cells = tuple(key for key in cells if key[0] == world_id)
+            contexts = {key[1] for key in world_cells}
             if len(contexts) != REGISTERED_CONTEXTS_PER_WORLD:
                 raise ValueError(
                     f"{world_id} has {len(contexts)} crossing contexts; "
                     f"expected {REGISTERED_CONTEXTS_PER_WORLD}"
                 )
-            for context_id in contexts:
-                seeds = tuple(sorted(key[2] for key in world_keys if key[1] == context_id))
-                if seeds != REGISTERED_LLM_SEEDS:
-                    raise ValueError(
-                        f"{world_id}/{context_id} crossing seeds {seeds!r} do not equal "
-                        f"{REGISTERED_LLM_SEEDS!r}"
-                    )
+    for condition in (treatment_condition, comparator_condition):
+        for (world_id, context_id), rows in grouped[condition].items():
+            seeds = tuple(sorted(row.seed_block for row in rows if row.seed_block is not None))
+            if len(rows) != len({row.seed_block for row in rows}):
+                raise ValueError(f"duplicate crossing seed for {condition}/{world_id}/{context_id}")
+            expected = () if deterministic[condition] else REGISTERED_LLM_SEEDS
+            if deterministic[condition]:
+                valid = len(rows) == 1 and rows[0].seed_block is None
+            else:
+                valid = seeds == expected and all(row.seed_block is not None for row in rows)
+            if require_complete_design and not valid:
+                expected_description = (
+                    "one deterministic unseeded row"
+                    if deterministic[condition]
+                    else repr(expected)
+                )
+                raise ValueError(
+                    f"{condition}/{world_id}/{context_id} crossing seeds do not equal "
+                    f"{expected_description}"
+                )
 
-    available_by_world: dict[str, list[tuple[CrossingObservation, CrossingObservation]]] = (
-        defaultdict(list)
-    )
-    positive_by_world: dict[str, list[tuple[CrossingObservation, CrossingObservation]]] = (
-        defaultdict(list)
-    )
+    # Each unit holds one output per side for seeded-vs-seeded comparisons, or all
+    # seed rows per side for a context-level deterministic comparison.
+    units: list[
+        tuple[str, str, tuple[CrossingObservation, ...], tuple[CrossingObservation, ...]]
+    ] = []
+    for world_id, context_id in cells:
+        treatment_cell = tuple(grouped[treatment_condition][(world_id, context_id)])
+        comparator_cell = tuple(grouped[comparator_condition][(world_id, context_id)])
+        if paired_by_seed:
+            treatment_by_seed = {row.seed_block: row for row in treatment_cell}
+            comparator_by_seed = {row.seed_block: row for row in comparator_cell}
+            if set(treatment_by_seed) != set(comparator_by_seed):
+                raise ValueError("seeded crossing conditions have different seed keys")
+            for seed in sorted(treatment_by_seed):
+                units.append(
+                    (
+                        world_id,
+                        context_id,
+                        (treatment_by_seed[seed],),
+                        (comparator_by_seed[seed],),
+                    )
+                )
+        else:
+            units.append((world_id, context_id, treatment_cell, comparator_cell))
+
+    def values(
+        rows: tuple[CrossingObservation, ...],
+        kind: Literal["incidence", "opportunity_count", "conditional_rate"],
+    ) -> tuple[float, ...] | None:
+        if any(row.opportunity_count is None for row in rows):
+            return None
+        if kind == "incidence":
+            return tuple(float((row.opportunity_count or 0) > 0) for row in rows)
+        if kind == "opportunity_count":
+            return tuple(float(row.opportunity_count or 0) for row in rows)
+        return tuple(
+            (row.crossing_count or 0) / (row.opportunity_count or 1)
+            for row in rows
+            if (row.opportunity_count or 0) > 0
+        )
+
+    available_values: dict[str, list[tuple[str, float, float, float, float]]] = defaultdict(list)
+    positive_values: dict[str, list[tuple[str, float, float]]] = defaultdict(list)
     unavailable = treatment_only = comparator_only = neither = both = 0
-    for key in keys:
-        treatment_row = treatment_rows[key]
-        comparator_row = comparator_rows[key]
-        if treatment_row.opportunity_count is None or comparator_row.opportunity_count is None:
+    for world_id, context_id, treatment_unit, comparator_unit in units:
+        treatment_incidence = values(treatment_unit, "incidence")
+        comparator_incidence = values(comparator_unit, "incidence")
+        if treatment_incidence is None or comparator_incidence is None:
             unavailable += 1
             continue
-        available_by_world[key[0]].append((treatment_row, comparator_row))
-        treatment_positive = treatment_row.opportunity_count > 0
-        comparator_positive = comparator_row.opportunity_count > 0
+        treatment_count = values(treatment_unit, "opportunity_count")
+        comparator_count = values(comparator_unit, "opportunity_count")
+        assert treatment_count is not None and comparator_count is not None
+        available_values[world_id].append(
+            (
+                context_id,
+                float(np.mean(treatment_incidence)),
+                float(np.mean(comparator_incidence)),
+                float(np.mean(treatment_count)),
+                float(np.mean(comparator_count)),
+            )
+        )
+        treatment_positive = bool(any(treatment_incidence))
+        comparator_positive = bool(any(comparator_incidence))
         if treatment_positive and comparator_positive:
             both += 1
-            positive_by_world[key[0]].append((treatment_row, comparator_row))
+            treatment_rates = values(treatment_unit, "conditional_rate")
+            comparator_rates = values(comparator_unit, "conditional_rate")
+            assert treatment_rates and comparator_rates
+            positive_values[world_id].append(
+                (context_id, float(np.mean(treatment_rates)), float(np.mean(comparator_rates)))
+            )
         elif treatment_positive:
             treatment_only += 1
         elif comparator_positive:
@@ -1243,9 +1456,16 @@ def compare_crossing_profiles(
     conditional_treatment: dict[str, float] = {}
     conditional_comparator: dict[str, float] = {}
     world_counts: list[WorldRetainedPairCount] = []
+
+    def two_stage_mean(rows: Sequence[tuple[Any, ...]], value_index: int) -> float:
+        by_context: dict[str, list[float]] = defaultdict(list)
+        for row in rows:
+            by_context[row[0]].append(float(row[value_index]))
+        return float(np.mean([np.mean(items) for items in by_context.values()]))
+
     for world_id in worlds:
-        available = available_by_world[world_id]
-        positive = positive_by_world[world_id]
+        available = available_values[world_id]
+        positive = positive_values[world_id]
         world_counts.append(
             WorldRetainedPairCount(
                 world_id=world_id,
@@ -1254,37 +1474,13 @@ def compare_crossing_profiles(
             )
         )
         if available:
-            incidence_treatment[world_id] = _two_stage_pair_mean(
-                available,
-                member_index=0,
-                value_kind="incidence",
-            )
-            incidence_comparator[world_id] = _two_stage_pair_mean(
-                available,
-                member_index=1,
-                value_kind="incidence",
-            )
-            count_treatment[world_id] = _two_stage_pair_mean(
-                available,
-                member_index=0,
-                value_kind="opportunity_count",
-            )
-            count_comparator[world_id] = _two_stage_pair_mean(
-                available,
-                member_index=1,
-                value_kind="opportunity_count",
-            )
+            incidence_treatment[world_id] = two_stage_mean(available, 1)
+            incidence_comparator[world_id] = two_stage_mean(available, 2)
+            count_treatment[world_id] = two_stage_mean(available, 3)
+            count_comparator[world_id] = two_stage_mean(available, 4)
         if positive:
-            conditional_treatment[world_id] = _two_stage_pair_mean(
-                positive,
-                member_index=0,
-                value_kind="conditional_rate",
-            )
-            conditional_comparator[world_id] = _two_stage_pair_mean(
-                positive,
-                member_index=1,
-                value_kind="conditional_rate",
-            )
+            conditional_treatment[world_id] = two_stage_mean(positive, 1)
+            conditional_comparator[world_id] = two_stage_mean(positive, 2)
 
     incidence = _paired_estimate_from_retained_worlds(
         incidence_treatment,
@@ -1313,8 +1509,12 @@ def compare_crossing_profiles(
             bootstrap_root_seed, f"crossing/{comparison}/conditional-rate"
         ),
     )
-    treatment_pooled = _pooled_crossing_rate(treatment_rows.values())
-    comparator_pooled = _pooled_crossing_rate(comparator_rows.values())
+    treatment_pooled = _pooled_crossing_rate(
+        row for rows in grouped[treatment_condition].values() for row in rows
+    )
+    comparator_pooled = _pooled_crossing_rate(
+        row for rows in grouped[comparator_condition].values() for row in rows
+    )
     pooled_difference = (
         None
         if treatment_pooled.rate is None or comparator_pooled.rate is None
@@ -1333,8 +1533,8 @@ def compare_crossing_profiles(
         comparison=comparison,
         treatment_condition=treatment_condition,
         comparator_condition=comparator_condition,
-        expected_output_pair_count=len(keys),
-        available_output_pair_count=len(keys) - unavailable,
+        expected_output_pair_count=len(units),
+        available_output_pair_count=len(units) - unavailable,
         unavailable_output_pair_count=unavailable,
         both_positive_pair_count=both,
         treatment_only_positive_pair_count=treatment_only,
@@ -1407,5 +1607,7 @@ __all__ = [
     "rare_pivotal_noninferiority",
     "run_registered_analysis",
     "run_registered_analysis_from_observations",
+    "validate_cross_condition_metric_design",
+    "validate_cross_condition_rare_design",
     "world_bootstrap_interval",
 ]

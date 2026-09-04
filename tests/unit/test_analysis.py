@@ -428,6 +428,28 @@ def test_registered_analysis_does_not_open_fixed_select_gate_when_organization_f
     assert not result.mechanism_statistical_rare_gate_passes
 
 
+def test_registered_analysis_rejects_out_of_range_rate_panels() -> None:
+    semantic = _world_panel(c0=0.40, c1=0.50, c2=0.65, fixed=0.52)
+    semantic["C2"]["world-01"] = 1.01
+    with pytest.raises(ValueError, match=r"must lie in \[0, 1\]"):
+        run_registered_analysis(
+            strict_qualified_assertion_f1=semantic,
+            ontology_decision_macro_f1=_world_panel(
+                c0=0.35,
+                c1=0.45,
+                c2=0.63,
+                fixed=0.48,
+            ),
+            rare_pivotal_qualified_assertion_recall=_world_panel(
+                c0=0.60,
+                c1=0.70,
+                c2=0.72,
+                fixed=0.70,
+            ),
+            bootstrap_root_seed=904,
+        )
+
+
 def test_ledger_facing_registered_analysis_applies_complete_world_aggregation() -> None:
     metric_rows = []
     rare_rows = []
@@ -449,6 +471,8 @@ def test_ledger_facing_registered_analysis_applies_complete_world_aggregation() 
                                 seed_block=seed,
                                 metric_name=metric_name,
                                 value=baseline + context / 100 + (seed or 0) / 1000,
+                                gold_count=context,
+                                scorer_plan_hash="a" * 64,
                             )
                         )
                     rare_rows.append(
@@ -461,6 +485,7 @@ def test_ledger_facing_registered_analysis_applies_complete_world_aggregation() 
                                 context if condition in {"C2", "A-FixedSelect"} else context - 1
                             ),
                             gold_count=context,
+                            scorer_plan_hash="a" * 64,
                         )
                     )
     result = run_registered_analysis_from_observations(
