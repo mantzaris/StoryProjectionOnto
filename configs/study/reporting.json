@@ -1,0 +1,113 @@
+{
+  "schema_version": "1.0.0",
+  "policy_id": "conference-results-report-v1",
+  "required_complete_phase_ids": [
+    "phase_1",
+    "phase_2",
+    "phase_3",
+    "phase_4",
+    "phase_5",
+    "phase_6",
+    "phase_7"
+  ],
+  "required_complete_table_ids": [
+    "study_status",
+    "primary_c2_vs_c1",
+    "secondary_c2_vs_c0",
+    "mechanism_c2_vs_fixed",
+    "rare_pivotal",
+    "entropy_clutter",
+    "community",
+    "paraphrase_contrastive",
+    "ablations",
+    "feedback",
+    "novel_case",
+    "failure_accounting",
+    "resource_accounting",
+    "qualitative_examples"
+  ],
+  "required_section_ids": [
+    "research_questions",
+    "conditions",
+    "temporal_representation",
+    "synthetic_benchmark",
+    "resource_controls",
+    "primary_results",
+    "secondary_results",
+    "mechanism_results",
+    "rare_pivotal",
+    "entropy_clutter",
+    "community",
+    "paraphrase_contrastive",
+    "ablations",
+    "feedback_interface",
+    "novel_case",
+    "runtime_failures",
+    "error_limitations",
+    "claim_boundaries",
+    "qualitative_examples"
+  ],
+  "required_figure_ids": [
+    "phase_status",
+    "primary_effects"
+  ],
+  "qualitative_selection_rules": [
+    {
+      "example_id": "development_tutorial",
+      "evidence_split": "development",
+      "selection_time": "before_condition_outputs",
+      "rule": "Use syn-dev-01 (easy) and its registered A/B contrast in query-assignment order to explain identical evidence under two contexts and all four condition capabilities.",
+      "tie_break": "Not applicable: the world and query ordinals are fixed here before output inspection.",
+      "report_label": "pedagogical development example"
+    },
+    {
+      "example_id": "rare_pivotal",
+      "evidence_split": "development",
+      "selection_time": "before_condition_outputs",
+      "rule": "Choose the lexicographically first development world/context whose frozen scorer gold has a positive rare-pivotal denominator and complete support path.",
+      "tie_break": "Ascending world_id, then context_id, then rare-pivotal assertion anchor.",
+      "report_label": "pedagogical development example"
+    },
+    {
+      "example_id": "temporal_epistemic",
+      "evidence_split": "development",
+      "selection_time": "before_condition_outputs",
+      "rule": "Choose the lexicographically first development context eligible for the frozen A-NoTemporalEpistemic probe, preferring holder-attributed evidence when eligibility ties.",
+      "tie_break": "Holder-attributed before temporal-only, then ascending world_id and context_id.",
+      "report_label": "pedagogical development example"
+    },
+    {
+      "example_id": "held_out_illustration",
+      "evidence_split": "held_out",
+      "selection_time": "before_condition_outputs",
+      "rule": "Use the easy world selected by the independent-review seed (syn-test-03), then its context at registered query ordinal A (ctx_556b0577875afcad7419). This selection does not inspect any condition output.",
+      "tie_break": "The review seed and ordinal-A rule are frozen; no outcome-based tie is permitted.",
+      "report_label": "qualitative held-out illustration"
+    },
+    {
+      "example_id": "counterexample",
+      "evidence_split": "held_out",
+      "selection_time": "rule_frozen_before_outputs_applied_after_itt_scoring",
+      "rule": "After intention-to-treat scoring, select the hard-stratum world-context with the minimum mean C2 strict qualified-assertion F1 across the two registered seeds; include invalid and timed-out outputs as registered zeros. Show C0, C1, C2, and A-FixedSelect for the selected unit regardless of which is best.",
+      "tie_break": "Ascending world_id, then context_id. Within the selected context, display seed blocks in registered order; never pick the worse seed post hoc.",
+      "report_label": "qualitative failure illustration"
+    },
+    {
+      "example_id": "narrative_illustration",
+      "evidence_split": "case_study",
+      "selection_time": "before_condition_outputs",
+      "rule": "After the four windows are preregistered and before condition output inspection, use the lowest registered window ordinal and both of its contexts; publish only high-level paraphrases and opaque evidence IDs.",
+      "tie_break": "Ascending preregistered window ordinal, then registered context ordinal.",
+      "report_label": "descriptive narrative illustration"
+    }
+  ],
+  "claim_boundaries": [
+    "Aggregate 12-world comparisons are confirmatory efficacy evidence; qualitative examples are illustrations only.",
+    "Development examples are pedagogical and cannot support held-out efficacy claims.",
+    "Narrative transfer is descriptive and is not pooled with the synthetic population estimate.",
+    "No result implies general LLM superiority, human usability, complete novel truth, or series-wide generalization.",
+    "Lower entropy, fewer nodes, fewer crossings, and fewer clusters are never inherently better.",
+    "Construction-freedom attribution requires the gated C2 versus A-FixedSelect mechanism result and rare-pivotal safeguards."
+  ],
+  "policy_sha256": "f3640e4001f538b0604124cc0dda08181b7f31d148aa47a417f563bc8c893ef0"
+}
