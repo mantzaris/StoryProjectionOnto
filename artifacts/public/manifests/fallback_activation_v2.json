@@ -1,0 +1,17 @@
+{
+  "authorized": true,
+  "fallback_policy_sha256": "fb26cbbf5156f95e8fd58113e5630d47cc1cdb076734bc4bd7ef9955028f97a9",
+  "fallback_repository": "Qwen/Qwen3-8B-AWQ",
+  "fallback_revision": "4da05a8edb55c6046cce958586c33b61da07bb79",
+  "fallback_served_model_name": "qwen3-8b-awq-fallback",
+  "kind": "fallback_activation_certificate",
+  "legacy_activation_manifest_sha256": "84cd76f0de47a1ceb9154df150c8ead022aa4e544bd0a1c4e31cfee36aab9eb7",
+  "manifest_sha256": "224181b0929fd3f7800d9ad99e31e39ed6ed3ace42f2afdd81106efae989f657",
+  "maximum_inference_seconds": 720,
+  "operational_replacement_receipt_manifest_sha256": "521c6fc0bd4eb4dc35b4d9795994271eb6a1eae7c7066be539f65fe09dab2ccf",
+  "primary_failure_classification": "latency",
+  "primary_rejection_manifest_sha256": "a3b64a4f4c4382886c154657d989bee6a25a037e252ccd39a9681cdc59b757ea",
+  "required_cache_replacement": true,
+  "reserved_service_start_events": 1,
+  "schema_version": "1.0.0"
+}

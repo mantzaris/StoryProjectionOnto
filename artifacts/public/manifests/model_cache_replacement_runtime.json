@@ -1,0 +1,13 @@
+{
+  "activation_certificate_sha256": "224181b0929fd3f7800d9ad99e31e39ed6ed3ace42f2afdd81106efae989f657",
+  "fallback_repository": "Qwen/Qwen3-8B-AWQ",
+  "fallback_revision": "4da05a8edb55c6046cce958586c33b61da07bb79",
+  "kind": "fallback_cache_replacement_receipt",
+  "legacy_activation_manifest_sha256": "84cd76f0de47a1ceb9154df150c8ead022aa4e544bd0a1c4e31cfee36aab9eb7",
+  "manifest_sha256": "6965fd3f9e2f557ec3360093748a8e7a093e98cdca9b37b753123dac94643558",
+  "operational_replacement_receipt_manifest_sha256": "521c6fc0bd4eb4dc35b4d9795994271eb6a1eae7c7066be539f65fe09dab2ccf",
+  "rejected_primary_repository_absent": true,
+  "schema_version": "1.0.0",
+  "single_repository_in_shared_cache": true,
+  "single_snapshot_in_shared_cache": true
+}
