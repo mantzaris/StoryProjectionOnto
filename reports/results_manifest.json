@@ -10,7 +10,7 @@
   "model_revision": null,
   "phases": [
     {"phase_id": "phase_1", "label": "Contracts, resource controls, and GPU pilot", "status": "incomplete", "reason": "The 14B candidate was rejected and fallback acceptance has not completed.", "source_artifact_hashes": ["b458b368d4420dd1f8948893e8cdeb684cbf0f52cc558d9a9454b3c58ff17244", "b8c2f719d2e48d7190e8d4995bd31bc990ca288f6d0f13563171e9d4c940ca7b", "c978e75cef00ba7276055538c69d50b1a5396e628463ec25546b4bc97bd53ab9", "4b870ec47668105badd32528d6fb6997fc0221618097e048ff28d27716f78050", "90bbb5279e99bc9fe39d92332e70c2e431c42e2131df3cbb816db6ba43861bef"]},
-    {"phase_id": "phase_2", "label": "Synthetic benchmark", "status": "incomplete", "reason": "The mandatory independent condition-blind review has not been supplied or adjudicated.", "source_artifact_hashes": ["b81da310ffe3477b8929aa50330e50db8e9f3152bdba05241256d3cf171fb41f"]},
+    {"phase_id": "phase_2", "label": "Synthetic benchmark", "status": "incomplete", "reason": "The mandatory independent condition-blind review has not been supplied or adjudicated.", "source_artifact_hashes": ["15f022302ba1bfbf6f1caf8d3869b16752d02fd693966b2b9bcb1bf28d5be3bb"]},
     {"phase_id": "phase_3", "label": "Conditions and primary comparisons", "status": "incomplete", "reason": "Development and held-out GPU condition outputs are not complete.", "source_artifact_hashes": []},
     {"phase_id": "phase_4", "label": "Metrics, statistics, and ablations", "status": "incomplete", "reason": "No registered held-out condition table exists to analyze.", "source_artifact_hashes": []},
     {"phase_id": "phase_5", "label": "Visualization and feedback", "status": "incomplete", "reason": "GPU-backed scripted feedback and researcher traces have not executed.", "source_artifact_hashes": []},
@@ -18,7 +18,7 @@
     {"phase_id": "phase_7", "label": "Results and conference artifacts", "status": "incomplete", "reason": "The reporting substrate exists, but final immutable result inputs do not.", "source_artifact_hashes": []}
   ],
   "tables": [
-    {"table_id": "study_status", "relative_path": "tables/study_status.csv", "sha256": "d1cae85a93158406ed710d39a7b6eb69cb4eee6d69bb91b3a32b7bc16051143d", "row_count": 7, "required_columns": ["phase_id", "status", "reason"], "status": "complete", "description": "Machine-readable phase status at this build", "source_artifact_hashes": ["866934c29048cf698871550cf11f71bea3c6d75d939b815aed15f9059b86163b"]},
+    {"table_id": "study_status", "relative_path": "tables/study_status.csv", "sha256": "d1cae85a93158406ed710d39a7b6eb69cb4eee6d69bb91b3a32b7bc16051143d", "row_count": 7, "required_columns": ["phase_id", "status", "reason"], "status": "complete", "description": "Machine-readable phase status at this build", "source_artifact_hashes": ["fb2aac2dcc188e867be7d118dfd8effa85b893d83d5cbba2b80c11e1b3fa1cf6"]},
     {"table_id": "resource_accounting", "relative_path": "tables/resource_accounting.csv", "sha256": "6d655ceb4c91d2875463be129cc766ac4230036f8286215d5cfe3e09d0c03927", "row_count": 8, "required_columns": ["scope", "metric", "value", "unit", "status", "source_note"], "status": "complete", "description": "Verified resource accounting through the rejected primary pilot (not final)", "source_artifact_hashes": ["c978e75cef00ba7276055538c69d50b1a5396e628463ec25546b4bc97bd53ab9", "4b870ec47668105badd32528d6fb6997fc0221618097e048ff28d27716f78050", "90bbb5279e99bc9fe39d92332e70c2e431c42e2131df3cbb816db6ba43861bef"]},
     {"table_id": "failure_accounting", "relative_path": "tables/failure_accounting.csv", "sha256": "1a9b8a298001a0fb4bb0548bd749a349845b7eaac3331d70ad99196e364cec92", "row_count": 2, "required_columns": ["run_id", "model_repository", "immutable_revision", "failure_type", "completed_generation_calls", "gate_passed", "vllm_service_stopped", "allocated_gpu_seconds", "interpretation"], "status": "complete", "description": "Observed primary-model pilot failures (not final run accounting)", "source_artifact_hashes": ["c978e75cef00ba7276055538c69d50b1a5396e628463ec25546b4bc97bd53ab9", "4b870ec47668105badd32528d6fb6997fc0221618097e048ff28d27716f78050"]}
   ],
@@ -41,7 +41,7 @@
     {"section_id": "ablations", "title": "Reduced ablation results", "required_phases": ["phase_4"], "table_ids": [], "fixed_text": ["Only A-NoContext (12 calls), A-NoTemporalEpistemic (8), and A-NoRareGuard (8) are registered, each with a one-switch-only configuration audit."]},
     {"section_id": "feedback_interface", "title": "Feedback and interface demonstrations", "required_phases": ["phase_5"], "table_ids": [], "fixed_text": ["Six known-answer scripts and three researcher traces demonstrate REFINE_CONTEXT and REQUEST_MERGE_SPLIT. They do not support participant or usability claims."]},
     {"section_id": "novel_case", "title": "Bounded first-novel transfer study", "required_phases": ["phase_6"], "table_ids": [], "fixed_text": ["The planned transfer study uses four preregistered windows, eight bounded same-evidence queries, and one separately labeled full-index operational C2 query. Public examples must use paraphrases and opaque evidence IDs."]},
-    {"section_id": "runtime_failures", "title": "Runtime, GPU, storage, invalid-output, repair, and failure accounting", "required_phases": ["phase_1", "phase_7"], "table_ids": ["failure_accounting", "resource_accounting"], "fixed_text": ["Failures and invalid or unrepaired outputs remain visible and intention-to-treat. The table below is cumulative only through the rejected primary pilot."]},
+    {"section_id": "runtime_failures", "title": "Runtime, GPU, storage, invalid-output, repair, and failure accounting", "required_phases": ["phase_1", "phase_7"], "table_ids": ["failure_accounting", "resource_accounting"], "fixed_text": ["Failures and invalid or unrepaired outputs remain visible and intention-to-treat. Final accounting is cumulative across every registered base call, repair, failure, timeout, and GPU-service allocation."]},
     {"section_id": "error_limitations", "title": "Error analysis, negative results, and limitations", "required_phases": ["phase_3", "phase_4", "phase_6", "phase_7"], "table_ids": [], "fixed_text": ["The final analysis must retain null and negative findings, all declared error categories, the twelve-world sample limitation, one-model and one-prompt dependence, compute asymmetry, and descriptive-only transfer scope."]},
     {"section_id": "claim_boundaries", "title": "Exact claim boundaries", "required_phases": ["phase_7"], "table_ids": [], "fixed_text": ["Claims are conditional on registered gates and confined to the benchmark, pinned model, frozen prompt, and bounded narrative transfer study."]},
     {"section_id": "qualitative_examples", "title": "Easy-to-interpret qualitative illustrations", "required_phases": ["phase_2", "phase_3", "phase_5", "phase_6"], "table_ids": [], "fixed_text": ["The final report reserves distinct slots for the development tutorial, rare-pivotal fact, temporal or epistemic case, fixed held-out illustration, deterministic failure case, and one or two narrative illustrations. These do not substitute for aggregate efficacy evidence."]}
@@ -49,14 +49,14 @@
   "source_artifact_hashes": [
     "b458b368d4420dd1f8948893e8cdeb684cbf0f52cc558d9a9454b3c58ff17244",
     "b8c2f719d2e48d7190e8d4995bd31bc990ca288f6d0f13563171e9d4c940ca7b",
-    "b81da310ffe3477b8929aa50330e50db8e9f3152bdba05241256d3cf171fb41f",
+    "15f022302ba1bfbf6f1caf8d3869b16752d02fd693966b2b9bcb1bf28d5be3bb",
     "c978e75cef00ba7276055538c69d50b1a5396e628463ec25546b4bc97bd53ab9",
     "4b870ec47668105badd32528d6fb6997fc0221618097e048ff28d27716f78050",
     "90bbb5279e99bc9fe39d92332e70c2e431c42e2131df3cbb816db6ba43861bef"
   ],
   "ingestion_receipt_relative_path": "report_ingestion_receipt.json",
-  "ingestion_receipt_file_sha256": "2fa9f24affe276dc0611fd1b3596e080ac99dc7725e5382012eccd2504fd5215",
-  "ingestion_receipt_sha256": "5d7d86c714e599184206fbe459cb3408b216fdc39980c9ae75d3035fb541cc0e",
-  "reporting_policy_sha256": "87f4d4f82e2e257e4f7f9e41f4e53f91375edd808af968bf374de93db8312ccb",
-  "manifest_sha256": "ab5408139af322219e8503d1a0175b6fe48591b1113626183e98331539c7f473"
+  "ingestion_receipt_file_sha256": "fc59693f79befe5c44d3eabd67e78ec5ca4fa5d2f4c05be30828ce3ce2b11ba0",
+  "ingestion_receipt_sha256": "138ace45558305eed38fc12929be67b158031abd097d11da7ad953ad3637b13a",
+  "reporting_policy_sha256": "fa911d3fa56d11c995cda64b435305ee4f0c21a6b1cf8f1adf1c770702196a93",
+  "manifest_sha256": "16a65d4bb31bd34c4c0f5564062f348388b4d7d841b1ae80e648e6e0577bc071"
 }

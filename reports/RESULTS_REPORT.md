@@ -2,7 +2,7 @@
 
 **Study status:** `incomplete` — The primary 14B pilot was rejected; fallback acceptance, development execution, independent review, held-out runs, and the lawful first-novel study remain incomplete.
 
-**Frozen input manifest:** `ab5408139af322219e8503d1a0175b6fe48591b1113626183e98331539c7f473`
+**Frozen input manifest:** `16a65d4bb31bd34c4c0f5564062f348388b4d7d841b1ae80e648e6e0577bc071`
 
 **Code revision:** `e09f83eca015c194552c4e53a4138f6fa36befa2` (dirty worktree: `true`)
 
@@ -11,6 +11,18 @@
 > This document is generated from hash-verified canonical tables. An incomplete or
 > blocked section is not evidence of a null result and contains no imputed scientific
 > value.
+
+## Study overview
+
+Narrative evidence does not determine one universally useful ontology. This study tests whether revealing a user's context before ontology construction changes the semantic fidelity and organization of the resulting evidence-grounded graph.
+
+- **RQ1:** Does query-dependent LLM construction improve qualified-assertion and ontology-decision fidelity relative to query-blind LLM and classical construction?
+
+- **RQ2:** How does construction timing change entropy and directly measured visual clutter when semantic and rare-pivotal safeguards remain visible?
+
+- **RQ3:** How does construction timing change gold-aligned community structure and cross-seed cluster stability?
+
+The query-blind evidence index stores only source-grounded evidence and retrieval metadata. It is not a hidden ontology. C2 must form contextual entities, events, schema, relations, abstractions, and qualified assertions after query reveal.
 
 ## 1. Research questions and hypotheses
 
@@ -169,7 +181,7 @@ The planned transfer study uses four preregistered windows, eight bounded same-e
 
 No confirmatory or descriptive outcome is available for this section.
 
-Failures and invalid or unrepaired outputs remain visible and intention-to-treat. The table below is cumulative only through the rejected primary pilot.
+Failures and invalid or unrepaired outputs remain visible and intention-to-treat. Final accounting is cumulative across every registered base call, repair, failure, timeout, and GPU-service allocation.
 
 _Interim verified table. It is not a completed section outcome._
 
@@ -246,9 +258,9 @@ The final report reserves distinct slots for the development tutorial, rare-pivo
 
 ## Machine-readable provenance
 
-Document source manifest SHA-256: `ab5408139af322219e8503d1a0175b6fe48591b1113626183e98331539c7f473`.
+Document source manifest SHA-256: `16a65d4bb31bd34c4c0f5564062f348388b4d7d841b1ae80e648e6e0577bc071`.
 
-Verified ingestion receipt SHA-256: `5d7d86c714e599184206fbe459cb3408b216fdc39980c9ae75d3035fb541cc0e`.
+Verified ingestion receipt SHA-256: `138ace45558305eed38fc12929be67b158031abd097d11da7ad953ad3637b13a`.
 
 Every displayed table carries its immutable CSV SHA-256 and row count in an HTML
 comment.

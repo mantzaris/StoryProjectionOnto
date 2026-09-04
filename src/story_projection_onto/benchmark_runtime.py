@@ -10,11 +10,15 @@ never named by a runtime manifest.
 from __future__ import annotations
 
 import json
+import os
 import re
-from collections.abc import Mapping, Sequence
+import stat
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from contextlib import contextmanager
+from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Literal, Self
+from typing import Any, Literal, Self, TypeVar
 
 from pydantic import AwareDatetime, Field, model_validator
 
@@ -32,6 +36,172 @@ from story_projection_onto.contracts import (
 
 class GoldFirewallError(PermissionError):
     """Raised when a model-side operation can reach non-staged material."""
+
+
+ObservedT = TypeVar("ObservedT")
+_MAX_RUNTIME_FILE_BYTES = 64 * 1024 * 1024
+
+
+@dataclass(frozen=True, slots=True)
+class DescriptorBoundRuntimeStage:
+    """One already-open flat stage whose descendants cannot follow symlinks."""
+
+    _directory_descriptor: int
+    file_names: frozenset[str]
+    _file_identities: Mapping[str, tuple[int, int, int, int, int, int]]
+
+    @staticmethod
+    def _identity(metadata: os.stat_result) -> tuple[int, int, int, int, int, int]:
+        return (
+            metadata.st_dev,
+            metadata.st_ino,
+            metadata.st_mode,
+            metadata.st_size,
+            metadata.st_mtime_ns,
+            metadata.st_ctime_ns,
+        )
+
+    def assert_exact_files(self, expected: set[str] | frozenset[str]) -> None:
+        if self.file_names != frozenset(expected):
+            raise GoldFirewallError("runtime stage differs from its exact allowlist")
+
+    def _assert_stage_unchanged(self) -> None:
+        try:
+            if frozenset(os.listdir(self._directory_descriptor)) != self.file_names:
+                raise GoldFirewallError("runtime stage membership changed")
+            for name, expected in self._file_identities.items():
+                linked = os.stat(
+                    name,
+                    dir_fd=self._directory_descriptor,
+                    follow_symlinks=False,
+                )
+                if self._identity(linked) != expected:
+                    raise GoldFirewallError("runtime stage file identity changed")
+        except GoldFirewallError:
+            raise
+        except OSError as error:
+            raise GoldFirewallError("runtime stage changed during access") from error
+
+    def _open_regular_file(self, name: str) -> int:
+        if name not in self.file_names or name in {"", ".", ".."} or "/" in name or "\\" in name:
+            raise GoldFirewallError("runtime stage lacks a required flat file")
+        self._assert_stage_unchanged()
+        try:
+            descriptor = os.open(
+                name,
+                os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW,
+                dir_fd=self._directory_descriptor,
+            )
+        except OSError as error:
+            raise GoldFirewallError("runtime stage file cannot be opened safely") from error
+        try:
+            metadata = os.fstat(descriptor)
+        except OSError as error:
+            os.close(descriptor)
+            raise GoldFirewallError("runtime stage file cannot be inspected safely") from error
+        if (
+            not stat.S_ISREG(metadata.st_mode)
+            or metadata.st_size > _MAX_RUNTIME_FILE_BYTES
+            or self._identity(metadata) != self._file_identities[name]
+        ):
+            os.close(descriptor)
+            raise GoldFirewallError("runtime stage file identity changed")
+        return descriptor
+
+    def _assert_unchanged(self, name: str, descriptor: int) -> None:
+        try:
+            opened = os.fstat(descriptor)
+            linked = os.stat(
+                name,
+                dir_fd=self._directory_descriptor,
+                follow_symlinks=False,
+            )
+        except OSError as error:
+            raise GoldFirewallError("runtime stage file changed during its read") from error
+        expected = self._file_identities[name]
+        if self._identity(opened) != expected or self._identity(linked) != expected:
+            raise GoldFirewallError("runtime stage file changed during its read")
+        self._assert_stage_unchanged()
+
+    def read_bytes(self, name: str) -> bytes:
+        descriptor = self._open_regular_file(name)
+        try:
+            with os.fdopen(descriptor, "rb", closefd=False) as stream:
+                payload = stream.read(_MAX_RUNTIME_FILE_BYTES + 1)
+            self._assert_unchanged(name, descriptor)
+        finally:
+            os.close(descriptor)
+        if len(payload) > _MAX_RUNTIME_FILE_BYTES:
+            raise GoldFirewallError("runtime stage file exceeds its byte bound")
+        return payload
+
+    def read_bytes_and_observe(
+        self,
+        name: str,
+        observer: Callable[[], ObservedT],
+    ) -> tuple[bytes, ObservedT]:
+        """Observe immediately after the physical read, before parsing or hashing."""
+
+        descriptor = self._open_regular_file(name)
+        try:
+            with os.fdopen(descriptor, "rb", closefd=False) as stream:
+                payload = stream.read(_MAX_RUNTIME_FILE_BYTES + 1)
+                observed = observer()
+            self._assert_unchanged(name, descriptor)
+        finally:
+            os.close(descriptor)
+        if len(payload) > _MAX_RUNTIME_FILE_BYTES:
+            raise GoldFirewallError("runtime stage file exceeds its byte bound")
+        return payload, observed
+
+
+@contextmanager
+def open_repository_runtime_stage(
+    repository: Path,
+    relative: str,
+) -> Iterator[DescriptorBoundRuntimeStage]:
+    """Open every stage ancestor by descriptor without following any symlink."""
+
+    logical = Path(relative)
+    if (
+        logical.is_absolute()
+        or not logical.parts
+        or logical == Path(".")
+        or ".." in logical.parts
+        or "\\" in relative
+        or any(part in {"", "."} for part in logical.parts)
+    ):
+        raise GoldFirewallError("unsafe runtime stage path")
+    if repository.is_symlink() or not repository.is_dir():
+        raise GoldFirewallError("repository must be an existing real directory")
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC | os.O_NOFOLLOW
+    try:
+        descriptor = os.open(repository, flags)
+    except OSError as error:
+        raise GoldFirewallError("repository cannot be opened safely") from error
+    try:
+        for component in logical.parts:
+            child = os.open(component, flags, dir_fd=descriptor)
+            os.close(descriptor)
+            descriptor = child
+        names = frozenset(os.listdir(descriptor))
+        identities = {}
+        for name in names:
+            metadata = os.stat(name, dir_fd=descriptor, follow_symlinks=False)
+            if not stat.S_ISREG(metadata.st_mode):
+                raise GoldFirewallError(
+                    "runtime stage entries must be regular non-symlink files"
+                )
+            identities[name] = DescriptorBoundRuntimeStage._identity(metadata)
+        yield DescriptorBoundRuntimeStage(descriptor, names, identities)
+    except GoldFirewallError:
+        raise
+    except OSError as error:
+        raise GoldFirewallError(
+            "runtime stage containment or no-symlink check failed"
+        ) from error
+    finally:
+        os.close(descriptor)
 
 
 class RuntimeStageKind(StrEnum):

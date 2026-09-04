@@ -482,7 +482,7 @@ def test_query_provider_and_stopped_incomplete_state_fail_closed(tmp_path: Path)
         CaseQueryProvider(loaded).open(fixture.plan.bounded_context_ids[0], barrier_sealed=False)
 
 
-def test_controller_cli_validates_only_and_execute_is_fail_closed(
+def test_controller_cli_validates_and_execute_requires_exact_inputs(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -505,6 +505,14 @@ def test_controller_cli_validates_only_and_execute_is_fail_closed(
     payload = capsys.readouterr().out
     assert '"adapter_factory_available": true' in payload
     assert '"case_gpu_call_count": 13' in payload
-    assert '"execute_enabled": false' in payload
-    with pytest.raises(RuntimeError, match="requires lawful corpus/admission artifacts"):
-        cli.main([*arguments, "--execute"])
+    assert '"execute_enabled": true' in payload
+    assert '"service_start_watchdog_seconds": 300' in payload
+    assert cli.main([*arguments, "--execute"]) == 2
+    blocked = capsys.readouterr().out
+    assert '"state": "blocked"' in blocked
+    assert "--index" in blocked
+
+    secret = "copyrighted input_value='The hidden sentence'"
+    sanitized = cli._redacted_error(ValueError(secret), cli.parse_args(arguments))
+    assert sanitized == "case command blocked; diagnostics retained in restricted storage"
+    assert "hidden sentence" not in sanitized

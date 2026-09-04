@@ -3,7 +3,7 @@
   "plan_id": "phase3-development-block-v1",
   "split": "development",
   "benchmark_manifest_path": "data/synthetic/manifests/benchmark_manifest.json",
-  "benchmark_manifest_file_sha256": "b81da310ffe3477b8929aa50330e50db8e9f3152bdba05241256d3cf171fb41f",
+  "benchmark_manifest_file_sha256": "15f022302ba1bfbf6f1caf8d3869b16752d02fd693966b2b9bcb1bf28d5be3bb",
   "seed_manifest_path": "data/synthetic/manifests/seed_manifest.json",
   "seed_manifest_file_sha256": "02f748f87de0a7d8acb423577840e197370bccac10e8d432570335ac6251d0f4",
   "gpu_call_inventory_path": "configs/study/gpu_call_inventory.json",

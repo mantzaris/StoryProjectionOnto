@@ -323,6 +323,11 @@ class DevelopmentForecastReceipt(ImmutableRecord):
     scheduled_limit_seconds: float = Field(gt=0.0)
     hard_limit_seconds: float = Field(gt=0.0)
     inventory_rows: tuple[DevelopmentForecastInventoryRow, ...]
+    retry_amendment_sha256: Sha256Digest | None = None
+    recovery_service_start_event_ids: tuple[str, ...] = ()
+    authorized_additional_service_start_events: int = Field(default=0, ge=0, le=1)
+    effective_accounting_events: int = Field(gt=0)
+    effective_inference_attempts: int = Field(gt=0)
     normal_acceptance_superseded: Literal[True] = True
     consumed_reserves_not_replenished: Literal[True] = True
     admitted: bool
@@ -344,6 +349,38 @@ class DevelopmentForecastReceipt(ImmutableRecord):
             raise ValueError("development forecast admission flag is inconsistent")
         if self.scheduled_limit_seconds >= self.hard_limit_seconds:
             raise ValueError("scheduled limit must remain below the hard stop")
+        if self.authorized_additional_service_start_events != len(
+            self.recovery_service_start_event_ids
+        ):
+            raise ValueError("recovery service-start overlay count is inconsistent")
+        if bool(self.retry_amendment_sha256) != bool(
+            self.authorized_additional_service_start_events
+        ):
+            raise ValueError("recovery service-start overlay lacks its amendment hash")
+        if len(set(self.recovery_service_start_event_ids)) != len(
+            self.recovery_service_start_event_ids
+        ) or any(
+            not identifier
+            or len(identifier) > 160
+            or any(
+                character not in "abcdefghijklmnopqrstuvwxyz0123456789._-"
+                for character in identifier
+            )
+            for identifier in self.recovery_service_start_event_ids
+        ):
+            raise ValueError("recovery service-start event identifiers are invalid")
+        registered_events = sum(item.registered_count for item in self.inventory_rows)
+        registered_inference = sum(
+            item.registered_count
+            for item in self.inventory_rows
+            if item.call_class != "gpu_session_start"
+        )
+        if self.effective_accounting_events != (
+            registered_events + self.authorized_additional_service_start_events
+        ):
+            raise ValueError("effective accounting-event count omits the recovery overlay")
+        if self.effective_inference_attempts != registered_inference:
+            raise ValueError("recovery overlay changed the inference-attempt inventory")
         return self
 
 

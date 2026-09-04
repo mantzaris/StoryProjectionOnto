@@ -20,6 +20,7 @@ import math
 import os
 import tempfile
 from collections.abc import Callable, Mapping
+from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
@@ -116,6 +117,7 @@ from story_projection_onto.store import (
 
 CASE_BASE_WATCHDOG_SECONDS = 4 * 240 + 9 * 150
 CASE_REQUIRED_NEXT_REPAIR_SECONDS = 240
+CASE_SERVICE_START_WATCHDOG_SECONDS = 300
 SCHEDULED_GPU_LIMIT_SECONDS = 9 * 60 * 60
 HARD_GPU_LIMIT_SECONDS = 10 * 60 * 60
 CASE_SOURCE_REVISION = "case-study-production-controller-v1"
@@ -203,6 +205,7 @@ class CaseExecutionAdmissionReceipt(ImmutableRecord):
     predecessor_ledger_sha256: Sha256Digest
     prior_gpu_event_inventory_hash: Sha256Digest
     allocated_gpu_seconds_before_case: float = Field(ge=0.0)
+    service_start_watchdog_seconds: Literal[300] = CASE_SERVICE_START_WATCHDOG_SECONDS
     case_base_watchdog_seconds: Literal[2310] = CASE_BASE_WATCHDOG_SECONDS
     required_next_repair_seconds: Literal[240] = CASE_REQUIRED_NEXT_REPAIR_SECONDS
     scheduled_gpu_limit_seconds: Literal[32400] = SCHEDULED_GPU_LIMIT_SECONDS
@@ -216,6 +219,7 @@ class CaseExecutionAdmissionReceipt(ImmutableRecord):
     def schedule_has_required_margin(self) -> Self:
         forecast = (
             self.allocated_gpu_seconds_before_case
+            + self.service_start_watchdog_seconds
             + self.case_base_watchdog_seconds
             + self.required_next_repair_seconds
         )
@@ -683,7 +687,22 @@ class OwnedCaseModelService(Protocol):
 
     def resume_from_checkpoint(self, path: Path) -> bool: ...
 
+    def resume_live_service_lease(
+        self,
+        *,
+        expected_session_id: str,
+        expected_event_id: str,
+        watchdog_seconds: float,
+    ) -> bool: ...
+
+    def recover_stale_service_lease(self) -> object | None: ...
+
+    @property
+    def last_recovered_process_identity(self) -> object | None: ...
+
     def write_resume_checkpoint(self, path: Path) -> None: ...
+
+    def detach_for_controller_restart(self, path: Path) -> None: ...
 
     def generate(
         self,
@@ -730,6 +749,93 @@ def _file_sha256(path: Path) -> str:
         while chunk := stream.read(1024 * 1024):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _fsync_directory(path: Path) -> None:
+    descriptor = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _publish_private_no_replace(path: Path, payload: bytes) -> None:
+    """Publish immutable bytes without an overwrite race and fsync the parent."""
+
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    if path.is_symlink():
+        raise CaseStudyExecutionError("restricted immutable record cannot be a symbolic link")
+    if path.exists():
+        if not path.is_file() or path.read_bytes() != payload:
+            raise CaseStudyExecutionError("restricted immutable record changed")
+        return
+    descriptor, temporary_name = tempfile.mkstemp(
+        dir=path.parent,
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+    )
+    temporary = Path(temporary_name)
+    published = False
+    try:
+        os.fchmod(descriptor, 0o600)
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+        try:
+            os.link(temporary, path)
+            published = True
+        except FileExistsError:
+            if path.is_symlink() or not path.is_file() or path.read_bytes() != payload:
+                raise CaseStudyExecutionError(
+                    "restricted immutable record changed"
+                ) from None
+        _fsync_directory(path.parent)
+    finally:
+        temporary.unlink(missing_ok=True)
+        if not published and path.exists() and path.is_symlink():
+            raise CaseStudyExecutionError(
+                "restricted immutable record became a symbolic link"
+            )
+
+
+def _replace_private_pointer(path: Path, payload: bytes) -> None:
+    """Replace a convenience pointer only after its immutable history is durable."""
+
+    if path.is_symlink():
+        raise CaseStudyExecutionError("restricted state pointer cannot be a symbolic link")
+    descriptor, temporary_name = tempfile.mkstemp(
+        dir=path.parent,
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+    )
+    temporary = Path(temporary_name)
+    try:
+        os.fchmod(descriptor, 0o600)
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+        _fsync_directory(path.parent)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _require_restricted_path(path: Path, root: Path, *, label: str) -> Path:
+    """Reject lexical escape and every extant symlink below an explicit root."""
+
+    lexical = Path(os.path.abspath(path))
+    try:
+        relative = lexical.relative_to(root)
+    except ValueError as error:
+        raise CaseStudyExecutionError(f"{label} must remain under restricted storage") from error
+    cursor = root
+    for part in relative.parts:
+        cursor /= part
+        if cursor.exists() and cursor.is_symlink():
+            raise CaseStudyExecutionError(f"{label} cannot traverse a symbolic link")
+    return lexical
 
 
 def _persist_record(
@@ -936,18 +1042,31 @@ class CaseExecutionRepository:
     clock: Callable[[], datetime] = lambda: datetime.now(UTC)
 
     def __post_init__(self) -> None:
+        if self.restricted_root.is_symlink():
+            raise CaseStudyExecutionError("restricted root cannot be a symbolic link")
         root = self.restricted_root.resolve(strict=True)
+        ledger_path = _require_restricted_path(
+            self.artifacts.ledger.path,
+            root,
+            label="case ledger",
+        )
+        blob_root = _require_restricted_path(
+            self.artifacts.blobs.root,
+            root,
+            label="case CAS",
+        )
+        if (
+            ledger_path.resolve(strict=True) != ledger_path
+            or blob_root.resolve(strict=True) != blob_root
+        ):
+            raise CaseStudyExecutionError("case ledger and CAS require stable real paths")
         for path in (self.resume_directory, self.state_pointer_path.parent):
-            if path.exists() and path.is_symlink():
-                raise CaseStudyExecutionError(
-                    "case runtime state cannot use symbolic-link directories"
-                )
-            path.mkdir(mode=0o700, parents=True, exist_ok=True)
-            resolved = path.resolve(strict=True)
-            if not resolved.is_relative_to(root):
-                raise CaseStudyExecutionError(
-                    "case runtime state must remain under the explicit restricted root"
-                )
+            lexical = _require_restricted_path(path, root, label="case runtime state")
+            lexical.mkdir(mode=0o700, parents=True, exist_ok=True)
+            if lexical.resolve(strict=True) != lexical:
+                raise CaseStudyExecutionError("case runtime state requires a stable real path")
+        if self.state_pointer_path.exists() and self.state_pointer_path.is_symlink():
+            raise CaseStudyExecutionError("case state pointer cannot be a symbolic link")
 
     def _atomic_pointer(self, reference: CaseArtifactReference) -> None:
         payload = (
@@ -961,22 +1080,14 @@ class CaseExecutionRepository:
             ).encode("utf-8")
             + b"\n"
         )
-        descriptor, temporary_name = tempfile.mkstemp(
-            dir=self.state_pointer_path.parent,
-            prefix=f".{self.state_pointer_path.name}.",
-            suffix=".tmp",
-        )
-        temporary = Path(temporary_name)
-        try:
-            os.fchmod(descriptor, 0o600)
-            with os.fdopen(descriptor, "wb") as stream:
-                stream.write(payload)
-                stream.flush()
-                os.fsync(stream.fileno())
-            os.replace(temporary, self.state_pointer_path)
-        except BaseException:
-            temporary.unlink(missing_ok=True)
-            raise
+        history = self.state_pointer_path.parent / f"{self.state_pointer_path.name}.history"
+        if history.exists() and (history.is_symlink() or not history.is_dir()):
+            raise CaseStudyExecutionError("case state pointer history is not a real directory")
+        if not history.exists():
+            history.mkdir(mode=0o700)
+            _fsync_directory(history.parent)
+        _publish_private_no_replace(history / f"{reference.logical_content_hash}.json", payload)
+        _replace_private_pointer(self.state_pointer_path, payload)
 
     def persist_resume(self, resume: CaseStudyResumeManifest) -> CaseArtifactReference:
         status = audit_case_study_resume(self.plan, resume)
@@ -990,26 +1101,7 @@ class CaseExecutionRepository:
         )
         destination = self.resume_directory / f"{resume.content_hash}.json"
         payload = canonical_json(resume).encode("utf-8") + b"\n"
-        if destination.exists():
-            if destination.read_bytes() != payload:
-                raise CaseStudyExecutionError("append-only resume file changed")
-        else:
-            descriptor, temporary_name = tempfile.mkstemp(
-                dir=self.resume_directory,
-                prefix=f".{resume.content_hash}.",
-                suffix=".tmp",
-            )
-            temporary = Path(temporary_name)
-            try:
-                os.fchmod(descriptor, 0o600)
-                with os.fdopen(descriptor, "wb") as stream:
-                    stream.write(payload)
-                    stream.flush()
-                    os.fsync(stream.fileno())
-                os.replace(temporary, destination)
-            except BaseException:
-                temporary.unlink(missing_ok=True)
-                raise
+        _publish_private_no_replace(destination, payload)
         return reference
 
     def persist_state(self, state: CaseControllerState) -> CaseArtifactReference:
@@ -1024,28 +1116,42 @@ class CaseExecutionRepository:
         return reference
 
     def load_state(self) -> CaseControllerState | None:
-        if not self.state_pointer_path.exists():
+        candidates: list[bytes] = []
+        if self.state_pointer_path.is_file() and not self.state_pointer_path.is_symlink():
+            candidates.append(self.state_pointer_path.read_bytes())
+        history = self.state_pointer_path.parent / f"{self.state_pointer_path.name}.history"
+        if history.is_dir() and not history.is_symlink():
+            candidates.extend(path.read_bytes() for path in sorted(history.glob("*.json")))
+        states: dict[str, CaseControllerState] = {}
+        for payload in candidates:
+            try:
+                pointer = json.loads(payload)
+                if not isinstance(pointer, Mapping):
+                    continue
+                if pointer.get("execution_plan_hash") != self.plan.content_hash:
+                    continue
+                reference = CaseArtifactReference(
+                    logical_content_hash=cast(str, pointer.get("state_logical_hash")),
+                    artifact_hash=cast(str, pointer.get("state_artifact_hash")),
+                    object_kind="case_controller_state",
+                )
+                state = cast(
+                    CaseControllerState,
+                    _parse_record(self.artifacts, reference, CaseControllerState),
+                )
+            except Exception:
+                continue
+            if state.execution_plan_hash == self.plan.content_hash:
+                states[state.content_hash] = state
+        if not states:
+            if candidates:
+                raise CaseStudyExecutionError("case state pointer history is invalid")
             return None
-        try:
-            pointer = json.loads(self.state_pointer_path.read_bytes())
-        except (OSError, json.JSONDecodeError, UnicodeDecodeError) as exc:
-            raise CaseStudyExecutionError("case state pointer is invalid") from exc
-        if not isinstance(pointer, Mapping):
-            raise CaseStudyExecutionError("case state pointer must contain an object")
-        if pointer.get("execution_plan_hash") != self.plan.content_hash:
-            raise CaseStudyExecutionError("case state pointer references another plan")
-        reference = CaseArtifactReference(
-            logical_content_hash=cast(str, pointer.get("state_logical_hash")),
-            artifact_hash=cast(str, pointer.get("state_artifact_hash")),
-            object_kind="case_controller_state",
-        )
-        state = cast(
-            CaseControllerState,
-            _parse_record(self.artifacts, reference, CaseControllerState),
-        )
-        if state.execution_plan_hash != self.plan.content_hash:
-            raise CaseStudyExecutionError("case controller state references another plan")
-        return state
+        latest_sequence = max(item.sequence_number for item in states.values())
+        latest = tuple(item for item in states.values() if item.sequence_number == latest_sequence)
+        if len(latest) != 1:
+            raise CaseStudyExecutionError("case state pointer history forks at its latest state")
+        return latest[0]
 
     def load_resume(self, reference: CaseArtifactReference) -> CaseStudyResumeManifest:
         resume = cast(
@@ -1238,6 +1344,12 @@ class CaseStudyLifecycleGpuAdapter(Protocol):
     @property
     def actual_allocated_service_seconds(self) -> float: ...
 
+    @property
+    def model_service_start_count(self) -> Literal[0, 1]: ...
+
+    @property
+    def model_service_shutdown_count(self) -> Literal[0, 1]: ...
+
     def preflight(
         self,
         *,
@@ -1255,6 +1367,8 @@ class CaseStudyLifecycleGpuAdapter(Protocol):
     def resume_live(self, checkpoint_path: Path) -> bool: ...
 
     def checkpoint(self, checkpoint_path: Path) -> None: ...
+
+    def detach_for_resume(self, checkpoint_path: Path) -> None: ...
 
     def preconstruct_c1(
         self,
@@ -1391,22 +1505,7 @@ class ProductionCaseClassicalAdapter:
             if destination.read_bytes() != payload:
                 raise CaseStudyExecutionError("C0 preparation pointer changed")
             return reference
-        descriptor, name = tempfile.mkstemp(
-            dir=destination.parent,
-            prefix=f".{destination.name}.",
-            suffix=".tmp",
-        )
-        temporary = Path(name)
-        try:
-            os.fchmod(descriptor, 0o600)
-            with os.fdopen(descriptor, "wb") as stream:
-                stream.write(payload)
-                stream.flush()
-                os.fsync(stream.fileno())
-            os.replace(temporary, destination)
-        except BaseException:
-            temporary.unlink(missing_ok=True)
-            raise
+        _publish_private_no_replace(destination, payload)
         return reference
 
     def _load_preparation(self, window_id: str) -> ConditionPreparation:
@@ -1621,6 +1720,7 @@ class CaseStudyProductionController:
     clock: Callable[[], datetime] = lambda: datetime.now(UTC)
     _bounded: dict[str, WindowEvidenceBundle] = field(default_factory=dict, init=False)
     _bounded_receipts: dict[str, CaseBoundedPacketReceipt] = field(default_factory=dict, init=False)
+    preserved_live_service_for_resume: bool = field(default=False, init=False)
 
     def __post_init__(self) -> None:
         if self.plan.content_hash != self.admission.execution_plan_hash:
@@ -2108,57 +2208,70 @@ class CaseStudyProductionController:
         self,
         state: CaseControllerState,
     ) -> CaseControllerState:
-        if state.model_service_start_count == 0:
-            # A crash can occur after the adapter persisted the one-load identity
-            # and checkpoint but before the controller advanced its own state.
-            # Adopt that exact process first; never interpret controller lag as
-            # authority for a second model load.
-            if self.gpu.resume_live(self.service_checkpoint_path):
-                if self.gpu.service_configuration_hash != (
-                    self.plan.model_runtime.selected_launcher_configuration_hash
-                ):
-                    raise CaseStudyExecutionError("adopted case service configuration changed")
-                return self.repository.successor(
-                    state,
-                    phase=CaseStudyExecutionPhase.SERVICE_LIVE,
-                    model_service_start_count=1,
-                    model_load_count=1,
-                    model_service_live=True,
-                    service_configuration_hash=self.gpu.service_configuration_hash,
-                )
-            started = False
-            try:
-                self.gpu.start_once(
-                    execution_id=self.plan.execution_id,
-                    remaining_required_seconds=(
-                        CASE_BASE_WATCHDOG_SECONDS + CASE_REQUIRED_NEXT_REPAIR_SECONDS
-                    ),
-                )
-                started = True
-                self.gpu.checkpoint(self.service_checkpoint_path)
-                return self.repository.successor(
-                    state,
-                    phase=CaseStudyExecutionPhase.SERVICE_LIVE,
-                    model_service_start_count=1,
-                    model_load_count=1,
-                    model_service_live=True,
-                    service_configuration_hash=self.gpu.service_configuration_hash,
-                )
-            except BaseException:
-                if started:
-                    self.gpu.shutdown()
-                raise
         if state.model_service_shutdown_count == 1:
             raise CaseStudyExecutionError(
                 "stopped incomplete case run cannot start a second model load"
             )
-        if not self.gpu.resume_live(self.service_checkpoint_path):
+        live = self.gpu.resume_live(self.service_checkpoint_path)
+        state = self._synchronize_service_lifecycle(state, live=live)
+        if state.model_service_shutdown_count == 1:
+            raise CaseStudyExecutionError(
+                "terminal case service cannot consume a second model load"
+            )
+        if live:
+            if state.service_configuration_hash != self.gpu.service_configuration_hash:
+                raise CaseStudyExecutionError("resumed case service configuration changed")
+            return state
+        if state.model_service_start_count != 0:
             raise CaseStudyExecutionError(
                 "case controller could not adopt the exact still-live service"
             )
-        if state.service_configuration_hash != self.gpu.service_configuration_hash:
-            raise CaseStudyExecutionError("resumed case service configuration changed")
-        return state
+        self.gpu.start_once(
+            execution_id=self.plan.execution_id,
+            remaining_required_seconds=(
+                CASE_BASE_WATCHDOG_SECONDS + CASE_REQUIRED_NEXT_REPAIR_SECONDS
+            ),
+        )
+        self.gpu.checkpoint(self.service_checkpoint_path)
+        return self._synchronize_service_lifecycle(state, live=True)
+
+    def _adapter_lifecycle_count(self, name: str, fallback: int) -> int:
+        value = getattr(self.gpu, name, fallback)
+        if isinstance(value, bool) or value not in {0, 1}:
+            raise CaseStudyExecutionError("case GPU adapter returned invalid lifecycle counts")
+        return cast(int, value)
+
+    def _synchronize_service_lifecycle(
+        self,
+        state: CaseControllerState,
+        *,
+        live: bool,
+        shutdown_observed: bool = False,
+    ) -> CaseControllerState:
+        start_count = self._adapter_lifecycle_count(
+            "model_service_start_count",
+            1 if live else state.model_service_start_count,
+        )
+        shutdown_count = self._adapter_lifecycle_count(
+            "model_service_shutdown_count",
+            1 if shutdown_observed else state.model_service_shutdown_count,
+        )
+        if shutdown_count > start_count:
+            raise CaseStudyExecutionError("case GPU lifecycle counts are inconsistent")
+        if live and (start_count != 1 or shutdown_count != 0):
+            raise CaseStudyExecutionError("live case GPU adapter has terminal lifecycle counts")
+        updates = {
+            "model_service_start_count": start_count,
+            "model_load_count": start_count,
+            "model_service_shutdown_count": shutdown_count,
+            "model_service_live": live and shutdown_count == 0,
+            "service_configuration_hash": (
+                self.gpu.service_configuration_hash if start_count else None
+            ),
+        }
+        if all(getattr(state, name) == value for name, value in updates.items()):
+            return state
+        return self.repository.successor(state, **updates)
 
     def _prepare_all(self, state: CaseControllerState) -> CaseControllerState:
         resume = self.repository.load_resume(state.resume_manifest)
@@ -2380,6 +2493,21 @@ class CaseStudyProductionController:
         status = audit_case_study_resume(self.plan, resume)
         if not status.complete:
             raise CaseStudyExecutionError("review handoff requires all 25 ITT outputs")
+        if state.review_handoff is not None:
+            handoff = cast(
+                CaseBlankReviewHandoff,
+                _parse_record(
+                    self.artifacts,
+                    state.review_handoff,
+                    CaseBlankReviewHandoff,
+                ),
+            )
+            if (
+                handoff.execution_plan_hash != self.plan.content_hash
+                or handoff.terminal_resume_manifest_hash != resume.content_hash
+            ):
+                raise CaseStudyExecutionError("case review handoff changed on resume")
+            return state, handoff
         template = compile_case_review_input_template(self.plan)
         template_ref = _persist_record(
             self.artifacts,
@@ -2406,8 +2534,34 @@ class CaseStudyProductionController:
             handoff,
         )
 
+    def _execution_result(
+        self,
+        state: CaseControllerState,
+        *,
+        prior_seconds: float,
+    ) -> CaseStudyExecutionResult:
+        resume = self.repository.load_resume(state.resume_manifest)
+        status = audit_case_study_resume(self.plan, resume)
+        if state.review_handoff is None:
+            raise CaseStudyExecutionError("terminal case state lacks its review handoff")
+        return CaseStudyExecutionResult(
+            execution_plan_hash=self.plan.content_hash,
+            admission_receipt_hash=self.admission.content_hash,
+            terminal_state_hash=state.content_hash,
+            terminal_resume_manifest_hash=resume.content_hash,
+            status=status,
+            review_handoff_hash=state.review_handoff.logical_content_hash,
+            model_service_start_count=state.model_service_start_count,
+            model_load_count=state.model_load_count,
+            model_service_shutdown_count=state.model_service_shutdown_count,
+            model_service_stopped=True,
+            allocated_gpu_seconds_before_case=prior_seconds,
+            allocated_gpu_seconds_after_case=_total_allocated_seconds(self.ledger),
+            completed_at=state.updated_at,
+        )
+
     def run(self, admission_reference: CaseArtifactReference) -> CaseStudyExecutionResult:
-        """Run or resume; any owned live service is stopped on every return path."""
+        """Run or resume with one crash-recoverable, ledger-bound model load."""
 
         self.ledger.register_study(
             study_id=self.plan.execution_id,
@@ -2420,30 +2574,36 @@ class CaseStudyProductionController:
         state = self.repository.initialize(admission_reference)
         prior_seconds = self.admission.allocated_gpu_seconds_before_case
         if state.phase is CaseStudyExecutionPhase.COMPLETED:
-            resume = self.repository.load_resume(state.resume_manifest)
-            status = audit_case_study_resume(self.plan, resume)
-            assert state.review_handoff is not None
-            return CaseStudyExecutionResult(
-                execution_plan_hash=self.plan.content_hash,
-                admission_receipt_hash=self.admission.content_hash,
-                terminal_state_hash=state.content_hash,
-                terminal_resume_manifest_hash=resume.content_hash,
-                status=status,
-                review_handoff_hash=state.review_handoff.logical_content_hash,
-                model_service_start_count=state.model_service_start_count,
-                model_load_count=state.model_load_count,
-                model_service_shutdown_count=state.model_service_shutdown_count,
-                model_service_stopped=True,
-                allocated_gpu_seconds_before_case=prior_seconds,
-                allocated_gpu_seconds_after_case=_total_allocated_seconds(self.ledger),
-                completed_at=_after(self.clock, state.updated_at),
-            )
+            return self._execution_result(state, prior_seconds=prior_seconds)
         if state.model_service_shutdown_count == 1:
             raise CaseStudyExecutionError(
                 "incomplete case state already consumed and stopped its sole model load"
             )
-        started_here = False
         try:
+            resume_status = audit_case_study_resume(
+                self.plan,
+                self.repository.load_resume(state.resume_manifest),
+            )
+            if resume_status.complete and state.review_handoff is not None:
+                live = self.gpu.resume_live(self.service_checkpoint_path)
+                state = self._synchronize_service_lifecycle(state, live=live)
+                if state.model_service_shutdown_count == 0:
+                    if not live:
+                        raise CaseStudyExecutionError(
+                            "completed case outputs lost their sole service lifecycle"
+                        )
+                    self.gpu.shutdown()
+                    state = self._synchronize_service_lifecycle(
+                        state,
+                        live=False,
+                        shutdown_observed=True,
+                    )
+                state = self.repository.successor(
+                    state,
+                    phase=CaseStudyExecutionPhase.COMPLETED,
+                    model_service_live=False,
+                )
+                return self._execution_result(state, prior_seconds=prior_seconds)
             state = self._materialize_bounded_packets(state)
             preflight = self.gpu.preflight(plan=self.plan, bounded_packets=self._bounded)
             preparations = dict(state.preparation_artifacts)
@@ -2456,41 +2616,28 @@ class CaseStudyProductionController:
                 phase=CaseStudyExecutionPhase.PREQUERY_CPU,
                 preparation_artifacts=preparations,
             )
-            before_start = state.model_service_start_count
             state = self._start_or_resume_service(state)
-            started_here = before_start == 0
             state = self._prepare_all(state)
             state = self._seal_barrier(state)
             state = self._bounded_queries(state)
             state = self._operational_query(state)
             state, handoff = self._blank_review_handoff(state)
             self.gpu.shutdown()
+            state = self._synchronize_service_lifecycle(
+                state,
+                live=False,
+                shutdown_observed=True,
+            )
             state = self.repository.successor(
                 state,
                 phase=CaseStudyExecutionPhase.COMPLETED,
                 model_service_live=False,
-                model_service_shutdown_count=1,
             )
-            resume = self.repository.load_resume(state.resume_manifest)
-            status = audit_case_study_resume(self.plan, resume)
-            return CaseStudyExecutionResult(
-                execution_plan_hash=self.plan.content_hash,
-                admission_receipt_hash=self.admission.content_hash,
-                terminal_state_hash=state.content_hash,
-                terminal_resume_manifest_hash=resume.content_hash,
-                status=status,
-                review_handoff_hash=handoff.content_hash,
-                model_service_start_count=state.model_service_start_count,
-                model_load_count=state.model_load_count,
-                model_service_shutdown_count=state.model_service_shutdown_count,
-                model_service_stopped=True,
-                allocated_gpu_seconds_before_case=prior_seconds,
-                allocated_gpu_seconds_after_case=_total_allocated_seconds(self.ledger),
-                completed_at=_after(self.clock, state.updated_at),
-            )
+            result = self._execution_result(state, prior_seconds=prior_seconds)
+            if result.review_handoff_hash != handoff.content_hash:
+                raise CaseStudyExecutionError("terminal review handoff hash changed")
+            return result
         except BaseException as exc:
-            # A service adopted from a checkpoint is owned just as strictly as one
-            # started in this invocation.  Never leave it orphaned on failure.
             failure = self.artifacts.put_bytes(
                 canonical_json(
                     {
@@ -2503,17 +2650,47 @@ class CaseStudyProductionController:
                 release_class=LedgerReleaseClass.RESTRICTED,
                 created_at=_now(self.clock),
             )
-            if state.model_service_live or started_here:
+            # Ordinary host/persistence interruptions preserve a verified healthy
+            # process via an explicit restart handoff. No second model load is then
+            # needed, and the next invocation adopts the exact PID/start ticks.
+            if isinstance(exc, (OSError, TimeoutError)) and state.model_service_live:
+                try:
+                    self.gpu.checkpoint(self.service_checkpoint_path)
+                    self.gpu.detach_for_resume(self.service_checkpoint_path)
+                except BaseException:
+                    pass
+                else:
+                    # Ownership has already moved to the durable lease/checkpoint.
+                    # A later pointer-write failure must not pretend this detached
+                    # object can still terminate the physical process.
+                    self.preserved_live_service_for_resume = True
+                    with suppress(OSError):
+                        self.repository.successor(
+                            state,
+                            failure_artifact_hash=failure.content_hash,
+                        )
+                    raise
+            if state.model_service_live or self._adapter_lifecycle_count(
+                "model_service_start_count", state.model_service_start_count
+            ):
+                shutdown_error: BaseException | None = None
                 try:
                     self.gpu.shutdown()
-                finally:
-                    self.repository.successor(
-                        state,
-                        phase=CaseStudyExecutionPhase.FAILED,
-                        model_service_live=False,
-                        model_service_shutdown_count=1,
-                        failure_artifact_hash=failure.content_hash,
-                    )
+                except BaseException as error:
+                    shutdown_error = error
+                state = self._synchronize_service_lifecycle(
+                    state,
+                    live=False,
+                    shutdown_observed=(shutdown_error is None),
+                )
+                self.repository.successor(
+                    state,
+                    phase=CaseStudyExecutionPhase.FAILED,
+                    model_service_live=False,
+                    failure_artifact_hash=failure.content_hash,
+                )
+                if shutdown_error is not None:
+                    raise shutdown_error from exc
             else:
                 self.repository.successor(
                     state,

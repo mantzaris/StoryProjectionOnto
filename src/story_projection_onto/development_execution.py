@@ -1163,6 +1163,8 @@ class ProductionDevelopmentCallExecutor:
             )
         adapter._write_state(adapter_state, active_call_id=call.call_id)
         event_id = f"{self.repository.execution_id}-{call.call_id}-gpu"
+        # Call ordinals are one-based, so this slice starts strictly after the
+        # current call; the service adds the current watchdog separately.
         remaining = (
             sum(item.watchdog_seconds for item in self.repository.manifest.calls[call.ordinal :])
             + self.repository.post_development_forecast_seconds

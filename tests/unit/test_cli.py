@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 from story_projection_onto import __version__
@@ -12,6 +14,19 @@ ROOT = Path(__file__).resolve().parents[2]
 def test_cli_version_is_the_package_version(capsys) -> None:
     assert main(["version"]) == 0
     assert capsys.readouterr().out.strip() == __version__
+
+
+def test_cli_module_dispatches_when_invoked_with_python_m() -> None:
+    completed = subprocess.run(
+        [sys.executable, "-m", "story_projection_onto.cli", "version"],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert completed.returncode == 0
+    assert completed.stdout.strip() == __version__
+    assert completed.stderr == ""
 
 
 def test_cli_development_plan_is_read_only_and_complete(capsys) -> None:

@@ -14,6 +14,7 @@ from typing import Any
 import pytest
 
 from story_projection_onto.case_study_execution import (
+    CASE_SERVICE_START_WATCHDOG_SECONDS,
     CaseArtifactReference,
     CaseExecutionAdmissionReceipt,
     CaseExecutionRepository,
@@ -23,7 +24,6 @@ from story_projection_onto.case_study_execution import (
     _parse_record,
 )
 from story_projection_onto.case_study_gpu import (
-    CaseGpuAdapterError,
     CaseGpuShutdownReceipt,
     ProductionCaseStudyGpuAdapter,
     build_production_case_study_gpu_adapter,
@@ -222,6 +222,11 @@ class _FakeOwnedService:
     start_count: int = 0
     shutdown_count: int = 0
     seen_base: set[str] = field(default_factory=set)
+    start_watchdogs: list[float] = field(default_factory=list)
+    lease_live: bool = False
+    terminal_session: object | None = None
+    recovered_identity: object | None = None
+    detach_count: int = 0
 
     @property
     def configuration(self) -> object:
@@ -239,7 +244,8 @@ class _FakeOwnedService:
         watchdog_seconds: float,
         remaining_required_seconds: float = 0,
     ) -> None:
-        del session_id, watchdog_seconds, remaining_required_seconds
+        del session_id, remaining_required_seconds
+        self.start_watchdogs.append(watchdog_seconds)
         self.start_count += 1
         started = self.clock()
         ended = self.clock()
@@ -260,8 +266,33 @@ class _FakeOwnedService:
         self.state = ServiceState.READY
         return True
 
+    def resume_live_service_lease(
+        self,
+        *,
+        expected_session_id: str,
+        expected_event_id: str,
+        watchdog_seconds: float,
+    ) -> bool:
+        del expected_session_id, expected_event_id, watchdog_seconds
+        if self.lease_live:
+            self.state = ServiceState.READY
+            return True
+        return False
+
+    def recover_stale_service_lease(self) -> object | None:
+        return self.terminal_session
+
+    @property
+    def last_recovered_process_identity(self) -> object | None:
+        return self.recovered_identity
+
     def write_resume_checkpoint(self, path: Path) -> None:
         path.write_text("artificial live checkpoint\n", encoding="utf-8")
+
+    def detach_for_controller_restart(self, path: Path) -> None:
+        self.write_resume_checkpoint(path)
+        self.detach_count += 1
+        self.state = ServiceState.STOPPED
 
     def generate(
         self,
@@ -496,6 +527,7 @@ def test_production_adapter_runs_real_guided_4_8_1_and_one_repair(
     assert non_succeeded == ()
     assert service.generate_count == 14
     assert service.start_count == 1
+    assert service.start_watchdogs == [CASE_SERVICE_START_WATCHDOG_SECONDS]
     assert service.shutdown_count == 1
     state = adapter._state()
     assert len(state.completed_receipts) == 13
@@ -562,11 +594,15 @@ def test_production_adapter_runs_real_guided_4_8_1_and_one_repair(
     replayed = controller.run(admission_reference)
     assert replayed.status.complete
     assert replayed.terminal_state_hash == result.terminal_state_hash
+    assert replayed.content_hash == result.content_hash
     assert service.generate_count == 14
     assert service.shutdown_count == 1
 
 
-def test_completed_call_replays_and_active_call_refuses_reissue(tmp_path: Path) -> None:
+def test_terminal_active_call_is_reconstructed_without_second_inference(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     (
         fixture,
         loaded,
@@ -581,6 +617,14 @@ def test_completed_call_replays_and_active_call_refuses_reissue(tmp_path: Path) 
         clock,
     ) = _setup(tmp_path)
     admission_reference = _admission_reference(admission, artifacts, clock)
+    ledger.register_study(
+        study_id=plan.execution_id,
+        protocol_hash=plan.content_hash,
+        code_manifest_hash=admission.source_manifest.logical_content_hash,
+        configuration_hash=admission.construction_configuration_hash,
+        release_class=ReleaseClass.RESTRICTED,
+        created_at=clock(),
+    )
     controller = CaseStudyProductionController(
         root=ROOT,
         plan=plan,
@@ -616,7 +660,6 @@ def test_completed_call_replays_and_active_call_refuses_reissue(tmp_path: Path) 
     call = plan.gpu_call_slots[0]
     window = plan.windows[0]
     protected_packet = controller._bounded[window.window_id]
-    adapter._write_state(adapter._state(), active_call_id=call.call_id)
     envelope = CaseC1RequestEnvelope(
         execution_plan_hash=plan.content_hash,
         call_slot_hash=call.content_hash,
@@ -625,15 +668,252 @@ def test_completed_call_replays_and_active_call_refuses_reissue(tmp_path: Path) 
         packet_hash=protected_packet.packet.content_hash,
     )
 
-    with pytest.raises(CaseGpuAdapterError, match="cannot be reissued"):
+    original_persist = ProductionCaseStudyGpuAdapter._persist_gpu_audit
+
+    def interrupt_after_terminal_model_call(
+        _adapter: ProductionCaseStudyGpuAdapter,
+        **_values: object,
+    ) -> None:
+        raise OSError("artificial pointer interruption")
+
+    monkeypatch.setattr(
+        ProductionCaseStudyGpuAdapter,
+        "_persist_gpu_audit",
+        interrupt_after_terminal_model_call,
+    )
+    with pytest.raises(OSError, match="artificial pointer interruption"):
         adapter.preconstruct_c1(
             call=call,
             envelope=envelope,
             protected_packet=protected_packet,
         )
+    assert service.generate_count == 1
+    assert adapter._state().active_call_id == call.call_id
 
-    assert service.generate_count == 0
+    monkeypatch.setattr(
+        ProductionCaseStudyGpuAdapter,
+        "_persist_gpu_audit",
+        original_persist,
+    )
+    recovered = adapter.preconstruct_c1(
+        call=call,
+        envelope=envelope,
+        protected_packet=protected_packet,
+    )
+
+    assert recovered.terminal_outcome is RunOutcome.SUCCEEDED
+    assert service.generate_count == 1
+    assert adapter._state().active_call_id is None
     adapter.shutdown()
+    assert service.shutdown_count == 1
+
+
+def test_activation_intent_recovers_live_lease_before_identity_or_checkpoint(
+    tmp_path: Path,
+) -> None:
+    (
+        fixture,
+        _loaded,
+        plan,
+        _admission,
+        _ledger,
+        _artifacts,
+        _repository,
+        service,
+        adapter,
+        _execution_module,
+        _clock,
+    ) = _setup(tmp_path)
+    # Reuse the real bounded materialization path to satisfy the lossless packing gate.
+    admission_reference = _admission_reference(adapter.admission, adapter.artifacts, service.clock)
+    controller = CaseStudyProductionController(
+        root=ROOT,
+        plan=plan,
+        loaded=_loaded,
+        admission=adapter.admission,
+        repository=adapter.repository,
+        ledger=adapter.artifacts.ledger,
+        artifacts=adapter.artifacts,
+        classical=_execution_module._FixtureClassicalAdapter(plan),
+        gpu=adapter,
+        token_counter=lambda value: len(value.split()),
+        service_checkpoint_path=fixture.restricted_root / "state/service.json",
+        reveal_waiter=service.clock.advance_past,
+        clock=service.clock,
+    )
+    controller_state = adapter.repository.initialize(admission_reference)
+    controller._materialize_bounded_packets(controller_state)
+    adapter.preflight(plan=plan, bounded_packets=controller._bounded)
+    reserve = float(sum(item.watchdog_seconds for item in plan.gpu_call_slots) + 240)
+    state, intent = adapter._ensure_activation_intent(
+        adapter._state(),
+        remaining_required_seconds=reserve,
+    )
+    assert state.activation_intent is not None
+    assert state.model_service_start_count == 0
+
+    # The physical start happened, but power failed before identity/state/checkpoint.
+    service.start(
+        session_id=intent.session_id,
+        event_id=intent.load_event_id,
+        watchdog_seconds=CASE_SERVICE_START_WATCHDOG_SECONDS,
+        remaining_required_seconds=reserve,
+    )
+    service.state = ServiceState.STOPPED
+    service.lease_live = True
+
+    assert adapter.resume_live(fixture.restricted_root / "state/missing-checkpoint.json")
+    recovered = adapter._state()
+    assert recovered.model_service_start_count == 1
+    assert recovered.model_load_count == 1
+    assert service.start_count == 1
+    adapter.shutdown()
+
+
+def test_terminal_journal_reconstructs_shutdown_after_physical_stop(
+    tmp_path: Path,
+) -> None:
+    (
+        fixture,
+        loaded,
+        plan,
+        admission,
+        _ledger,
+        artifacts,
+        repository,
+        service,
+        adapter,
+        execution_module,
+        clock,
+    ) = _setup(tmp_path)
+    admission_reference = _admission_reference(admission, artifacts, clock)
+    controller = CaseStudyProductionController(
+        root=ROOT,
+        plan=plan,
+        loaded=loaded,
+        admission=admission,
+        repository=repository,
+        ledger=artifacts.ledger,
+        artifacts=artifacts,
+        classical=execution_module._FixtureClassicalAdapter(plan),
+        gpu=adapter,
+        token_counter=lambda value: len(value.split()),
+        service_checkpoint_path=fixture.restricted_root / "state/service.json",
+        reveal_waiter=clock.advance_past,
+        clock=clock,
+    )
+    controller._materialize_bounded_packets(repository.initialize(admission_reference))
+    adapter.preflight(plan=plan, bounded_packets=controller._bounded)
+    adapter.start_once(
+        execution_id=plan.execution_id,
+        remaining_required_seconds=float(
+            sum(item.watchdog_seconds for item in plan.gpu_call_slots) + 240
+        ),
+    )
+    gpu_state, _intent = adapter._ensure_shutdown_intent(adapter._state())
+    assert gpu_state.shutdown_intent is not None
+    service.shutdown()
+    service.terminal_session = SimpleNamespace(
+        service_session_id=f"{plan.execution_id}-model-load",
+        ended_at=clock().isoformat(),
+    )
+
+    assert not adapter.resume_live(fixture.restricted_root / "state/missing.json")
+    terminal = adapter._state()
+    assert terminal.model_service_shutdown_count == 1
+    assert terminal.shutdown_receipt is not None
+    adapter.shutdown()
+    assert service.shutdown_count == 1
+
+
+def test_controller_and_gpu_state_recover_from_immutable_pointer_history(
+    tmp_path: Path,
+) -> None:
+    (
+        _fixture,
+        _loaded,
+        plan,
+        admission,
+        _ledger,
+        artifacts,
+        repository,
+        _service,
+        adapter,
+        _execution_module,
+        clock,
+    ) = _setup(tmp_path)
+    admission_reference = _admission_reference(admission, artifacts, clock)
+    controller_state = repository.initialize(admission_reference)
+    repository.state_pointer_path.write_text("interrupted pointer", encoding="utf-8")
+    assert repository.load_state() == controller_state
+
+    initial_gpu_state = adapter._persist_initial_if_needed()
+    adapter.state_pointer_path.write_text("interrupted pointer", encoding="utf-8")
+    assert adapter._state() == initial_gpu_state
+    assert plan.content_hash == controller_state.execution_plan_hash
+
+
+def test_routine_controller_io_error_handoffs_healthy_service_for_resume(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (
+        fixture,
+        loaded,
+        plan,
+        admission,
+        _ledger,
+        artifacts,
+        repository,
+        service,
+        adapter,
+        execution_module,
+        clock,
+    ) = _setup(tmp_path)
+    admission_reference = _admission_reference(admission, artifacts, clock)
+    controller = CaseStudyProductionController(
+        root=ROOT,
+        plan=plan,
+        loaded=loaded,
+        admission=admission,
+        repository=repository,
+        ledger=artifacts.ledger,
+        artifacts=artifacts,
+        classical=execution_module._FixtureClassicalAdapter(plan),
+        gpu=adapter,
+        token_counter=lambda value: len(value.split()),
+        service_checkpoint_path=fixture.restricted_root / "state/service.json",
+        reveal_waiter=clock.advance_past,
+        clock=clock,
+    )
+    original_prepare = CaseStudyProductionController._prepare_all
+
+    def interrupted_prepare(
+        _controller: CaseStudyProductionController,
+        _state: object,
+    ) -> object:
+        raise OSError("artificial durable-storage interruption")
+
+    monkeypatch.setattr(
+        CaseStudyProductionController,
+        "_prepare_all",
+        interrupted_prepare,
+    )
+    with pytest.raises(OSError, match="durable-storage interruption"):
+        controller.run(admission_reference)
+    assert controller.preserved_live_service_for_resume
+    assert service.start_count == 1
+    assert service.detach_count == 1
+    assert service.shutdown_count == 0
+
+    monkeypatch.setattr(
+        CaseStudyProductionController,
+        "_prepare_all",
+        original_prepare,
+    )
+    result = controller.run(admission_reference)
+    assert result.status.complete
+    assert service.start_count == 1
     assert service.shutdown_count == 1
 
 

@@ -16,7 +16,8 @@ preregistered from the lawfully supplied source. Their typed contract is
 `CaseStudyPreregistration` in `story_projection_onto.novel_case`.
 
 `runtime.json` freezes the production orchestration policy but contains no
-corpus path or case result. `scripts/prepare_case_study_run.py compile-plan`
+corpus path or case result. It pins the concrete outer adapter factory and the
+300-second operational service-start watchdog. `scripts/prepare_case_study_run.py compile-plan`
 accepts only explicitly named files under one restricted root: the verified
 index, its manifest, the four-window preregistration, and a later input
 attestation that binds their exact hashes. A separate pre-case admission
@@ -57,3 +58,13 @@ opaque evidence identifiers.
 The executable controller boundary, concrete fail-closed GPU adapter/factory,
 cumulative-ledger rule, one-load lifecycle, and still-required lawful restricted
 run inputs are documented in `docs/PHASE6_EXECUTION.md`.
+
+Once the eight admitted pre-case gate files exist,
+`scripts/prepare_case_study_run.py stage-admission-evidence` copies their validated
+JSON values into the same cumulative restricted CAS and writes a path-free typed
+bundle/reference under the restricted root. This staging step performs no GPU work.
+The ledger SHA supplied to the production controller is measured only after staging.
+The cumulative ledger, CAS, and runtime directory must all be real, non-symlinked
+descendants of that explicit restricted root. Production activation and shutdown
+intents are path-free immutable records; pointer histories and the service journal
+make the one-load lifecycle recoverable across interruption boundaries.

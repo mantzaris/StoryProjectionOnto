@@ -40,7 +40,9 @@ from story_projection_onto.development_runtime import (
     UnitPrequeryBinding,
     load_development_call_manifest,
 )
+from story_projection_onto.experiment import ResourceLimits
 from story_projection_onto.fallback_acceptance import (
+    AMENDED_FALLBACK_STARTUP_WATCHDOG_SECONDS,
     REPAIR_TRIGGER_RULE,
     DevelopmentAdopterRegistration,
     DevelopmentContinuationBootstrap,
@@ -55,6 +57,7 @@ from story_projection_onto.fallback_acceptance import (
     main,
     parse_arguments,
     pre_fallback_gpu_accounting_baseline,
+    validate_fallback_service_retry_amendment,
     validate_pre_fallback_gpu_accounting,
     validate_source_association,
 )
@@ -72,6 +75,7 @@ from story_projection_onto.gpu_runtime import (
 from story_projection_onto.manifest import build_source_manifest
 from story_projection_onto.model_gate import FallbackModelPolicy
 from story_projection_onto.phase1_acceptance import validate_acceptance_generation
+from story_projection_onto.public_release import scan_public_bytes
 from story_projection_onto.store import (
     ArtifactStore,
     BlobStore,
@@ -262,6 +266,21 @@ def test_cli_plan_mode_and_execute_requirements_parse_without_side_effects() -> 
     assert execute.controller_stage == "run"
     assert execute.activation_certificate == Path("activation.json")
 
+    validation = parse_arguments(
+        [
+            "--output",
+            "preflight.json",
+            "--validate-only",
+            "--controller-stage",
+            "orchestrate",
+        ]
+    )
+    assert validation.validate_only is True
+    assert validation.execute is False
+
+    with pytest.raises(SystemExit):
+        parse_arguments(["--output", "invalid.json", "--execute", "--validate-only"])
+
 
 def test_fallback_requires_exact_rejected_primary_gpu_ledger_baseline() -> None:
     primary = {
@@ -300,6 +319,51 @@ def test_fallback_requires_exact_rejected_primary_gpu_ledger_baseline() -> None:
     )
     with pytest.raises(RuntimeError, match="does not reproduce"):
         validate_pre_fallback_gpu_accounting(primary, fresh_ledger)
+
+
+def test_authorized_fallback_retry_binds_exact_failure_and_recovered_ledger() -> None:
+    primary = json.loads(
+        (ROOT / "artifacts/public/results/phase1_gpu_acceptance_v2_failed.json").read_text()
+    )
+    activation = json.loads(
+        (ROOT / "artifacts/public/manifests/fallback_activation_v2.json").read_text()
+    )
+    prior_path = (
+        ROOT
+        / "artifacts/public/results/"
+        "fallback_gpu_acceptance_development_v1.json.controller-handoff.json"
+    )
+    prior = json.loads(prior_path.read_text())
+    accounting = prior["runtime"]["gpu_accounting"]
+    observed = GpuSummary(
+        total_allocated_microseconds=accounting["total_allocated_microseconds"],
+        event_count=accounting["event_count"],
+        service_session_count=accounting["service_session_count"],
+        by_kind_microseconds=tuple(
+            (GpuEventKind(kind), microseconds)
+            for kind, microseconds in accounting["by_kind_microseconds"].items()
+        ),
+    )
+
+    amendment, predecessor = validate_fallback_service_retry_amendment(
+        root=ROOT,
+        amendment_path=ROOT / "configs/study/fallback_service_retry_amendment.json",
+        prior_failure_path=prior_path,
+        run_id="fallback-qwen3-8b-awq-development-v3",
+        policy=FallbackModelPolicy.load(ROOT / "configs/study/fallback_model.json"),
+        activation_certificate=activation,
+        primary_result=primary,
+        limits=ResourceLimits.load(ROOT / "configs/study/resource_limits.json"),
+        observed=observed,
+    )
+
+    assert amendment["manifest_sha256"] == (
+        "9ef82782c03d9915c081e89cf554a531ef3d1fba42836c522d6ebf97cdce0f28"
+    )
+    assert predecessor["manifest_sha256"] == prior["manifest_sha256"]
+    assert amendment["amendment"]["recovery_service_start_watchdog_seconds"] == (
+        AMENDED_FALLBACK_STARTUP_WATCHDOG_SECONDS
+    )
 
 
 def test_standalone_cli_dispatches_only_to_registered_orchestrator(
@@ -458,6 +522,7 @@ class FakeFallbackService:
     start_count: int = 0
     shutdown_count: int = 0
     resume_count: int = 0
+    remaining_required_seconds: list[float] = field(default_factory=list)
 
     def _record_event(
         self,
@@ -483,7 +548,9 @@ class FakeFallbackService:
         )
 
     def start(self, *, event_id: str, **kwargs: object) -> None:
-        del kwargs
+        self.remaining_required_seconds.append(
+            cast(float, kwargs["remaining_required_seconds"])
+        )
         self.start_count += 1
         self._record_event(
             event_id=event_id,
@@ -583,7 +650,9 @@ class FakeFallbackService:
         attempt_id: str,
         **kwargs: object,
     ) -> GenerationResult:
-        del kwargs
+        self.remaining_required_seconds.append(
+            cast(float, kwargs["remaining_required_seconds"])
+        )
         self._record_event(
             event_id=event_id,
             event_kind=GpuEventKind.FALLBACK_TEST,
@@ -609,7 +678,9 @@ class FakeFallbackService:
         accounting_details: Mapping[str, object],
         **kwargs: object,
     ) -> GenerationResult:
-        del kwargs
+        self.remaining_required_seconds.append(
+            cast(float, kwargs["remaining_required_seconds"])
+        )
         self._record_event(
             event_id=event_id,
             event_kind=GpuEventKind.REPAIR,
@@ -1143,6 +1214,7 @@ def test_two_controller_fallback_runner_is_bounded_resumable_and_audited(
         assert handoff["next_required_stage"] == "run_under_a_different_controller_pid"
         assert live["running"] is True
         assert first_service.start_count == 1
+        assert first_service.remaining_required_seconds == [30_059]
 
         second_service = FakeFallbackService(configuration, ledger, outputs, live)
         second_runner = _runner(
@@ -1186,6 +1258,15 @@ def test_two_controller_fallback_runner_is_bounded_resumable_and_audited(
         assert result["development_handoff"]["live_service_identity"][
             "service_pid"
         ] == first_service.pid
+        assert "checkpoint_path" not in result["development_preparation"]
+        assert "development_checkpoint_path" not in result["development_handoff"]
+        assert result["development_preparation"]["restricted_fields_withheld"] == [
+            "checkpoint_path"
+        ]
+        scan_public_bytes(
+            json.dumps(result, sort_keys=True).encode(),
+            relative_path="fallback-result.json",
+        )
         adopter = cast(FakeDevelopmentAdopter, second_runner.development_adopter)
         assert adopter.adapter is not None
         assert not hasattr(adopter.adapter, "start")
@@ -1205,6 +1286,10 @@ def test_two_controller_fallback_runner_is_bounded_resumable_and_audited(
             for event in ledger.gpu_events()
         ) == int(trigger_repair)
         assert len(result["reserve_consumption"]) == 4 + int(trigger_repair)
+        assert len(second_service.remaining_required_seconds) == 4 + int(
+            trigger_repair
+        )
+        assert min(second_service.remaining_required_seconds) > 29_000
         assert live["running"] is False
 
         state = json.loads((tmp_path / "fallback.checkpoint.json").read_text())

@@ -1509,6 +1509,19 @@ class ServiceUptime:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class RecoveredServiceProcessIdentity:
+    """Path-free process identity retained after terminal stale recovery."""
+
+    configuration_hash: str
+    session_id: str
+    accounting_session_id: str
+    pid: int
+    process_start_ticks: int
+    process_command_sha256: str
+    service_started_at: datetime
+
+
 class ProcessHandle(Protocol):
     pid: int
 
@@ -1576,6 +1589,22 @@ def _process_start_ticks(pid: int, proc_root: Path = PROC_ROOT) -> int:
     return int(fields[19])
 
 
+def _process_command_sha256(pid: int, proc_root: Path = PROC_ROOT) -> str:
+    """Hash the exact argv of a controlled process without persisting its paths."""
+
+    raw = (proc_root / str(pid) / "cmdline").read_bytes()
+    arguments = raw.split(b"\0")
+    if arguments and arguments[-1] == b"":
+        arguments.pop()
+    if not arguments or any(not argument for argument in arguments):
+        raise RuntimeError("controlled process has no valid command line")
+    try:
+        decoded = [argument.decode("utf-8") for argument in arguments]
+    except UnicodeDecodeError as exc:
+        raise RuntimeError("controlled process command line is not UTF-8") from exc
+    return canonical_sha256(decoded)
+
+
 @dataclass(slots=True)
 class _AdoptedProcess:
     pid: int
@@ -1630,6 +1659,12 @@ class VLLMService:
     state: ServiceState = field(default=ServiceState.STOPPED, init=False)
     _process: ProcessHandle | None = field(default=None, init=False, repr=False)
     _last_service_pid: int | None = field(default=None, init=False, repr=False)
+    _last_process_start_ticks: int | None = field(default=None, init=False, repr=False)
+    _last_process_command_sha256: str | None = field(
+        default=None,
+        init=False,
+        repr=False,
+    )
     _session_id: str | None = field(default=None, init=False, repr=False)
     _accounting_session_id: str | None = field(default=None, init=False, repr=False)
     _started_monotonic: float | None = field(default=None, init=False, repr=False)
@@ -1662,6 +1697,11 @@ class VLLMService:
     _physically_stopped_at: datetime | None = field(default=None, init=False, repr=False)
     _physically_stopped_seconds: float | None = field(default=None, init=False, repr=False)
     _process_stop_journaled: bool = field(default=False, init=False, repr=False)
+    _last_recovered_process_identity: RecoveredServiceProcessIdentity | None = field(
+        default=None,
+        init=False,
+        repr=False,
+    )
     _process_control_lock: threading.RLock = field(
         default_factory=threading.RLock,
         init=False,
@@ -1728,6 +1768,8 @@ class VLLMService:
             "session_id": self._session_id,
             "accounting_session_id": self._accounting_session_id,
             "service_pid": service_pid,
+            "process_start_ticks": self._last_process_start_ticks,
+            "process_command_sha256": self._last_process_command_sha256,
             "service_started_at": (
                 None if self._started_at is None else self._started_at.isoformat()
             ),
@@ -2019,6 +2061,14 @@ class VLLMService:
             raise RuntimeError("vLLM service has no controlled process")
         return self._process.pid
 
+    @property
+    def last_recovered_process_identity(
+        self,
+    ) -> RecoveredServiceProcessIdentity | None:
+        """Return exact lease identity only after successful terminal recovery."""
+
+        return self._last_recovered_process_identity
+
     def _open_log_stream(self) -> BinaryIO | int:
         if self.log_path is None:
             return subprocess.DEVNULL
@@ -2038,8 +2088,9 @@ class VLLMService:
 
     def _spawn(self) -> None:
         output = self._open_log_stream()
+        command = self.configuration.command()
         self._process = self.popen_factory(
-            self.configuration.command(),
+            command,
             env=self.configuration.environment(),
             stdin=subprocess.DEVNULL,
             stdout=output,
@@ -2047,6 +2098,25 @@ class VLLMService:
             start_new_session=True,
         )
         self._last_service_pid = self._process.pid
+        self._last_process_command_sha256 = canonical_sha256(list(command))
+        try:
+            self._last_process_start_ticks = _process_start_ticks(self._process.pid)
+            observed_command_sha256 = _process_command_sha256(self._process.pid)
+        except (OSError, RuntimeError) as exc:
+            # Unit-test process handles do not have procfs entries.  A real
+            # launcher must make the PID-reuse-safe identity durable before it
+            # can call the service live or recoverable.
+            if self.popen_factory is subprocess.Popen:
+                raise RuntimeConfigurationError(
+                    "cannot persist the launched vLLM process identity"
+                ) from exc
+            self._last_process_start_ticks = None
+            self._last_process_command_sha256 = None
+        else:
+            if observed_command_sha256 != self._last_process_command_sha256:
+                raise RuntimeConfigurationError(
+                    "launched vLLM process command differs from its frozen argv"
+                )
         # Persist the only controlled PID immediately after Popen returns.  If
         # later setup fails, stale-journal recovery can prove both PID and
         # process-group absence before terminalizing the allocation.
@@ -2313,6 +2383,8 @@ class VLLMService:
         self._release_service_lock()
         self._process = None
         self._last_service_pid = None
+        self._last_process_start_ticks = None
+        self._last_process_command_sha256 = None
         self._session_id = None
         self._accounting_session_id = None
         self._started_at = None
@@ -2321,6 +2393,216 @@ class VLLMService:
         self._carried_service_seconds = 0.0
         self._service_journal_opened = False
         self.state = ServiceState.STOPPED
+
+    def resume_live_service_lease(
+        self,
+        *,
+        expected_session_id: str,
+        expected_event_id: str,
+        watchdog_seconds: float = DEFAULT_SERVICE_START_WATCHDOG_SECONDS,
+        proc_root: Path = PROC_ROOT,
+        adopted_factory: Callable[[int], ProcessHandle] = _AdoptedProcess,
+    ) -> bool:
+        """Adopt one exact live lease when its controller died before checkpointing.
+
+        This path never launches a process and never opens a second GPU event.  The
+        exclusive project lock proves the prior controller released ownership; the
+        lease and open service journal then have to agree on configuration, logical
+        session, accounting event, start time, and baseline.  PID start ticks and an
+        exact argv hash close the PID-reuse and lookalike-process holes.  ``False``
+        means the validated process is absent and is deliberately distinct from
+        terminal stale-journal reconciliation.
+        """
+
+        _require_plain_identifier("expected_session_id", expected_session_id)
+        _require_plain_identifier("expected_event_id", expected_event_id)
+        if not math.isfinite(watchdog_seconds) or watchdog_seconds <= 0:
+            raise RuntimeConfigurationError(
+                "live-lease recovery watchdog must be positive and finite"
+            )
+        if (
+            self.state is not ServiceState.STOPPED
+            or self._process is not None
+            or self._service_lock_stream is not None
+            or self._started_at is not None
+            or self._accounting_session_id is not None
+        ):
+            raise RuntimeError("live-lease recovery requires a fresh stopped controller")
+        self._last_recovered_process_identity = None
+        acquired_here = self._acquire_service_lock()
+        candidate_pid: int | None = None
+        try:
+            lease = self._prior_service_lease
+            if lease is None or lease.get("lease_state") == "stopped_verified":
+                return False
+            lease_state = lease.get("lease_state")
+            if lease_state not in {
+                "starting",
+                "live",
+                "controller_restart_handoff",
+                "accounting_pending",
+                "shutdown_unverified",
+            }:
+                raise RuntimeConfigurationError("live vLLM service lease state is invalid")
+            pid = lease.get("service_pid")
+            start_ticks = lease.get("process_start_ticks")
+            command_sha256 = lease.get("process_command_sha256")
+            session_id = lease.get("session_id")
+            accounting_session_id = lease.get("accounting_session_id")
+            started_at_text = lease.get("service_started_at")
+            baseline = lease.get("ledger_allocated_seconds_before_session")
+            if (
+                isinstance(pid, bool)
+                or not isinstance(pid, int)
+                or pid <= 0
+                or isinstance(start_ticks, bool)
+                or not isinstance(start_ticks, int)
+                or start_ticks <= 0
+                or not isinstance(command_sha256, str)
+                or len(command_sha256) != 64
+                or any(character not in "0123456789abcdef" for character in command_sha256)
+                or not isinstance(session_id, str)
+                or not isinstance(accounting_session_id, str)
+                or not isinstance(started_at_text, str)
+                or isinstance(baseline, bool)
+                or not isinstance(baseline, int | float)
+                or not math.isfinite(float(baseline))
+                or baseline < 0
+            ):
+                raise RuntimeConfigurationError(
+                    "live vLLM lease lacks an exact recoverable process identity"
+                )
+            candidate_pid = pid
+            expected_command_sha256 = canonical_sha256(
+                list(self.configuration.command())
+            )
+            if (
+                lease.get("configuration_hash")
+                != self.configuration.configuration_hash
+                or session_id != expected_session_id
+                or accounting_session_id != expected_event_id
+                or command_sha256 != expected_command_sha256
+            ):
+                raise RuntimeConfigurationError(
+                    "live vLLM lease differs from the expected activation identity"
+                )
+            started_at = _parse_aware_datetime(
+                "live service lease start",
+                started_at_text,
+            )
+            latest = self.meter.ledger.latest_gpu_service_journal(expected_event_id)
+            if latest is None or latest.state not in {
+                GpuServiceJournalState.OPENED,
+                GpuServiceJournalState.HEARTBEAT,
+            }:
+                raise RuntimeConfigurationError(
+                    "live vLLM lease has no matching open service journal"
+                )
+            if (
+                latest.session_id != expected_session_id
+                or latest.configuration_hash != self.configuration.configuration_hash
+                or _parse_aware_datetime(
+                    "live service journal start",
+                    latest.service_started_at,
+                )
+                != started_at
+                or abs(
+                    latest.ledger_allocated_microseconds_before_session / 1_000_000
+                    - float(baseline)
+                )
+                > 1e-6
+            ):
+                raise RuntimeConfigurationError(
+                    "live vLLM lease and service journal identities differ"
+                )
+            try:
+                pid_live = self.process_liveness_check(pid)
+                process_group_live = self.process_group_liveness_check(pid)
+            except BaseException as exc:
+                raise RuntimeConfigurationError(
+                    "cannot verify the leased vLLM process identity"
+                ) from exc
+            if not pid_live and not process_group_live:
+                if self._endpoint_live(0.25):
+                    raise RuntimeConfigurationError(
+                        "leased vLLM process is absent but its endpoint remains live"
+                    )
+                return False
+            if not pid_live or not process_group_live:
+                raise RuntimeConfigurationError(
+                    "leased vLLM PID and process-group liveness disagree"
+                )
+            if lease_state in {"accounting_pending", "shutdown_unverified"}:
+                raise RuntimeConfigurationError(
+                    "terminalizing vLLM lease cannot be adopted as a ready service"
+                )
+            try:
+                observed_start_ticks = _process_start_ticks(pid, proc_root)
+                observed_command_sha256 = _process_command_sha256(pid, proc_root)
+            except (OSError, RuntimeError) as exc:
+                raise RuntimeConfigurationError(
+                    "cannot inspect the leased vLLM process"
+                ) from exc
+            if observed_start_ticks != start_ticks:
+                raise RuntimeConfigurationError("live vLLM lease PID was reused")
+            if observed_command_sha256 != command_sha256:
+                raise RuntimeConfigurationError(
+                    "live vLLM lease command line changed"
+                )
+            adopted = adopted_factory(pid)
+            if adopted.poll() is not None:
+                return False
+            resumed_at = self.wall_clock()
+            if resumed_at.tzinfo is None or resumed_at.utcoffset() is None:
+                raise RuntimeConfigurationError("live-lease recovery clock must be aware")
+            wall_service_seconds = (resumed_at - started_at).total_seconds()
+            if wall_service_seconds < 0:
+                raise RuntimeConfigurationError(
+                    "live-lease recovery predates the service session"
+                )
+            self._process = adopted
+            self._last_service_pid = pid
+            self._last_process_start_ticks = start_ticks
+            self._last_process_command_sha256 = command_sha256
+            self._session_id = expected_session_id
+            self._accounting_session_id = expected_event_id
+            self._started_at = started_at
+            self._started_monotonic = self.monotonic_clock()
+            self._allocated_at_start = float(baseline)
+            self._carried_service_seconds = wall_service_seconds
+            self._adopt_service_journal()
+            remaining = watchdog_seconds - wall_service_seconds
+            if remaining <= 0:
+                self.state = ServiceState.FAILED
+                raise RuntimeWatchdogTimeout(
+                    "live vLLM lease exceeded its original startup watchdog"
+                )
+            self.state = ServiceState.STARTING
+            self._wait_until_healthy(remaining)
+            self._write_service_lock_metadata(lease_state="live", service_pid=pid)
+            self._observe_service_journal(
+                details={
+                    "recovered_without_checkpoint": True,
+                    "service_pid": pid,
+                }
+            )
+            self._start_service_heartbeat()
+            return True
+        finally:
+            if acquired_here and self._process is None:
+                endpoint_absent = False
+                process_absent = candidate_pid is None
+                with suppress(Exception):
+                    endpoint_absent = not self._endpoint_live(0.25)
+                if candidate_pid is not None:
+                    with suppress(Exception):
+                        process_absent = not self.process_liveness_check(
+                            candidate_pid
+                        ) and not self.process_group_liveness_check(candidate_pid)
+                if endpoint_absent and process_absent:
+                    self._release_service_lock()
+                else:
+                    self.state = ServiceState.FAILED
 
     def resume_from_checkpoint(
         self,
@@ -2420,6 +2702,8 @@ class VLLMService:
                 raise RuntimeConfigurationError("resume clock predates the checkpointed session")
             self._process = adopted
             self._last_service_pid = pid
+            self._last_process_start_ticks = observed_start_ticks
+            self._last_process_command_sha256 = _process_command_sha256(pid, proc_root)
             self._session_id = session_id
             self._accounting_session_id = accounting_session_id
             self._started_at = started_at
@@ -2436,11 +2720,29 @@ class VLLMService:
             self._write_service_lock_metadata(lease_state="live", service_pid=pid)
             try:
                 ready = self._ready()
-            except BaseException:
+            except BaseException as readiness_error:
+                # Ownership has already transferred to this controller.  A
+                # failed probe must not leave the adopted process detached: it
+                # is now safe (and mandatory) to stop it and reconcile the
+                # already-adopted service journal before reporting the probe
+                # error to the caller.
                 self.state = ServiceState.FAILED
-                raise
+                try:
+                    self.shutdown()
+                except BaseException as cleanup_error:
+                    raise RuntimeConfigurationError(
+                        "checkpoint adoption failed and the adopted service "
+                        "could not be terminally reconciled"
+                    ) from cleanup_error
+                raise readiness_error
             if not ready:
                 self.state = ServiceState.FAILED
+                try:
+                    self.shutdown()
+                except BaseException as cleanup_error:
+                    raise RuntimeConfigurationError(
+                        "unready adopted service could not be terminally reconciled"
+                    ) from cleanup_error
                 return False
             self.state = ServiceState.READY
             self._observe_service_journal(details={"resumed_controller": True, "service_pid": pid})
@@ -2517,6 +2819,8 @@ class VLLMService:
         self._log_stream = None
         self._process = None
         self._last_service_pid = None
+        self._last_process_start_ticks = None
+        self._last_process_command_sha256 = None
         self._accounting_session_id = None
         self._started_at = None
         self._started_monotonic = None
@@ -3043,6 +3347,8 @@ class VLLMService:
                 self._allocated_at_start = None
                 self._accounting_session_id = None
                 self._last_service_pid = None
+                self._last_process_start_ticks = None
+                self._last_process_command_sha256 = None
                 self._carried_service_seconds = 0.0
                 self._service_journal_opened = False
                 self._service_heartbeat_failure = None
@@ -3065,22 +3371,28 @@ class VLLMService:
             or self._accounting_session_id is not None
         ):
             raise RuntimeError("stale service recovery requires a fresh stopped controller")
+        self._last_recovered_process_identity = None
         self._acquire_service_lock()
         terminalized = False
         try:
             lease = self._prior_service_lease
-            if lease is None or lease.get("lease_state") == "stopped_verified":
+            if lease is None:
                 return None
-            if lease.get("lease_state") not in {
+            lease_state = lease.get("lease_state")
+            if lease_state not in {
                 "starting",
                 "live",
+                "controller_restart_handoff",
                 "accounting_pending",
                 "shutdown_unverified",
+                "stopped_verified",
             }:
                 raise RuntimeConfigurationError("stale vLLM service lease state is invalid")
             service_session_id = lease.get("accounting_session_id")
             session_id = lease.get("session_id")
             service_pid = lease.get("service_pid")
+            process_start_ticks = lease.get("process_start_ticks")
+            process_command_sha256 = lease.get("process_command_sha256")
             started_at_text = lease.get("service_started_at")
             baseline = lease.get("ledger_allocated_seconds_before_session")
             if (
@@ -3107,6 +3419,33 @@ class VLLMService:
                 "stale service lease start",
                 started_at_text,
             )
+            recovered_process_identity: RecoveredServiceProcessIdentity | None = None
+            if process_start_ticks is not None or process_command_sha256 is not None:
+                if (
+                    isinstance(process_start_ticks, bool)
+                    or not isinstance(process_start_ticks, int)
+                    or process_start_ticks <= 0
+                    or not isinstance(process_command_sha256, str)
+                    or len(process_command_sha256) != 64
+                    or any(
+                        character not in "0123456789abcdef"
+                        for character in process_command_sha256
+                    )
+                    or process_command_sha256
+                    != canonical_sha256(list(self.configuration.command()))
+                ):
+                    raise RuntimeConfigurationError(
+                        "stale vLLM lease process identity is invalid"
+                    )
+                recovered_process_identity = RecoveredServiceProcessIdentity(
+                    configuration_hash=self.configuration.configuration_hash,
+                    session_id=session_id,
+                    accounting_session_id=service_session_id,
+                    pid=service_pid,
+                    process_start_ticks=process_start_ticks,
+                    process_command_sha256=process_command_sha256,
+                    service_started_at=lease_started_at,
+                )
             journal_started_at = _parse_aware_datetime(
                 "stale service journal start",
                 latest.service_started_at,
@@ -3125,6 +3464,27 @@ class VLLMService:
                 raise RuntimeConfigurationError(
                     "stale vLLM lease and service journal identities differ"
                 )
+            if lease_state == "stopped_verified":
+                record = self.meter.ledger.get_gpu_service_session(service_session_id)
+                ended_at_text = lease.get("service_ended_at")
+                if (
+                    latest.state
+                    not in {GpuServiceJournalState.CLOSED, GpuServiceJournalState.RECOVERED}
+                    or record is None
+                    or not isinstance(ended_at_text, str)
+                    or record.service_session_id != service_session_id
+                    or record.session_id != session_id
+                    or _parse_aware_datetime("terminal service start", record.started_at)
+                    != lease_started_at
+                    or _parse_aware_datetime("terminal service end", record.ended_at)
+                    != _parse_aware_datetime("terminal lease end", ended_at_text)
+                ):
+                    raise RuntimeConfigurationError(
+                        "terminal vLLM lease has no matching service accounting record"
+                    )
+                self._last_recovered_process_identity = recovered_process_identity
+                terminalized = True
+                return record
             try:
                 pid_live = self.process_liveness_check(service_pid)
                 process_group_live = self.process_group_liveness_check(service_pid)
@@ -3165,11 +3525,15 @@ class VLLMService:
                     record.ended_at,
                 )
                 self._physically_stopped_seconds = record.service_seconds
+                self._last_service_pid = service_pid
+                self._last_process_start_ticks = process_start_ticks
+                self._last_process_command_sha256 = process_command_sha256
                 self._write_service_lock_metadata(
                     lease_state="stopped_verified",
                     service_pid=service_pid,
                     ended_at=self._physically_stopped_at,
                 )
+                self._last_recovered_process_identity = recovered_process_identity
                 terminalized = True
 
             try:

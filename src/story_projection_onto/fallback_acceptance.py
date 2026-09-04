@@ -2,7 +2,9 @@
 
 Importing this module is CPU-only.  Its CLI defaults to a static public plan and
 requires ``--execute`` plus activation, cache-replacement, snapshot, ledger, and
-resource evidence before it may start the single pinned fallback service.
+resource evidence before it may start the single pinned fallback service.  One
+additional start is possible only through a hash-bound, predecessor-specific
+methodological-amendment certificate.
 """
 
 from __future__ import annotations
@@ -55,6 +57,7 @@ from story_projection_onto.experiment import (
     summarize_call_class_timings,
 )
 from story_projection_onto.gpu_runtime import (
+    DEFAULT_SHUTDOWN_SECONDS,
     FALLBACK_MODEL_REPOSITORY,
     FALLBACK_MODEL_REVISION,
     FALLBACK_SERVED_MODEL_NAME,
@@ -127,11 +130,14 @@ NORMAL_ACCEPTANCE_CLASSES = (
     "acceptance_fixed_select",
     "acceptance_repair",
 )
+DEFAULT_FALLBACK_STARTUP_WATCHDOG_SECONDS = 180
+AMENDED_FALLBACK_STARTUP_WATCHDOG_SECONDS = 300
 FALLBACK_IMPLEMENTATION_FILES = (
     "configs/study/decoding.json",
     "configs/study/development_call_manifest.json",
     "configs/study/development_construction.json",
     "configs/study/fallback_model.json",
+    "configs/study/fallback_service_retry_amendment.json",
     "configs/study/gpu_call_inventory.json",
     "configs/study/model.json",
     "configs/study/resource_limits.json",
@@ -618,6 +624,264 @@ def validate_pre_fallback_gpu_accounting(
     return baseline
 
 
+def _gpu_summary_payload(summary: GpuSummary) -> dict[str, object]:
+    return {
+        "total_allocated_microseconds": summary.total_allocated_microseconds,
+        "event_count": summary.event_count,
+        "service_session_count": summary.service_session_count,
+        "by_kind_microseconds": {
+            kind.value: microseconds for kind, microseconds in summary.by_kind_microseconds
+        },
+    }
+
+
+def _validated_manifest_object(path: Path, *, expected_kind: str) -> dict[str, object]:
+    resolved = path.resolve(strict=True)
+    if path.is_symlink() or not resolved.is_file():
+        raise ValueError(f"{expected_kind} must be one regular non-symlink file")
+    value = _load_object(resolved)
+    supplied = value.get("manifest_sha256")
+    immutable = {key: item for key, item in value.items() if key != "manifest_sha256"}
+    if (
+        value.get("kind") != expected_kind
+        or not isinstance(supplied, str)
+        or supplied != canonical_sha256(immutable)
+    ):
+        raise ValueError(f"{expected_kind} manifest identity is invalid")
+    return value
+
+
+def validate_fallback_service_retry_amendment(
+    *,
+    root: Path,
+    amendment_path: Path,
+    prior_failure_path: Path,
+    run_id: str,
+    policy: FallbackModelPolicy,
+    activation_certificate: Mapping[str, object],
+    primary_result: Mapping[str, object],
+    limits: ResourceLimits,
+    observed: GpuSummary | None = None,
+) -> tuple[dict[str, object], dict[str, object]]:
+    """Validate the one user-authorized recovery start and its exact predecessor.
+
+    The base plan remains untouched.  This overlay adds one service-allocation
+    event but zero inference attempts.  It is intentionally unusable for any
+    other run, predecessor, model, watchdog, or cumulative-ledger state.
+    """
+
+    amendment = _validated_manifest_object(
+        amendment_path,
+        expected_kind="phase1_fallback_service_retry_amendment",
+    )
+    prior = _validated_manifest_object(
+        prior_failure_path,
+        expected_kind="phase1_fallback_micro_pilot_result",
+    )
+    required_root_fields = {
+        "schema_version",
+        "kind",
+        "authorization_status",
+        "authorization_basis",
+        "recorded_at",
+        "authorized_recovery_run_id",
+        "authoritative_plan_file_sha256",
+        "base_gpu_call_inventory_file_sha256",
+        "fallback_policy_file_sha256",
+        "fallback_activation_manifest_sha256",
+        "primary_rejection_manifest_sha256",
+        "model",
+        "prior_failure",
+        "amendment",
+        "forecast",
+        "unchanged_scientific_controls",
+        "scope",
+        "authoritative_plans_rewritten",
+        "manifest_sha256",
+    }
+    if set(amendment) != required_root_fields:
+        raise ValueError("fallback retry amendment fields differ from the authorized overlay")
+    if (
+        amendment.get("authorization_status") != "authorized"
+        or amendment.get("authorized_recovery_run_id") != run_id
+        or amendment.get("authoritative_plans_rewritten") is not False
+        or not isinstance(amendment.get("authorization_basis"), str)
+        or not cast(str, amendment["authorization_basis"]).strip()
+        or not isinstance(amendment.get("scope"), str)
+        or not cast(str, amendment["scope"]).strip()
+    ):
+        raise ValueError("fallback retry amendment lacks exact user authorization")
+
+    declared_plans = amendment.get("authoritative_plan_file_sha256")
+    expected_plans = {
+        "methodological": _file_sha256(
+            root / "plan_notes/METHODOLOGICAL_PLAN_QUERY_DEPENDENT_TEMPORAL_ONTOLOGY.md"
+        ),
+        "implementation": _file_sha256(
+            root / "plan_notes/IMPLEMENTATION_PLAN_QUERY_DEPENDENT_TEMPORAL_ONTOLOGY.md"
+        ),
+    }
+    if declared_plans != expected_plans:
+        raise ValueError("fallback retry amendment does not bind both authoritative plans")
+
+    inventory_path = root / "configs/study/gpu_call_inventory.json"
+    policy_path = root / "configs/study/fallback_model.json"
+    inventory = GPUCallInventory.load(inventory_path)
+    if (
+        amendment.get("base_gpu_call_inventory_file_sha256")
+        != _file_sha256(inventory_path)
+        or amendment.get("fallback_policy_file_sha256") != _file_sha256(policy_path)
+        or inventory.session_start_count != 8
+        or inventory.accounting_events != 286
+        or inventory.maximum_inference_attempts != 278
+        or policy.service_start_events != 1
+    ):
+        raise ValueError("fallback retry amendment base call inventory changed")
+    if (
+        amendment.get("fallback_activation_manifest_sha256")
+        != activation_certificate.get("manifest_sha256")
+        or activation_certificate.get("reserved_service_start_events") != 1
+        or amendment.get("primary_rejection_manifest_sha256")
+        != primary_result.get("manifest_sha256")
+    ):
+        raise ValueError("fallback retry amendment activation lineage changed")
+    if amendment.get("model") != {
+        "repository": policy.repository,
+        "revision": policy.revision,
+        "served_model_name": policy.served_model_name,
+    }:
+        raise ValueError("fallback retry amendment changed the selected model")
+
+    prior_declaration = amendment.get("prior_failure")
+    if not isinstance(prior_declaration, Mapping):
+        raise ValueError("fallback retry amendment lacks its prior failure declaration")
+    prior_runtime = prior.get("runtime")
+    prior_accounting = (
+        prior_runtime.get("gpu_accounting") if isinstance(prior_runtime, Mapping) else None
+    )
+    if not isinstance(prior_accounting, Mapping):
+        raise ValueError("fallback retry predecessor lacks cumulative GPU accounting")
+    expected_prior_declaration = {
+        "run_id": prior.get("run_id"),
+        "artifact_file_sha256": _file_sha256(prior_failure_path),
+        "artifact_manifest_sha256": prior.get("manifest_sha256"),
+        "failure_stage": prior.get("failure_stage"),
+        "failure_type": prior.get("failure_type"),
+        "failed_call_id": prior.get("failed_call_id"),
+        "completed_model_calls": prior.get("completed_base_call_count"),
+        "service_shutdown_verified": (
+            prior.get("vllm_service_stopped") is True
+            and prior.get("physical_service_live") is False
+        ),
+        "cumulative_gpu_microseconds": prior_accounting.get(
+            "total_allocated_microseconds"
+        ),
+        "gpu_event_count": prior_accounting.get("event_count"),
+        "gpu_service_session_count": prior_accounting.get("service_session_count"),
+    }
+    if prior_declaration != expected_prior_declaration:
+        raise ValueError("fallback retry amendment does not bind the exact failed predecessor")
+    if (
+        prior.get("failure_stage") != "fallback_micro_pilot"
+        or prior.get("failure_type") != "RuntimeWatchdogTimeout"
+        or prior.get("failed_call_id") != "controller-restart-prepare"
+        or prior.get("completed_base_call_count") != 0
+        or prior.get("completed_call_ids") != []
+        or prior.get("vllm_service_stopped") is not True
+        or prior.get("physical_service_live") is not False
+    ):
+        raise ValueError("fallback retry predecessor is not the authorized startup timeout")
+
+    primary_baseline = pre_fallback_gpu_accounting_baseline(primary_result)
+    primary_by_kind = cast(Mapping[str, int], primary_baseline["by_kind_microseconds"])
+    prior_by_kind = prior_accounting.get("by_kind_microseconds")
+    if not isinstance(prior_by_kind, Mapping):
+        raise ValueError("fallback retry predecessor has invalid per-kind accounting")
+    added_timeout = cast(int, prior_accounting["total_allocated_microseconds"]) - cast(
+        int, primary_baseline["total_allocated_microseconds"]
+    )
+    if (
+        added_timeout <= 0
+        or prior_accounting.get("event_count")
+        != cast(int, primary_baseline["event_count"]) + 1
+        or prior_accounting.get("service_session_count")
+        != cast(int, primary_baseline["service_session_count"]) + 1
+        or prior_by_kind.get("failure", 0) != primary_by_kind.get("failure", 0)
+        or prior_by_kind.get("timeout", 0)
+        != primary_by_kind.get("timeout", 0) + added_timeout
+        or set(prior_by_kind) - {"failure", "timeout"}
+    ):
+        raise ValueError("fallback retry predecessor is not one additional timeout event")
+    if observed is not None and _gpu_summary_payload(observed) != dict(prior_accounting):
+        raise RuntimeError(
+            "fallback retry ledger does not exactly match its authorized failed predecessor"
+        )
+
+    delta = amendment.get("amendment")
+    expected_delta = {
+        "additional_fallback_service_loads": 1,
+        "original_total_allocation_events": inventory.session_start_count,
+        "amended_total_allocation_events": inventory.session_start_count + 1,
+        "recovery_service_start_watchdog_seconds": (
+            AMENDED_FALLBACK_STARTUP_WATCHDOG_SECONDS
+        ),
+        "additional_inference_attempts": 0,
+        "maximum_inference_attempts_unchanged": inventory.maximum_inference_attempts,
+    }
+    if delta != expected_delta:
+        raise ValueError("fallback retry amendment delta is not the one authorized switch")
+    controls = amendment.get("unchanged_scientific_controls")
+    expected_control_names = {
+        "model_snapshot",
+        "runtime_stack",
+        "no_cpu_weight_offload",
+        "generation_concurrency_one",
+        "prompts",
+        "schemas",
+        "evidence",
+        "decoding",
+        "seeds",
+        "inference_call_inventory",
+        "condition_semantics",
+        "validation_and_repair_policy",
+    }
+    if (
+        not isinstance(controls, Mapping)
+        or set(controls) != expected_control_names
+        or any(value is not True for value in controls.values())
+    ):
+        raise ValueError("fallback retry amendment weakens a scientific control")
+
+    prior_forecast = prior.get("actual_plus_remaining_forecast")
+    declared_forecast = amendment.get("forecast")
+    if not isinstance(prior_forecast, Mapping) or not isinstance(
+        declared_forecast, Mapping
+    ):
+        raise ValueError("fallback retry amendment lacks a complete forecast")
+    prior_actual = float(cast(float, prior_forecast["actual_allocated_seconds"]))
+    remaining = float(cast(float, prior_forecast["remaining_forecast_seconds"]))
+    amended_ceiling = (
+        prior_actual + remaining + AMENDED_FALLBACK_STARTUP_WATCHDOG_SECONDS
+    )
+    expected_forecast = {
+        "prior_actual_allocated_seconds": prior_actual,
+        "remaining_mandatory_forecast_seconds": remaining,
+        "recovery_service_start_ceiling_seconds": float(
+            AMENDED_FALLBACK_STARTUP_WATCHDOG_SECONDS
+        ),
+        "amended_actual_plus_remaining_ceiling_seconds": amended_ceiling,
+        "scheduled_limit_seconds": float(limits.scheduled_gpu_seconds),
+        "hard_limit_seconds": float(limits.hard_gpu_seconds),
+        "admitted": (
+            amended_ceiling <= limits.scheduled_gpu_seconds
+            and amended_ceiling < limits.hard_gpu_seconds
+        ),
+    }
+    if declared_forecast != expected_forecast or expected_forecast["admitted"] is not True:
+        raise ValueError("fallback retry amendment does not fit the GPU schedule")
+    return amendment, prior
+
+
 def _private_atomic_json(path: Path, value: Mapping[str, object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     descriptor, name = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
@@ -632,6 +896,26 @@ def _private_atomic_json(path: Path, value: Mapping[str, object]) -> None:
     except BaseException:
         temporary.unlink(missing_ok=True)
         raise
+
+
+def _public_development_state(
+    value: object,
+    *,
+    restricted_fields: frozenset[str],
+) -> dict[str, object] | None:
+    """Redact operational paths while retaining a hash-bound public summary."""
+
+    if not isinstance(value, Mapping):
+        return None
+    public = dict(value)
+    record_hash = public.pop("content_hash", None)
+    withheld = sorted(name for name in restricted_fields if name in public)
+    for name in withheld:
+        public.pop(name)
+    if record_hash is not None:
+        public["restricted_record_sha256"] = record_hash
+    public["restricted_fields_withheld"] = withheld
+    return public
 
 
 @dataclass(frozen=True, slots=True)
@@ -1704,6 +1988,9 @@ class FallbackAcceptanceRunner:
     snapshot_manifest: Mapping[str, object]
     source_association: Mapping[str, object]
     pre_fallback_gpu_accounting: Mapping[str, object] | None = None
+    retry_amendment: Mapping[str, object] | None = None
+    prior_fallback_failure: Mapping[str, object] | None = None
+    service_start_watchdog_seconds: int = DEFAULT_FALLBACK_STARTUP_WATCHDOG_SECONDS
     development_adopter: DevelopmentContinuationAdopter | None = None
     runtime_stack: RuntimeStackManifest | None = None
     gpu_hardware: GPUHardwareIdentity | None = None
@@ -1726,6 +2013,124 @@ class FallbackAcceptanceRunner:
         self.root = self.root.resolve(strict=True)
         if self.service.configuration.model_candidate != "fallback":
             raise ValueError("fallback runner cannot use the primary model")
+        amendment_present = self.retry_amendment is not None
+        if amendment_present != (self.prior_fallback_failure is not None):
+            raise ValueError("fallback retry amendment and predecessor must be supplied together")
+        expected_watchdog = (
+            AMENDED_FALLBACK_STARTUP_WATCHDOG_SECONDS
+            if amendment_present
+            else DEFAULT_FALLBACK_STARTUP_WATCHDOG_SECONDS
+        )
+        if self.service_start_watchdog_seconds != expected_watchdog:
+            raise ValueError("fallback startup watchdog differs from its authorization")
+        if (
+            amendment_present
+            and self.retry_amendment is not None
+            and self.retry_amendment.get("authorized_recovery_run_id") != self.run_id
+        ):
+            raise ValueError("fallback retry amendment authorizes another run ID")
+
+    @property
+    def retry_amendment_hash(self) -> str | None:
+        if self.retry_amendment is None:
+            return None
+        return cast(str, self.retry_amendment["manifest_sha256"])
+
+    @property
+    def prior_fallback_failure_hash(self) -> str | None:
+        if self.prior_fallback_failure is None:
+            return None
+        return cast(str, self.prior_fallback_failure["manifest_sha256"])
+
+    def _base_inventory_consumed_service_starts(self) -> tuple[int, int]:
+        lifecycle_kinds = {
+            GpuEventKind.GPU_SESSION_START.value,
+            GpuEventKind.RESTART.value,
+        }
+        lifecycle_events = tuple(
+            event
+            for event in self.ledger.gpu_events()
+            if event.event_kind in {GpuEventKind.GPU_SESSION_START, GpuEventKind.RESTART}
+            or json.loads(event.details_json).get("intended_event_kind") in lifecycle_kinds
+        )
+        recovery_count = 0
+        if self.retry_amendment is not None:
+            recovery_event_id = f"{self.run_id}-service-start-001"
+            recovery_count = sum(
+                event.event_id == recovery_event_id for event in lifecycle_events
+            )
+        if recovery_count > 1:
+            raise RuntimeError("GPU ledger contains excess fallback recovery service starts")
+        return len(lifecycle_events) - recovery_count, recovery_count
+
+    def _remaining_mandatory_forecast_seconds(
+        self,
+        state: Mapping[str, object],
+        *,
+        exclude_upcoming_base_service_start: bool = False,
+    ) -> float:
+        """Return every still-required registered second after the next GPU action."""
+
+        limits = ResourceLimits.load(self.root / "configs/study/resource_limits.json")
+        inventory = GPUCallInventory.load(
+            self.root / "configs/study/gpu_call_inventory.json"
+        )
+        reference = forecast_gpu_schedule(inventory, limits=limits)
+        raw_receipts = state.get("reserve_consumption", [])
+        if not isinstance(raw_receipts, list) or not all(
+            isinstance(item, Mapping) for item in raw_receipts
+        ):
+            raise RuntimeError("fallback checkpoint reserve inventory is invalid")
+        receipts = _reserve_receipts(
+            self.ledger,
+            cast(Sequence[Mapping[str, object]], raw_receipts),
+        )
+        consumed = Counter(
+            cast(str, receipt["reserve_call_class"]) for receipt in receipts
+        )
+        for name in NORMAL_ACCEPTANCE_CLASSES:
+            consumed[name] = inventory.call_class(name).count
+        base_service_starts, _ = self._base_inventory_consumed_service_starts()
+        consumed["gpu_session_start"] = base_service_starts
+        if exclude_upcoming_base_service_start:
+            consumed["gpu_session_start"] += 1
+        if state.get("development_continuation_completed") is True:
+            for name in (
+                "development_c1",
+                "development_c2",
+                "development_fixed_select",
+                "development_ablation",
+                "development_repair",
+            ):
+                consumed[name] = inventory.call_class(name).count
+        return sum(
+            max(0, row.count - consumed[row.call_class])
+            * row.forecast_p95_seconds
+            for row in reference.rows
+        )
+
+    def _effective_inventory_manifest(self) -> dict[str, object]:
+        inventory_path = self.root / "configs/study/gpu_call_inventory.json"
+        inventory = GPUCallInventory.load(inventory_path)
+        recovery_count = 1 if self.retry_amendment is not None else 0
+        payload: dict[str, object] = {
+            "schema_version": SCHEMA_VERSION,
+            "kind": "effective_gpu_call_inventory",
+            "base_inventory_file_sha256": _file_sha256(inventory_path),
+            "base_accounting_events": inventory.accounting_events,
+            "base_inference_attempts": inventory.maximum_inference_attempts,
+            "base_service_start_events": inventory.session_start_count,
+            "recovery_service_start_events": recovery_count,
+            "effective_accounting_events": inventory.accounting_events + recovery_count,
+            "effective_inference_attempts": inventory.maximum_inference_attempts,
+            "effective_service_start_events": inventory.session_start_count
+            + recovery_count,
+            "recovery_service_start_watchdog_seconds": (
+                self.service_start_watchdog_seconds if recovery_count else None
+            ),
+            "retry_amendment_sha256": self.retry_amendment_hash,
+        }
+        return {**payload, "manifest_sha256": canonical_sha256(payload)}
 
     def _development_registration(
         self,
@@ -1770,6 +2175,9 @@ class FallbackAcceptanceRunner:
                 if self.pre_fallback_gpu_accounting is None
                 else self.pre_fallback_gpu_accounting["manifest_sha256"]
             ),
+            "fallback_service_retry_amendment_sha256": self.retry_amendment_hash,
+            "prior_fallback_failure_sha256": self.prior_fallback_failure_hash,
+            "service_start_watchdog_seconds": self.service_start_watchdog_seconds,
             "launcher_configuration_sha256": self.service.configuration.configuration_hash,
             "tokenizer_manifest_sha256": self.tokenizer_manifest.manifest_sha256,
             "runtime_stack_manifest_sha256": (
@@ -1879,8 +2287,13 @@ class FallbackAcceptanceRunner:
             self.service.start(
                 session_id=self.run_id,
                 event_id=f"{self.run_id}-service-start-001",
-                watchdog_seconds=180,
-                remaining_required_seconds=sum(call.watchdog_seconds for call in calls) + 90,
+                watchdog_seconds=self.service_start_watchdog_seconds,
+                remaining_required_seconds=self._remaining_mandatory_forecast_seconds(
+                    state,
+                    exclude_upcoming_base_service_start=(
+                        self.retry_amendment is None
+                    ),
+                ),
             )
             self.resource_sampler.sample(
                 sample_id=f"{self.run_id}-stage-one-after-load",
@@ -2952,7 +3365,7 @@ class FallbackAcceptanceRunner:
                 root_pid=self.service.pid,
                 gpu_event_id=f"{self.run_id}-service-start-001",
             )
-            for call_index, call in enumerate(calls):
+            for call in calls:
                 if call.call_id in completed:
                     result, audit, resumed_timings = self._resume_completed(
                         state=state,
@@ -2968,9 +3381,6 @@ class FallbackAcceptanceRunner:
                     call=call,
                     tokenizer=self.tokenizer,
                     tokenizer_manifest=self.tokenizer_manifest,
-                )
-                remaining = sum(later.watchdog_seconds for later in calls[call_index + 1 :]) + (
-                    0 if state["repair_parent_call_id"] is not None else 90
                 )
                 job = self.ledger.create_or_resume_job(
                     {"run_id": self.run_id, "call_id": call.call_id, "plan_hash": execution_hash},
@@ -2991,6 +3401,7 @@ class FallbackAcceptanceRunner:
                     reserve_call_class=call.reserve_call_class,
                     watchdog_seconds=call.watchdog_seconds,
                 )
+                remaining = self._remaining_mandatory_forecast_seconds(state)
                 event_id = f"{self.run_id}-{call.call_id}-gpu"
                 try:
                     generated = self.service.run_fallback_test(
@@ -3124,9 +3535,6 @@ class FallbackAcceptanceRunner:
                         diagnostics=diagnostics,
                         job_id=job.job_id,
                         parent_attempt_id=attempt_id,
-                        remaining_required_seconds=sum(
-                            later.watchdog_seconds for later in calls[call_index + 1 :]
-                        ),
                     )
                     results.append(repair_result[0])
                     timing_observations.append(
@@ -3251,7 +3659,6 @@ class FallbackAcceptanceRunner:
         diagnostics: Sequence[Mapping[str, object]],
         job_id: str,
         parent_attempt_id: str,
-        remaining_required_seconds: float,
     ) -> tuple[dict[str, object], dict[str, object] | None, float]:
         repair_id = f"{call.call_id}-repair-01"
         request = build_fallback_repair_request(
@@ -3278,6 +3685,9 @@ class FallbackAcceptanceRunner:
             call_id=repair_id,
             reserve_call_class="reserve_short",
             watchdog_seconds=90,
+        )
+        remaining_required_seconds = self._remaining_mandatory_forecast_seconds(
+            state
         )
         event_id = f"{self.run_id}-{repair_id}-gpu"
         try:
@@ -3458,15 +3868,10 @@ class FallbackAcceptanceRunner:
         )
         for name in NORMAL_ACCEPTANCE_CLASSES:
             consumed[name] = inventory.call_class(name).count
-        lifecycle_kinds = {
-            GpuEventKind.GPU_SESSION_START.value,
-            GpuEventKind.RESTART.value,
-        }
-        consumed["gpu_session_start"] = sum(
-            event.event_kind in {GpuEventKind.GPU_SESSION_START, GpuEventKind.RESTART}
-            or json.loads(event.details_json).get("intended_event_kind") in lifecycle_kinds
-            for event in self.ledger.gpu_events()
+        base_service_starts, recovery_service_starts = (
+            self._base_inventory_consumed_service_starts()
         )
+        consumed["gpu_session_start"] = base_service_starts
         raw_development_receipt = state.get("development_continuation_receipt")
         try:
             development_receipt = (
@@ -3590,6 +3995,10 @@ class FallbackAcceptanceRunner:
             "execution_hash": execution_hash,
             "execution_identity": identity,
             "fallback_plan_manifest_sha256": plan_hash,
+            "fallback_service_retry_amendment_sha256": self.retry_amendment_hash,
+            "prior_fallback_failure_sha256": self.prior_fallback_failure_hash,
+            "effective_gpu_call_inventory": self._effective_inventory_manifest(),
+            "recovery_service_start_events_consumed": recovery_service_starts,
             "normal_acceptance_block_executed": False,
             "completed_base_call_count": len(completed_ids),
             "completed_call_ids": completed_ids,
@@ -3649,8 +4058,14 @@ class FallbackAcceptanceRunner:
             "development_continuation_bootstrap": state.get(
                 "development_continuation_bootstrap"
             ),
-            "development_preparation": state.get("development_preparation"),
-            "development_handoff": state.get("development_handoff"),
+            "development_preparation": _public_development_state(
+                state.get("development_preparation"),
+                restricted_fields=frozenset({"checkpoint_path"}),
+            ),
+            "development_handoff": _public_development_state(
+                state.get("development_handoff"),
+                restricted_fields=frozenset({"development_checkpoint_path"}),
+            ),
             "development_execution_result": state.get(
                 "development_execution_result"
             ),
@@ -3762,15 +4177,10 @@ class FallbackAcceptanceRunner:
         # as an executed call or successful model output.
         for name in NORMAL_ACCEPTANCE_CLASSES:
             consumed[name] = inventory.call_class(name).count
-        lifecycle_kinds = {
-            GpuEventKind.GPU_SESSION_START.value,
-            GpuEventKind.RESTART.value,
-        }
-        consumed["gpu_session_start"] = sum(
-            event.event_kind in {GpuEventKind.GPU_SESSION_START, GpuEventKind.RESTART}
-            or json.loads(event.details_json).get("intended_event_kind") in lifecycle_kinds
-            for event in self.ledger.gpu_events()
+        base_service_starts, recovery_service_starts = (
+            self._base_inventory_consumed_service_starts()
         )
+        consumed["gpu_session_start"] = base_service_starts
         raw_development_receipt = state.get("development_continuation_receipt")
         development_receipt = (
             None
@@ -3830,6 +4240,7 @@ class FallbackAcceptanceRunner:
                 name: inventory.call_class(name).count for name in NORMAL_ACCEPTANCE_CLASSES
             },
             "consumed_gpu_session_start_slots": consumed["gpu_session_start"],
+            "consumed_recovery_service_start_slots": recovery_service_starts,
             "consumed_reserve_slots": {
                 name: consumed[name]
                 for name in ("reserve_long", "reserve_standard", "reserve_short")
@@ -4054,6 +4465,10 @@ class FallbackAcceptanceRunner:
             "run_id": self.run_id,
             "execution_hash": execution_hash,
             "fallback_plan_manifest_sha256": plan_manifest_hash,
+            "fallback_service_retry_amendment_sha256": self.retry_amendment_hash,
+            "prior_fallback_failure_sha256": self.prior_fallback_failure_hash,
+            "effective_gpu_call_inventory": self._effective_inventory_manifest(),
+            "recovery_service_start_events_consumed": recovery_service_starts,
             "execution_identity": dict(execution_identity),
             "normal_acceptance_block_executed": False,
             "base_call_count": len(calls),
@@ -4125,8 +4540,14 @@ class FallbackAcceptanceRunner:
             "development_continuation_bootstrap": state.get(
                 "development_continuation_bootstrap"
             ),
-            "development_preparation": state.get("development_preparation"),
-            "development_handoff": state.get("development_handoff"),
+            "development_preparation": _public_development_state(
+                state.get("development_preparation"),
+                restricted_fields=frozenset({"checkpoint_path"}),
+            ),
+            "development_handoff": _public_development_state(
+                state.get("development_handoff"),
+                restricted_fields=frozenset({"development_checkpoint_path"}),
+            ),
             "selected_model_freeze": selected_freeze,
             "development_execution_result": state.get(
                 "development_execution_result"
@@ -4149,7 +4570,7 @@ class FallbackAcceptanceRunner:
 def _controller_execution_arguments(options: argparse.Namespace) -> dict[str, object]:
     """Return the exact private argument identity shared by both controllers."""
 
-    return {
+    identity: dict[str, object] = {
         "project_root": str(options.project_root.resolve()),
         "run_id": options.run_id,
         "primary_result": str(options.primary_result.resolve()),
@@ -4167,6 +4588,12 @@ def _controller_execution_arguments(options: argparse.Namespace) -> dict[str, ob
         "quota_root": str(options.quota_root.resolve()),
         "port": options.port,
     }
+    if options.retry_amendment is not None:
+        identity["retry_amendment"] = str(options.retry_amendment.resolve())
+        identity["prior_fallback_failure"] = str(
+            options.prior_fallback_failure.resolve()
+        )
+    return identity
 
 
 def _expected_orchestrator_guard(options: argparse.Namespace) -> Path:
@@ -4245,6 +4672,9 @@ def _internal_controller_command(
         "quota_root",
     ):
         command.extend((f"--{name.replace('_', '-')}", cast(str, arguments[name])))
+    for name in ("retry_amendment", "prior_fallback_failure"):
+        if name in arguments:
+            command.extend((f"--{name.replace('_', '-')}", cast(str, arguments[name])))
     command.extend(("--port", str(arguments["port"])))
     return tuple(command)
 
@@ -4366,7 +4796,9 @@ def parse_arguments(arguments: Sequence[str] | None = None) -> argparse.Namespac
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project-root", type=Path, default=Path.cwd())
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--execute", action="store_true")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--execute", action="store_true")
+    mode.add_argument("--validate-only", action="store_true")
     parser.add_argument(
         "--controller-stage",
         choices=("orchestrate", "prepare", "run", "cleanup"),
@@ -4380,6 +4812,8 @@ def parse_arguments(arguments: Sequence[str] | None = None) -> argparse.Namespac
     parser.add_argument("--shared-cache", type=Path)
     parser.add_argument("--verified-model-manifest", type=Path)
     parser.add_argument("--source-association", type=Path)
+    parser.add_argument("--retry-amendment", type=Path)
+    parser.add_argument("--prior-fallback-failure", type=Path)
     parser.add_argument("--ledger", type=Path)
     parser.add_argument("--artifact-root", type=Path)
     parser.add_argument("--checkpoint", type=Path)
@@ -4407,9 +4841,188 @@ def _require_execution_arguments(options: argparse.Namespace) -> None:
     missing = [name for name in required if getattr(options, name) is None]
     if missing:
         raise SystemExit(
-            "--execute requires: "
+            "execution preflight requires: "
             + ", ".join(f"--{name.replace('_', '-')}" for name in missing)
         )
+    if (options.retry_amendment is None) != (options.prior_fallback_failure is None):
+        raise SystemExit(
+            "--retry-amendment and --prior-fallback-failure must be supplied together"
+        )
+
+
+def _validate_execution_preflight(
+    options: argparse.Namespace,
+    *,
+    root: Path,
+) -> dict[str, object]:
+    """Validate the exact prospective run without allocating the GPU."""
+
+    if options.controller_stage != "orchestrate":
+        raise SystemExit("--validate-only requires --controller-stage orchestrate")
+    policy_path = root / "configs/study/fallback_model.json"
+    policy = FallbackModelPolicy.load(policy_path)
+    primary_result = _load_object(options.primary_result)
+    activation = validate_fallback_activation_certificate(
+        policy=policy,
+        certificate=_load_object(options.activation_certificate),
+        primary_result=primary_result,
+    )
+    replacement = validate_fallback_cache_replacement_receipt(
+        policy=policy,
+        activation_certificate=activation,
+        receipt=_load_object(options.cache_replacement_receipt),
+        shared_cache=options.shared_cache,
+    )
+    snapshot_manifest = validate_fallback_snapshot_manifest(
+        options.verified_model_manifest,
+        policy=policy,
+        policy_path=policy_path,
+        snapshot_path=options.snapshot,
+        shared_cache=options.shared_cache,
+    )
+    source_association = validate_source_association(
+        options.source_association,
+        source_root=root,
+    )
+    configuration = VLLMLaunchConfiguration.from_model_configuration(
+        snapshot_path=options.snapshot,
+        shared_cache=options.shared_cache,
+        model_configuration_path=root / "configs/study/model.json",
+        model_candidate="fallback",
+        verified_snapshot_manifest_sha256=cast(
+            str, snapshot_manifest["manifest_sha256"]
+        ),
+        port=options.port,
+    )
+    limits = ResourceLimits.load(root / "configs/study/resource_limits.json")
+    storage_plan = StorageAllocationPlan.load(
+        root / "configs/study/storage_phase_allocations.json"
+    )
+    storage = StoragePreflight(
+        options.quota_root,
+        controlled_paths=(
+            root,
+            options.shared_cache,
+            options.ledger.parent,
+            options.artifact_root,
+            options.checkpoint.parent,
+            options.output.parent,
+        ),
+        budget=StorageBudget(
+            total_allocation_bytes=limits.maximum_project_allocation_bytes,
+            max_occupied_bytes=limits.maximum_project_occupied_bytes,
+            min_headroom_bytes=limits.minimum_storage_headroom_bytes,
+        ),
+    )
+    storage_report = storage.check(
+        **storage_plan.reservation_for("phase_1").preflight_arguments()
+    )
+    if not storage_report.allowed:
+        raise StorageBudgetExceeded(storage_report)
+    checkpoint_paths = (
+        options.checkpoint,
+        options.checkpoint.with_name(options.checkpoint.name + ".service"),
+        _expected_orchestrator_guard(options),
+    )
+    if any(path.exists() or path.is_symlink() for path in checkpoint_paths):
+        raise RuntimeError("fallback recovery run already has durable controller state")
+
+    inventory = GPUCallInventory.load(root / "configs/study/gpu_call_inventory.json")
+    reference = forecast_gpu_schedule(inventory, limits=limits)
+    with Ledger(options.ledger) as ledger:
+        observed = ledger.gpu_summary()
+        if options.retry_amendment is None:
+            validate_pre_fallback_gpu_accounting(primary_result, observed)
+            next_watchdog = float(DEFAULT_FALLBACK_STARTUP_WATCHDOG_SECONDS)
+            remaining = sum(
+                max(
+                    0,
+                    row.count
+                    - (
+                        observed.service_session_count + 1
+                        if row.call_class == "gpu_session_start"
+                        else row.count
+                        if row.call_class in NORMAL_ACCEPTANCE_CLASSES
+                        else 0
+                    ),
+                )
+                * row.forecast_p95_seconds
+                for row in reference.rows
+            )
+            amendment_hash = None
+            predecessor_hash = None
+        else:
+            amendment, predecessor = validate_fallback_service_retry_amendment(
+                root=root,
+                amendment_path=options.retry_amendment,
+                prior_failure_path=cast(Path, options.prior_fallback_failure),
+                run_id=options.run_id,
+                policy=policy,
+                activation_certificate=activation,
+                primary_result=primary_result,
+                limits=limits,
+                observed=observed,
+            )
+            forecast = cast(Mapping[str, object], amendment["forecast"])
+            next_watchdog = float(AMENDED_FALLBACK_STARTUP_WATCHDOG_SECONDS)
+            remaining = float(
+                cast(float, forecast["remaining_mandatory_forecast_seconds"])
+            )
+            amendment_hash = amendment["manifest_sha256"]
+            predecessor_hash = predecessor["manifest_sha256"]
+        actual = observed.total_allocated_seconds
+
+    projected = actual + next_watchdog + remaining
+    protected_hard_projection = projected + 2 * DEFAULT_SHUTDOWN_SECONDS
+    if projected > limits.scheduled_gpu_seconds:
+        raise RuntimeError("fallback recovery no longer fits the scheduled GPU envelope")
+    if protected_hard_projection >= limits.hard_gpu_seconds:
+        raise RuntimeError("fallback recovery lacks its protected hard-stop margin")
+    payload: dict[str, object] = {
+        "schema_version": SCHEMA_VERSION,
+        "kind": "phase1_fallback_execution_preflight",
+        "run_id": options.run_id,
+        "model": {
+            "repository": policy.repository,
+            "revision": policy.revision,
+            "served_model_name": policy.served_model_name,
+        },
+        "launcher_configuration_sha256": configuration.configuration_hash,
+        "activation_certificate_sha256": activation["manifest_sha256"],
+        "cache_replacement_receipt_sha256": replacement["manifest_sha256"],
+        "snapshot_manifest_sha256": snapshot_manifest["manifest_sha256"],
+        "source_association_sha256": source_association["manifest_sha256"],
+        "source_tree_sha256": source_association["local_tree_sha256"],
+        "retry_amendment_sha256": amendment_hash,
+        "prior_fallback_failure_sha256": predecessor_hash,
+        "gpu_accounting_before_start": _gpu_summary_payload(observed),
+        "next_watchdog_seconds": next_watchdog,
+        "remaining_mandatory_forecast_seconds": remaining,
+        "actual_plus_next_and_remaining_seconds": projected,
+        "scheduled_limit_seconds": float(limits.scheduled_gpu_seconds),
+        "scheduled_reserve_seconds": float(limits.scheduled_gpu_seconds) - projected,
+        "protected_shutdown_seconds": float(2 * DEFAULT_SHUTDOWN_SECONDS),
+        "hard_limit_seconds": float(limits.hard_gpu_seconds),
+        "hard_contingency_after_next_and_shutdown_seconds": (
+            float(limits.hard_gpu_seconds) - protected_hard_projection
+        ),
+        "effective_accounting_events": inventory.accounting_events
+        + (1 if amendment_hash is not None else 0),
+        "maximum_inference_attempts": inventory.maximum_inference_attempts,
+        "checkpoint_absent": True,
+        "storage": {
+            "current_occupied_bytes": storage_report.current_occupied_bytes,
+            "projected_occupied_bytes": storage_report.projected_occupied_bytes,
+            "effective_projected_headroom_bytes": (
+                storage_report.effective_projected_headroom_bytes
+            ),
+            "allowed": storage_report.allowed,
+        },
+        "gpu_allocation_performed": False,
+        "model_process_started": False,
+        "passed": True,
+    }
+    return {**payload, "manifest_sha256": canonical_sha256(payload)}
 
 
 def main(
@@ -4419,10 +5032,16 @@ def main(
 ) -> int:
     options = parse_arguments(arguments)
     root = options.project_root.resolve(strict=True)
-    if not options.execute:
+    if not options.execute and not options.validate_only:
         atomic_write_public_json(options.output, fallback_plan_manifest(root))
         return 0
     _require_execution_arguments(options)
+    if options.validate_only:
+        atomic_write_public_json(
+            options.output,
+            _validate_execution_preflight(options, root=root),
+        )
+        return 0
     if options.controller_stage == "orchestrate":
         # Import the registered production factory before the orchestrator may
         # request the third model load.  Internal controller processes perform
@@ -4491,7 +5110,33 @@ def main(
         ledger.record_storage_sample(preflight, phase=f"phase1_fallback:{options.run_id}")
         if not preflight.allowed:
             raise StorageBudgetExceeded(preflight)
-        if options.controller_stage == "prepare":
+        retry_amendment: dict[str, object] | None = None
+        prior_fallback_failure: dict[str, object] | None = None
+        service_start_watchdog_seconds = DEFAULT_FALLBACK_STARTUP_WATCHDOG_SECONDS
+        recovery_service_start_event_ids: tuple[str, ...] = ()
+        if options.retry_amendment is not None:
+            retry_amendment, prior_fallback_failure = (
+                validate_fallback_service_retry_amendment(
+                    root=root,
+                    amendment_path=options.retry_amendment,
+                    prior_failure_path=options.prior_fallback_failure,
+                    run_id=options.run_id,
+                    policy=policy,
+                    activation_certificate=activation,
+                    primary_result=primary_result,
+                    limits=limits,
+                    observed=(
+                        ledger.gpu_summary()
+                        if options.controller_stage == "prepare"
+                        else None
+                    ),
+                )
+            )
+            service_start_watchdog_seconds = AMENDED_FALLBACK_STARTUP_WATCHDOG_SECONDS
+            recovery_service_start_event_ids = (
+                f"{options.run_id}-service-start-001",
+            )
+        elif options.controller_stage == "prepare":
             observed_baseline = validate_pre_fallback_gpu_accounting(
                 primary_result,
                 ledger.gpu_summary(),
@@ -4558,6 +5203,12 @@ def main(
                 source_association=source_association,
                 checkpoint_path=options.checkpoint,
                 assessment_factory=build_post_run_development_assessment_provider,
+                retry_amendment_sha256=(
+                    None
+                    if retry_amendment is None
+                    else cast(str, retry_amendment["manifest_sha256"])
+                ),
+                recovery_service_start_event_ids=recovery_service_start_event_ids,
             )
         runner = FallbackAcceptanceRunner(
             root=root,
@@ -4574,6 +5225,9 @@ def main(
             snapshot_manifest=snapshot_manifest,
             source_association=source_association,
             pre_fallback_gpu_accounting=pre_fallback_accounting,
+            retry_amendment=retry_amendment,
+            prior_fallback_failure=prior_fallback_failure,
+            service_start_watchdog_seconds=service_start_watchdog_seconds,
             development_adopter=development_adopter,
             runtime_stack=runtime_stack,
             gpu_hardware=gpu_hardware,

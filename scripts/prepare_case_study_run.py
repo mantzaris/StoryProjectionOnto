@@ -13,6 +13,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
 
+from story_projection_onto.case_study_factory import stage_case_admission_evidence
 from story_projection_onto.case_study_runtime import (
     CaseStudyRuntimePolicy,
     audit_case_study_resume,
@@ -62,6 +63,24 @@ def parse_args(arguments: Sequence[str] | None = None) -> argparse.Namespace:
     compile_plan.add_argument("--output", type=Path, required=True)
     compile_plan.add_argument("--compiled-at", type=_aware_datetime, required=True)
     compile_plan.set_defaults(handler=_compile_plan)
+
+    stage_admission = subcommands.add_parser("stage-admission-evidence")
+    stage_admission.add_argument("--restricted-root", type=Path, required=True)
+    stage_admission.add_argument("--admission-attestation", type=Path, required=True)
+    stage_admission.add_argument("--ledger", type=Path, required=True)
+    stage_admission.add_argument("--artifact-root", type=Path, required=True)
+    stage_admission.add_argument("--synthetic-run-closure", type=Path, required=True)
+    stage_admission.add_argument("--timing-lineage-audit", type=Path, required=True)
+    stage_admission.add_argument("--gold-firewall-audit", type=Path, required=True)
+    stage_admission.add_argument("--registered-metric-regeneration", type=Path, required=True)
+    stage_admission.add_argument("--blinded-error-review", type=Path, required=True)
+    stage_admission.add_argument("--storage-preflight", type=Path, required=True)
+    stage_admission.add_argument("--gpu-schedule-admission", type=Path, required=True)
+    stage_admission.add_argument("--public-release-scan", type=Path, required=True)
+    stage_admission.add_argument("--bundle-output", type=Path, required=True)
+    stage_admission.add_argument("--reference-output", type=Path, required=True)
+    stage_admission.add_argument("--staged-at", type=_aware_datetime, required=True)
+    stage_admission.set_defaults(handler=_stage_admission_evidence)
 
     review = subcommands.add_parser("review-template")
     _restricted_input_arguments(review)
@@ -128,6 +147,42 @@ def _compile_plan(options: argparse.Namespace) -> int:
                 "operational_full_index_count": 1,
                 "operational_result_is_causal": False,
                 "plan_hash": plan.content_hash,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0
+
+
+def _stage_admission_evidence(options: argparse.Namespace) -> int:
+    bundle, reference = stage_case_admission_evidence(
+        restricted_root=options.restricted_root,
+        admission_attestation_path=options.admission_attestation,
+        gate_paths={
+            "synthetic_run_closure_hash": options.synthetic_run_closure,
+            "timing_lineage_audit_hash": options.timing_lineage_audit,
+            "gold_firewall_audit_hash": options.gold_firewall_audit,
+            "registered_metric_regeneration_hash": options.registered_metric_regeneration,
+            "blinded_error_review_hash": options.blinded_error_review,
+            "storage_preflight_hash": options.storage_preflight,
+            "gpu_schedule_admission_hash": options.gpu_schedule_admission,
+            "public_release_scan_hash": options.public_release_scan,
+        },
+        ledger_path=options.ledger,
+        artifact_root=options.artifact_root,
+        bundle_output_path=options.bundle_output,
+        reference_output_path=options.reference_output,
+        staged_at=options.staged_at,
+    )
+    print(
+        json.dumps(
+            {
+                "admission_attestation_hash": bundle.admission_attestation_hash,
+                "bundle_artifact_hash": reference.artifact_hash,
+                "bundle_hash": bundle.content_hash,
+                "gate_count": len(bundle.evidence),
+                "release_class": "restricted",
             },
             indent=2,
             sort_keys=True,

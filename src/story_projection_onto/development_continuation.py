@@ -14,7 +14,7 @@ import math
 import os
 import tempfile
 from collections import Counter
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -436,6 +436,8 @@ def build_development_forecast_receipt(
     service: MeteredGenerationService,
     manifest: DevelopmentCallManifest,
     clock: Callable[[], datetime],
+    retry_amendment_sha256: str | None = None,
+    recovery_service_start_event_ids: Sequence[str] = (),
     scheduled_limit_seconds: float = 9 * 3600,
     hard_limit_seconds: float = 10 * 3600,
 ) -> DevelopmentForecastReceipt:
@@ -448,14 +450,28 @@ def build_development_forecast_receipt(
     rows = parsed.get("classes") if isinstance(parsed, dict) else None
     if not isinstance(rows, list):
         raise DevelopmentContinuationError("GPU call inventory is invalid")
+    recovery_ids = frozenset(recovery_service_start_event_ids)
+    if (
+        len(recovery_ids) != len(recovery_service_start_event_ids)
+        or len(recovery_ids) > 1
+        or bool(recovery_ids) != bool(retry_amendment_sha256)
+    ):
+        raise DevelopmentContinuationError("GPU recovery overlay is invalid")
     event_counts: Counter[str] = Counter()
     reserve_ids: set[str] = set()
+    observed_recovery_ids: set[str] = set()
     for event in ledger.gpu_events():
-        if event.event_kind is GpuEventKind.GPU_SESSION_START:
-            event_counts["gpu_session_start"] += 1
         details = json.loads(event.details_json)
+        service_start = (
+            event.event_kind is GpuEventKind.GPU_SESSION_START
+            or details.get("intended_event_kind") == GpuEventKind.GPU_SESSION_START.value
+        )
+        if service_start and event.event_id in recovery_ids:
+            observed_recovery_ids.add(event.event_id)
+        elif service_start:
+            event_counts["gpu_session_start"] += 1
         call_class = details.get("call_class")
-        if isinstance(call_class, str):
+        if isinstance(call_class, str) and call_class != "gpu_session_start":
             event_counts[call_class] += 1
         reserve_class = details.get("reserve_call_class")
         reservation_id = details.get("reserve_reservation_id")
@@ -464,6 +480,10 @@ def build_development_forecast_receipt(
             if identity not in reserve_ids:
                 reserve_ids.add(identity)
                 event_counts[reserve_class] += 1
+    if observed_recovery_ids != recovery_ids:
+        raise DevelopmentContinuationError(
+            "GPU recovery overlay does not match the cumulative ledger"
+        )
     development_counts = Counter(call.call_class for call in manifest.calls)
     forecast_rows: list[DevelopmentForecastInventoryRow] = []
     development_seconds = 0.0
@@ -525,6 +545,16 @@ def build_development_forecast_receipt(
         scheduled_limit_seconds=scheduled_limit_seconds,
         hard_limit_seconds=hard_limit_seconds,
         inventory_rows=tuple(forecast_rows),
+        retry_amendment_sha256=retry_amendment_sha256,
+        recovery_service_start_event_ids=tuple(sorted(recovery_ids)),
+        authorized_additional_service_start_events=len(recovery_ids),
+        effective_accounting_events=sum(item.registered_count for item in forecast_rows)
+        + len(recovery_ids),
+        effective_inference_attempts=sum(
+            item.registered_count
+            for item in forecast_rows
+            if item.call_class != "gpu_session_start"
+        ),
         admitted=total <= scheduled_limit_seconds,
         created_at=_strict_utc(clock),
     )
@@ -673,6 +703,8 @@ class ProductionDevelopmentContinuationAdopter:
     preparation_pointer_path: Path
     assessment_manifest_path: Path
     assessment_factory: PostRunAssessmentFactory
+    retry_amendment_sha256: str | None = None
+    recovery_service_start_event_ids: tuple[str, ...] = ()
     construction_path: Path | None = None
     classical_builder_loader: Callable[[Path], tuple[ClassicalPreBuilder, object]] = (
         load_production_classical_builder
@@ -708,6 +740,14 @@ class ProductionDevelopmentContinuationAdopter:
             self.construction_path = self.root / DEFAULT_DEVELOPMENT_CONSTRUCTION_CONFIG
         else:
             self.construction_path = self.construction_path.resolve(strict=True)
+        if (
+            len(set(self.recovery_service_start_event_ids))
+            != len(self.recovery_service_start_event_ids)
+            or len(self.recovery_service_start_event_ids) > 1
+            or bool(self.recovery_service_start_event_ids)
+            != bool(self.retry_amendment_sha256)
+        ):
+            raise DevelopmentContinuationError("development GPU recovery overlay is invalid")
 
     def registration(self) -> DevelopmentAdopterRegistration:
         manifest = load_development_call_manifest(self.root)
@@ -728,6 +768,10 @@ class ProductionDevelopmentContinuationAdopter:
                     self.root / "configs/study/development_call_manifest.json"
                 ),
                 "gpu_inventory": manifest.gpu_call_inventory_file_sha256,
+                "retry_amendment_sha256": self.retry_amendment_sha256,
+                "recovery_service_start_event_ids": list(
+                    self.recovery_service_start_event_ids
+                ),
             }
         )
         return DevelopmentAdopterRegistration(
@@ -1081,7 +1125,7 @@ class ProductionDevelopmentContinuationAdopter:
             raise DevelopmentContinuationError("preparation pointer lacks its CAS root")
         index_record = self.artifacts.ledger.get_artifact(artifact_hash)
         index = DevelopmentPreparationIndex.model_validate_json(
-            self.artifacts.blobs.read_bytes(index_record)
+            self.artifacts.blobs.read_bytes(index_record, allow_restricted=True)
         )
         execution_id = f"{bootstrap.owner_run_id}-development-v1"
         if (
@@ -1357,6 +1401,8 @@ class ProductionDevelopmentContinuationAdopter:
             service=self.service,
             manifest=manifest,
             clock=self.clock,
+            retry_amendment_sha256=self.retry_amendment_sha256,
+            recovery_service_start_event_ids=self.recovery_service_start_event_ids,
         )
         if not forecast_receipt.admitted:
             raise DevelopmentContinuationError(
@@ -1425,7 +1471,7 @@ class ProductionDevelopmentContinuationAdopter:
         index_artifact = self.artifacts.put_bytes(
             (index.to_canonical_json() + "\n").encode("utf-8"),
             media_type="application/vnd.story-projection.development-preparation-index+json",
-            release_class=ReleaseClass.PUBLIC,
+            release_class=ReleaseClass.RESTRICTED,
             created_at=index.created_at,
         )
         pointer_payload = {
@@ -1855,6 +1901,8 @@ def create_production_development_adopter(
     source_association: Mapping[str, object],
     checkpoint_path: Path,
     assessment_factory: PostRunAssessmentFactory,
+    retry_amendment_sha256: str | None = None,
+    recovery_service_start_event_ids: tuple[str, ...] = (),
 ) -> ProductionDevelopmentContinuationAdopter:
     """Create the registered adopter without starting or touching the model."""
 
@@ -1879,6 +1927,8 @@ def create_production_development_adopter(
         preparation_pointer_path=run_root / "development.preparation.json",
         assessment_manifest_path=run_root / "development.assessment-input.json",
         assessment_factory=assessment_factory,
+        retry_amendment_sha256=retry_amendment_sha256,
+        recovery_service_start_event_ids=recovery_service_start_event_ids,
     )
 
 

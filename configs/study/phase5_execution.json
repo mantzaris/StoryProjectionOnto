@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "configuration_id": "phase5-feedback-execution-v1",
-  "feedback_protocol_hash": "639d8512ec9f8c13a4bcdbcacff4fc7216bbb37edde450d900bf8627355f0a9b",
+  "feedback_protocol_hash": "fb6c83d3b83213c838488e87431c620bab6ca612715ebe46f64a34ea68aa0f9a",
   "required_upstream_state": "held_out_primary_results_frozen",
   "output_root": "artifacts/restricted/phase5_feedback",
   "append_only": true,

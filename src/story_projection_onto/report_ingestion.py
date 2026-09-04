@@ -70,6 +70,8 @@ class SourceArtifactSpec(FrozenModel):
         "application/json",
         "application/jsonl",
         "application/x-sqlite3",
+        "application/pdf",
+        "image/png",
         "text/csv",
     ]
     release_class: Literal["public", "restricted"]

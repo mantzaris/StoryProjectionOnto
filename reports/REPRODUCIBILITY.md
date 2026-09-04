@@ -2,7 +2,7 @@
 
 Study status: `incomplete`.
 
-Result manifest: `ab5408139af322219e8503d1a0175b6fe48591b1113626183e98331539c7f473`.
+Result manifest: `16a65d4bb31bd34c4c0f5564062f348388b4d7d841b1ae80e648e6e0577bc071`.
 
 Code revision: `e09f83eca015c194552c4e53a4138f6fa36befa2`; dirty: `true`.
 
@@ -13,7 +13,7 @@ Scientific statistics are computed upstream; this layer never recomputes or impu
 
 ## Inputs
 
-Ingestion receipt: `5d7d86c714e599184206fbe459cb3408b216fdc39980c9ae75d3035fb541cc0e`.
+Ingestion receipt: `138ace45558305eed38fc12929be67b158031abd097d11da7ad953ad3637b13a`.
 
 - `study_status`: `d1cae85a93158406ed710d39a7b6eb69cb4eee6d69bb91b3a32b7bc16051143d`, 7 rows, status `complete`.
 - `resource_accounting`: `6d655ceb4c91d2875463be129cc766ac4230036f8286215d5cfe3e09d0c03927`, 8 rows, status `complete`.

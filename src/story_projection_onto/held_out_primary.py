@@ -11,17 +11,21 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
+import stat
 from collections import Counter
 from pathlib import Path
-from typing import Literal, Protocol, Self, runtime_checkable
+from typing import Literal, Protocol, Self, cast, runtime_checkable
 
 from pydantic import AwareDatetime, Field, model_validator
 
 from story_projection_onto.benchmark_runtime import (
     GoldFirewallError,
+    ModelEligibleWorldArtifact,
     RuntimeStageKind,
     RuntimeStagingManifest,
-    load_staged_world,
+    preconstruction_request_payload,
+    scan_model_payload,
 )
 from story_projection_onto.conditions.base import ConditionPreparation
 from story_projection_onto.contracts import (
@@ -30,9 +34,12 @@ from story_projection_onto.contracts import (
     ConstructionSeal,
     Identifier,
     ImmutableRecord,
+    PacketMaterializationEvent,
     PrequeryBarrier,
     PreQueryInventory,
+    PrequeryPreparationBinding,
     QueryAccessEvent,
+    QueryContext,
     Sha256Digest,
     canonical_sha256,
 )
@@ -106,6 +113,7 @@ class HeldOutControlConfiguration(ImmutableRecord):
     hard_gpu_seconds_limit: Literal[36000] = 36000
     complete_inventory_forecast_seconds: Literal[31229] = 31229
     primary_forecast_seconds: Literal[16344] = 16344
+    service_start_watchdog_seconds: Literal[300] = 300
     call_policies: tuple[CallClassPolicy, CallClassPolicy, CallClassPolicy]
 
     @model_validator(mode="after")
@@ -333,6 +341,7 @@ class ReviewedHeldOutPlan(ImmutableRecord):
     review_completion_manifest_hash: Sha256Digest
     review_draft_seal_hash: Sha256Digest
     final_reviewed_seal_hash: Sha256Digest
+    runtime_binding_hash: Sha256Digest | None = None
     held_out_launch_authorized: Literal[True] = True
 
     @model_validator(mode="after")
@@ -348,6 +357,11 @@ class ReviewedHeldOutPlan(ImmutableRecord):
             != 3
         ):
             raise ValueError("review gate hashes must bind three distinct immutable records")
+        pending_development = self.call_manifest.development_execution_result_hash == "PENDING"
+        if pending_development != (self.runtime_binding_hash is None):
+            raise ValueError(
+                "a materialized development predecessor requires its runtime binding hash"
+            )
         return self
 
 
@@ -489,6 +503,7 @@ class HeldOutCASReference(ImmutableRecord):
         "pre_query_inventory",
         "query_access_event",
         "evidence_packet",
+        "packet_materialization_event",
         "validated_generation",
         "raw_model_response",
         "held_out_call_audit_receipt",
@@ -514,6 +529,13 @@ class HeldOutCallArtifactReceipt(ImmutableRecord):
     gpu_event_hash: Sha256Digest
     model_call_id: Identifier
     model_call_record_hash: Sha256Digest
+    repair_semantic_request: HeldOutCASReference | None = None
+    repair_packing_report: HeldOutCASReference | None = None
+    repair_raw_response: HeldOutCASReference | None = None
+    repair_gpu_event_id: Identifier | None = None
+    repair_gpu_event_hash: Sha256Digest | None = None
+    repair_model_call_id: Identifier | None = None
+    repair_model_call_record_hash: Sha256Digest | None = None
     ledger_chain_hash: Sha256Digest
     completed_at: AwareDatetime
 
@@ -532,6 +554,29 @@ class HeldOutCallArtifactReceipt(ImmutableRecord):
             raise ValueError("held-out validation CAS object has the wrong typed kind")
         if self.raw_response is not None and self.raw_response.object_kind != "raw_model_response":
             raise ValueError("held-out raw response CAS object has the wrong typed kind")
+        repair_core = (
+            self.repair_semantic_request,
+            self.repair_packing_report,
+            self.repair_gpu_event_id,
+            self.repair_gpu_event_hash,
+            self.repair_model_call_id,
+            self.repair_model_call_record_hash,
+        )
+        if any(item is not None for item in repair_core) != all(
+            item is not None for item in repair_core
+        ):
+            raise ValueError("repair lineage must be wholly present or absent")
+        if self.repair_semantic_request is not None:
+            if self.repair_semantic_request.object_kind != expected_request:
+                raise ValueError("repair request CAS object has the wrong typed kind")
+            if self.repair_packing_report is None or (
+                self.repair_packing_report.object_kind != "packing_report"
+            ):
+                raise ValueError("repair packing CAS object has the wrong typed kind")
+        if self.repair_raw_response is not None and (
+            self.repair_raw_response.object_kind != "raw_model_response"
+        ):
+            raise ValueError("repair raw response CAS object has the wrong typed kind")
         expected_output = (
             "condition_preparation"
             if self.condition is ConditionName.C1_LLM_PRE
@@ -615,6 +660,9 @@ class HeldOutQueryOpening(ImmutableRecord):
     query_access_artifact: HeldOutCASReference
     evidence_packet_hash: Sha256Digest
     evidence_packet_artifact: HeldOutCASReference
+    query_context: QueryContext | None = None
+    packet_materialization: PacketMaterializationEvent | None = None
+    packet_materialization_artifact: HeldOutCASReference | None = None
     opened_at: AwareDatetime
 
     @model_validator(mode="after")
@@ -639,6 +687,29 @@ class HeldOutQueryOpening(ImmutableRecord):
             raise ValueError("query-access CAS object has the wrong typed kind")
         if self.evidence_packet_artifact.object_kind != "evidence_packet":
             raise ValueError("evidence-packet CAS object has the wrong typed kind")
+        materialization_values = (
+            self.query_context,
+            self.packet_materialization,
+            self.packet_materialization_artifact,
+        )
+        if any(item is not None for item in materialization_values):
+            if any(item is None for item in materialization_values):
+                raise ValueError("query opening must persist complete materialization lineage")
+            context = cast(QueryContext, self.query_context)
+            materialization = cast(PacketMaterializationEvent, self.packet_materialization)
+            reference = cast(HeldOutCASReference, self.packet_materialization_artifact)
+            if (
+                context.content_hash != event.query_context_hash
+                or context.spoiler_horizon.content_hash != stage.horizon_hash
+                or context.budgets.content_hash != stage.budget_hash
+                or materialization.execution_id != event.execution_id
+                or materialization.query_access_event_hash != event.content_hash
+                or materialization.snapshot_hash != event.snapshot_hash
+                or materialization.packet_hash != self.evidence_packet_hash
+                or materialization.content_hash != reference.logical_content_hash
+                or reference.object_kind != "packet_materialization_event"
+            ):
+                raise ValueError("query materialization lineage is inconsistent")
         return self
 
 
@@ -663,6 +734,7 @@ class HeldOutServiceResult(ImmutableRecord):
     empty_prequery_inventory_hash: Sha256Digest | None = None
     construction_certificate_hash: Sha256Digest | None = None
     construction_seal: ConstructionSeal | None = None
+    prequery_preparation_bindings: tuple[PrequeryPreparationBinding, ...] = ()
     pre_query_inventory: PreQueryInventory | None = None
     construction_certificate: ConstructionCertificate | None = None
     fixed_select_capability_audit: FixedSelectCapabilityAudit | None = None
@@ -731,6 +803,8 @@ class HeldOutServiceResult(ImmutableRecord):
                 or receipt.validation.logical_content_hash != self.validation_artifact_hash
             ):
                 raise ValueError("successful result differs from its typed CAS outputs")
+            if self.repair_attempts != int(receipt.repair_semantic_request is not None):
+                raise ValueError("result repair count differs from its typed repair lineage")
         if self.outcome is not RunOutcome.SUCCEEDED and not self.failure_code:
             raise ValueError("nonsuccessful held-out call requires a failure code")
         if (
@@ -740,9 +814,12 @@ class HeldOutServiceResult(ImmutableRecord):
                 self.construction_seal_hash is None
                 or self.complete_c1_graph_hash is None
                 or self.construction_seal is None
+                or len(self.prequery_preparation_bindings) != 2
             )
         ):
-            raise ValueError("successful C1 requires its seal and complete ontology graph")
+            raise ValueError(
+                "successful C1 requires its seal, complete graph, and Fixed preparation"
+            )
         if self.construction_seal is not None:
             if (
                 self.condition is not ConditionName.C1_LLM_PRE
@@ -753,6 +830,27 @@ class HeldOutServiceResult(ImmutableRecord):
                 raise ValueError("C1 construction seal object and hash lineage disagree")
         elif self.construction_seal_hash is not None:
             raise ValueError("a C1 seal hash requires its typed immutable seal")
+        if self.prequery_preparation_bindings:
+            if (
+                self.condition is not ConditionName.C1_LLM_PRE
+                or self.outcome is not RunOutcome.SUCCEEDED
+            ):
+                raise ValueError("only successful C1 may expose pre-query bindings")
+            by_condition = {item.condition: item for item in self.prequery_preparation_bindings}
+            if set(by_condition) != {
+                ConditionName.C1_LLM_PRE,
+                ConditionName.A_FIXED_SELECT,
+            }:
+                raise ValueError("C1 must bind itself and same-seed FixedSelect exactly once")
+            c1_binding = by_condition[ConditionName.C1_LLM_PRE]
+            fixed_binding = by_condition[ConditionName.A_FIXED_SELECT]
+            if (
+                c1_binding.seed_block != fixed_binding.seed_block
+                or c1_binding.snapshot_hash != fixed_binding.snapshot_hash
+                or c1_binding.lineage_artifact_hash != self.construction_seal_hash
+                or c1_binding.completed_at > fixed_binding.completed_at
+            ):
+                raise ValueError("C1 and FixedSelect pre-query bindings are inconsistent")
         if (
             self.condition is ConditionName.C2_LLM_QUERY
             and self.request_started
@@ -879,6 +977,14 @@ class InjectedHeldOutSession(Protocol):
         self, call: HeldOutCallSpec, envelope: HeldOutCallEnvelope
     ) -> HeldOutServiceResult | None: ...
 
+    def recovery_pending(
+        self, call: HeldOutCallSpec, envelope: HeldOutCallEnvelope
+    ) -> bool: ...
+
+    def finalize_unstarted_call(
+        self, call: HeldOutCallSpec, result: HeldOutServiceResult
+    ) -> GlobalGpuScheduleSnapshot: ...
+
 
 @runtime_checkable
 class InjectedHeldOutRuntime(Protocol):
@@ -947,6 +1053,84 @@ def _safe_file(repository: Path, relative: str, expected_hash: str) -> Path:
     return resolved
 
 
+_MAX_RUNTIME_STAGE_FILE_BYTES = 64 * 1024 * 1024
+
+
+def _read_repository_stage(
+    repository: Path,
+    relative: str,
+    *,
+    read_names: tuple[str, ...],
+) -> tuple[frozenset[str], dict[str, bytes]]:
+    """Take one descriptor-bound flat-stage snapshot without following links.
+
+    Every component below the explicit repository root is opened relative to
+    its already-open parent with ``O_NOFOLLOW``.  Directory membership and all
+    requested bytes consequently come from one directory object even if an
+    attacker concurrently renames a pathname.  Callers still bind the bytes by
+    manifest/content hash before using them.
+    """
+
+    logical = Path(relative)
+    if (
+        logical.is_absolute()
+        or not logical.parts
+        or logical == Path(".")
+        or ".." in logical.parts
+        or "\\" in relative
+        or any(part in {"", "."} for part in logical.parts)
+    ):
+        raise HeldOutControlError("unsafe runtime stage path")
+    if repository.is_symlink() or not repository.is_dir():
+        raise HeldOutControlError("repository must be an existing real directory")
+    directory_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC | os.O_NOFOLLOW
+    descriptor = os.open(repository, directory_flags)
+    try:
+        for component in logical.parts:
+            child = os.open(component, directory_flags, dir_fd=descriptor)
+            os.close(descriptor)
+            descriptor = child
+        names = frozenset(os.listdir(descriptor))
+        for name in names:
+            if name in {"", ".", ".."} or "/" in name or "\\" in name:
+                raise HeldOutControlError("runtime stage contains an unsafe entry")
+            metadata = os.stat(name, dir_fd=descriptor, follow_symlinks=False)
+            if not stat.S_ISREG(metadata.st_mode):
+                raise HeldOutControlError(
+                    "runtime stage entries must be regular non-symlink files"
+                )
+        requested: dict[str, bytes] = {}
+        for name in read_names:
+            if name not in names or "/" in name or "\\" in name:
+                raise HeldOutControlError("runtime stage lacks a required flat file")
+            file_descriptor = os.open(
+                name,
+                os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW,
+                dir_fd=descriptor,
+            )
+            try:
+                metadata = os.fstat(file_descriptor)
+                if (
+                    not stat.S_ISREG(metadata.st_mode)
+                    or metadata.st_size > _MAX_RUNTIME_STAGE_FILE_BYTES
+                ):
+                    raise HeldOutControlError("runtime stage file is invalid or oversized")
+                with os.fdopen(file_descriptor, "rb", closefd=False) as stream:
+                    payload = stream.read(_MAX_RUNTIME_STAGE_FILE_BYTES + 1)
+                if len(payload) > _MAX_RUNTIME_STAGE_FILE_BYTES:
+                    raise HeldOutControlError("runtime stage file exceeds its byte bound")
+                requested[name] = payload
+            finally:
+                os.close(file_descriptor)
+        return names, requested
+    except OSError as error:
+        raise HeldOutControlError(
+            "runtime stage containment or no-symlink check failed"
+        ) from error
+    finally:
+        os.close(descriptor)
+
+
 def load_held_out_control_configuration(
     repository: Path, path: Path = DEFAULT_HELD_OUT_CONTROL_PATH
 ) -> HeldOutControlConfiguration:
@@ -959,22 +1143,32 @@ def load_held_out_control_configuration(
 def _stage_reference(repository: Path, relative: str) -> PublicStageReference:
     """Open one query-blind evidence stage; query stages use the sealed helper below."""
 
-    logical = Path(relative)
-    if logical.is_absolute() or ".." in logical.parts or "\\" in relative:
-        raise HeldOutControlError("unsafe runtime stage path")
-    stage_root = repository / logical
-    manifest_path = stage_root / "manifest.json"
-    if stage_root.is_symlink() or manifest_path.is_symlink():
-        raise HeldOutControlError("runtime stage cannot be a symlink")
     try:
-        resolved_root = stage_root.resolve(strict=True)
-        repository_root = repository.resolve(strict=True)
-        if not resolved_root.is_relative_to(repository_root):
-            raise HeldOutControlError("runtime stage escapes the repository")
-        raw = manifest_path.read_bytes()
+        actual_names, files = _read_repository_stage(
+            repository,
+            relative,
+            read_names=("manifest.json", "evidence.json"),
+        )
+        raw = files["manifest.json"]
         manifest = RuntimeStagingManifest.model_validate_json(raw)
         if manifest.stage_kind is RuntimeStageKind.PREQUERY_EVIDENCE:
-            evidence = load_staged_world(resolved_root / "evidence.json", resolved_root, manifest)
+            expected_names = frozenset({*manifest.file_names, manifest.manifest_file_name})
+            if actual_names != expected_names or manifest.file_names != ("evidence.json",):
+                raise HeldOutControlError(
+                    "prequery stage directory differs from its exact allowlist"
+                )
+            evidence_bytes = files["evidence.json"]
+            embedded = json.loads(evidence_bytes)
+            if (
+                not isinstance(embedded, dict)
+                or embedded.get("content_hash") != manifest.artifact_hashes[0]
+            ):
+                raise HeldOutControlError(
+                    "prequery evidence hash disagrees with its staging manifest"
+                )
+            evidence = ModelEligibleWorldArtifact.model_validate_json(evidence_bytes)
+            scan_model_payload(evidence.model_dump(mode="json"))
+            preconstruction_request_payload(evidence)
         else:
             raise HeldOutControlError(
                 "query-revealed stages cannot be semantically opened during plan derivation"
@@ -1004,27 +1198,18 @@ def _sealed_query_stage_reference(
 ) -> PublicStageReference:
     """Freeze only a query stage's allowlist and hashes, never ``query.json`` bytes."""
 
-    logical = Path(relative)
-    if logical.is_absolute() or ".." in logical.parts or "\\" in relative:
-        raise HeldOutControlError("unsafe runtime stage path")
-    stage_root = repository / logical
-    manifest_path = stage_root / "manifest.json"
-    if stage_root.is_symlink() or manifest_path.is_symlink():
-        raise HeldOutControlError("runtime stage cannot be a symlink")
     try:
-        resolved_root = stage_root.resolve(strict=True)
-        repository_root = repository.resolve(strict=True)
-        if not resolved_root.is_relative_to(repository_root):
-            raise HeldOutControlError("runtime stage escapes the repository")
-        raw = manifest_path.read_bytes()
+        actual_names, files = _read_repository_stage(
+            repository,
+            relative,
+            read_names=("manifest.json",),
+        )
+        raw = files["manifest.json"]
         manifest = RuntimeStagingManifest.model_validate_json(raw)
         if manifest.stage_kind is not RuntimeStageKind.QUERY_REVEALED:
             raise HeldOutControlError("sealed query reference requires a query stage")
-        expected_names = {*manifest.file_names, manifest.manifest_file_name}
-        actual_names = {item.name for item in resolved_root.iterdir()}
-        if actual_names != expected_names or any(
-            item.is_dir() or item.is_symlink() for item in resolved_root.iterdir()
-        ):
+        expected_names = frozenset({*manifest.file_names, manifest.manifest_file_name})
+        if actual_names != expected_names:
             raise HeldOutControlError("query stage directory differs from its exact allowlist")
         evidence_hash, query_hash = manifest.artifact_hashes
         snapshot_hash = snapshots_by_evidence[evidence_hash]
@@ -1250,6 +1435,7 @@ def open_reviewed_held_out_plan(
     review_completion_root: Path,
     benchmark_root: Path | None = None,
     configuration_path: Path = DEFAULT_HELD_OUT_CONTROL_PATH,
+    runtime_binding_path: Path | None = None,
 ) -> ReviewedHeldOutPlan:
     """Reproduce review first, then and only then inspect held-out runtime stages."""
 
@@ -1262,11 +1448,29 @@ def open_reviewed_held_out_plan(
         raise HeldOutReviewGateError(
             f"held-out input opening blocked: independent review is incomplete: {error}"
         ) from error
-    configuration = load_held_out_control_configuration(repository, configuration_path)
-    if configuration.development_execution_result_file_sha256 == "PENDING":
-        raise HeldOutReviewGateError(
-            "held-out launch blocked: frozen passing development result is not configured"
+    configuration = load_executable_held_out_configuration(
+        repository=repository,
+        configuration_path=configuration_path,
+        runtime_binding_path=runtime_binding_path,
+    )
+    runtime_binding_hash = None
+    if runtime_binding_path is not None:
+        from story_projection_onto.held_out_binding import (
+            load_runtime_bound_held_out_configuration,
         )
+
+        _bound_configuration, runtime_binding = (
+            load_runtime_bound_held_out_configuration(
+                repository=repository,
+                configuration_path=configuration_path,
+                binding_path=runtime_binding_path,
+            )
+        )
+        if _bound_configuration != configuration:
+            raise HeldOutReviewGateError(
+                "held-out runtime binding changed between gate validations"
+            )
+        runtime_binding_hash = runtime_binding.content_hash
     if configuration.production_adapter_factory == "PENDING":
         raise HeldOutReviewGateError(
             "held-out launch blocked: production adapter factory is not configured"
@@ -1290,7 +1494,51 @@ def open_reviewed_held_out_plan(
         review_completion_manifest_hash=review.manifest.content_hash,
         review_draft_seal_hash=review.draft.content_hash,
         final_reviewed_seal_hash=review.final_seal.content_hash,
+        runtime_binding_hash=runtime_binding_hash,
     )
+
+
+def load_executable_held_out_configuration(
+    *,
+    repository: Path,
+    configuration_path: Path = DEFAULT_HELD_OUT_CONTROL_PATH,
+    runtime_binding_path: Path | None = None,
+    expected_plan_hash: str | None = None,
+) -> HeldOutControlConfiguration:
+    """Resolve a source-frozen template through its restricted development binding.
+
+    This helper never opens held-out stages.  Callers that could proceed to a
+    held-out plan must first reproduce the independent-review completion.
+    ``expected_plan_hash`` is attached only in memory after that plan has been
+    derived; the tracked source template is never rewritten post-development.
+    """
+
+    template = load_held_out_control_configuration(repository, configuration_path)
+    if template.development_execution_result_file_sha256 == "PENDING":
+        if runtime_binding_path is None:
+            raise HeldOutReviewGateError(
+                "held-out launch blocked: restricted post-development binding is absent"
+            )
+        from story_projection_onto.held_out_binding import (
+            load_runtime_bound_held_out_configuration,
+        )
+
+        configuration, _binding = load_runtime_bound_held_out_configuration(
+            repository=repository,
+            configuration_path=configuration_path,
+            binding_path=runtime_binding_path,
+            expected_plan_hash=expected_plan_hash,
+        )
+        return configuration
+    if runtime_binding_path is not None:
+        raise HeldOutControlError(
+            "a fully materialized held-out configuration cannot also use a runtime binding"
+        )
+    if expected_plan_hash is None or expected_plan_hash == template.expected_plan_hash:
+        return template
+    payload = template.model_dump(mode="python", exclude={"content_hash"})
+    payload["expected_plan_hash"] = expected_plan_hash
+    return HeldOutControlConfiguration.model_validate(payload)
 
 
 def admit_call(
@@ -1344,6 +1592,7 @@ __all__ = [
     "RepairReservePoolSnapshot",
     "ReviewedHeldOutPlan",
     "admit_call",
+    "load_executable_held_out_configuration",
     "load_held_out_control_configuration",
     "open_reviewed_held_out_plan",
 ]

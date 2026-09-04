@@ -171,8 +171,8 @@ class _OwnedService:
         self.recovered[request.content_hash] = result
         return result
 
-    def recover_feedback(self, request_hash):
-        return self.recovered.get(request_hash)
+    def recover_feedback(self, request):
+        return self.recovered.get(request.content_hash)
 
 
 def _adapter_fixture(tmp_path: Path):

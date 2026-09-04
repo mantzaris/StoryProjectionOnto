@@ -3,8 +3,9 @@
 The module contains no corpus discovery and no model-output fixtures.  It owns the
 single registered case-study vLLM lifecycle supplied by the caller, constructs the
 same lossless/schema-guided requests used by development, and persists every
-attempt through the cumulative SQLite ledger and restricted CAS.  A completed
-receipt is replayable; an interrupted active request is deliberately not reissued.
+attempt through the cumulative SQLite ledger and restricted CAS. Completed calls
+replay from immutable receipts; interrupted calls recover from terminal ledger/CAS
+lineage and are never silently issued a second time.
 """
 
 from __future__ import annotations
@@ -12,8 +13,6 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-import os
-import tempfile
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime, timedelta
@@ -24,6 +23,7 @@ from pydantic import AwareDatetime, Field, ValidationError, model_validator
 
 from story_projection_onto.case_study_execution import (
     CASE_REQUIRED_NEXT_REPAIR_SECONDS,
+    CASE_SERVICE_START_WATCHDOG_SECONDS,
     HARD_GPU_LIMIT_SECONDS,
     SCHEDULED_GPU_LIMIT_SECONDS,
     CaseArtifactReference,
@@ -39,12 +39,16 @@ from story_projection_onto.case_study_execution import (
     _CaseProduceInputs,
     _CaseQueryAccessProxy,
     _configuration_hash,
+    _fsync_directory,
     _gpu_event,
     _parse_record,
     _parse_timestamp,
     _persist_mapping,
     _persist_record,
+    _publish_private_no_replace,
     _read_reference,
+    _replace_private_pointer,
+    _require_restricted_path,
     _total_allocated_seconds,
     preflight_case_c1_requests,
 )
@@ -169,6 +173,32 @@ class CaseServiceIdentity(ImmutableRecord):
     lifecycle_owner: Literal["case_controller"] = "case_controller"
 
 
+class CaseGpuActivationIntent(ImmutableRecord):
+    """Path-free authority committed before the sole physical model start."""
+
+    intent_id: str = Field(min_length=1)
+    execution_plan_hash: Sha256Digest
+    admission_receipt_hash: Sha256Digest
+    packing_preflight: CaseArtifactReference
+    service_configuration_hash: Sha256Digest
+    session_id: str = Field(min_length=1)
+    load_event_id: str = Field(min_length=1)
+    remaining_required_seconds: float = Field(gt=0.0)
+    requested_at: AwareDatetime
+    release_class: Literal[ReleaseClass.RESTRICTED] = ReleaseClass.RESTRICTED
+
+
+class CaseGpuShutdownIntent(ImmutableRecord):
+    """Durable authority committed before stopping the exact service."""
+
+    intent_id: str = Field(min_length=1)
+    execution_plan_hash: Sha256Digest
+    service_identity: CaseArtifactReference
+    lifecycle_receipt: CaseArtifactReference
+    requested_at: AwareDatetime
+    release_class: Literal[ReleaseClass.RESTRICTED] = ReleaseClass.RESTRICTED
+
+
 class CaseGpuAdapterState(ImmutableRecord):
     """Append-only adapter index; the private pointer contains no novel prose."""
 
@@ -181,8 +211,10 @@ class CaseGpuAdapterState(ImmutableRecord):
     service_configuration_hash: Sha256Digest
     tokenizer_manifest_hash: Sha256Digest
     packing_preflight: CaseArtifactReference | None = None
+    activation_intent: CaseArtifactReference | None = None
     service_identity: CaseArtifactReference | None = None
     lifecycle_receipt: CaseArtifactReference | None = None
+    shutdown_intent: CaseArtifactReference | None = None
     shutdown_receipt: CaseArtifactReference | None = None
     completed_receipts: Mapping[str, CaseArtifactReference] = Field(default_factory=dict)
     call_audits: Mapping[str, CaseArtifactReference] = Field(default_factory=dict)
@@ -210,10 +242,16 @@ class CaseGpuAdapterState(ImmutableRecord):
             raise ValueError("case GPU start count and physical identity differ")
         if self.model_service_start_count != (self.lifecycle_receipt is not None):
             raise ValueError("case GPU start count and lifecycle receipt differ")
+        if self.model_service_start_count and self.activation_intent is None:
+            raise ValueError("case GPU start lacks its durable activation intent")
         if self.model_service_start_count and self.packing_preflight is None:
             raise ValueError("case GPU lifecycle cannot precede packing preflight")
         if self.model_service_shutdown_count != (self.shutdown_receipt is not None):
             raise ValueError("case GPU shutdown count and shutdown receipt differ")
+        if self.model_service_shutdown_count and self.shutdown_intent is None:
+            raise ValueError("case GPU shutdown lacks its durable shutdown intent")
+        if self.shutdown_intent is not None and self.model_service_start_count != 1:
+            raise ValueError("case GPU shutdown intent requires the registered start")
         if set(self.call_audits) != set(self.completed_receipts):
             raise ValueError("case GPU result and audit indexes differ")
         if self.active_call_id in self.completed_receipts:
@@ -228,6 +266,7 @@ class CaseGpuAdapterState(ImmutableRecord):
 class CaseGpuLifecycleReceipt(ImmutableRecord):
     receipt_id: str = Field(min_length=1)
     execution_plan_hash: Sha256Digest
+    activation_intent: CaseArtifactReference
     service_identity: CaseArtifactReference
     packing_preflight: CaseArtifactReference
     allocated_gpu_seconds_at_start: float = Field(ge=0.0)
@@ -243,6 +282,7 @@ class CaseGpuShutdownReceipt(ImmutableRecord):
 
     receipt_id: str = Field(min_length=1)
     execution_plan_hash: Sha256Digest
+    shutdown_intent: CaseArtifactReference
     service_identity: CaseArtifactReference
     lifecycle_receipt: CaseArtifactReference
     cumulative_allocated_gpu_seconds: float = Field(ge=0.0)
@@ -314,21 +354,15 @@ def _process_start_ticks(pid: int) -> int:
 
 def _atomic_pointer(path: Path, reference: CaseArtifactReference) -> None:
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-    descriptor, temporary_name = tempfile.mkstemp(
-        dir=path.parent, prefix=f".{path.name}.", suffix=".tmp"
-    )
-    temporary = Path(temporary_name)
-    try:
-        os.fchmod(descriptor, 0o600)
-        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
-            stream.write(canonical_json(reference))
-            stream.write("\n")
-            stream.flush()
-            os.fsync(stream.fileno())
-        os.replace(temporary, path)
-    except BaseException:
-        temporary.unlink(missing_ok=True)
-        raise
+    payload = canonical_json(reference).encode("utf-8") + b"\n"
+    history = path.parent / f"{path.name}.history"
+    if history.exists() and (history.is_symlink() or not history.is_dir()):
+        raise CaseGpuAdapterError("case GPU pointer history is not a real directory")
+    if not history.exists():
+        history.mkdir(mode=0o700)
+        _fsync_directory(history.parent)
+    _publish_private_no_replace(history / f"{reference.logical_content_hash}.json", payload)
+    _replace_private_pointer(path, payload)
 
 
 def _strictly_after(clock: Callable[[], datetime], threshold: datetime) -> datetime:
@@ -481,6 +515,7 @@ class ProductionCaseStudyGpuAdapter:
     repository: CaseExecutionRepository
     state_pointer_path: Path
     model_manifest_hash: Sha256Digest
+    service_start_watchdog_seconds: int = CASE_SERVICE_START_WATCHDOG_SECONDS
     process_start_ticks: Callable[[int], int] = _process_start_ticks
     clock: Callable[[], datetime] = lambda: datetime.now(UTC)
     backend: Literal["vllm_gpu"] = "vllm_gpu"
@@ -492,12 +527,18 @@ class ProductionCaseStudyGpuAdapter:
     def __post_init__(self) -> None:
         self.root = self.root.resolve(strict=True)
         restricted = self.repository.restricted_root.resolve(strict=True)
-        parent = self.state_pointer_path.parent
+        parent = _require_restricted_path(
+            self.state_pointer_path.parent,
+            restricted,
+            label="case GPU state",
+        )
         parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-        if parent.is_symlink() or not parent.resolve(strict=True).is_relative_to(restricted):
+        if parent.resolve(strict=True) != parent:
             raise CaseStudyAdmissionError("case GPU state must remain in restricted storage")
         if self.state_pointer_path.is_symlink():
             raise CaseStudyAdmissionError("case GPU state pointer cannot be a symlink")
+        if self.service_start_watchdog_seconds != CASE_SERVICE_START_WATCHDOG_SECONDS:
+            raise CaseStudyAdmissionError("case service startup watchdog changed")
         if self.admission.execution_plan_hash != self.plan.content_hash:
             raise CaseStudyAdmissionError("case GPU admission belongs to another plan")
         if self.construction.content_hash != self.admission.construction_configuration_hash:
@@ -533,6 +574,14 @@ class ProductionCaseStudyGpuAdapter:
             raise CaseGpuAdapterError("case GPU allocation counter is invalid")
         return value
 
+    @property
+    def model_service_start_count(self) -> Literal[0, 1]:
+        return self._state().model_service_start_count
+
+    @property
+    def model_service_shutdown_count(self) -> Literal[0, 1]:
+        return self._state().model_service_shutdown_count
+
     def _now(self) -> datetime:
         value = self.clock()
         if value.tzinfo is None or value.utcoffset() is None:
@@ -552,18 +601,32 @@ class ProductionCaseStudyGpuAdapter:
         )
 
     def _state(self) -> CaseGpuAdapterState:
-        if not self.state_pointer_path.exists():
+        candidates: list[bytes] = []
+        if self.state_pointer_path.is_file() and not self.state_pointer_path.is_symlink():
+            candidates.append(self.state_pointer_path.read_bytes())
+        history = self.state_pointer_path.parent / f"{self.state_pointer_path.name}.history"
+        if history.is_dir() and not history.is_symlink():
+            candidates.extend(path.read_bytes() for path in sorted(history.glob("*.json")))
+        states: dict[str, CaseGpuAdapterState] = {}
+        for payload in candidates:
+            try:
+                reference = CaseArtifactReference.model_validate_json(payload)
+                state = cast(
+                    CaseGpuAdapterState,
+                    _parse_record(self.artifacts, reference, CaseGpuAdapterState),
+                )
+            except Exception:
+                continue
+            states[state.content_hash] = state
+        if not states:
+            if candidates:
+                raise CaseGpuAdapterError("case GPU state pointer history is invalid")
             return self._initial_state()
-        try:
-            reference = CaseArtifactReference.model_validate_json(
-                self.state_pointer_path.read_bytes()
-            )
-            state = cast(
-                CaseGpuAdapterState,
-                _parse_record(self.artifacts, reference, CaseGpuAdapterState),
-            )
-        except Exception as exc:
-            raise CaseGpuAdapterError("case GPU state pointer is invalid") from exc
+        latest_sequence = max(item.sequence_number for item in states.values())
+        latest = tuple(item for item in states.values() if item.sequence_number == latest_sequence)
+        if len(latest) != 1:
+            raise CaseGpuAdapterError("case GPU state pointer history forks at latest state")
+        state = latest[0]
         expected = (
             self.plan.content_hash,
             self.admission.content_hash,
@@ -674,35 +737,98 @@ class ProductionCaseStudyGpuAdapter:
         if actual >= HARD_GPU_LIMIT_SECONDS or actual + required_seconds >= HARD_GPU_LIMIT_SECONDS:
             raise CaseStudyAdmissionError("case GPU execution would reach the hard stop")
 
-    def start_once(self, *, execution_id: str, remaining_required_seconds: float) -> None:
-        state = self._state()
-        if execution_id != self.plan.execution_id:
-            raise CaseGpuAdapterError("case service start belongs to another execution")
+    def _activation_intent(self, state: CaseGpuAdapterState) -> CaseGpuActivationIntent | None:
+        if state.activation_intent is None:
+            return None
+        intent = cast(
+            CaseGpuActivationIntent,
+            _parse_record(
+                self.artifacts,
+                state.activation_intent,
+                CaseGpuActivationIntent,
+            ),
+        )
+        if (
+            intent.execution_plan_hash != self.plan.content_hash
+            or intent.admission_receipt_hash != self.admission.content_hash
+            or intent.packing_preflight != state.packing_preflight
+            or intent.service_configuration_hash != self.service_configuration_hash
+            or intent.session_id != f"{self.plan.execution_id}-session"
+            or intent.load_event_id != f"{self.plan.execution_id}-model-load"
+        ):
+            raise CaseGpuAdapterError("case activation intent differs from the frozen service")
+        return intent
+
+    def _ensure_activation_intent(
+        self,
+        state: CaseGpuAdapterState,
+        *,
+        remaining_required_seconds: float,
+    ) -> tuple[CaseGpuAdapterState, CaseGpuActivationIntent]:
+        existing = self._activation_intent(state)
+        if existing is not None:
+            if abs(existing.remaining_required_seconds - remaining_required_seconds) > 1e-6:
+                raise CaseGpuAdapterError("case activation reserve changed on resume")
+            return state, existing
         if state.packing_preflight is None:
             raise CaseGpuAdapterError("case service cannot start before complete C1 packing")
-        if state.model_service_start_count != 0:
-            raise CaseGpuAdapterError("case adapter refuses a second model load")
-        self._admit_remaining(remaining_required_seconds)
-        event_id = f"{execution_id}-model-load"
-        self.service.start(
-            session_id=f"{execution_id}-session",
-            event_id=event_id,
-            watchdog_seconds=240,
+        intent = CaseGpuActivationIntent(
+            intent_id=f"activation-{self.plan.execution_id}",
+            execution_plan_hash=self.plan.content_hash,
+            admission_receipt_hash=self.admission.content_hash,
+            packing_preflight=state.packing_preflight,
+            service_configuration_hash=self.service_configuration_hash,
+            session_id=f"{self.plan.execution_id}-session",
+            load_event_id=f"{self.plan.execution_id}-model-load",
             remaining_required_seconds=remaining_required_seconds,
+            requested_at=self._now(),
         )
-        if self.service.state is not ServiceState.READY:
-            raise CaseGpuAdapterError("case service did not become ready")
+        reference = _persist_record(
+            self.artifacts,
+            intent,
+            object_kind="case_gpu_activation_intent",
+            created_at=intent.requested_at,
+        )
+        return self._write_state(state, activation_intent=reference), intent
+
+    def _service_started_at(self, intent: CaseGpuActivationIntent) -> datetime:
+        journal = self.artifacts.ledger.latest_gpu_service_journal(intent.load_event_id)
+        if journal is not None:
+            if (
+                journal.session_id != intent.session_id
+                or journal.configuration_hash != intent.service_configuration_hash
+            ):
+                raise CaseGpuAdapterError("case service journal differs from activation intent")
+            return _parse_timestamp(journal.service_started_at)
+        # Lightweight test services record only the load event. Production vLLM
+        # always opens its service journal before spawning.
+        return _parse_timestamp(_gpu_event(self.artifacts.ledger, intent.load_event_id).started_at)
+
+    def _persist_started_lifecycle(
+        self,
+        state: CaseGpuAdapterState,
+        intent: CaseGpuActivationIntent,
+        *,
+        service_pid: int,
+        process_start_ticks: int,
+        started_at: datetime,
+    ) -> CaseGpuAdapterState:
+        if state.model_service_start_count == 1:
+            self._verify_live_identity()
+            return state
+        if state.activation_intent is None:
+            raise CaseGpuAdapterError("case service start lacks durable activation authority")
         now = self._now()
         identity = CaseServiceIdentity(
-            owner_execution_id=execution_id,
-            service_pid=self.service.pid,
-            service_process_start_ticks=self.process_start_ticks(self.service.pid),
+            owner_execution_id=self.plan.execution_id,
+            service_pid=service_pid,
+            service_process_start_ticks=process_start_ticks,
             service_configuration_hash=self.service_configuration_hash,
             model_runtime_hash=self.plan.model_runtime.content_hash,
             selected_model_freeze_hash=self.plan.model_runtime.selected_model_freeze_hash,
             source_manifest_hash=self.admission.source_manifest.logical_content_hash,
-            load_event_id=event_id,
-            started_at=now,
+            load_event_id=intent.load_event_id,
+            started_at=started_at,
         )
         identity_ref = _persist_record(
             self.artifacts,
@@ -711,12 +837,13 @@ class ProductionCaseStudyGpuAdapter:
             created_at=now,
         )
         lifecycle = CaseGpuLifecycleReceipt(
-            receipt_id=f"lifecycle-{execution_id}",
+            receipt_id=f"lifecycle-{self.plan.execution_id}",
             execution_plan_hash=self.plan.content_hash,
+            activation_intent=state.activation_intent,
             service_identity=identity_ref,
-            packing_preflight=state.packing_preflight,
+            packing_preflight=intent.packing_preflight,
             allocated_gpu_seconds_at_start=self.actual_allocated_service_seconds,
-            remaining_required_seconds_at_start=remaining_required_seconds,
+            remaining_required_seconds_at_start=intent.remaining_required_seconds,
             created_at=now,
         )
         lifecycle_ref = _persist_record(
@@ -725,7 +852,7 @@ class ProductionCaseStudyGpuAdapter:
             object_kind="case_gpu_lifecycle_receipt",
             created_at=now,
         )
-        self._write_state(
+        return self._write_state(
             state,
             service_identity=identity_ref,
             lifecycle_receipt=lifecycle_ref,
@@ -733,39 +860,59 @@ class ProductionCaseStudyGpuAdapter:
             model_load_count=1,
         )
 
-    def resume_live(self, checkpoint_path: Path) -> bool:
-        state = self._state()
-        if state.model_service_start_count != 1 or state.model_service_shutdown_count != 0:
-            return False
-        if not self.service.resume_from_checkpoint(checkpoint_path):
-            return False
-        self._verify_live_identity()
-        return True
-
-    def checkpoint(self, checkpoint_path: Path) -> None:
-        self._verify_live_identity()
-        self.service.write_resume_checkpoint(checkpoint_path)
-
-    def shutdown(self) -> object | None:
-        state = self._state()
-        if state.model_service_shutdown_count == 1:
-            if self.service.state is not ServiceState.STOPPED:
-                raise CaseGpuAdapterError("case state claims shutdown while service is live")
-            assert state.shutdown_receipt is not None
-            return _parse_record(self.artifacts, state.shutdown_receipt, CaseGpuShutdownReceipt)
-        if state.model_service_start_count == 0:
-            if self.service.state is not ServiceState.STOPPED:
-                raise CaseGpuAdapterError("unregistered case model service is live")
-            return None
+    def _ensure_shutdown_intent(
+        self,
+        state: CaseGpuAdapterState,
+    ) -> tuple[CaseGpuAdapterState, CaseGpuShutdownIntent]:
         if state.service_identity is None or state.lifecycle_receipt is None:
             raise CaseGpuAdapterError("case shutdown lacks lifecycle lineage")
-        result = self.service.shutdown()
-        if self.service.state is not ServiceState.STOPPED:
-            raise CaseGpuAdapterError("case model service remained live after shutdown")
-        stopped_at = self._now()
+        if state.shutdown_intent is not None:
+            intent = cast(
+                CaseGpuShutdownIntent,
+                _parse_record(
+                    self.artifacts,
+                    state.shutdown_intent,
+                    CaseGpuShutdownIntent,
+                ),
+            )
+            if (
+                intent.execution_plan_hash != self.plan.content_hash
+                or intent.service_identity != state.service_identity
+                or intent.lifecycle_receipt != state.lifecycle_receipt
+            ):
+                raise CaseGpuAdapterError("case shutdown intent changed")
+            return state, intent
+        intent = CaseGpuShutdownIntent(
+            intent_id=f"shutdown-intent-{self.plan.execution_id}",
+            execution_plan_hash=self.plan.content_hash,
+            service_identity=state.service_identity,
+            lifecycle_receipt=state.lifecycle_receipt,
+            requested_at=self._now(),
+        )
+        reference = _persist_record(
+            self.artifacts,
+            intent,
+            object_kind="case_gpu_shutdown_intent",
+            created_at=intent.requested_at,
+        )
+        return self._write_state(state, shutdown_intent=reference), intent
+
+    def _finalize_terminal_service(
+        self,
+        state: CaseGpuAdapterState,
+        *,
+        stopped_at: datetime,
+    ) -> CaseGpuAdapterState:
+        if state.model_service_shutdown_count == 1:
+            return state
+        state, _intent = self._ensure_shutdown_intent(state)
+        assert state.shutdown_intent is not None
+        assert state.service_identity is not None
+        assert state.lifecycle_receipt is not None
         receipt = CaseGpuShutdownReceipt(
             receipt_id=f"shutdown-{self.plan.execution_id}",
             execution_plan_hash=self.plan.content_hash,
+            shutdown_intent=state.shutdown_intent,
             service_identity=state.service_identity,
             lifecycle_receipt=state.lifecycle_receipt,
             cumulative_allocated_gpu_seconds=self.actual_allocated_service_seconds,
@@ -777,12 +924,205 @@ class ProductionCaseStudyGpuAdapter:
             object_kind="case_gpu_shutdown_receipt",
             created_at=stopped_at,
         )
-        self._write_state(
+        return self._write_state(
             state,
             model_service_shutdown_count=1,
             shutdown_receipt=receipt_ref,
             active_call_id=None,
         )
+
+    def _recover_terminal_service(
+        self,
+        state: CaseGpuAdapterState,
+        intent: CaseGpuActivationIntent,
+    ) -> bool:
+        # Replay the lease recovery first even when the terminal accounting row
+        # already exists. The runtime repopulates the exact path-free process
+        # identity needed after a crash between journal reconciliation and this
+        # adapter's state publication.
+        recover = getattr(self.service, "recover_stale_service_lease", None)
+        session = None if recover is None else recover()
+        if session is not None and session.service_session_id != intent.load_event_id:
+            # A stopped, fully accounted service from an earlier phase may share
+            # this launcher's lock path. Its verified absence is not evidence that
+            # the current activation ran.
+            session = None
+        if session is None:
+            session = self.artifacts.ledger.get_gpu_service_session(intent.load_event_id)
+        if session is None:
+            return False
+        if state.model_service_start_count == 0:
+            recovered = getattr(self.service, "last_recovered_process_identity", None)
+            if recovered is None:
+                raise CaseGpuAdapterError(
+                    "terminal case service lacks its exact recovered process identity"
+                )
+            if (
+                recovered.configuration_hash != self.service_configuration_hash
+                or recovered.session_id != intent.session_id
+                or recovered.accounting_session_id != intent.load_event_id
+            ):
+                raise CaseGpuAdapterError("recovered terminal case service identity changed")
+            state = self._persist_started_lifecycle(
+                state,
+                intent,
+                service_pid=recovered.pid,
+                process_start_ticks=recovered.process_start_ticks,
+                started_at=recovered.service_started_at,
+            )
+        stopped_at = _parse_timestamp(session.ended_at)
+        self._finalize_terminal_service(state, stopped_at=stopped_at)
+        return True
+
+    def start_once(self, *, execution_id: str, remaining_required_seconds: float) -> None:
+        state = self._state()
+        if execution_id != self.plan.execution_id:
+            raise CaseGpuAdapterError("case service start belongs to another execution")
+        self._admit_remaining(remaining_required_seconds)
+        state, intent = self._ensure_activation_intent(
+            state,
+            remaining_required_seconds=remaining_required_seconds,
+        )
+        if state.model_service_shutdown_count == 1:
+            raise CaseGpuAdapterError("case adapter refuses a second model load")
+        if state.model_service_start_count == 1:
+            if self.service.state is ServiceState.READY:
+                self._verify_live_identity()
+                return
+            raise CaseGpuAdapterError("case adapter refuses a second model load")
+        resume_lease = getattr(self.service, "resume_live_service_lease", None)
+        if resume_lease is not None and resume_lease(
+            expected_session_id=intent.session_id,
+            expected_event_id=intent.load_event_id,
+            watchdog_seconds=self.service_start_watchdog_seconds,
+        ):
+            self._persist_started_lifecycle(
+                state,
+                intent,
+                service_pid=self.service.pid,
+                process_start_ticks=self.process_start_ticks(self.service.pid),
+                started_at=self._service_started_at(intent),
+            )
+            return
+        if self._recover_terminal_service(state, intent):
+            raise CaseGpuAdapterError("case model load already terminated and cannot be repeated")
+        self.service.start(
+            session_id=intent.session_id,
+            event_id=intent.load_event_id,
+            watchdog_seconds=self.service_start_watchdog_seconds,
+            remaining_required_seconds=remaining_required_seconds,
+        )
+        if self.service.state is not ServiceState.READY:
+            raise CaseGpuAdapterError("case service did not become ready")
+        self._persist_started_lifecycle(
+            state,
+            intent,
+            service_pid=self.service.pid,
+            process_start_ticks=self.process_start_ticks(self.service.pid),
+            started_at=self._service_started_at(intent),
+        )
+
+    def resume_live(self, checkpoint_path: Path) -> bool:
+        state = self._state()
+        if state.model_service_shutdown_count != 0:
+            return False
+        intent = self._activation_intent(state)
+        if intent is None:
+            return False
+        if self.service.state is ServiceState.READY:
+            if state.model_service_start_count == 0:
+                self._persist_started_lifecycle(
+                    state,
+                    intent,
+                    service_pid=self.service.pid,
+                    process_start_ticks=self.process_start_ticks(self.service.pid),
+                    started_at=self._service_started_at(intent),
+                )
+            self._verify_live_identity()
+            if state.shutdown_intent is not None:
+                self.shutdown()
+                return False
+            return True
+        resumed = self.service.resume_from_checkpoint(checkpoint_path)
+        if not resumed:
+            resume_lease = getattr(self.service, "resume_live_service_lease", None)
+            resumed = bool(
+                resume_lease is not None
+                and resume_lease(
+                    expected_session_id=intent.session_id,
+                    expected_event_id=intent.load_event_id,
+                    watchdog_seconds=self.service_start_watchdog_seconds,
+                )
+            )
+        if resumed:
+            if state.model_service_start_count == 0:
+                state = self._persist_started_lifecycle(
+                    state,
+                    intent,
+                    service_pid=self.service.pid,
+                    process_start_ticks=self.process_start_ticks(self.service.pid),
+                    started_at=self._service_started_at(intent),
+                )
+            self._verify_live_identity()
+            if state.shutdown_intent is not None:
+                self.shutdown()
+                return False
+            return True
+        self._recover_terminal_service(state, intent)
+        return False
+
+    def checkpoint(self, checkpoint_path: Path) -> None:
+        self._verify_live_identity()
+        self.service.write_resume_checkpoint(checkpoint_path)
+
+    def detach_for_resume(self, checkpoint_path: Path) -> None:
+        self._verify_live_identity()
+        detach = getattr(self.service, "detach_for_controller_restart", None)
+        if detach is None:
+            raise CaseGpuAdapterError("case service cannot perform a durable restart handoff")
+        detach(checkpoint_path)
+
+    def shutdown(self) -> object | None:
+        state = self._state()
+        if state.model_service_shutdown_count == 1:
+            if self.service.state is not ServiceState.STOPPED:
+                raise CaseGpuAdapterError("case state claims shutdown while service is live")
+            assert state.shutdown_receipt is not None
+            return _parse_record(self.artifacts, state.shutdown_receipt, CaseGpuShutdownReceipt)
+        if state.model_service_start_count == 0:
+            intent = self._activation_intent(state)
+            if intent is not None and self.service.state is ServiceState.READY:
+                state = self._persist_started_lifecycle(
+                    state,
+                    intent,
+                    service_pid=self.service.pid,
+                    process_start_ticks=self.process_start_ticks(self.service.pid),
+                    started_at=self._service_started_at(intent),
+                )
+            elif intent is not None and self._recover_terminal_service(state, intent):
+                return None
+            else:
+                if self.service.state is not ServiceState.STOPPED:
+                    raise CaseGpuAdapterError("unregistered case model service is live")
+                return None
+        state, _intent = self._ensure_shutdown_intent(state)
+        result: object | None = None
+        shutdown_error: BaseException | None = None
+        try:
+            result = self.service.shutdown()
+        except BaseException as error:
+            shutdown_error = error
+        if self.service.state is not ServiceState.STOPPED:
+            if shutdown_error is not None:
+                raise shutdown_error
+            raise CaseGpuAdapterError("case model service remained live after shutdown")
+        session = self.artifacts.ledger.get_gpu_service_session(
+            f"{self.plan.execution_id}-model-load"
+        )
+        stopped_at = self._now() if session is None else _parse_timestamp(session.ended_at)
+        self._finalize_terminal_service(state, stopped_at=stopped_at)
+        if shutdown_error is not None:
+            raise shutdown_error
         return result
 
     def _window(self, window_id: str) -> CaseWindowExecutionPlan:
@@ -854,12 +1194,88 @@ class ProductionCaseStudyGpuAdapter:
         state = self._state()
         reference = state.completed_receipts.get(call_id)
         if reference is None:
-            if state.active_call_id == call_id:
-                raise CaseGpuAdapterError(
-                    "interrupted case GPU request cannot be reissued automatically"
-                )
             return None
         return _parse_record(self.artifacts, reference, record_type)
+
+    def _terminal_event(self, event_id: str) -> Any | None:
+        events = tuple(
+            item
+            for item in self.artifacts.ledger.gpu_events_with_prefix(event_id)
+            if item.event_id == event_id
+        )
+        if len(events) > 1:
+            raise CaseGpuAdapterError("case GPU event identity is not unique")
+        return None if not events else events[0]
+
+    def _generation_from_model_call(
+        self,
+        *,
+        call: CaseGpuCallSlot,
+        guided: GuidedJSONRequest,
+        job_id: str,
+        attempt_id: str,
+        event_id: str,
+        repair: bool,
+    ) -> tuple[GenerationResult | None, BaseException | None]:
+        """Rebuild a terminal generation without allocating another GPU second."""
+
+        label = "repair" if repair else "base"
+        model_call_id = f"{self.plan.execution_id}-{call.call_id}-{label}-model"
+        try:
+            model_call = self.artifacts.ledger.get_model_call(model_call_id)
+        except KeyError:
+            return None, CaseGpuAdapterError(
+                "terminal case GPU event has no recoverable model-call artifact"
+            )
+        if (
+            model_call.job_id != job_id
+            or model_call.attempt_id != attempt_id
+            or model_call.gpu_event_id != event_id
+            or model_call.request_hash != guided.request_hash
+            or model_call.model_manifest_hash != self.model_manifest_hash
+        ):
+            raise CaseGpuAdapterError("terminal case model-call lineage changed")
+        if model_call.response_artifact_hash is None:
+            return None, CaseGpuAdapterError("terminal case model call retained no response")
+        record = self.artifacts.ledger.get_artifact(model_call.response_artifact_hash)
+        raw = self.artifacts.blobs.read_bytes(record, allow_restricted=True)
+        if hashlib.sha256(raw).hexdigest() != model_call.response_artifact_hash:
+            raise CaseGpuAdapterError("terminal case response artifact changed")
+        try:
+            decoded = json.loads(raw)
+            if not isinstance(decoded, Mapping):
+                raise TypeError
+            if decoded.get("raw_response_available") is False:
+                return None, CaseGpuAdapterError("terminal case call recorded no raw response")
+            if "choices" in decoded:
+                choice = cast(Any, decoded["choices"])[0]
+                content = choice["message"]["content"]
+                parsed = json.loads(content)
+                if not isinstance(parsed, Mapping):
+                    raise TypeError
+                finish_reason = choice.get("finish_reason")
+                service_request_id = decoded.get("id")
+            else:
+                # Unit services store the already-decoded guided object.
+                parsed = decoded
+                finish_reason = "stop"
+                service_request_id = None
+        except (IndexError, KeyError, TypeError, json.JSONDecodeError):
+            return None, CaseGpuAdapterError("terminal case response is not guided JSON")
+        return (
+            GenerationResult(
+                request_id=guided.request_id,
+                request_hash=guided.request_hash,
+                response_sha256=model_call.response_artifact_hash,
+                parsed_object=dict(parsed),
+                raw_response=raw,
+                prompt_tokens=model_call.prompt_tokens,
+                completion_tokens=model_call.completion_tokens,
+                finish_reason=finish_reason,
+                service_request_id=service_request_id,
+            ),
+            None,
+        )
 
     def _remaining_after(self, call: CaseGpuCallSlot, *, include_repair: bool) -> float:
         state = self._state()
@@ -1238,6 +1654,17 @@ class ProductionCaseStudyGpuAdapter:
     ) -> tuple[GenerationResult | None, BaseException | None, Any]:
         self._verify_live_identity()
         self._admit_remaining(remaining_required_seconds)
+        terminal_event = self._terminal_event(event_id)
+        if terminal_event is not None:
+            generated, error = self._generation_from_model_call(
+                call=call,
+                guided=guided,
+                job_id=job_id,
+                attempt_id=attempt_id,
+                event_id=event_id,
+                repair=repair,
+            )
+            return generated, error, terminal_event
         generated: GenerationResult | None = None
         error: BaseException | None = None
         details: dict[str, object] = {
@@ -1285,8 +1712,7 @@ class ProductionCaseStudyGpuAdapter:
         state = self._state()
         if state.active_call_id not in {None, call.call_id}:
             raise CaseGpuAdapterError("another case GPU call remains active")
-        if state.active_call_id == call.call_id:
-            raise CaseGpuAdapterError("active case call cannot be reissued after interruption")
+        recovering_active = state.active_call_id == call.call_id
         created_at = self._now()
         job = self.artifacts.ledger.create_or_resume_job(
             {
@@ -1310,9 +1736,10 @@ class ProductionCaseStudyGpuAdapter:
             input_hash=guided.request_hash,
             config_hash=config.content_hash,
             seed=call.resolved_vllm_seed,
-            created_at=created_at,
+            created_at=None if recovering_active else created_at,
         )
-        self._write_state(state, active_call_id=call.call_id)
+        if not recovering_active:
+            self._write_state(state, active_call_id=call.call_id)
         event_id = f"{self.plan.execution_id}-{call.call_id}-base-gpu"
         generated, transport_error, event = self._invoke(
             call=call,
@@ -1478,7 +1905,7 @@ class ProductionCaseStudyGpuAdapter:
             input_hash=repair_guided.request_hash,
             config_hash=repair_config.content_hash,
             seed=call.resolved_vllm_seed,
-            created_at=repair_input.created_at,
+            created_at=None if recovering_active else repair_input.created_at,
         )
         repair_event_id = f"{self.plan.execution_id}-{call.call_id}-repair-gpu"
         repaired, repair_error, repair_event = self._invoke(
@@ -2446,6 +2873,7 @@ def build_production_case_study_gpu_adapter(
     repository: CaseExecutionRepository,
     state_pointer_path: Path,
     model_manifest_hash: Sha256Digest,
+    service_start_watchdog_seconds: int = CASE_SERVICE_START_WATCHDOG_SECONDS,
     process_start_ticks: Callable[[int], int] = _process_start_ticks,
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
 ) -> ProductionCaseStudyGpuAdapter:
@@ -2486,6 +2914,7 @@ def build_production_case_study_gpu_adapter(
         repository=repository,
         state_pointer_path=state_pointer_path,
         model_manifest_hash=model_manifest_hash,
+        service_start_watchdog_seconds=service_start_watchdog_seconds,
         process_start_ticks=process_start_ticks,
         clock=clock,
     )

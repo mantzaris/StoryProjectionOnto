@@ -3788,6 +3788,15 @@ class Ledger:
         ).fetchone()
         return None if row is None else self._gpu_service_journal_from_row(row)
 
+    def gpu_service_journal_records(self) -> tuple[GpuServiceJournalRecord, ...]:
+        """Return the complete immutable service journal in logical row order."""
+
+        rows = self._connection.execute(
+            """SELECT * FROM gpu_service_journal
+               ORDER BY service_session_id, sequence, journal_id"""
+        ).fetchall()
+        return tuple(self._gpu_service_journal_from_row(row) for row in rows)
+
     def unresolved_gpu_service_journals(self) -> tuple[GpuServiceJournalRecord, ...]:
         """Return latest nonterminal service journals in deterministic order."""
 
@@ -3812,6 +3821,14 @@ class Ledger:
             (service_session_id,),
         ).fetchone()
         return None if row is None else self._gpu_service_session_from_row(row)
+
+    def gpu_service_sessions(self) -> tuple[GpuServiceSession, ...]:
+        """Return all terminal service-accounting rows ordered by stable identity."""
+
+        rows = self._connection.execute(
+            "SELECT * FROM gpu_service_sessions ORDER BY service_session_id"
+        ).fetchall()
+        return tuple(self._gpu_service_session_from_row(row) for row in rows)
 
     def recover_gpu_service_journal(
         self,

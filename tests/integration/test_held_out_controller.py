@@ -15,6 +15,7 @@ from story_projection_onto.contracts import (
     ConstructionSeal,
     OntologyDecision,
     PreQueryInventory,
+    PrequeryPreparationBinding,
     QueryAccessEvent,
     canonical_sha256,
 )
@@ -22,6 +23,7 @@ from story_projection_onto.development_runtime import RunOutcome
 from story_projection_onto.held_out_controller import (
     C0ConstructionReceipt,
     HeldOutExecutionError,
+    InterruptedCallRecoveryRequired,
     PreconstructedProjectionReceipt,
     authorize_scorer_bridge,
     execute_reviewed_held_out_manifest,
@@ -195,7 +197,9 @@ class _Session:
     def execute_call(self, call, envelope: HeldOutCallEnvelope):
         self.shared.calls += 1
         self.shared.events += 1
-        self.shared.actual += 0.01
+        # The exact live-service interval includes controller/validation time
+        # beyond the classified 0.01-second request event.
+        self.shared.actual += 0.02
         self.shared.remaining -= call.p95_seconds
         values = (None, None, None)
         if envelope.query_stage is not None:
@@ -348,6 +352,29 @@ class _Session:
             ledger_chain_hash=_digest(("ledger", self.shared.events)),
             completed_at=completed_at,
         )
+        if call.condition is ConditionName.C1_LLM_PRE:
+            fixed_preparation_hash = _digest((call.call_id, "fixed-preparation"))
+            fixed_lineage_hash = _digest((call.call_id, "fixed-lineage"))
+            kwargs["prequery_preparation_bindings"] = (
+                PrequeryPreparationBinding(
+                    unit_id=call.unit_id,
+                    condition=ConditionName.C1_LLM_PRE,
+                    seed_block=call.seed_block,
+                    snapshot_hash=envelope.prequery_stage.snapshot_hash,
+                    preparation_hash=output_hash,
+                    lineage_artifact_hash=kwargs["construction_seal_hash"],
+                    completed_at=kwargs["construction_seal"].sealed_at,
+                ),
+                PrequeryPreparationBinding(
+                    unit_id=call.unit_id,
+                    condition=ConditionName.A_FIXED_SELECT,
+                    seed_block=call.seed_block,
+                    snapshot_hash=envelope.prequery_stage.snapshot_hash,
+                    preparation_hash=fixed_preparation_hash,
+                    lineage_artifact_hash=fixed_lineage_hash,
+                    completed_at=kwargs["construction_seal"].sealed_at,
+                ),
+            )
         return HeldOutServiceResult(
             call_id=call.call_id,
             condition=call.condition,
@@ -372,6 +399,12 @@ class _Session:
 
     def recover_call(self, _call, _envelope):
         raise AssertionError("completed TEST-ONLY records must resume without service recovery")
+
+    def finalize_unstarted_call(self, call, result):
+        assert result.request_started is False
+        assert result.call_id == call.call_id
+        self.shared.remaining -= call.p95_seconds
+        return self.schedule_snapshot()
 
 
 class _Runtime:
@@ -546,6 +579,42 @@ class _CrashOnceSession(_Session):
         return result
 
 
+class _TimeoutFirstSession(_Session):
+    def __init__(self, condition: ConditionName, shared: _SharedGpu):
+        super().__init__(condition, shared)
+        self.timed_out = False
+
+    def execute_call(self, call, envelope):
+        result = super().execute_call(call, envelope)
+        if self.timed_out:
+            return result
+        self.timed_out = True
+        payload = result.model_dump(mode="python", exclude={"content_hash"})
+        payload.update(
+            outcome=RunOutcome.TIMED_OUT,
+            failure_code="held_out_timeout",
+        )
+        return HeldOutServiceResult.model_validate(payload)
+
+
+class _PreIntentInterruptSession(_Session):
+    def __init__(self, condition: ConditionName, shared: _SharedGpu):
+        super().__init__(condition, shared)
+        self.interrupt_once = True
+
+    def execute_call(self, call, envelope):
+        if self.interrupt_once:
+            self.interrupt_once = False
+            raise KeyboardInterrupt("TEST-ONLY interruption before semantic intent")
+        return super().execute_call(call, envelope)
+
+    def recovery_pending(self, _call, _envelope):
+        return False
+
+    def recover_call(self, call, envelope):
+        return self.execute_call(call, envelope)
+
+
 def test_complete_control_plane_inventory_and_exact_resume(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -585,13 +654,14 @@ def test_complete_control_plane_inventory_and_exact_resume(
         sessions=sessions,
         runtime=runtime,
         output_root=output,
-        completed_at=completed,
+        completion_clock=lambda: completed,
     )
     assert len(execution.itt_records) == 168
     assert len(execution.c2_prequery_receipts) == 24
     assert len(execution.ablation_prequery_receipts) == 36
-    assert len(execution.prequery_barrier.preparation_bindings) == 96
+    assert len(execution.prequery_barrier.preparation_bindings) == 120
     assert len(execution.preconstructed_projections) == 108
+    assert execution.completed_at == completed
     assert cpu.build_calls == 12
     assert cpu.projection_calls == 108
     assert shared.calls == 168
@@ -616,6 +686,11 @@ def test_complete_control_plane_inventory_and_exact_resume(
     )
     assert bridge.runtime_namespace_closed and not bridge.model_input_open
 
+    first_itt_path = next((output / "itt").glob("*.json"))
+    interrupted_temporary = first_itt_path.with_name(
+        f".{first_itt_path.name}.power-loss.tmp"
+    )
+    interrupted_temporary.write_bytes(first_itt_path.read_bytes())
     resumed = execute_reviewed_held_out_manifest(
         reviewed_plan=reviewed_plan,
         configuration=configuration,
@@ -626,9 +701,11 @@ def test_complete_control_plane_inventory_and_exact_resume(
         sessions=sessions,
         runtime=runtime,
         output_root=output,
-        completed_at=completed,
+        completion_clock=lambda: completed + timedelta(days=1),
     )
     assert resumed.content_hash == execution.content_hash
+    assert resumed.completed_at == completed
+    assert interrupted_temporary.exists()
     assert shared.calls == 168
     assert cpu.build_calls == 12
     assert cpu.projection_calls == 108
@@ -675,7 +752,7 @@ def test_finalized_journal_rejects_extra_and_partial_files(
         sessions=sessions,
         runtime=runtime,
         output_root=output,
-        completed_at=NOW + timedelta(hours=1),
+        completion_clock=lambda: NOW + timedelta(hours=1),
     )
     tampered_itt = next((output / "itt").glob("*.json"))
     original_itt = tampered_itt.read_bytes()
@@ -702,7 +779,7 @@ def test_finalized_journal_rejects_extra_and_partial_files(
             sessions=sessions,
             runtime=runtime,
             output_root=output,
-            completed_at=NOW + timedelta(hours=1),
+            completion_clock=lambda: NOW + timedelta(hours=1),
         )
     canary.unlink()
     next((output / "projections").glob("*.json")).unlink()
@@ -717,7 +794,7 @@ def test_finalized_journal_rejects_extra_and_partial_files(
             sessions=sessions,
             runtime=runtime,
             output_root=output,
-            completed_at=NOW + timedelta(hours=1),
+            completion_clock=lambda: NOW + timedelta(hours=1),
         )
 
 
@@ -741,7 +818,7 @@ def test_executor_cannot_bypass_materialized_review_gate(tmp_path: Path) -> None
             sessions={},
             runtime=_Runtime(_SharedGpu()),
             output_root=tmp_path / "must-not-exist",
-            completed_at=NOW + timedelta(hours=1),
+            completion_clock=lambda: NOW + timedelta(hours=1),
         )
     assert not (tmp_path / "must-not-exist").exists()
 
@@ -784,13 +861,140 @@ def test_interrupted_call_recovers_against_original_snapshot_without_resend(
         sessions=sessions,
         runtime=runtime,
         output_root=output,
-        completed_at=NOW + timedelta(hours=1),
+        completion_clock=lambda: NOW + timedelta(hours=1),
     )
-    with pytest.raises(RuntimeError, match="crash after durable service receipt"):
+    with pytest.raises(
+        held_out_controller.InterruptedCallRecoveryRequired,
+        match="requires recovery",
+    ):
         execute_reviewed_held_out_manifest(**arguments)
     assert shared.calls == 1
     assert len(tuple((output / "call_slots").glob("*.json"))) == 1
     assert not (output / "itt" / f"001-{manifest.calls[0].call_id}.json").exists()
+
+    execution = execute_reviewed_held_out_manifest(**arguments)
+    assert len(execution.itt_records) == 168
+    assert shared.calls == 168
+
+
+def test_timeout_stops_only_its_condition_block_and_records_deterministic_itt_skips(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    configuration = load_held_out_control_configuration(ROOT)
+    manifest = held_out._derive_call_manifest(ROOT, configuration)
+    reviewed_plan = ReviewedHeldOutPlan(
+        call_manifest=manifest,
+        review_completion_manifest_hash=_digest("review-completion-timeout"),
+        review_draft_seal_hash=_digest("review-draft-timeout"),
+        final_reviewed_seal_hash=_digest("reviewed-seal-timeout"),
+    )
+    monkeypatch.setattr(
+        held_out_controller,
+        "open_reviewed_held_out_plan",
+        lambda **_kwargs: reviewed_plan,
+    )
+    shared = _SharedGpu()
+    shared.actual = 1000.0
+    shared.remaining = 20000.0
+    shared.calls = 0
+    shared.events = 0
+    sessions = {
+        ConditionName.C1_LLM_PRE: _Session(ConditionName.C1_LLM_PRE, shared),
+        ConditionName.C2_LLM_QUERY: _TimeoutFirstSession(
+            ConditionName.C2_LLM_QUERY,
+            shared,
+        ),
+        ConditionName.A_FIXED_SELECT: _Session(
+            ConditionName.A_FIXED_SELECT,
+            shared,
+        ),
+    }
+    execution = execute_reviewed_held_out_manifest(
+        reviewed_plan=reviewed_plan,
+        configuration=configuration,
+        repository=ROOT,
+        review_completion_root=tmp_path / "TEST-ONLY-review",
+        configuration_path=held_out.DEFAULT_HELD_OUT_CONTROL_PATH,
+        cpu=_Cpu(manifest),
+        sessions=sessions,
+        runtime=_Runtime(shared),
+        output_root=tmp_path / "TEST-ONLY-timeout",
+        completion_clock=lambda: NOW + timedelta(hours=1),
+    )
+    c2_records = tuple(
+        item
+        for item in execution.itt_records
+        if item.result.condition is ConditionName.C2_LLM_QUERY
+    )
+    fixed_records = tuple(
+        item
+        for item in execution.itt_records
+        if item.result.condition is ConditionName.A_FIXED_SELECT
+    )
+    assert len(c2_records) == 72
+    assert c2_records[0].result.outcome is RunOutcome.TIMED_OUT
+    assert c2_records[0].result.request_started
+    assert all(
+        not item.result.request_started
+        and item.result.failure_code == "condition_service_unavailable_after_timeout"
+        for item in c2_records[1:]
+    )
+    assert all(
+        item.schedule_after.actual_allocated_gpu_seconds
+        == item.schedule_before.actual_allocated_gpu_seconds
+        and item.schedule_after.remaining_registered_p95_seconds
+        == item.schedule_before.remaining_registered_p95_seconds - 95
+        for item in c2_records[1:]
+    )
+    assert all(item.result.request_started for item in fixed_records)
+    assert shared.calls == 24 + 1 + 72
+
+
+def test_pre_intent_interruption_resumes_exact_slot_without_duplicate_request(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    configuration = load_held_out_control_configuration(ROOT)
+    manifest = held_out._derive_call_manifest(ROOT, configuration)
+    reviewed_plan = ReviewedHeldOutPlan(
+        call_manifest=manifest,
+        review_completion_manifest_hash=_digest("review-completion-pre-intent"),
+        review_draft_seal_hash=_digest("review-draft-pre-intent"),
+        final_reviewed_seal_hash=_digest("reviewed-seal-pre-intent"),
+    )
+    monkeypatch.setattr(
+        held_out_controller,
+        "open_reviewed_held_out_plan",
+        lambda **_kwargs: reviewed_plan,
+    )
+    shared = _SharedGpu()
+    shared.actual = 1000.0
+    shared.remaining = 20000.0
+    shared.calls = 0
+    shared.events = 0
+    c1 = _PreIntentInterruptSession(ConditionName.C1_LLM_PRE, shared)
+    arguments = dict(
+        reviewed_plan=reviewed_plan,
+        configuration=configuration,
+        repository=ROOT,
+        review_completion_root=tmp_path / "TEST-ONLY-review",
+        configuration_path=held_out.DEFAULT_HELD_OUT_CONTROL_PATH,
+        cpu=_Cpu(manifest),
+        sessions={
+            ConditionName.C1_LLM_PRE: c1,
+            ConditionName.C2_LLM_QUERY: _Session(ConditionName.C2_LLM_QUERY, shared),
+            ConditionName.A_FIXED_SELECT: _Session(
+                ConditionName.A_FIXED_SELECT,
+                shared,
+            ),
+        },
+        runtime=_Runtime(shared),
+        output_root=tmp_path / "TEST-ONLY-pre-intent",
+        completion_clock=lambda: NOW + timedelta(hours=1),
+    )
+    with pytest.raises(InterruptedCallRecoveryRequired, match="requires recovery"):
+        execute_reviewed_held_out_manifest(**arguments)
+    assert shared.calls == 0
+    assert len(tuple((arguments["output_root"] / "call_slots").glob("*.json"))) == 1
 
     execution = execute_reviewed_held_out_manifest(**arguments)
     assert len(execution.itt_records) == 168

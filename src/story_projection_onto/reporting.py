@@ -120,17 +120,21 @@ class TableSpec(FrozenModel):
 
 class FigureSpec(FrozenModel):
     figure_id: Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{1,63}$")]
-    kind: Literal["phase_status", "forest"]
+    kind: Literal["phase_status", "forest", "artifact_png"]
     title: Annotated[str, StringConstraints(min_length=1, max_length=200)]
     relative_path: Annotated[
         str,
-        StringConstraints(pattern=r"^figures/[A-Za-z0-9_.-]+\.pdf$"),
+        StringConstraints(pattern=r"^figures/[A-Za-z0-9_.-]+\.(?:pdf|png)$"),
     ]
     table_id: str | None = None
     label_column: str | None = None
     estimate_column: str | None = None
     lower_column: str | None = None
     upper_column: str | None = None
+    section_id: str | None = None
+    caption: Annotated[str, StringConstraints(min_length=1, max_length=500)] | None = None
+    sha256: Sha256Digest | None = None
+    source_artifact_hashes: tuple[Sha256Digest, ...] = ()
 
     @model_validator(mode="after")
     def forest_has_columns(self) -> FigureSpec:
@@ -146,6 +150,21 @@ class FigureSpec(FrozenModel):
             raise ValueError("forest figures require a table and four column names")
         if self.kind == "phase_status" and self.table_id is not None:
             raise ValueError("phase_status figures do not consume a table")
+        if self.kind == "artifact_png":
+            if not self.relative_path.endswith(".png"):
+                raise ValueError("artifact figures must be PNG files")
+            if not all((self.section_id, self.caption, self.sha256)):
+                raise ValueError("artifact figures require section, caption, and SHA-256")
+            if self.table_id is not None or any(
+                (self.label_column, self.estimate_column, self.lower_column, self.upper_column)
+            ):
+                raise ValueError("artifact figures cannot claim a generated-table mapping")
+            if not self.source_artifact_hashes:
+                raise ValueError("artifact figures require immutable source lineage")
+        elif any((self.section_id, self.caption, self.sha256, self.source_artifact_hashes)):
+            raise ValueError("only artifact figures carry external-image metadata")
+        if self.kind != "artifact_png" and not self.relative_path.endswith(".pdf"):
+            raise ValueError("generated figures must be PDF files")
         return self
 
 
@@ -233,7 +252,12 @@ class ResultManifest(FrozenModel):
     figures: tuple[FigureSpec, ...]
     sections: tuple[SectionSpec, ...]
     source_artifact_hashes: tuple[Sha256Digest, ...]
-    ingestion_receipt_relative_path: Literal["report_ingestion_receipt.json"]
+    ingestion_receipt_relative_path: Annotated[
+        str,
+        StringConstraints(
+            pattern=r"^report_ingestion_receipt(?:\.[0-9a-f]{12,64})?\.json$"
+        ),
+    ]
     ingestion_receipt_file_sha256: Sha256Digest
     ingestion_receipt_sha256: Sha256Digest
     reporting_policy_sha256: Sha256Digest
@@ -533,6 +557,19 @@ def build_document(manifest_path: Path, policy_path: Path) -> ReportDocument:
     for phase in manifest.phases:
         if not set(phase.source_artifact_hashes).issubset(verified_source_hashes):
             raise ReportingError(f"phase {phase.phase_id} cites an unverified predecessor artifact")
+    section_ids = {item.section_id for item in manifest.sections}
+    for figure in manifest.figures:
+        if figure.kind != "artifact_png":
+            continue
+        if figure.section_id not in section_ids:
+            raise ReportingError(f"artifact figure {figure.figure_id} names an unknown section")
+        if not set(figure.source_artifact_hashes).issubset(verified_source_hashes):
+            raise ReportingError(
+                f"artifact figure {figure.figure_id} cites an unverified predecessor artifact"
+            )
+        figure_path = _safe_under(root, figure.relative_path)
+        if _file_sha256(figure_path) != figure.sha256:
+            raise ReportingError(f"artifact figure hash mismatch: {figure.figure_id}")
     if manifest.study_status is ReportStatus.COMPLETE:
         incomplete_predecessors = [
             item.family.value
@@ -645,6 +682,35 @@ def render_markdown(document: ReportDocument) -> str:
         "> blocked section is not evidence of a null result and contains no imputed scientific",
         "> value.",
         "",
+        "## Study overview",
+        "",
+        (
+            "Narrative evidence does not determine one universally useful ontology. This study "
+            "tests whether revealing a user's context before ontology construction changes the "
+            "semantic fidelity and organization of the resulting evidence-grounded graph."
+        ),
+        "",
+        (
+            "- **RQ1:** Does query-dependent LLM construction improve qualified-assertion and "
+            "ontology-decision fidelity relative to query-blind LLM and classical construction?"
+        ),
+        "",
+        (
+            "- **RQ2:** How does construction timing change entropy and directly measured visual "
+            "clutter when semantic and rare-pivotal safeguards remain visible?"
+        ),
+        "",
+        (
+            "- **RQ3:** How does construction timing change gold-aligned community structure and "
+            "cross-seed cluster stability?"
+        ),
+        "",
+        (
+            "The query-blind evidence index stores only source-grounded evidence and retrieval "
+            "metadata. It is not a hidden ontology. C2 must form contextual entities, events, "
+            "schema, relations, abstractions, and qualified assertions after query reveal."
+        ),
+        "",
     ]
     for index, section in enumerate(document.sections, start=1):
         lines.extend((f"## {index}. {section.spec.title}", ""))
@@ -684,6 +750,19 @@ def render_markdown(document: ReportDocument) -> str:
                         )
                     )
                 lines.extend((f"### {table.spec.description}", "", _markdown_table(table), ""))
+        for figure in document.manifest.figures:
+            if figure.kind == "artifact_png" and figure.section_id == section.spec.section_id:
+                lines.extend(
+                    (
+                        f"### {figure.caption}",
+                        "",
+                        f"![{_markdown_cell(figure.caption or figure.title)}]"
+                        f"({figure.relative_path})",
+                        "",
+                        f"<!-- figure:{figure.figure_id} sha256:{figure.sha256} -->",
+                        "",
+                    )
+                )
     lines.extend(
         (
             "## Machine-readable provenance",
@@ -709,6 +788,7 @@ def _reportlab() -> tuple[Any, ...]:
         from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
         from reportlab.lib.units import inch
         from reportlab.platypus import (
+            Image,
             LongTable,
             PageBreak,
             Paragraph,
@@ -727,6 +807,7 @@ def _reportlab() -> tuple[Any, ...]:
         ParagraphStyle,
         getSampleStyleSheet,
         inch,
+        Image,
         LongTable,
         PageBreak,
         Paragraph,
@@ -744,6 +825,7 @@ def render_pdf(document: ReportDocument, output_path: Path) -> None:
         paragraph_style,
         get_styles,
         inch,
+        image,
         long_table,
         page_break,
         paragraph,
@@ -788,6 +870,35 @@ def render_pdf(document: ReportDocument, output_path: Path) -> None:
         paragraph(
             "This report is generated from hash-verified canonical tables. Missing results are "
             "marked incomplete; no values are imputed.",
+            styles["BodyText"],
+        ),
+        spacer(1, 10),
+        paragraph("Study overview", styles["Heading1"]),
+        paragraph(
+            "Narrative evidence does not determine one universally useful ontology. This study "
+            "tests whether revealing a user's context before ontology construction changes the "
+            "semantic fidelity and organization of the resulting evidence-grounded graph.",
+            styles["BodyText"],
+        ),
+        paragraph(
+            "<b>RQ1:</b> Does query-dependent LLM construction improve qualified-assertion and "
+            "ontology-decision fidelity relative to query-blind LLM and classical construction?",
+            styles["BodyText"],
+        ),
+        paragraph(
+            "<b>RQ2:</b> How does construction timing change entropy and directly measured visual "
+            "clutter when semantic and rare-pivotal safeguards remain visible?",
+            styles["BodyText"],
+        ),
+        paragraph(
+            "<b>RQ3:</b> How does construction timing change gold-aligned community structure and "
+            "cross-seed cluster stability?",
+            styles["BodyText"],
+        ),
+        paragraph(
+            "The query-blind evidence index stores only source-grounded evidence and retrieval "
+            "metadata; it is not a hidden ontology. C2 forms contextual entities, events, schema, "
+            "relations, abstractions, and qualified assertions after query reveal.",
             styles["BodyText"],
         ),
         spacer(1, 10),
@@ -858,6 +969,22 @@ def render_pdf(document: ReportDocument, output_path: Path) -> None:
                     )
                 )
                 story.extend((rendered, spacer(1, 8)))
+        for figure in document.manifest.figures:
+            if figure.kind != "artifact_png" or figure.section_id != section.spec.section_id:
+                continue
+            figure_path = _safe_under(output_path.parent, figure.relative_path)
+            story.append(paragraph(html.escape(figure.caption or figure.title), styles["Heading2"]))
+            rendered_image = image(str(figure_path))
+            available_width = 7.3 * inch
+            available_height = 6.0 * inch
+            scale = min(
+                available_width / rendered_image.imageWidth,
+                available_height / rendered_image.imageHeight,
+                1.0,
+            )
+            rendered_image.drawWidth = rendered_image.imageWidth * scale
+            rendered_image.drawHeight = rendered_image.imageHeight * scale
+            story.extend((rendered_image, spacer(1, 8)))
         if index in {5, 10, 15}:
             story.append(page_break())
     story.extend(
@@ -995,7 +1122,11 @@ def build_results_report(
     figure_records: list[dict[str, Any]] = []
     for spec in document.manifest.figures:
         figure_path = root / spec.relative_path
-        _draw_figure(document, spec, figure_path)
+        if spec.kind == "artifact_png":
+            if _file_sha256(figure_path) != spec.sha256:
+                raise ReportingError(f"artifact figure hash mismatch: {spec.figure_id}")
+        else:
+            _draw_figure(document, spec, figure_path)
         figure_records.append(
             {
                 "figure_id": spec.figure_id,
@@ -1004,6 +1135,7 @@ def build_results_report(
                 "source_table_sha256": (
                     document.tables[spec.table_id].spec.sha256 if spec.table_id else None
                 ),
+                "source_artifact_hashes": list(spec.source_artifact_hashes),
             }
         )
     table_records = [
@@ -1115,6 +1247,7 @@ def verify_report_build(
         if (
             item.get("relative_path") != spec.relative_path
             or item.get("source_table_sha256") != expected_source
+            or item.get("source_artifact_hashes", []) != list(spec.source_artifact_hashes)
         ):
             raise ReportingError(f"stale figure provenance: {item['figure_id']}")
         path = _safe_under(root, item["relative_path"])
@@ -1128,6 +1261,8 @@ def verify_report_build(
         if regenerated_pdf.read_bytes() != pdf_path.read_bytes():
             raise ReportingError("RESULTS_REPORT.pdf does not reproduce from immutable tables")
         for spec in document.manifest.figures:
+            if spec.kind == "artifact_png":
+                continue
             regenerated_figure = regeneration_root / spec.relative_path
             _draw_figure(document, spec, regenerated_figure)
             checked_figure = _safe_under(root, spec.relative_path)

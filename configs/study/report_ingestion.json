@@ -51,10 +51,10 @@
           "artifact_id": "synthetic-benchmark-manifest",
           "family": "heldout",
           "relative_path": "data/synthetic/manifests/benchmark_manifest.json",
-          "file_sha256": "b81da310ffe3477b8929aa50330e50db8e9f3152bdba05241256d3cf171fb41f",
+          "file_sha256": "15f022302ba1bfbf6f1caf8d3869b16752d02fd693966b2b9bcb1bf28d5be3bb",
           "media_type": "application/json",
           "release_class": "public",
-          "logical_hash": "6b592b99994c0140be2bd3db3399e8f5deb8ccc72f76de6367b83a6164659de6",
+          "logical_hash": "22bd5e47245938724fc25d289e86e286f4f19e6a4ffd45468649e4e8f68acb78",
           "logical_hash_field": "content_hash",
           "logical_hash_mode": "declared",
           "required_json_fields": ["held_out_world_count", "held_out_context_count", "review_complete", "held_out_launch_authorized"],
@@ -180,5 +180,5 @@
     {"table_id": "novel_case", "status": "blocked", "reason": "The lawful first-novel study has not executed.", "scope": "final", "relative_path": null, "file_sha256": null, "row_count": null, "required_columns": [], "source_artifact_ids": []},
     {"table_id": "qualitative_examples", "status": "incomplete", "reason": "Registered qualitative selections cannot be materialized before their source runs.", "scope": "final", "relative_path": null, "file_sha256": null, "row_count": null, "required_columns": [], "source_artifact_ids": []}
   ],
-  "manifest_sha256": "866934c29048cf698871550cf11f71bea3c6d75d939b815aed15f9059b86163b"
+  "manifest_sha256": "fb2aac2dcc188e867be7d118dfd8effa85b893d83d5cbba2b80c11e1b3fa1cf6"
 }

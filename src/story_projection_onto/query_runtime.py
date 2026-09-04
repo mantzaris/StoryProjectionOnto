@@ -9,6 +9,8 @@ the revealed query to its caller.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -24,6 +26,7 @@ from story_projection_onto.benchmark_runtime import (
     _resolve_flat_runtime_file,
     _verified_bytes,
     model_request_payload,
+    open_repository_runtime_stage,
     preconstruction_request_payload,
     scan_model_payload,
 )
@@ -187,12 +190,15 @@ class AuditedBenchmarkRuntime:
     def open_query(
         self,
         *,
-        staging_root: Path,
+        staging_root: Path | None,
         manifest: RuntimeStagingManifest,
         barrier: PrequeryBarrier,
         execution_id: str,
         execution_manifest_hash: str,
         access_event_id: str,
+        repository: Path | None = None,
+        stage_relative_path: str | None = None,
+        manifest_file_sha256: str | None = None,
     ) -> AuditedQueryOpening:
         """Open and persist exactly one query, exposing it only after commit."""
 
@@ -209,21 +215,79 @@ class AuditedBenchmarkRuntime:
             raise QueryOpeningError("query opening requires a persisted prequery barrier") from exc
         self._verify_persisted_barrier(barrier, barrier_record)
 
-        # Directory and manifest verification is deliberately completed before
-        # the first read of query.json.
-        _assert_exact_stage_directory(staging_root, manifest)
         if manifest.artifact_hashes[0] not in barrier.neutral_evidence_artifact_hashes:
             raise QueryOpeningError("query stage evidence is absent from the prequery barrier")
-        evidence_bytes = _verified_bytes(staging_root, manifest, "evidence.json")
-        evidence = ModelEligibleWorldArtifact.model_validate_json(evidence_bytes)
-        scan_model_payload(evidence.model_dump(mode="json"))
-        preconstruction_request_payload(evidence)
-        if evidence.content_hash not in barrier.neutral_evidence_artifact_hashes:
-            raise QueryOpeningError("verified evidence artifact is absent from the barrier")
-
-        query_path = _resolve_flat_runtime_file(staging_root / "query.json", staging_root)
-        query_bytes = query_path.read_bytes()
-        accessed_at = self._utc_now()
+        descriptor_mode = any(
+            item is not None
+            for item in (repository, stage_relative_path, manifest_file_sha256)
+        )
+        if descriptor_mode:
+            if (
+                staging_root is not None
+                or repository is None
+                or stage_relative_path is None
+                or manifest_file_sha256 is None
+            ):
+                raise QueryOpeningError(
+                    "descriptor query opening requires one complete repository-stage binding"
+                )
+            with open_repository_runtime_stage(
+                repository,
+                stage_relative_path,
+            ) as stage:
+                stage.assert_exact_files(
+                    {*manifest.file_names, manifest.manifest_file_name}
+                )
+                manifest_bytes = stage.read_bytes("manifest.json")
+                if (
+                    hashlib.sha256(manifest_bytes).hexdigest()
+                    != manifest_file_sha256
+                    or RuntimeStagingManifest.model_validate_json(manifest_bytes)
+                    != manifest
+                ):
+                    raise QueryOpeningError(
+                        "descriptor-bound query manifest differs from its reviewed reference"
+                    )
+                evidence_bytes = stage.read_bytes("evidence.json")
+                embedded = json.loads(evidence_bytes)
+                if (
+                    not isinstance(embedded, dict)
+                    or embedded.get("content_hash") != manifest.artifact_hashes[0]
+                ):
+                    raise GoldFirewallError(
+                        "query-stage evidence hash disagrees with its manifest"
+                    )
+                evidence = ModelEligibleWorldArtifact.model_validate_json(evidence_bytes)
+                scan_model_payload(evidence.model_dump(mode="json"))
+                preconstruction_request_payload(evidence)
+                if evidence.content_hash not in barrier.neutral_evidence_artifact_hashes:
+                    raise QueryOpeningError(
+                        "verified evidence artifact is absent from the barrier"
+                    )
+                query_bytes, accessed_at = stage.read_bytes_and_observe(
+                    "query.json",
+                    self._utc_now,
+                )
+        else:
+            if staging_root is None:
+                raise QueryOpeningError("query opening lacks a staging root")
+            # Compatibility path for development stages. Held-out execution
+            # exclusively uses the descriptor-bound repository mode above.
+            _assert_exact_stage_directory(staging_root, manifest)
+            evidence_bytes = _verified_bytes(staging_root, manifest, "evidence.json")
+            evidence = ModelEligibleWorldArtifact.model_validate_json(evidence_bytes)
+            scan_model_payload(evidence.model_dump(mode="json"))
+            preconstruction_request_payload(evidence)
+            if evidence.content_hash not in barrier.neutral_evidence_artifact_hashes:
+                raise QueryOpeningError(
+                    "verified evidence artifact is absent from the barrier"
+                )
+            query_path = _resolve_flat_runtime_file(
+                staging_root / "query.json",
+                staging_root,
+            )
+            query_bytes = query_path.read_bytes()
+            accessed_at = self._utc_now()
         # No query parsing, validation, callback, or model-visible return occurs
         # between the physical read above and this trusted timestamp. Verification
         # deliberately occurs below: even parsing an embedded checksum before the

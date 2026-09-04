@@ -1182,7 +1182,10 @@ class AlreadyOwnedPhase5C2Service(Protocol):
         model_visible_payload: dict[str, object],
     ) -> Phase5OwnedServiceResult: ...
 
-    def recover_feedback(self, request_hash: str) -> Phase5OwnedServiceResult | None: ...
+    def recover_feedback(
+        self,
+        request: C2RegenerationRequest,
+    ) -> Phase5OwnedServiceResult | None: ...
 
 
 class MeteredPhase5C2RegenerationAdapter:
@@ -1217,7 +1220,7 @@ class MeteredPhase5C2RegenerationAdapter:
 
         payload = request.model_visible_payload()
         scan_model_payload(payload)
-        recovered = self.service.recover_feedback(request.content_hash)
+        recovered = self.service.recover_feedback(request)
         if recovered is not None:
             current = self.cas.artifacts.ledger.gpu_summary().total_allocated_seconds
             if current + 1e-6 < recovered.cumulative_gpu_seconds_after:
@@ -1246,7 +1249,7 @@ class MeteredPhase5C2RegenerationAdapter:
     def recover(self, request: C2RegenerationRequest) -> C2RegenerationResult | None:
         """Recover ledger/CAS state without any inference or lifecycle side effect."""
 
-        service_result = self.service.recover_feedback(request.content_hash)
+        service_result = self.service.recover_feedback(request)
         if service_result is None:
             return None
         current = self.cas.artifacts.ledger.gpu_summary().total_allocated_seconds

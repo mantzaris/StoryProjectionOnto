@@ -1,0 +1,68 @@
+{
+  "schema_version": "1.0.0",
+  "kind": "phase1_fallback_service_retry_amendment",
+  "authorization_status": "authorized",
+  "authorization_basis": "The user instructed the agent to continue after the exact one-load, 300-second recovery amendment was presented.",
+  "recorded_at": "2026-09-04T14:39:16Z",
+  "authorized_recovery_run_id": "fallback-qwen3-8b-awq-development-v3",
+  "authoritative_plan_file_sha256": {
+    "methodological": "3edb6db82b2029e8d9483ecca02097031564fc481bbfbb60995a60ddc05df21d",
+    "implementation": "2b215f2af7a7b3475e800170510ba805fe76da619b47caba05cdb9a843f88855"
+  },
+  "base_gpu_call_inventory_file_sha256": "b9a63e12c05321969b8c8edee03575ea11f678062d28ce62e34d577ec2603ea0",
+  "fallback_policy_file_sha256": "21e9c900c893f54a6e2e6dbbc0c841ca55502d915c36bafe844c6feb1e79a4d2",
+  "fallback_activation_manifest_sha256": "224181b0929fd3f7800d9ad99e31e39ed6ed3ace42f2afdd81106efae989f657",
+  "primary_rejection_manifest_sha256": "a3b64a4f4c4382886c154657d989bee6a25a037e252ccd39a9681cdc59b757ea",
+  "model": {
+    "repository": "Qwen/Qwen3-8B-AWQ",
+    "revision": "4da05a8edb55c6046cce958586c33b61da07bb79",
+    "served_model_name": "qwen3-8b-awq-fallback"
+  },
+  "prior_failure": {
+    "run_id": "fallback-qwen3-8b-awq-development-v1",
+    "artifact_file_sha256": "c2d84fe31a2e4da613b5d7af418ba9d5c11d1b1c8f8e22583fba5f47ecaa42c3",
+    "artifact_manifest_sha256": "d08ce5ba02e866768a715eee9758be7ef13e5ed3c8e9844457e8d38b20240c7c",
+    "failure_stage": "fallback_micro_pilot",
+    "failure_type": "RuntimeWatchdogTimeout",
+    "failed_call_id": "controller-restart-prepare",
+    "completed_model_calls": 0,
+    "service_shutdown_verified": true,
+    "cumulative_gpu_microseconds": 422961986,
+    "gpu_event_count": 3,
+    "gpu_service_session_count": 3
+  },
+  "amendment": {
+    "additional_fallback_service_loads": 1,
+    "original_total_allocation_events": 8,
+    "amended_total_allocation_events": 9,
+    "recovery_service_start_watchdog_seconds": 300,
+    "additional_inference_attempts": 0,
+    "maximum_inference_attempts_unchanged": 278
+  },
+  "forecast": {
+    "prior_actual_allocated_seconds": 422.961986,
+    "remaining_mandatory_forecast_seconds": 29699.0,
+    "recovery_service_start_ceiling_seconds": 300.0,
+    "amended_actual_plus_remaining_ceiling_seconds": 30421.961986,
+    "scheduled_limit_seconds": 32400.0,
+    "hard_limit_seconds": 36000.0,
+    "admitted": true
+  },
+  "unchanged_scientific_controls": {
+    "model_snapshot": true,
+    "runtime_stack": true,
+    "no_cpu_weight_offload": true,
+    "generation_concurrency_one": true,
+    "prompts": true,
+    "schemas": true,
+    "evidence": true,
+    "decoding": true,
+    "seeds": true,
+    "inference_call_inventory": true,
+    "condition_semantics": true,
+    "validation_and_repair_policy": true
+  },
+  "scope": "One recovery service start after the recorded pre-inference fallback startup timeout; no further fallback service start is authorized.",
+  "authoritative_plans_rewritten": false,
+  "manifest_sha256": "9ef82782c03d9915c081e89cf554a531ef3d1fba42836c522d6ebf97cdce0f28"
+}

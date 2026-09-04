@@ -19,6 +19,7 @@ from story_projection_onto.contracts import (
 )
 from story_projection_onto.feedback_runtime import (
     FeedbackAttemptStatus,
+    FeedbackEpisodeKind,
     FeedbackLedgerCallReference,
     FeedbackRegenerationReceipt,
     ScriptedRevisionFreeze,
@@ -37,6 +38,7 @@ from story_projection_onto.phase5_execution import (
     ScorerOnlyFeedbackBinding,
     ScriptedFeedbackInput,
     SQLiteFeedbackLedgerVerifier,
+    _append_exact,
     execute_phase5,
     feedback_gpu_event_record_hash,
     feedback_model_call_record_hash,
@@ -404,6 +406,13 @@ class _CrashBeforeResultAdapter(_Adapter):
     def regenerate(self, request: C2RegenerationRequest) -> C2RegenerationResult:
         self.calls.append(request.call_slot_id)
         raise RuntimeError("TEST-ONLY simulated controller loss after durable slot")
+
+
+class _AmbiguousRecoveryAdapter(_Adapter):
+    def recover(self, request: C2RegenerationRequest) -> C2RegenerationResult | None:
+        raise InterruptedFeedbackCallRecoveryRequired(
+            f"durable Phase 5 slot {request.call_slot_id} has ambiguous adapter trace"
+        )
 
 
 def test_runner_configuration_binds_frozen_protocol() -> None:
@@ -776,8 +785,8 @@ def test_orphaned_call_slot_requires_recovery_and_is_never_resent(tmp_path: Path
     assert len(crashed.calls) == 1
     assert len(tuple((root / "call_slots").iterdir())) == 1
 
-    replacement = _Adapter()
-    with pytest.raises(InterruptedFeedbackCallRecoveryRequired, match="no recoverable result"):
+    replacement = _AmbiguousRecoveryAdapter()
+    with pytest.raises(InterruptedFeedbackCallRecoveryRequired, match="ambiguous adapter trace"):
         execute_phase5(
             inputs=inputs,
             protocol=protocol,
@@ -788,6 +797,41 @@ def test_orphaned_call_slot_requires_recovery_and_is_never_resent(tmp_path: Path
             completed_at=NOW + timedelta(minutes=5),
         )
     assert replacement.calls == []
+
+
+def test_outer_phase5_slot_without_adapter_trace_is_issued_exactly_once(
+    tmp_path: Path,
+) -> None:
+    protocol, gate, inputs = _inputs()
+    root = tmp_path / "TEST-ONLY-pre-adapter-crash"
+    script = inputs.scripted_inputs[0]
+    before = script.c2_before_projection
+    request = C2RegenerationRequest(
+        call_slot_id=f"phase5-c2-{script.episode_id}",
+        episode_id=script.episode_id,
+        kind=FeedbackEpisodeKind.SCRIPTED_KNOWN_ANSWER,
+        instruction=script.instruction,
+        packet=script.packet,
+        before_projection_id=before.projection_id,
+        before_projection_hash=before.content_hash,
+        before_context_hash=before.context_hash,
+        before_packet_hash=before.packet_hash,
+        protocol_hash=protocol.content_hash,
+        seed=protocol.llm_seed,
+    )
+    _append_exact(root / "call_slots" / f"{script.episode_id}.json", request)
+    adapter = _Adapter()
+    execute_phase5(
+        inputs=inputs,
+        protocol=protocol,
+        prerequisites=gate,
+        adapter=adapter,
+        ledger_verifier=_Verifier(),
+        output_root=root,
+        completed_at=NOW + timedelta(minutes=5),
+    )
+    assert adapter.calls.count(request.call_slot_id) == 1
+    assert len(adapter.calls) == 9
 
 
 def test_symlinked_journal_root_fails_closed(tmp_path: Path) -> None:

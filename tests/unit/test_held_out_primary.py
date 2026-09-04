@@ -169,6 +169,24 @@ def test_stage_reference_rejects_tampered_artifact_bytes(tmp_path: Path) -> None
         held_out._stage_reference(tmp_path, "stage")
 
 
+def test_stage_reference_rejects_symlinked_ancestor_and_manifest(
+    tmp_path: Path,
+) -> None:
+    source = next((ROOT / "data/synthetic/model_visible/prequery_stages").glob("*/"))
+    real = tmp_path / "real" / "stage"
+    shutil.copytree(source, real)
+    (tmp_path / "linked").symlink_to(tmp_path / "real", target_is_directory=True)
+    with pytest.raises(HeldOutControlError, match="containment or no-symlink"):
+        held_out._stage_reference(tmp_path, "linked/stage")
+
+    manifest = real / "manifest.json"
+    saved = real / "saved-manifest.json"
+    manifest.rename(saved)
+    manifest.symlink_to(saved.name)
+    with pytest.raises(HeldOutControlError, match="regular non-symlink"):
+        held_out._stage_reference(tmp_path, "real/stage")
+
+
 def test_call_manifest_derivation_never_opens_held_out_query_payload(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

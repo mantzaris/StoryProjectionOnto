@@ -103,7 +103,7 @@ endobj
 13 0 obj
 <<
 /Author (StoryProjectionOnto reproducible reporting pipeline) /CreationDate (D:20000101000000+00'00') /Creator (\(unspecified\)) /Keywords () /ModDate (D:20000101000000+00'00') /Producer (ReportLab PDF Library - \(opensource\)) 
-  /Subject (source manifest ab5408139af322219e8503d1a0175b6fe48591b1113626183e98331539c7f473) /Title (StoryProjectionOnto: Conference-Study Results Report) /Trapped /False
+  /Subject (source manifest 16a65d4bb31bd34c4c0f5564062f348388b4d7d841b1ae80e648e6e0577bc071) /Title (StoryProjectionOnto: Conference-Study Results Report) /Trapped /False
 >>
 endobj
 14 0 obj
@@ -113,7 +113,7 @@ endobj
 endobj
 15 0 obj
 <<
-/Length 5729
+/Length 5795
 >>
 stream
 1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
@@ -150,11 +150,53 @@ q
 1 0 0 1 45.6 628.4 cm
 q
 0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 18 Tf 22 TL (Study overview) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 586.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 26 Tm /F1 10 Tf 12 TL (Narrative evidence does not determine one universally useful ontology. This study tests whether revealing a user's) Tj T* (context before ontology construction changes the semantic fidelity and organization of the resulting) Tj T* (evidence-grounded graph.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 556.4 cm
+q
+BT 1 0 0 1 0 14 Tm 12 TL /F2 10 Tf 0 0 0 rg (RQ1:) Tj /F1 10 Tf ( Does query-dependent LLM construction improve qualified-assertion and ontology-decision fidelity relative to) Tj T* (query-blind LLM and classical construction?) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 526.4 cm
+q
+BT 1 0 0 1 0 14 Tm 12 TL /F2 10 Tf 0 0 0 rg (RQ2:) Tj /F1 10 Tf ( How does construction timing change entropy and directly measured visual clutter when semantic and) Tj T* (rare-pivotal safeguards remain visible?) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 508.4 cm
+q
+BT 1 0 0 1 0 2 Tm 12 TL /F2 10 Tf 0 0 0 rg (RQ3:) Tj /F1 10 Tf ( How does construction timing change gold-aligned community structure and cross-seed cluster stability?) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 466.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 26 Tm /F1 10 Tf 12 TL (The query-blind evidence index stores only source-grounded evidence and retrieval metadata; it is not a hidden) Tj T* (ontology. C2 forms contextual entities, events, schema, relations, abstractions, and qualified assertions after query) Tj T* (reveal.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 456.4 cm
+Q
+q
+1 0 0 1 45.6 434.4 cm
+q
+0 0 0 rg
 BT 1 0 0 1 0 4 Tm /F2 18 Tf 22 TL (1. Research questions and hypotheses) Tj T* ET
 Q
 Q
 q
-1 0 0 1 45.6 598.4 cm
+1 0 0 1 45.6 404.4 cm
 q
 .545098 .117647 .247059 RG
 .8 w
@@ -167,31 +209,31 @@ BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (STATUS: INCOMPLETE \227 Contracts, resource 
 Q
 Q
 q
-1 0 0 1 45.6 576.4 cm
+1 0 0 1 45.6 382.4 cm
 q
 0 0 0 rg
 BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (No confirmatory or descriptive outcome is available for this section.) Tj T* ET
 Q
 Q
 q
-1 0 0 1 45.6 546.4 cm
+1 0 0 1 45.6 352.4 cm
 q
 0 0 0 rg
 BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (H1-semantic registers strict qualified-assertion F1 and H1-organization registers ontology-decision macro F1 for C2) Tj T* (versus C1. Rare-pivotal recall is a noncompensable safeguard, not another optimization target.) Tj T* ET
 Q
 Q
 q
-1 0 0 1 45.6 541.4 cm
+1 0 0 1 45.6 347.4 cm
 Q
 q
-1 0 0 1 45.6 519.4 cm
+1 0 0 1 45.6 325.4 cm
 q
 0 0 0 rg
 BT 1 0 0 1 0 4 Tm /F2 18 Tf 22 TL (2. Experimental conditions and construction timing) Tj T* ET
 Q
 Q
 q
-1 0 0 1 45.6 489.4 cm
+1 0 0 1 45.6 295.4 cm
 q
 .545098 .117647 .247059 RG
 .8 w
@@ -204,31 +246,31 @@ BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (STATUS: INCOMPLETE \227 Conditions and prima
 Q
 Q
 q
-1 0 0 1 45.6 467.4 cm
+1 0 0 1 45.6 273.4 cm
 q
 0 0 0 rg
 BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (No confirmatory or descriptive outcome is available for this section.) Tj T* ET
 Q
 Q
 q
-1 0 0 1 45.6 437.4 cm
+1 0 0 1 45.6 243.4 cm
 q
 0 0 0 rg
 BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (C0 and C1 construct before query reveal; C2 actively constructs after query reveal; A-FixedSelect uses query-time) Tj T* (LLM selection over the complete sealed C1 ontology while construction operations are mechanically forbidden.) Tj T* ET
 Q
 Q
 q
-1 0 0 1 45.6 432.4 cm
+1 0 0 1 45.6 238.4 cm
 Q
 q
-1 0 0 1 45.6 410.4 cm
+1 0 0 1 45.6 216.4 cm
 q
 0 0 0 rg
 BT 1 0 0 1 0 4 Tm /F2 18 Tf 22 TL (3. Temporal qualified-assertion representation) Tj T* ET
 Q
 Q
 q
-1 0 0 1 45.6 380.4 cm
+1 0 0 1 45.6 186.4 cm
 q
 .545098 .117647 .247059 RG
 .8 w
@@ -241,31 +283,31 @@ BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (STATUS: INCOMPLETE \227 Contracts, resource 
 Q
 Q
 q
-1 0 0 1 45.6 358.4 cm
+1 0 0 1 45.6 164.4 cm
 q
 0 0 0 rg
 BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (No confirmatory or descriptive outcome is available for this section.) Tj T* ET
 Q
 Q
 q
-1 0 0 1 45.6 328.4 cm
+1 0 0 1 45.6 134.4 cm
 q
 0 0 0 rg
 BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (Assertions separate story time, validity time, discourse order, proposition revelation position, spoiler horizon,) Tj T* (holder-level epistemic status, confidence, provenance, contextual relevance, and supported why-it-matters text.) Tj T* ET
 Q
 Q
 q
-1 0 0 1 45.6 323.4 cm
+1 0 0 1 45.6 129.4 cm
 Q
 q
-1 0 0 1 45.6 301.4 cm
+1 0 0 1 45.6 107.4 cm
 q
 0 0 0 rg
 BT 1 0 0 1 0 4 Tm /F2 18 Tf 22 TL (4. Synthetic benchmark construction and split) Tj T* ET
 Q
 Q
 q
-1 0 0 1 45.6 271.4 cm
+1 0 0 1 45.6 77.4 cm
 q
 .545098 .117647 .247059 RG
 .8 w
@@ -278,31 +320,40 @@ BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (STATUS: INCOMPLETE \227 Synthetic benchmark:
 Q
 Q
 q
-1 0 0 1 45.6 249.4 cm
+1 0 0 1 45.6 55.4 cm
 q
 0 0 0 rg
 BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (No confirmatory or descriptive outcome is available for this section.) Tj T* ET
 Q
 Q
+ 
+endstream
+endobj
+16 0 obj
+<<
+/Length 7489
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
 q
-1 0 0 1 45.6 219.4 cm
+1 0 0 1 45.6 722.4 cm
 q
 0 0 0 rg
 BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (The registered design contains four development worlds and twelve held-out worlds with three same-evidence) Tj T* (contexts per held-out world. Held-out execution remains gated on independent condition-blind review.) Tj T* ET
 Q
 Q
 q
-1 0 0 1 45.6 214.4 cm
+1 0 0 1 45.6 717.4 cm
 Q
 q
-1 0 0 1 45.6 192.4 cm
+1 0 0 1 45.6 695.4 cm
 q
 0 0 0 rg
 BT 1 0 0 1 0 4 Tm /F2 18 Tf 22 TL (5. Resource and reproducibility controls) Tj T* ET
 Q
 Q
 q
-1 0 0 1 45.6 150.4 cm
+1 0 0 1 45.6 653.4 cm
 q
 .545098 .117647 .247059 RG
 .8 w
@@ -315,47 +366,38 @@ BT 1 0 0 1 0 26 Tm /F1 10 Tf 12 TL (STATUS: INCOMPLETE \227 Contracts, resource 
 Q
 Q
 q
-1 0 0 1 45.6 128.4 cm
+1 0 0 1 45.6 631.4 cm
 q
 0 0 0 rg
 BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (No confirmatory or descriptive outcome is available for this section.) Tj T* ET
 Q
 Q
 q
-1 0 0 1 45.6 98.4 cm
+1 0 0 1 45.6 601.4 cm
 q
 0 0 0 rg
 BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (GPU time includes loading, warm-up, failures, repairs, restarts, and inference. Occupied project storage targets at) Tj T* (most 25 GB with 5 GB protected headroom.) Tj T* ET
 Q
 Q
 q
-1 0 0 1 45.6 93.4 cm
+1 0 0 1 45.6 596.4 cm
 Q
 q
-1 0 0 1 45.6 75.4 cm
+1 0 0 1 45.6 578.4 cm
 q
 0 0 0 rg
 BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (Interim verified table. It is not a completed section outcome.) Tj T* ET
 Q
 Q
- 
-endstream
-endobj
-16 0 obj
-<<
-/Length 8084
->>
-stream
-1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
 q
-1 0 0 1 45.6 728.4 cm
+1 0 0 1 45.6 548.4 cm
 q
 0 0 0 rg
 BT 1 0 0 1 0 4 Tm /F2 14 Tf 18 TL (Machine-readable phase status at this build) Tj T* ET
 Q
 Q
 q
-1 0 0 1 43.2 458.4 cm
+1 0 0 1 43.2 278.4 cm
 q
 .141176 .231373 .32549 rg
 n 0 264 525.6 -18 re f*
@@ -552,66 +594,66 @@ Q
 Q
 Q
 q
-1 0 0 1 45.6 450.4 cm
+1 0 0 1 45.6 270.4 cm
 Q
 q
-1 0 0 1 45.6 432.4 cm
+1 0 0 1 45.6 252.4 cm
 q
 0 0 0 rg
 BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (Interim verified table. It is not a completed section outcome.) Tj T* ET
 Q
 Q
 q
-1 0 0 1 45.6 402.4 cm
+1 0 0 1 45.6 222.4 cm
 q
 0 0 0 rg
 BT 1 0 0 1 0 4 Tm /F2 14 Tf 18 TL (Verified resource accounting through the rejected primary pilot \(not final\)) Tj T* ET
 Q
 Q
 q
-1 0 0 1 43.2 48.4 cm
+1 0 0 1 43.2 66.4 cm
 q
 .141176 .231373 .32549 rg
-n 0 348 525.6 -18 re f*
+n 0 150 525.6 -18 re f*
 1 1 1 rg
 BT /F1 10 Tf 12 TL ET
 q
-1 0 0 1 3 333 cm
+1 0 0 1 3 135 cm
 q
 0 0 0 rg
 BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (scope) Tj T* ET
 Q
 Q
 q
-1 0 0 1 90.6 333 cm
+1 0 0 1 90.6 135 cm
 q
 0 0 0 rg
 BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (metric) Tj T* ET
 Q
 Q
 q
-1 0 0 1 178.2 333 cm
+1 0 0 1 178.2 135 cm
 q
 0 0 0 rg
 BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (value) Tj T* ET
 Q
 Q
 q
-1 0 0 1 265.8 333 cm
+1 0 0 1 265.8 135 cm
 q
 0 0 0 rg
 BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (unit) Tj T* ET
 Q
 Q
 q
-1 0 0 1 353.4 333 cm
+1 0 0 1 353.4 135 cm
 q
 0 0 0 rg
 BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (status) Tj T* ET
 Q
 Q
 q
-1 0 0 1 441 333 cm
+1 0 0 1 441 135 cm
 q
 0 0 0 rg
 BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (source_note) Tj T* ET
@@ -619,157 +661,31 @@ Q
 Q
 0 0 0 rg
 q
-1 0 0 1 3 303 cm
-q
-0 0 0 rg
-BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (primary_14b_pilot) Tj T* (_to_date) Tj T* ET
-Q
-Q
-q
-1 0 0 1 90.6 303 cm
-q
-0 0 0 rg
-BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (actual_allocated_) Tj T* (gpu_time) Tj T* ET
-Q
-Q
-q
-1 0 0 1 178.2 315 cm
-q
-0 0 0 rg
-BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (212.281778) Tj T* ET
-Q
-Q
-q
-1 0 0 1 265.8 315 cm
-q
-0 0 0 rg
-BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (seconds) Tj T* ET
-Q
-Q
-q
-1 0 0 1 353.4 315 cm
-q
-0 0 0 rg
-BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (observed) Tj T* ET
-Q
-Q
-q
-1 0 0 1 441 267 cm
-q
-0 0 0 rg
-BT 1 0 0 1 0 50 Tm /F1 10 Tf 12 TL (Includes both) Tj T* (failed service-start) Tj T* (allocations) Tj T* (recorded in the) Tj T* (cumulative ledger.) Tj T* ET
-Q
-Q
-q
-1 0 0 1 3 237 cm
-q
-0 0 0 rg
-BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (primary_14b_pilot) Tj T* (_to_date) Tj T* ET
-Q
-Q
-q
-1 0 0 1 90.6 237 cm
-q
-0 0 0 rg
-BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (actual_allocated_) Tj T* (gpu_time) Tj T* ET
-Q
-Q
-q
-1 0 0 1 178.2 249 cm
-q
-0 0 0 rg
-BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (0.058967161) Tj T* ET
-Q
-Q
-q
-1 0 0 1 265.8 249 cm
-q
-0 0 0 rg
-BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (hours) Tj T* ET
-Q
-Q
-q
-1 0 0 1 353.4 249 cm
-q
-0 0 0 rg
-BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (observed) Tj T* ET
-Q
-Q
-q
-1 0 0 1 441 201 cm
-q
-0 0 0 rg
-BT 1 0 0 1 0 50 Tm /F1 10 Tf 12 TL (Derived exactly) Tj T* (from cumulative) Tj T* (allocated) Tj T* (microseconds for) Tj T* (display only.) Tj T* ET
-Q
-Q
-q
-1 0 0 1 3 171 cm
-q
-0 0 0 rg
-BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (primary_14b_pilot) Tj T* (_v2) Tj T* ET
-Q
-Q
-q
-1 0 0 1 90.6 183 cm
-q
-0 0 0 rg
-BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (peak_gpu_vram) Tj T* ET
-Q
-Q
-q
-1 0 0 1 178.2 183 cm
-q
-0 0 0 rg
-BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (10638852096) Tj T* ET
-Q
-Q
-q
-1 0 0 1 265.8 183 cm
-q
-0 0 0 rg
-BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (bytes) Tj T* ET
-Q
-Q
-q
-1 0 0 1 353.4 183 cm
-q
-0 0 0 rg
-BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (observed) Tj T* ET
-Q
-Q
-q
-1 0 0 1 441 135 cm
-q
-0 0 0 rg
-BT 1 0 0 1 0 50 Tm /F1 10 Tf 12 TL (Maximum) Tj T* (persisted) Tj T* (resource sample) Tj T* (in the rejected v2) Tj T* (run.) Tj T* ET
-Q
-Q
-q
 1 0 0 1 3 105 cm
 q
 0 0 0 rg
-BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (primary_14b_pilot) Tj T* (_v2) Tj T* ET
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (primary_14b_pilot) Tj T* (_to_date) Tj T* ET
 Q
 Q
 q
 1 0 0 1 90.6 105 cm
 q
 0 0 0 rg
-BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (peak_process_ra) Tj T* (m) Tj T* ET
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (actual_allocated_) Tj T* (gpu_time) Tj T* ET
 Q
 Q
 q
 1 0 0 1 178.2 117 cm
 q
 0 0 0 rg
-BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (2432729088) Tj T* ET
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (212.281778) Tj T* ET
 Q
 Q
 q
 1 0 0 1 265.8 117 cm
 q
 0 0 0 rg
-BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (bytes) Tj T* ET
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (seconds) Tj T* ET
 Q
 Q
 q
@@ -783,35 +699,35 @@ q
 1 0 0 1 441 69 cm
 q
 0 0 0 rg
-BT 1 0 0 1 0 50 Tm /F1 10 Tf 12 TL (Maximum) Tj T* (persisted) Tj T* (resource sample) Tj T* (in the rejected v2) Tj T* (run.) Tj T* ET
+BT 1 0 0 1 0 50 Tm /F1 10 Tf 12 TL (Includes both) Tj T* (failed service-start) Tj T* (allocations) Tj T* (recorded in the) Tj T* (cumulative ledger.) Tj T* ET
 Q
 Q
 q
 1 0 0 1 3 39 cm
 q
 0 0 0 rg
-BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (primary_14b_pilot) Tj T* (_v2) Tj T* ET
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (primary_14b_pilot) Tj T* (_to_date) Tj T* ET
 Q
 Q
 q
 1 0 0 1 90.6 39 cm
 q
 0 0 0 rg
-BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (peak_project_stor) Tj T* (age) Tj T* ET
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (actual_allocated_) Tj T* (gpu_time) Tj T* ET
 Q
 Q
 q
 1 0 0 1 178.2 51 cm
 q
 0 0 0 rg
-BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (13623907840) Tj T* ET
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (0.058967161) Tj T* ET
 Q
 Q
 q
 1 0 0 1 265.8 51 cm
 q
 0 0 0 rg
-BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (bytes) Tj T* ET
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (hours) Tj T* ET
 Q
 Q
 q
@@ -825,7 +741,7 @@ q
 1 0 0 1 441 3 cm
 q
 0 0 0 rg
-BT 1 0 0 1 0 50 Tm /F1 10 Tf 12 TL (Maximum) Tj T* (persisted) Tj T* (resource sample) Tj T* (in the rejected v2) Tj T* (run.) Tj T* ET
+BT 1 0 0 1 0 50 Tm /F1 10 Tf 12 TL (Derived exactly) Tj T* (from cumulative) Tj T* (allocated) Tj T* (microseconds for) Tj T* (display only.) Tj T* ET
 Q
 Q
 q
@@ -833,20 +749,17 @@ q
 1 j
 .623529 .701961 .784314 RG
 .3 w
-n 0 348 m 525.6 348 l S
-n 0 0 m 0 348 l S
-n 525.6 0 m 525.6 348 l S
+n 0 150 m 525.6 150 l S
+n 0 0 m 0 150 l S
+n 525.6 0 m 525.6 150 l S
 n 0 0 m 525.6 0 l S
-n 0 330 m 525.6 330 l S
-n 0 264 m 525.6 264 l S
-n 0 198 m 525.6 198 l S
 n 0 132 m 525.6 132 l S
 n 0 66 m 525.6 66 l S
-n 87.6 0 m 87.6 348 l S
-n 175.2 0 m 175.2 348 l S
-n 262.8 0 m 262.8 348 l S
-n 350.4 0 m 350.4 348 l S
-n 438 0 m 438 348 l S
+n 87.6 0 m 87.6 150 l S
+n 175.2 0 m 175.2 150 l S
+n 262.8 0 m 262.8 150 l S
+n 350.4 0 m 350.4 150 l S
+n 438 0 m 438 150 l S
 Q
 Q
 Q
@@ -855,60 +768,186 @@ endstream
 endobj
 17 0 obj
 <<
-/Length 3076
+/Length 5139
 >>
 stream
 1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
 q
-1 0 0 1 43.2 542.4 cm
+1 0 0 1 43.2 344.4 cm
 q
 .141176 .231373 .32549 rg
-n 0 204 525.6 -18 re f*
+n 0 402 525.6 -18 re f*
 1 1 1 rg
 BT /F1 10 Tf 12 TL ET
 q
-1 0 0 1 3 189 cm
+1 0 0 1 3 387 cm
 q
 0 0 0 rg
 BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (scope) Tj T* ET
 Q
 Q
 q
-1 0 0 1 90.6 189 cm
+1 0 0 1 90.6 387 cm
 q
 0 0 0 rg
 BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (metric) Tj T* ET
 Q
 Q
 q
-1 0 0 1 178.2 189 cm
+1 0 0 1 178.2 387 cm
 q
 0 0 0 rg
 BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (value) Tj T* ET
 Q
 Q
 q
-1 0 0 1 265.8 189 cm
+1 0 0 1 265.8 387 cm
 q
 0 0 0 rg
 BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (unit) Tj T* ET
 Q
 Q
 q
-1 0 0 1 353.4 189 cm
+1 0 0 1 353.4 387 cm
 q
 0 0 0 rg
 BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (status) Tj T* ET
 Q
 Q
 q
-1 0 0 1 441 189 cm
+1 0 0 1 441 387 cm
 q
 0 0 0 rg
 BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (source_note) Tj T* ET
 Q
 Q
 0 0 0 rg
+q
+1 0 0 1 3 357 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (primary_14b_pilot) Tj T* (_v2) Tj T* ET
+Q
+Q
+q
+1 0 0 1 90.6 369 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (peak_gpu_vram) Tj T* ET
+Q
+Q
+q
+1 0 0 1 178.2 369 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (10638852096) Tj T* ET
+Q
+Q
+q
+1 0 0 1 265.8 369 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (bytes) Tj T* ET
+Q
+Q
+q
+1 0 0 1 353.4 369 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (observed) Tj T* ET
+Q
+Q
+q
+1 0 0 1 441 321 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 50 Tm /F1 10 Tf 12 TL (Maximum) Tj T* (persisted) Tj T* (resource sample) Tj T* (in the rejected v2) Tj T* (run.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 3 291 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (primary_14b_pilot) Tj T* (_v2) Tj T* ET
+Q
+Q
+q
+1 0 0 1 90.6 291 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (peak_process_ra) Tj T* (m) Tj T* ET
+Q
+Q
+q
+1 0 0 1 178.2 303 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (2432729088) Tj T* ET
+Q
+Q
+q
+1 0 0 1 265.8 303 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (bytes) Tj T* ET
+Q
+Q
+q
+1 0 0 1 353.4 303 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (observed) Tj T* ET
+Q
+Q
+q
+1 0 0 1 441 255 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 50 Tm /F1 10 Tf 12 TL (Maximum) Tj T* (persisted) Tj T* (resource sample) Tj T* (in the rejected v2) Tj T* (run.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 3 225 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (primary_14b_pilot) Tj T* (_v2) Tj T* ET
+Q
+Q
+q
+1 0 0 1 90.6 225 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (peak_project_stor) Tj T* (age) Tj T* ET
+Q
+Q
+q
+1 0 0 1 178.2 237 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (13623907840) Tj T* ET
+Q
+Q
+q
+1 0 0 1 265.8 237 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (bytes) Tj T* ET
+Q
+Q
+q
+1 0 0 1 353.4 237 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (observed) Tj T* ET
+Q
+Q
+q
+1 0 0 1 441 189 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 50 Tm /F1 10 Tf 12 TL (Maximum) Tj T* (persisted) Tj T* (resource sample) Tj T* (in the rejected v2) Tj T* (run.) Tj T* ET
+Q
+Q
 q
 1 0 0 1 3 171 cm
 q
@@ -1032,30 +1071,33 @@ q
 1 j
 .623529 .701961 .784314 RG
 .3 w
-n 0 204 m 525.6 204 l S
-n 0 186 m 0 204 l S
-n 0 0 m 0 186 l S
-n 525.6 186 m 525.6 204 l S
-n 525.6 0 m 525.6 186 l S
+n 0 402 m 525.6 402 l S
+n 0 384 m 0 402 l S
+n 0 0 m 0 384 l S
+n 525.6 384 m 525.6 402 l S
+n 525.6 0 m 525.6 384 l S
 n 0 0 m 525.6 0 l S
+n 0 384 m 525.6 384 l S
+n 87.6 384 m 87.6 402 l S
+n 175.2 384 m 175.2 402 l S
+n 262.8 384 m 262.8 402 l S
+n 350.4 384 m 350.4 402 l S
+n 438 384 m 438 402 l S
+n 0 318 m 525.6 318 l S
+n 0 252 m 525.6 252 l S
 n 0 186 m 525.6 186 l S
-n 87.6 186 m 87.6 204 l S
-n 175.2 186 m 175.2 204 l S
-n 262.8 186 m 262.8 204 l S
-n 350.4 186 m 350.4 204 l S
-n 438 186 m 438 204 l S
 n 0 132 m 525.6 132 l S
 n 0 54 m 525.6 54 l S
-n 87.6 0 m 87.6 186 l S
-n 175.2 0 m 175.2 186 l S
-n 262.8 0 m 262.8 186 l S
-n 350.4 0 m 350.4 186 l S
-n 438 0 m 438 186 l S
+n 87.6 0 m 87.6 384 l S
+n 175.2 0 m 175.2 384 l S
+n 262.8 0 m 262.8 384 l S
+n 350.4 0 m 350.4 384 l S
+n 438 0 m 438 384 l S
 Q
 Q
 Q
 q
-1 0 0 1 45.6 534.4 cm
+1 0 0 1 45.6 336.4 cm
 Q
  
 endstream
@@ -1450,7 +1492,7 @@ endstream
 endobj
 20 0 obj
 <<
-/Length 8354
+/Length 8403
 >>
 stream
 1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
@@ -1485,7 +1527,7 @@ q
 1 0 0 1 45.6 608.4 cm
 q
 0 0 0 rg
-BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (Failures and invalid or unrepaired outputs remain visible and intention-to-treat. The table below is cumulative only) Tj T* (through the rejected primary pilot.) Tj T* ET
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (Failures and invalid or unrepaired outputs remain visible and intention-to-treat. Final accounting is cumulative across) Tj T* (every registered base call, repair, failure, timeout, and GPU-service allocation.) Tj T* ET
 Q
 Q
 q
@@ -2471,7 +2513,7 @@ q
 1 0 0 1 45.6 165.4 cm
 q
 0 0 0 rg
-BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (Source manifest SHA-256: ab5408139af322219e8503d1a0175b6fe48591b1113626183e98331539c7f473) Tj T* ET
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (Source manifest SHA-256: 16a65d4bb31bd34c4c0f5564062f348388b4d7d841b1ae80e648e6e0577bc071) Tj T* ET
 Q
 Q
  
@@ -2495,17 +2537,17 @@ xref
 0000001953 00000 n 
 0000002376 00000 n 
 0000002480 00000 n 
-0000008261 00000 n 
-0000016397 00000 n 
-0000019525 00000 n 
-0000024423 00000 n 
-0000028932 00000 n 
-0000037338 00000 n 
-0000044812 00000 n 
+0000008327 00000 n 
+0000015868 00000 n 
+0000021059 00000 n 
+0000025957 00000 n 
+0000030466 00000 n 
+0000038921 00000 n 
+0000046395 00000 n 
 trailer
 <<
 /ID 
-[<6c492cee1d043bff52fe8cfea748f687><6c492cee1d043bff52fe8cfea748f687>]
+[<94e7e9de08c7d01d6d0feb400479fba3><94e7e9de08c7d01d6d0feb400479fba3>]
 % ReportLab generated PDF document -- digest (opensource)
 
 /Info 13 0 R
@@ -2513,5 +2555,5 @@ trailer
 /Size 23
 >>
 startxref
-50087
+51670
 %%EOF

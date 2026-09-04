@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import shutil
 from collections.abc import Iterator
 from dataclasses import replace
@@ -11,6 +12,7 @@ import pytest
 import story_projection_onto.query_runtime as query_runtime_module
 from story_projection_onto.benchmark import compile_benchmark
 from story_projection_onto.benchmark_runtime import (
+    DescriptorBoundRuntimeStage,
     ModelEligibleWorldArtifact,
     QueryRevealArtifact,
     RuntimeStagingManifest,
@@ -183,6 +185,118 @@ def test_query_is_clocked_before_parse_and_persisted_before_return(
         stored = blobs.read_bytes(reopened.get_artifact(event_artifact))
     assert persisted == opening.persistence
     assert stored == (opening.access_event.to_canonical_json() + "\n").encode()
+
+
+@pytest.mark.integration
+def test_descriptor_bound_query_open_survives_stage_path_rename_without_following_replacement(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stage, manifest = _copy_stage(tmp_path)
+    expected_context, evidence, _, _ = _expected_context_and_evidence(stage)
+    manifest_sha256 = hashlib.sha256((stage / "manifest.json").read_bytes()).hexdigest()
+    clock = _Clock(
+        iter(
+            (
+                expected_context.revealed_at - timedelta(seconds=1),
+                expected_context.revealed_at + timedelta(seconds=1),
+            )
+        )
+    )
+    ledger, _, runtime = _runtime(tmp_path, clock)
+    barrier = _barrier(evidence, expected_context)
+    runtime.persist_prequery_barrier(barrier, release_class=ReleaseClass.PUBLIC)
+
+    attacker = tmp_path / "attacker-stage"
+    shutil.copytree(stage, attacker)
+    (attacker / "query.json").write_text("{}", encoding="utf-8")
+    detached = tmp_path / "detached-stage"
+    original_read = DescriptorBoundRuntimeStage.read_bytes
+    swapped = False
+
+    def swap_after_evidence(
+        descriptor_stage: DescriptorBoundRuntimeStage,
+        name: str,
+    ) -> bytes:
+        nonlocal swapped
+        payload = original_read(descriptor_stage, name)
+        if name == "evidence.json" and not swapped:
+            stage.rename(detached)
+            stage.symlink_to(attacker, target_is_directory=True)
+            swapped = True
+        return payload
+
+    monkeypatch.setattr(DescriptorBoundRuntimeStage, "read_bytes", swap_after_evidence)
+    try:
+        opening = runtime.open_query(
+            staging_root=None,
+            manifest=manifest,
+            barrier=barrier,
+            execution_id=barrier.execution_id,
+            execution_manifest_hash=barrier.execution_manifest_hash,
+            access_event_id="descriptor-bound-query-access",
+            repository=tmp_path,
+            stage_relative_path="query-stage",
+            manifest_file_sha256=manifest_sha256,
+        )
+    finally:
+        ledger.close()
+
+    assert swapped
+    assert stage.is_symlink()
+    assert opening.context == expected_context
+    assert opening.reveal.content_hash == manifest.artifact_hashes[1]
+
+
+@pytest.mark.integration
+def test_descriptor_bound_query_open_rejects_byte_identical_leaf_inode_swap(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    stage, manifest = _copy_stage(tmp_path)
+    expected_context, evidence, _, _ = _expected_context_and_evidence(stage)
+    replacement = tmp_path / "replacement-evidence.json"
+    shutil.copy2(stage / "evidence.json", replacement)
+    clock = _Clock(
+        iter(
+            (
+                expected_context.revealed_at - timedelta(seconds=1),
+                expected_context.revealed_at + timedelta(seconds=1),
+            )
+        )
+    )
+    ledger, _, runtime = _runtime(tmp_path, clock)
+    barrier = _barrier(evidence, expected_context)
+    runtime.persist_prequery_barrier(barrier, release_class=ReleaseClass.PUBLIC)
+    original_read = DescriptorBoundRuntimeStage.read_bytes
+
+    def replace_after_evidence(
+        descriptor_stage: DescriptorBoundRuntimeStage,
+        name: str,
+    ) -> bytes:
+        payload = original_read(descriptor_stage, name)
+        if name == "evidence.json":
+            replacement.replace(stage / "evidence.json")
+        return payload
+
+    monkeypatch.setattr(DescriptorBoundRuntimeStage, "read_bytes", replace_after_evidence)
+    try:
+        with pytest.raises(PermissionError, match="identity changed"):
+            runtime.open_query(
+                staging_root=None,
+                manifest=manifest,
+                barrier=barrier,
+                execution_id=barrier.execution_id,
+                execution_manifest_hash=barrier.execution_manifest_hash,
+                access_event_id="descriptor-leaf-swap",
+                repository=tmp_path,
+                stage_relative_path="query-stage",
+                manifest_file_sha256=hashlib.sha256(
+                    (stage / "manifest.json").read_bytes()
+                ).hexdigest(),
+            )
+    finally:
+        ledger.close()
 
 
 @pytest.mark.integration

@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
-  "source_manifest_sha256": "866934c29048cf698871550cf11f71bea3c6d75d939b815aed15f9059b86163b",
-  "source_manifest_file_sha256": "3fe605a36d284cc71d569f324a82da78a1cfed7ec9bc30b2424376821c44aecf",
+  "source_manifest_sha256": "fb2aac2dcc188e867be7d118dfd8effa85b893d83d5cbba2b80c11e1b3fa1cf6",
+  "source_manifest_file_sha256": "3d271a308b347599f33cc2232ff2cc4421a3386e6f7f411e8a33c768255db3d4",
   "predecessors": [
     {
       "family": "fallback",
@@ -82,8 +82,8 @@
     {
       "artifact_id": "synthetic-benchmark-manifest",
       "family": "heldout",
-      "file_sha256": "b81da310ffe3477b8929aa50330e50db8e9f3152bdba05241256d3cf171fb41f",
-      "logical_hash": "6b592b99994c0140be2bd3db3399e8f5deb8ccc72f76de6367b83a6164659de6",
+      "file_sha256": "15f022302ba1bfbf6f1caf8d3869b16752d02fd693966b2b9bcb1bf28d5be3bb",
+      "logical_hash": "22bd5e47245938724fc25d289e86e286f4f19e6a4ffd45468649e4e8f68acb78",
       "media_type": "application/json",
       "measurement_domains": []
     },
@@ -136,7 +136,7 @@
         "reason"
       ],
       "source_artifact_hashes": [
-        "866934c29048cf698871550cf11f71bea3c6d75d939b815aed15f9059b86163b"
+        "fb2aac2dcc188e867be7d118dfd8effa85b893d83d5cbba2b80c11e1b3fa1cf6"
       ]
     },
     {
@@ -313,5 +313,5 @@
     "primary-pilot-v2-failure"
   ],
   "runpod_wall_time_artifact_ids": [],
-  "receipt_sha256": "5d7d86c714e599184206fbe459cb3408b216fdc39980c9ae75d3035fb541cc0e"
+  "receipt_sha256": "138ace45558305eed38fc12929be67b158031abd097d11da7ad953ad3637b13a"
 }

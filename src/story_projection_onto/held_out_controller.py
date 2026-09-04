@@ -8,8 +8,10 @@ from __future__ import annotations
 
 import math
 import os
+import tempfile
 from collections import Counter
-from datetime import timedelta
+from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Literal, Protocol, Self
 
@@ -44,6 +46,7 @@ from story_projection_onto.held_out_primary import (
     InjectedHeldOutSession,
     ReviewedHeldOutPlan,
     admit_call,
+    load_executable_held_out_configuration,
     load_held_out_control_configuration,
     open_reviewed_held_out_plan,
 )
@@ -230,6 +233,7 @@ class HeldOutExecutionManifest(ImmutableRecord):
     call_manifest_hash: Sha256Digest
     review_completion_manifest_hash: Sha256Digest
     final_reviewed_seal_hash: Sha256Digest
+    runtime_binding_hash: Sha256Digest | None = None
     session_identities: tuple[
         HeldOutSessionIdentity, HeldOutSessionIdentity, HeldOutSessionIdentity
     ]
@@ -356,6 +360,14 @@ class HeldOutExecutionManifest(ImmutableRecord):
         return self
 
 
+def _fsync_directory(path: Path) -> None:
+    descriptor = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
 def _append_exact(path: Path, record: ImmutableRecord) -> bool:
     payload = record.to_canonical_json().encode() + b"\n"
     if path.is_symlink():
@@ -364,19 +376,42 @@ def _append_exact(path: Path, record: ImmutableRecord) -> bool:
         if not path.is_file() or path.read_bytes() != payload:
             raise HeldOutExecutionError(f"append-only held-out journal drift: {path}")
         return False
+    parent_existed = path.parent.exists()
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.parent.is_symlink():
         raise HeldOutExecutionError(f"symlinked journal directory: {path.parent}")
-    with path.open("xb") as stream:
-        stream.write(payload)
-        stream.flush()
-        os.fsync(stream.fileno())
-    directory_descriptor = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+    if not parent_existed:
+        # Persist the newly-created journal-directory entry before relying on
+        # any record contained by it after a power loss.
+        _fsync_directory(path.parent.parent)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
+    )
+    temporary = Path(temporary_name)
+    published = False
     try:
-        os.fsync(directory_descriptor)
+        with os.fdopen(descriptor, "wb") as stream:
+            os.fchmod(stream.fileno(), 0o600)
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+        try:
+            # A hard link publishes the fully-fsynced inode atomically without
+            # replacing a concurrently created append-only destination.
+            os.link(temporary, path)
+            published = True
+        except FileExistsError:
+            if not path.is_file() or path.read_bytes() != payload:
+                raise HeldOutExecutionError(
+                    f"append-only held-out journal drift: {path}"
+                ) from None
+        # Make the destination durable while the temporary hard link still
+        # keeps the inode recoverable if power fails during publication.
+        _fsync_directory(path.parent)
     finally:
-        os.close(directory_descriptor)
-    return True
+        temporary.unlink(missing_ok=True)
+    _fsync_directory(path.parent)
+    return published
 
 
 def _load(path: Path, model_type):
@@ -458,6 +493,25 @@ def _audit_journal_tree(
         if path.is_symlink() or (path.is_dir() and path not in allowed_dirs):
             raise HeldOutExecutionError(f"unexpected or symlinked held-out journal path: {path}")
         if path.is_file():
+            # Same-directory atomic publication can leave only a hidden,
+            # non-authoritative temporary inode after sudden power loss. Keep
+            # it for audit, but never mistake it for a completed journal record.
+            if path.name.startswith(".") and path.name.endswith(".tmp"):
+                matching_targets = tuple(
+                    candidate
+                    for candidate in expected_files
+                    if candidate.parent == path.parent
+                    and path.name.startswith(f".{candidate.name}.")
+                )
+                if not matching_targets:
+                    raise HeldOutExecutionError(
+                        f"unexpected held-out journal temporary: {path}"
+                    )
+                if path.stat().st_size > 64 * 1024 * 1024:
+                    raise HeldOutExecutionError(
+                        f"interrupted held-out journal temporary is oversized: {path}"
+                    )
+                continue
             actual_files.add(path)
             if path not in expected_files:
                 raise HeldOutExecutionError(f"unexpected held-out journal file: {path}")
@@ -703,6 +757,27 @@ def _result_matches_call(
                 )
 
 
+def _unstarted_failure_result(
+    *,
+    call: HeldOutCallSpec,
+    snapshot: GlobalGpuScheduleSnapshot,
+    failure_code: str,
+) -> HeldOutServiceResult:
+    """Create a zero-request ITT result without pretending inference occurred."""
+
+    return HeldOutServiceResult(
+        call_id=call.call_id,
+        condition=call.condition,
+        outcome=RunOutcome.FAILED,
+        request_started=False,
+        global_ledger_chain_hash=snapshot.ledger_chain_hash,
+        allocated_gpu_seconds=0.0,
+        repair_attempts=0,
+        failure_code=failure_code,
+        completed_at=snapshot.captured_at,
+    )
+
+
 def _assert_accounting_transition(
     *,
     call: HeldOutCallSpec,
@@ -741,23 +816,26 @@ def _assert_accounting_transition(
         value != 0 for name, value in deltas.items() if name != call.repair_reserve_class
     ):
         raise HeldOutExecutionError("call did not consume exactly its registered repair reserve")
+    allocation_delta = (
+        after.actual_allocated_gpu_seconds - before.actual_allocated_gpu_seconds
+    )
+    expected_remaining = before.remaining_registered_p95_seconds - (
+        call.p95_seconds + result.repair_attempts * call.watchdog_seconds
+    )
     if result.request_started:
-        expected_allocated = before.actual_allocated_gpu_seconds + result.allocated_gpu_seconds
-        expected_remaining = before.remaining_registered_p95_seconds - (
-            call.p95_seconds + result.repair_attempts * call.watchdog_seconds
-        )
         if result.allocated_gpu_seconds <= 0:
             raise HeldOutExecutionError("a started GPU request cannot report zero allocation")
-    else:
-        expected_allocated = before.actual_allocated_gpu_seconds
-        expected_remaining = before.remaining_registered_p95_seconds
+        # The continuously allocated service also covers packing, validation,
+        # persistence, and inter-snapshot control work. Classified request
+        # events are therefore a lower bound on the exact live-service delta.
+        if allocation_delta + 1e-6 < result.allocated_gpu_seconds:
+            raise HeldOutExecutionError(
+                "service allocation delta omits classified request GPU time"
+            )
+    elif result.allocated_gpu_seconds != 0:
+        raise HeldOutExecutionError("an unstarted call cannot consume classified GPU time")
     if (
-        not math.isclose(
-            after.actual_allocated_gpu_seconds,
-            expected_allocated,
-            rel_tol=0.0,
-            abs_tol=1e-6,
-        )
+        allocation_delta < -1e-6
         or not math.isclose(
             after.remaining_registered_p95_seconds,
             expected_remaining,
@@ -961,25 +1039,53 @@ def _build_prequery_barrier(
         if call.call_class != "test_c1":
             raise HeldOutExecutionError("non-C1 result entered the pre-query barrier")
         output = None if result.artifact_receipt is None else result.artifact_receipt.output
-        preparation_hash = (
-            output.logical_content_hash if output is not None else result.content_hash
-        )
-        lineage_hash = (
-            output.artifact_hash
-            if output is not None
-            else result.ledger_receipt_artifact_hash or result.content_hash
-        )
-        bindings.append(
-            PrequeryPreparationBinding(
-                unit_id=call.unit_id,
-                condition=ConditionName.C1_LLM_PRE,
-                seed_block=call.seed_block,
-                snapshot_hash=unit_by_id[call.unit_id].prequery_stage.snapshot_hash,
-                preparation_hash=preparation_hash,
-                lineage_artifact_hash=lineage_hash,
-                completed_at=result.completed_at,
+        if result.outcome is RunOutcome.SUCCEEDED:
+            if output is None or len(result.prequery_preparation_bindings) != 2:
+                raise HeldOutExecutionError(
+                    "successful C1 lacks its C1/Fixed pre-query preparation bindings"
+                )
+            expected_conditions = {
+                ConditionName.C1_LLM_PRE,
+                ConditionName.A_FIXED_SELECT,
+            }
+            if {
+                item.condition for item in result.prequery_preparation_bindings
+            } != expected_conditions:
+                raise HeldOutExecutionError("C1 pre-query binding conditions changed")
+            for binding in result.prequery_preparation_bindings:
+                if (
+                    binding.unit_id != call.unit_id
+                    or binding.seed_block != call.seed_block
+                    or binding.snapshot_hash
+                    != unit_by_id[call.unit_id].prequery_stage.snapshot_hash
+                    or binding.completed_at > result.completed_at
+                ):
+                    raise HeldOutExecutionError("C1 pre-query binding lineage changed")
+            c1_binding = next(
+                item
+                for item in result.prequery_preparation_bindings
+                if item.condition is ConditionName.C1_LLM_PRE
             )
-        )
+            if (
+                c1_binding.preparation_hash != output.logical_content_hash
+                or c1_binding.lineage_artifact_hash != result.construction_seal_hash
+            ):
+                raise HeldOutExecutionError("C1 binding differs from its sealed output")
+            bindings.extend(result.prequery_preparation_bindings)
+        else:
+            bindings.append(
+                PrequeryPreparationBinding(
+                    unit_id=call.unit_id,
+                    condition=ConditionName.C1_LLM_PRE,
+                    seed_block=call.seed_block,
+                    snapshot_hash=unit_by_id[call.unit_id].prequery_stage.snapshot_hash,
+                    preparation_hash=result.content_hash,
+                    lineage_artifact_hash=(
+                        result.ledger_receipt_artifact_hash or result.content_hash
+                    ),
+                    completed_at=result.completed_at,
+                )
+            )
     for receipt in c2_receipts:
         bindings.append(
             PrequeryPreparationBinding(
@@ -1013,7 +1119,10 @@ def _build_prequery_barrier(
             key=lambda item: (item.unit_id, item.condition.value, item.seed_block or 0),
         )
     )
-    sealed_at = max(item.completed_at for item in ordered) + timedelta(microseconds=1)
+    sealed_at = max(
+        *(item.completed_at for item in ordered),
+        *(item.completed_at for item in c1_results),
+    ) + timedelta(microseconds=1)
     execution_id = f"held-out-{manifest.content_hash[:20]}"
     return PrequeryBarrier(
         barrier_id=f"prequery-barrier-{execution_id}",
@@ -1034,11 +1143,12 @@ def execute_reviewed_held_out_manifest(
     repository: Path,
     review_completion_root: Path,
     configuration_path: Path,
+    runtime_binding_path: Path | None = None,
     cpu: InjectedHeldOutCpu,
     sessions: dict[ConditionName, InjectedHeldOutSession],
     runtime: InjectedHeldOutRuntime,
     output_root: Path,
-    completed_at: AwareDatetime,
+    completion_clock: Callable[[], datetime] = lambda: datetime.now(UTC),
 ) -> HeldOutExecutionManifest:
     """Execute or recover a plan cryptographically bound to the reproduced review gate."""
 
@@ -1046,8 +1156,23 @@ def execute_reviewed_held_out_manifest(
         repository=repository,
         review_completion_root=review_completion_root,
         configuration_path=configuration_path,
+        runtime_binding_path=runtime_binding_path,
     )
-    verified_configuration = load_held_out_control_configuration(repository, configuration_path)
+    if runtime_binding_path is None:
+        # Direct injection is retained only for fixture-level controller tests;
+        # the real opener above cannot pass a PENDING predecessor without a
+        # restricted binding.
+        verified_configuration = load_held_out_control_configuration(
+            repository,
+            configuration_path,
+        )
+    else:
+        verified_configuration = load_executable_held_out_configuration(
+            repository=repository,
+            configuration_path=configuration_path,
+            runtime_binding_path=runtime_binding_path,
+            expected_plan_hash=verified_plan.call_manifest.content_hash,
+        )
     if verified_plan != reviewed_plan:
         raise HeldOutExecutionError(
             "held-out plan differs from the freshly reproduced independent-review gate"
@@ -1074,9 +1199,24 @@ def execute_reviewed_held_out_manifest(
     if root.is_symlink():
         raise HeldOutExecutionError("held-out output root cannot be a symlink")
     root.mkdir(parents=True, exist_ok=True)
+    execution_path = root / "execution_manifest.json"
     _audit_journal_tree(
-        root, manifest, require_complete=(root / "execution_manifest.json").exists()
+        root, manifest, require_complete=execution_path.exists()
     )
+    if execution_path.exists():
+        persisted_execution = _load(execution_path, HeldOutExecutionManifest)
+        if (
+            persisted_execution.call_manifest_hash != manifest.content_hash
+            or persisted_execution.review_completion_manifest_hash
+            != reviewed_plan.review_completion_manifest_hash
+            or persisted_execution.final_reviewed_seal_hash
+            != reviewed_plan.final_reviewed_seal_hash
+            or persisted_execution.runtime_binding_hash
+            != reviewed_plan.runtime_binding_hash
+        ):
+            raise HeldOutExecutionError("finalized execution belongs to another reviewed run")
+        _replay_complete_journal(root, manifest, persisted_execution, runtime)
+        return persisted_execution
     _append_exact(root / "call_manifest.json", manifest)
 
     c0_receipts: list[C0ConstructionReceipt] = []
@@ -1222,6 +1362,9 @@ def execute_reviewed_held_out_manifest(
     query_openings: dict[str, HeldOutQueryOpening] = {}
     prequery_barrier: PrequeryBarrier | None = None
     active_condition = ConditionName.C1_LLM_PRE
+    condition_timeout_sources: dict[ConditionName, str] = {}
+    if not getattr(c1_session, "service_available", lambda: True)():
+        condition_timeout_sources[ConditionName.C1_LLM_PRE] = c1_identity.content_hash
     shutdown_by_condition: dict[ConditionName, HeldOutServiceShutdownReceipt] = {}
     last_shutdown_snapshot: GlobalGpuScheduleSnapshot | None = None
     for call in manifest.calls:
@@ -1271,6 +1414,8 @@ def execute_reviewed_held_out_manifest(
                     "condition service did not continue the cumulative GPU ledger"
                 )
             identity_by_condition[call.condition] = identity
+            if not getattr(session, "service_available", lambda: True)():
+                condition_timeout_sources[call.condition] = identity.content_hash
             condition_just_started = True
         else:
             identity = session.identity()
@@ -1287,6 +1432,7 @@ def execute_reviewed_held_out_manifest(
             or source.construction_seal_hash is None
             or source.complete_c1_graph_hash is None
         )
+        condition_stopped_after_timeout = call.condition in condition_timeout_sources
         unit = units_by_id[call.unit_id]
         query_stage = (
             None if call.query_stage_hash is None else query_stages_by_hash[call.query_stage_hash]
@@ -1385,19 +1531,17 @@ def execute_reviewed_held_out_manifest(
                 ):
                     raise HeldOutExecutionError("durable call slot differs from the current plan")
                 snapshot = slot.schedule_before
-                if source_unavailable:
-                    result = HeldOutServiceResult(
-                        call_id=call.call_id,
-                        condition=call.condition,
-                        outcome=RunOutcome.FAILED,
-                        request_started=False,
-                        global_ledger_chain_hash=snapshot.ledger_chain_hash,
-                        allocated_gpu_seconds=0.0,
-                        repair_attempts=0,
-                        failure_code="source_c1_unavailable",
-                        completed_at=snapshot.captured_at,
+                if source_unavailable or condition_stopped_after_timeout:
+                    result = _unstarted_failure_result(
+                        call=call,
+                        snapshot=snapshot,
+                        failure_code=(
+                            "source_c1_unavailable"
+                            if source_unavailable
+                            else "condition_service_unavailable_after_timeout"
+                        ),
                     )
-                    after_snapshot = snapshot
+                    after_snapshot = session.finalize_unstarted_call(call, result)
                 else:
                     result = session.recover_call(call, envelope)
                     if result is None:
@@ -1445,22 +1589,36 @@ def execute_reviewed_held_out_manifest(
                 )
                 _append_exact(slot_path, slot)
                 result = None
-            if not recovering and source_unavailable:
-                result = HeldOutServiceResult(
-                    call_id=call.call_id,
-                    condition=call.condition,
-                    outcome=RunOutcome.FAILED,
-                    request_started=False,
-                    global_ledger_chain_hash=snapshot.ledger_chain_hash,
-                    allocated_gpu_seconds=0.0,
-                    repair_attempts=0,
-                    failure_code="source_c1_unavailable",
-                    completed_at=snapshot.captured_at,
+            if not recovering and (source_unavailable or condition_stopped_after_timeout):
+                result = _unstarted_failure_result(
+                    call=call,
+                    snapshot=snapshot,
+                    failure_code=(
+                        "source_c1_unavailable"
+                        if source_unavailable
+                        else "condition_service_unavailable_after_timeout"
+                    ),
                 )
-                after_snapshot = snapshot
+                after_snapshot = session.finalize_unstarted_call(call, result)
             elif not recovering:
-                result = session.execute_call(call, envelope)
-                after_snapshot = session.schedule_snapshot()
+                try:
+                    result = session.execute_call(call, envelope)
+                except BaseException as error:
+                    if session.recovery_pending(call, envelope) or isinstance(
+                        error, KeyboardInterrupt
+                    ):
+                        raise InterruptedCallRecoveryRequired(
+                            f"call {call.call_id} was durably slotted and requires recovery"
+                        ) from error
+                    raise
+                try:
+                    after_snapshot = session.schedule_snapshot()
+                except BaseException as error:
+                    # A session may return only after committing its semantic
+                    # receipt, so a later snapshot failure is resumable.
+                    raise InterruptedCallRecoveryRequired(
+                        f"call {call.call_id} committed a result and requires recovery"
+                    ) from error
             if result is None:
                 raise InterruptedCallRecoveryRequired(
                     f"durable slot {call.call_id} has no recoverable service receipt"
@@ -1506,6 +1664,8 @@ def execute_reviewed_held_out_manifest(
         runtime.validate_result_artifacts(call, envelope, record.result)
         records.append(record)
         completed_results[call.call_id] = record.result
+        if record.result.outcome is RunOutcome.TIMED_OUT:
+            condition_timeout_sources.setdefault(call.condition, record.result.content_hash)
 
     final_identity = identity_by_condition[active_condition]
     final_shutdown_path = root / "shutdown" / f"{active_condition.value}.json"
@@ -1676,6 +1836,10 @@ def execute_reviewed_held_out_manifest(
         > configuration.scheduled_gpu_seconds_limit + 1e-6
     ):
         raise HeldOutExecutionError("final mandatory forecast exceeds the 9-hour schedule")
+    completed_at = completion_clock()
+    if completed_at.tzinfo is None or completed_at.utcoffset() is None:
+        raise HeldOutExecutionError("execution completion clock must be timezone-aware")
+    completed_at = completed_at.astimezone(UTC)
     if completed_at < final_snapshot.captured_at:
         raise HeldOutExecutionError("execution completion predates the final GPU snapshot")
     execution = HeldOutExecutionManifest(
@@ -1683,6 +1847,7 @@ def execute_reviewed_held_out_manifest(
         call_manifest_hash=manifest.content_hash,
         review_completion_manifest_hash=reviewed_plan.review_completion_manifest_hash,
         final_reviewed_seal_hash=reviewed_plan.final_reviewed_seal_hash,
+        runtime_binding_hash=reviewed_plan.runtime_binding_hash,
         session_identities=identities,
         c0_constructions=tuple(c0_receipts),
         c2_prequery_receipts=tuple(c2_prequery_receipts),
@@ -1700,7 +1865,7 @@ def execute_reviewed_held_out_manifest(
         final_schedule_snapshot_hash=final_snapshot.content_hash,
         completed_at=completed_at,
     )
-    _append_exact(root / "execution_manifest.json", execution)
+    _append_exact(execution_path, execution)
     _audit_journal_tree(root, manifest, require_complete=True)
     return execution
 

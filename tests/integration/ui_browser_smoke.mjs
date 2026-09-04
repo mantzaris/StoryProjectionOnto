@@ -152,7 +152,8 @@ try {
     await waitFor(
       session,
       `document.querySelectorAll("#projection-select option").length > 0 &&
-       document.querySelector("#asset-status").textContent.includes("verified locally")`,
+       document.querySelector("#asset-status").textContent.includes("verified locally") &&
+       document.querySelectorAll("#graph canvas").length > 0`,
       "verified Cytoscape projection",
     );
     await assertBrowserState(

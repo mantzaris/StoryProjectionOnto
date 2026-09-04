@@ -28,6 +28,13 @@ def _parser() -> argparse.ArgumentParser:
     )
     development.add_argument("--project-root", type=Path, default=Path.cwd())
     development.add_argument("--plan", type=Path)
+
+    ledger = subcommands.add_parser(
+        "verify-ledger",
+        help="exhaustively verify a SQLite ledger and every registered CAS blob read-only",
+    )
+    ledger.add_argument("--ledger", "--database", dest="ledger", type=Path, required=True)
+    ledger.add_argument("--cas-root", "--blob-root", dest="cas_root", type=Path, required=True)
     return parser
 
 
@@ -38,6 +45,13 @@ def main(arguments: Sequence[str] | None = None) -> int:
     if options.command == "version":
         print(__version__)
         return 0
+
+    if options.command == "verify-ledger":
+        from story_projection_onto.ledger_verify import audit_ledger
+
+        report = audit_ledger(options.ledger, options.cas_root)
+        print(report.canonical_json())
+        return 0 if report.valid else 1
 
     root = options.project_root.resolve(strict=True)
     if options.command == "verify-synthetic":
@@ -71,3 +85,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
 
 
 __all__ = ["main"]
+
+
+if __name__ == "__main__":  # pragma: no cover - exercised as a subprocess
+    raise SystemExit(main())

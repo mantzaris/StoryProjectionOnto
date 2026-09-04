@@ -28,6 +28,7 @@ from story_projection_onto.development_continuation import (
     DevelopmentContinuationError,
     ProductionDevelopmentContinuationAdopter,
     build_development_forecast_receipt,
+    create_production_development_adopter,
 )
 from story_projection_onto.development_runtime import (
     DevelopmentPrequeryInputs,
@@ -89,6 +90,35 @@ class _TickingClock:
     def __call__(self) -> datetime:
         self.value += timedelta(milliseconds=1)
         return self.value
+
+
+def test_production_factory_propagates_gpu_recovery_overlay(tmp_path: Path) -> None:
+    ledger = Ledger(tmp_path / "ledger.sqlite3")
+    amendment_hash = _digest("retry-amendment")
+    event_id = "fallback-recovery-service-start-001"
+    try:
+        adopter = create_production_development_adopter(
+            root=ROOT,
+            service=_NoInferenceService(),
+            artifacts=ArtifactStore(BlobStore(tmp_path / "blobs"), ledger),
+            tokenizer=_CompactFakeTokenizer(),
+            tokenizer_manifest=_tokenizer_manifest(),
+            launcher_configuration_hash=_digest("launcher"),
+            model_snapshot_manifest_hash=_digest("snapshot"),
+            source_association={
+                "revision_label": "recovery-test",
+                "local_tree_sha256": _digest("source-tree"),
+            },
+            checkpoint_path=tmp_path / "run" / "fallback.checkpoint.json",
+            assessment_factory=_unreachable_assessment_factory,
+            retry_amendment_sha256=amendment_hash,
+            recovery_service_start_event_ids=(event_id,),
+        )
+    finally:
+        ledger.close()
+
+    assert adopter.retry_amendment_sha256 == amendment_hash
+    assert adopter.recovery_service_start_event_ids == (event_id,)
 
 
 def _tokenizer_manifest() -> TokenizerManifest:
@@ -246,8 +276,9 @@ def test_production_prepare_is_query_blind_and_persists_exact_c1_pack(
 
         pointer = json.loads(adopter.preparation_pointer_path.read_text(encoding="utf-8"))
         index_record = ledger.get_artifact(pointer["preparation_index_artifact_hash"])
+        assert index_record.release_class is ReleaseClass.RESTRICTED
         index = DevelopmentPreparationIndex.model_validate_json(
-            blobs.read_bytes(index_record)
+            blobs.read_bytes(index_record, allow_restricted=True)
         )
         packing_record = ledger.get_artifact(index.packing_preflight_artifact_hash)
         preflight = DevelopmentPackingPreflight.model_validate_json(

@@ -1,0 +1,162 @@
+{
+  "schema_version": "1.0.0",
+  "configuration_id": "conference-phase7-production-v1",
+  "reporting_policy_path": "configs/study/reporting.json",
+  "reporting_policy_file_sha256": "33b546739f47082faae9269c447bf3654699f516ec5b8b82f6ff5f505acf84b3",
+  "reporting_policy_sha256": "fa911d3fa56d11c995cda64b435305ee4f0c21a6b1cf8f1adf1c770702196a93",
+  "phase_labels": [
+    {"phase_id": "phase_1", "label": "Contracts, resource controls, and GPU pilot"},
+    {"phase_id": "phase_2", "label": "Synthetic benchmark"},
+    {"phase_id": "phase_3", "label": "Conditions and primary comparisons"},
+    {"phase_id": "phase_4", "label": "Metrics, statistics, and ablations"},
+    {"phase_id": "phase_5", "label": "Visualization and feedback"},
+    {"phase_id": "phase_6", "label": "First-novel case study"},
+    {"phase_id": "phase_7", "label": "Results and conference artifacts"}
+  ],
+  "table_contracts": [
+    {
+      "table_id": "study_status",
+      "producer": "study_status",
+      "required_columns": ["phase_id", "status", "reason"],
+      "sort_columns": ["phase_id"],
+      "description": "Registered completion state of all seven phases."
+    },
+    {
+      "table_id": "primary_c2_vs_c1",
+      "producer": "canonical_csv",
+      "required_columns": ["comparison", "metric", "estimate", "paired_median", "standardized_effect", "ci_lower", "ci_upper", "p_value", "adjusted_p_value", "sign_flip_p_value", "bootstrap_lower", "bootstrap_upper", "paired_world_count", "status", "analysis_family", "p_value_kind", "multiplicity_method", "independent_unit"],
+      "sort_columns": ["comparison", "metric"],
+      "description": "Registered primary paired C2 minus C1 world-level results."
+    },
+    {
+      "table_id": "secondary_c2_vs_c0",
+      "producer": "canonical_csv",
+      "required_columns": ["comparison", "metric", "estimate", "paired_median", "standardized_effect", "ci_lower", "ci_upper", "p_value", "adjusted_p_value", "sign_flip_p_value", "bootstrap_lower", "bootstrap_upper", "paired_world_count", "status", "analysis_family", "p_value_kind", "multiplicity_method", "independent_unit"],
+      "sort_columns": ["comparison", "metric"],
+      "description": "Required secondary paired C2 minus C0 world-level results."
+    },
+    {
+      "table_id": "mechanism_c2_vs_fixed",
+      "producer": "canonical_csv",
+      "required_columns": ["comparison", "metric", "estimate", "paired_median", "standardized_effect", "ci_lower", "ci_upper", "p_value", "adjusted_p_value", "sign_flip_p_value", "bootstrap_lower", "bootstrap_upper", "paired_world_count", "status", "analysis_family", "p_value_kind", "multiplicity_method", "independent_unit", "gate_status_hash", "registered_analysis_hash", "alpha", "rare_safeguard_margin", "organization_adjusted_p_value", "mechanism_one_sided_p_value", "c2_vs_c1_rare_lower_bound", "c2_vs_fixed_rare_lower_bound", "c2_vs_fixed_rare_p_value", "organization_gate_passed", "construction_freedom_gate_passed", "c2_vs_c1_rare_safeguard_gate_passed", "c2_vs_fixed_rare_safeguard_status", "c2_vs_fixed_rare_safeguard_gate_passed"],
+      "sort_columns": ["comparison", "metric"],
+      "description": "Gated C2 versus A-FixedSelect mechanism comparisons and capability checks."
+    },
+    {
+      "table_id": "rare_pivotal",
+      "producer": "canonical_csv",
+      "required_columns": ["comparison", "metric", "estimate", "paired_median", "standardized_effect", "ci_lower", "ci_upper", "p_value", "adjusted_p_value", "sign_flip_p_value", "bootstrap_lower", "bootstrap_upper", "paired_world_count", "status", "analysis_family", "p_value_kind", "multiplicity_method", "independent_unit", "gate_status_hash", "registered_analysis_hash", "alpha", "rare_safeguard_margin", "organization_adjusted_p_value", "mechanism_one_sided_p_value", "c2_vs_c1_rare_lower_bound", "c2_vs_fixed_rare_lower_bound", "c2_vs_fixed_rare_p_value", "organization_gate_passed", "construction_freedom_gate_passed", "c2_vs_c1_rare_safeguard_gate_passed", "c2_vs_fixed_rare_safeguard_status", "c2_vs_fixed_rare_safeguard_gate_passed"],
+      "sort_columns": ["comparison", "metric"],
+      "description": "Rare-pivotal recall, support-path survival, and noninferiority safeguards."
+    },
+    {
+      "table_id": "entropy_clutter",
+      "producer": "canonical_csv",
+      "required_columns": ["comparison", "metric", "estimate", "paired_median", "standardized_effect", "ci_lower", "ci_upper", "p_value", "adjusted_p_value", "sign_flip_p_value", "bootstrap_lower", "bootstrap_upper", "paired_world_count", "status", "analysis_family", "p_value_kind", "multiplicity_method", "independent_unit"],
+      "sort_columns": ["metric", "comparison"],
+      "description": "Entropy and direct visual-clutter profiles with undefined cases retained."
+    },
+    {
+      "table_id": "community",
+      "producer": "canonical_csv",
+      "required_columns": ["comparison", "metric", "estimate", "paired_median", "standardized_effect", "ci_lower", "ci_upper", "p_value", "adjusted_p_value", "sign_flip_p_value", "bootstrap_lower", "bootstrap_upper", "paired_world_count", "status", "analysis_family", "p_value_kind", "multiplicity_method", "independent_unit"],
+      "sort_columns": ["metric", "comparison"],
+      "description": "Leiden-CPM community quality, error, count, conductance, and stability results."
+    },
+    {
+      "table_id": "paraphrase_contrastive",
+      "producer": "canonical_csv",
+      "required_columns": ["call_id", "world_id", "context_id", "status", "signature_divergence", "strict_f1_change", "base_strict_f1", "paraphrase_strict_f1", "base_score_hash", "paraphrase_score_hash", "base_projection_hash", "paraphrase_projection_hash"],
+      "sort_columns": ["world_id", "context_id", "call_id"],
+      "description": "Fixed paraphrase and same-evidence contrastive behavior."
+    },
+    {
+      "table_id": "ablations",
+      "producer": "canonical_csv",
+      "required_columns": ["call_id", "condition", "world_id", "context_id", "principal_metric", "parent_value", "ablation_value", "difference", "parent_score_hash", "ablation_score_hash"],
+      "sort_columns": ["condition", "world_id", "context_id", "call_id"],
+      "description": "Reduced one-switch A-NoContext, A-NoTemporalEpistemic, and A-NoRareGuard results."
+    },
+    {
+      "table_id": "feedback",
+      "producer": "canonical_csv",
+      "required_columns": ["episode_class", "condition", "action", "metric", "value", "unit", "episode_count", "capability_limited_count", "gold_applicability", "status"],
+      "sort_columns": ["episode_class", "condition", "action", "metric"],
+      "description": "Six scripted known-answer revisions and three researcher interface traces."
+    },
+    {
+      "table_id": "novel_case",
+      "producer": "canonical_csv",
+      "required_columns": ["scope", "window_id", "context_id", "condition", "metric", "value", "status", "interpretation"],
+      "sort_columns": ["scope", "window_id", "context_id", "condition", "metric"],
+      "description": "Descriptive bounded first-novel transfer and full-index operational results."
+    },
+    {
+      "table_id": "failure_accounting",
+      "producer": "canonical_csv",
+      "required_columns": ["phase", "run_id", "call_id", "condition", "outcome", "attempt_class", "repair_parent_call_id", "allocated_gpu_seconds", "included_in_itt", "failure_type"],
+      "sort_columns": ["phase", "run_id", "call_id"],
+      "description": "Complete successful, failed, invalid, timed-out, repaired, and incomplete call inventory."
+    },
+    {
+      "table_id": "resource_accounting",
+      "producer": "canonical_csv",
+      "required_columns": ["scope", "metric", "value", "unit", "status", "source_note"],
+      "sort_columns": ["scope", "metric", "unit"],
+      "description": "GPU, RunPod wall-time, memory, storage, token, and service-state accounting."
+    },
+    {
+      "table_id": "qualitative_examples",
+      "producer": "qualitative_selection",
+      "required_columns": ["example_id", "report_label", "candidate_id", "source_split", "world_id", "context_id", "condition", "node_summary", "assertion_summary", "temporal_sequence", "why_matters", "opaque_evidence_ids", "projection_hash", "selection_rule_sha256", "illustration_only"],
+      "sort_columns": ["example_id", "context_id", "condition"],
+      "description": "Frozen-rule qualitative illustrations; these are not confirmatory evidence."
+    }
+  ],
+  "sections": [
+    {"section_id": "research_questions", "title": "Research questions and hypotheses", "required_phases": ["phase_1"], "table_ids": [], "fixed_text": ["H1-semantic registers strict qualified-assertion F1 and H1-organization registers ontology-decision macro F1 for C2 versus C1. Rare-pivotal recall is a noncompensable safeguard, not another optimization target."]},
+    {"section_id": "conditions", "title": "Experimental conditions and construction timing", "required_phases": ["phase_3"], "table_ids": [], "fixed_text": ["C0 and C1 construct before query reveal; C2 actively constructs after query reveal; A-FixedSelect uses query-time LLM selection over the complete sealed C1 ontology while construction operations are mechanically forbidden."]},
+    {"section_id": "temporal_representation", "title": "Temporal qualified-assertion representation", "required_phases": ["phase_1"], "table_ids": [], "fixed_text": ["Assertions separate story time, validity time, discourse order, proposition revelation position, spoiler horizon, holder-level epistemic status, confidence, provenance, contextual relevance, and supported why-it-matters text."]},
+    {"section_id": "synthetic_benchmark", "title": "Synthetic benchmark construction and split", "required_phases": ["phase_2"], "table_ids": [], "fixed_text": ["The registered design contains four development worlds and twelve held-out worlds with three same-evidence contexts per held-out world. Held-out execution remains gated on independent condition-blind review."]},
+    {"section_id": "resource_controls", "title": "Resource and reproducibility controls", "required_phases": ["phase_1", "phase_7"], "table_ids": ["study_status", "resource_accounting"], "fixed_text": ["GPU time includes loading, warm-up, failures, repairs, restarts, and inference. Occupied project storage targets at most 25 GB with 5 GB protected headroom."]},
+    {"section_id": "primary_results", "title": "Primary C2 versus C1 results", "required_phases": ["phase_3", "phase_4"], "table_ids": ["primary_c2_vs_c1"], "fixed_text": ["This confirmatory section will use twelve worlds as independent units, two one-sided paired t-tests, Holm correction, two-sided paired intervals, all 4096 sign-flip assignments, and the registered bootstrap sensitivity."]},
+    {"section_id": "secondary_results", "title": "Required C2 versus C0 results", "required_phases": ["phase_3", "phase_4"], "table_ids": ["secondary_c2_vs_c0"], "fixed_text": ["C2 versus the credible deterministic C0 baseline is a required secondary comparison on all retained endpoints."]},
+    {"section_id": "mechanism_results", "title": "Gated C2 versus A-FixedSelect mechanism results", "required_phases": ["phase_3", "phase_4"], "table_ids": ["mechanism_c2_vs_fixed"], "fixed_text": ["The mechanism claim is eligible only after the C2-versus-C1 organization gate passes and C2 exceeds mechanically construction-disabled A-FixedSelect on the registered endpoint."]},
+    {"section_id": "rare_pivotal", "title": "Rare-pivotal preservation", "required_phases": ["phase_3", "phase_4"], "table_ids": ["rare_pivotal"], "fixed_text": ["Any favorable claim must accompany rare-pivotal qualified-assertion recall and support-path survival; the registered noninferiority loss margin is 0.05."]},
+    {"section_id": "entropy_clutter", "title": "Entropy and visual-clutter profiles", "required_phases": ["phase_4", "phase_5"], "table_ids": ["entropy_clutter"], "fixed_text": ["No entropy direction, node count, crossing count, or cluster count is inherently better. Structural profiles must remain beside fidelity, grounding, validity, and rare-pivotal preservation."]},
+    {"section_id": "community", "title": "Community and cluster organization", "required_phases": ["phase_4"], "table_ids": ["community"], "fixed_text": ["The registered panel uses Leiden-CPM with AMI, purity, conductance, fragmentation, merging error, descriptive cluster count and modularity, and cross-seed stability."]},
+    {"section_id": "paraphrase_contrastive", "title": "Paraphrase and contrastive behavior", "required_phases": ["phase_3", "phase_4"], "table_ids": ["paraphrase_contrastive"], "fixed_text": ["Contrastive decision-change scoring operates over identical evidence and nonselection ontology changes. Paraphrase stability is interpreted conditional on correctness."]},
+    {"section_id": "ablations", "title": "Reduced ablation results", "required_phases": ["phase_4"], "table_ids": ["ablations"], "fixed_text": ["Only A-NoContext (12 calls), A-NoTemporalEpistemic (8), and A-NoRareGuard (8) are registered, each with a one-switch-only configuration audit."]},
+    {"section_id": "feedback_interface", "title": "Feedback and interface demonstrations", "required_phases": ["phase_5"], "table_ids": ["feedback"], "fixed_text": ["Six known-answer scripts and three researcher traces demonstrate REFINE_CONTEXT and REQUEST_MERGE_SPLIT. They do not support participant or usability claims."]},
+    {"section_id": "novel_case", "title": "Bounded first-novel transfer study", "required_phases": ["phase_6"], "table_ids": ["novel_case"], "fixed_text": ["The planned transfer study uses four preregistered windows, eight bounded same-evidence queries, and one separately labeled full-index operational C2 query. Public examples must use paraphrases and opaque evidence IDs."]},
+    {"section_id": "runtime_failures", "title": "Runtime, GPU, storage, invalid-output, repair, and failure accounting", "required_phases": ["phase_1", "phase_7"], "table_ids": ["failure_accounting"], "fixed_text": ["Failures and invalid or unrepaired outputs remain visible and intention-to-treat. Final accounting is cumulative across every registered base call, repair, failure, timeout, and GPU-service allocation."]},
+    {"section_id": "error_limitations", "title": "Error analysis, negative results, and limitations", "required_phases": ["phase_3", "phase_4", "phase_6", "phase_7"], "table_ids": [], "fixed_text": ["The final analysis must retain null and negative findings, all declared error categories, the twelve-world sample limitation, one-model and one-prompt dependence, compute asymmetry, and descriptive-only transfer scope."]},
+    {"section_id": "claim_boundaries", "title": "Exact claim boundaries", "required_phases": ["phase_7"], "table_ids": [], "fixed_text": ["Claims are conditional on registered gates and confined to the benchmark, pinned model, frozen prompt, and bounded narrative transfer study."]},
+    {"section_id": "qualitative_examples", "title": "Easy-to-interpret qualitative illustrations", "required_phases": ["phase_2", "phase_3", "phase_5", "phase_6"], "table_ids": ["qualitative_examples"], "fixed_text": ["The final report reserves distinct slots for the development tutorial, rare-pivotal fact, temporal or epistemic case, fixed held-out illustration, deterministic failure case, and one or two narrative illustrations. These do not substitute for aggregate efficacy evidence."]}
+  ],
+  "primary_figure_columns": {
+    "label": "metric",
+    "estimate": "estimate",
+    "lower": "ci_lower",
+    "upper": "ci_upper"
+  },
+  "public_static_paths": [
+    "LICENSE",
+    "configs/study/phase7_compiler.json",
+    "configs/study/phase7_source_registry.template.json",
+    "configs/study/reporting.json",
+    "docs/PHASE7_REPORTING.md",
+    "scripts/build_public_bundle.py",
+    "scripts/build_results_report.py",
+    "scripts/compile_phase7_results.py",
+    "scripts/compile_report_ingestion.py",
+    "src/story_projection_onto/phase7_compiler.py",
+    "src/story_projection_onto/public_release.py",
+    "src/story_projection_onto/report_ingestion.py",
+    "src/story_projection_onto/reporting.py",
+    "tests/unit/test_phase7_compiler.py"
+  ],
+  "maximum_qualitative_figures": 6,
+  "public_bundle_limit_bytes": 2000000000,
+  "configuration_sha256": "6a0dc9c5ecdba82a6432cdf12b9c5f14d355f7916d665903d80bade0326c66f2"
+}

@@ -389,9 +389,11 @@ class C2RegenerationResult(ImmutableRecord):
 class C2RegenerationAdapter(Protocol):
     """Live adapter with a side-effect-free recovery lookup.
 
-    ``recover`` must only consult durable ledger/CAS state for the exact request;
-    it must never start a replacement inference.  A missing recovery therefore
-    blocks rather than silently consuming a second registered request.
+    ``recover`` must only consult durable state for the exact request and must
+    never start inference.  It may return ``None`` only after proving that no
+    adapter intent, evidence-preparation artifact, GPU event, model-call row, or
+    terminal output exists.  That exact-absence receipt permits the caller to
+    consume a pre-existing outer slot as the first adapter request.
     """
 
     def regenerate(self, request: C2RegenerationRequest) -> C2RegenerationResult: ...
@@ -1014,9 +1016,11 @@ def _c2_record(
     else:
         result = adapter.recover(request)
         if result is None:
-            raise InterruptedFeedbackCallRecoveryRequired(
-                f"durable Phase 5 slot {request.call_slot_id} has no recoverable result"
-            )
+            # The adapter's recovery contract makes ``None`` a positive proof
+            # that the outer slot was persisted before the adapter performed
+            # any side effect.  This is therefore the first issuance, not a
+            # resend.  Partial/inflight traces must raise from ``recover``.
+            result = adapter.regenerate(request)
     if result.request_hash != request.content_hash:
         raise Phase5ExecutionError("C2 adapter result belongs to another call slot")
     if (

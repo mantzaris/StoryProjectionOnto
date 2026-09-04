@@ -139,6 +139,9 @@ class CaseStudyRuntimePolicy(ImmutableRecord):
     c0_rules_path: str
     c1_prompt_path: str
     c2_prompt_path: str
+    production_adapter_factory: Literal[
+        "story_projection_onto.case_study_factory:create_frozen_production_case_study_bundle"
+    ]
     primary_seed_purpose: Literal["llm_block_1"] = "llm_block_1"
     seed_block: Literal[1] = 1
     seed_mapping: Literal["low-31-bits-of-frozen-llm-block-1-v1"]
@@ -151,6 +154,7 @@ class CaseStudyRuntimePolicy(ImmutableRecord):
     c1_watchdog_seconds: Literal[240] = 240
     c2_watchdog_seconds: Literal[150] = 150
     operational_watchdog_seconds: Literal[150] = 150
+    service_start_watchdog_seconds: Literal[300] = 300
     c1_repair_reserve_class: Literal["reserve_long"] = "reserve_long"
     c2_repair_reserve_class: Literal["reserve_standard"] = "reserve_standard"
     packet_persistence: Literal["in_memory_with_hash_receipt_only"] = (
