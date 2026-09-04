@@ -16,12 +16,23 @@ from pydantic import AwareDatetime, Field, field_validator, model_validator
 
 from .contracts import (
     CONSTRUCTIVE_OPERATORS,
+    AllenRelation,
     ConditionName,
+    ConstructionCapabilities,
+    ConstructionOperator,
     EvidencePacket,
     EvidenceSnapshot,
+    HolderRelativeTime,
+    ModelVisibleEvidenceRecord,
     OntologyDraft,
     OntologyProjection,
+    OutputBudgets,
     QueryContext,
+    RoleBinding,
+    StoryTime,
+    TemporalKind,
+    UpperOntology,
+    ValidityTime,
 )
 from .llm import (
     ConstructionCapability,
@@ -71,6 +82,18 @@ class ValidationCode(StrEnum):
     FIXED_SELECT_CAPABILITY = "fixed_select_capability"
     MULTIPLE_REPAIRS = "multiple_repairs"
     INVALID_REPAIR_PARENT = "invalid_repair_parent"
+    BUDGET_ACCOUNTING_MISMATCH = "budget_accounting_mismatch"
+    UNKNOWN_REFERENCE = "unknown_reference"
+    SCHEMA_PARENT_MISMATCH = "schema_parent_mismatch"
+    PREDICATE_SIGNATURE_MISMATCH = "predicate_signature_mismatch"
+    TEMPORAL_INTERVAL_INVALID = "temporal_interval_invalid"
+    TEMPORAL_ORDER_CYCLE = "temporal_order_cycle"
+    DECISION_DELTA_INVALID = "decision_delta_invalid"
+    DESCRIPTION_SUPPORT_INVALID = "description_support_invalid"
+    MENTION_SUPPORT_INVALID = "mention_support_invalid"
+    PROVENANCE_MISMATCH = "provenance_mismatch"
+    PROPOSITION_ASSERTION_MISMATCH = "proposition_assertion_mismatch"
+    REPAIR_MUTATION_OUTSIDE_DIAGNOSTIC = "repair_mutation_outside_diagnostic"
 
 
 class ValidationDiagnostic(RuntimeManifest):
@@ -530,6 +553,766 @@ def validate_draft_evidence_grounding(
         factual_records=tuple(records),
     )
     return _report((*diagnostics, *report.diagnostics))
+
+
+def _record_identifier(value: Mapping[str, object]) -> str | None:
+    for name in (
+        "schema_id",
+        "type_id",
+        "predicate_id",
+        "entity_id",
+        "event_id",
+        "proposition_content_id",
+        "assertion_id",
+        "decision_id",
+        "evidence_id",
+        "provenance_id",
+        "candidate_id",
+        "clue_id",
+    ):
+        identifier = value.get(name)
+        if isinstance(identifier, str):
+            return identifier
+    return None
+
+
+def _canonical_diff_paths(
+    before: object,
+    after: object,
+    *,
+    path: str = "",
+) -> tuple[str, ...]:
+    """Return stable semantic paths, keying record arrays by their IDs."""
+
+    if isinstance(before, Mapping) and isinstance(after, Mapping):
+        paths: list[str] = []
+        keys = sorted((set(before) | set(after)) - {"content_hash"})
+        for key in keys:
+            child_path = f"{path}.{key}" if path else str(key)
+            if key not in before or key not in after:
+                paths.append(child_path)
+            else:
+                paths.extend(_canonical_diff_paths(before[key], after[key], path=child_path))
+        return tuple(paths)
+    if (
+        isinstance(before, Sequence)
+        and isinstance(after, Sequence)
+        and not isinstance(before, (str, bytes, bytearray))
+        and not isinstance(after, (str, bytes, bytearray))
+    ):
+        before_values = list(before)
+        after_values = list(after)
+        before_records = all(
+            isinstance(item, Mapping) and _record_identifier(item) for item in before_values
+        )
+        after_records = all(
+            isinstance(item, Mapping) and _record_identifier(item) for item in after_values
+        )
+        if before_records and after_records:
+            before_by_id = {
+                _record_identifier(item): item
+                for item in before_values
+                if isinstance(item, Mapping)
+            }
+            after_by_id = {
+                _record_identifier(item): item for item in after_values if isinstance(item, Mapping)
+            }
+            paths = []
+            for identifier in sorted(set(before_by_id) | set(after_by_id)):
+                child_path = f"{path}.{identifier}" if path else str(identifier)
+                if identifier not in before_by_id or identifier not in after_by_id:
+                    paths.append(child_path)
+                else:
+                    paths.extend(
+                        _canonical_diff_paths(
+                            before_by_id[identifier],
+                            after_by_id[identifier],
+                            path=child_path,
+                        )
+                    )
+            return tuple(paths)
+        if len(before_values) != len(after_values):
+            return (path,)
+        paths = []
+        for index, (before_item, after_item) in enumerate(
+            zip(before_values, after_values, strict=True)
+        ):
+            paths.extend(
+                _canonical_diff_paths(
+                    before_item,
+                    after_item,
+                    path=f"{path}.{index}" if path else str(index),
+                )
+            )
+        return tuple(paths)
+    return () if before == after else (path,)
+
+
+def validate_repair_preservation(
+    *,
+    base_draft: Mapping[str, object],
+    repaired_draft: Mapping[str, object],
+    diagnosed_paths: Sequence[str],
+) -> BoundaryValidationReport:
+    """Reject any repair mutation outside an explicitly diagnosed semantic path."""
+
+    if not diagnosed_paths or any(not path for path in diagnosed_paths):
+        raise ValueError("repair preservation requires nonempty diagnosed paths")
+    changes = _canonical_diff_paths(base_draft, repaired_draft)
+    unauthorized = tuple(
+        change
+        for change in changes
+        if not any(
+            change == allowed
+            or change.startswith(f"{allowed}.")
+            or allowed.startswith(f"{change}.")
+            for allowed in diagnosed_paths
+        )
+    )
+    if not unauthorized:
+        return _report(())
+    return _report(
+        (
+            ValidationDiagnostic(
+                code=ValidationCode.REPAIR_MUTATION_OUTSIDE_DIAGNOSTIC,
+                path=unauthorized[0],
+                message="repair changed content outside the diagnosed field paths",
+                related_ids=unauthorized[:32],
+            ),
+        )
+    )
+
+
+def validate_draft_structure(
+    *,
+    draft: OntologyDraft,
+    upper_ontology: UpperOntology,
+    evidence: Sequence[ModelVisibleEvidenceRecord],
+    budgets: OutputBudgets,
+    capabilities: ConstructionCapabilities,
+) -> BoundaryValidationReport:
+    """Validate references and declared construction without supplying semantics.
+
+    The routine only rejects.  It never creates an ID, relation, temporal value,
+    qualification, or repair suggestion for the model.
+    """
+
+    diagnostics: list[ValidationDiagnostic] = []
+
+    def add(code: ValidationCode, path: str, message: str, *ids: str) -> None:
+        diagnostics.append(
+            ValidationDiagnostic(
+                code=code,
+                path=path,
+                message=message,
+                related_ids=tuple(dict.fromkeys(ids)),
+            )
+        )
+
+    graph = draft.instance_graph
+    type_by_id = {item.type_id: item for item in draft.local_schema.contextual_types}
+    predicate_by_id = {item.predicate_id: item for item in draft.local_schema.predicates}
+    entity_by_id = {item.entity_id: item for item in graph.entities}
+    event_by_id = {item.event_id: item for item in graph.events}
+    proposition_by_id = {item.proposition_content_id: item for item in graph.proposition_contents}
+    assertion_by_id = {item.assertion_id: item for item in graph.assertions}
+    referent_ids = set(entity_by_id) | set(event_by_id) | set(proposition_by_id)
+    graph_ids = referent_ids | set(assertion_by_id)
+    schema_ids = {draft.local_schema.schema_id} | set(type_by_id) | set(predicate_by_id)
+    targetable_ids = graph_ids | schema_ids
+
+    evidence_by_id = {item.evidence_id: item for item in evidence}
+    mention_by_id = {
+        candidate.candidate_id: candidate
+        for record in evidence
+        for candidate in record.mention_candidates
+    }
+    event_candidate_by_id = {
+        candidate.candidate_id: candidate
+        for record in evidence
+        for candidate in record.event_candidates
+    }
+    relation_candidate_ids = {
+        candidate.candidate_id
+        for record in evidence
+        for candidate in record.relation_phrase_candidates
+    }
+    temporal_clue_ids = {clue.clue_id for record in evidence for clue in record.temporal_clues}
+    candidate_ids = (
+        set(mention_by_id) | set(event_candidate_by_id) | relation_candidate_ids | temporal_clue_ids
+    )
+
+    actual_nodes = len(graph.entities) + len(graph.events)
+    actual_assertions = len(graph.assertions)
+    accounting = draft.budget_accounting
+    if accounting.nodes_used != actual_nodes:
+        add(
+            ValidationCode.BUDGET_ACCOUNTING_MISMATCH,
+            "budget_accounting.nodes_used",
+            "declared node use differs from the entity/event graph count",
+        )
+    if accounting.assertions_used != actual_assertions:
+        add(
+            ValidationCode.BUDGET_ACCOUNTING_MISMATCH,
+            "budget_accounting.assertions_used",
+            "declared assertion use differs from the qualified-assertion count",
+        )
+    if accounting.display_nodes_used > actual_nodes:
+        add(
+            ValidationCode.BUDGET_ACCOUNTING_MISMATCH,
+            "budget_accounting.display_nodes_used",
+            "display-node use exceeds materialized graph nodes",
+        )
+    if accounting.display_assertions_used > actual_assertions:
+        add(
+            ValidationCode.BUDGET_ACCOUNTING_MISMATCH,
+            "budget_accounting.display_assertions_used",
+            "display-assertion use exceeds materialized assertions",
+        )
+    try:
+        accounting.validate_against(budgets)
+    except ValueError as exc:
+        add(ValidationCode.BUDGET_ACCOUNTING_MISMATCH, "budget_accounting", str(exc))
+
+    upper_types = set(upper_ontology.primitive_types)
+    upper_relations = set(upper_ontology.primitive_relations)
+    for contextual_type in type_by_id.values():
+        if contextual_type.parent_upper_type not in upper_types:
+            add(
+                ValidationCode.SCHEMA_PARENT_MISMATCH,
+                f"local_schema.contextual_types.{contextual_type.type_id}.parent_upper_type",
+                "contextual type has no declared upper-ontology parent",
+                contextual_type.type_id,
+                contextual_type.parent_upper_type,
+            )
+    for predicate in predicate_by_id.values():
+        if predicate.parent_upper_relation not in upper_relations:
+            add(
+                ValidationCode.SCHEMA_PARENT_MISMATCH,
+                f"local_schema.predicates.{predicate.predicate_id}.parent_upper_relation",
+                "local predicate has no declared upper-ontology parent",
+                predicate.predicate_id,
+                predicate.parent_upper_relation,
+            )
+        unknown_types = (set(predicate.domain_type_ids) | set(predicate.range_type_ids)) - set(
+            type_by_id
+        )
+        if unknown_types:
+            add(
+                ValidationCode.UNKNOWN_REFERENCE,
+                f"local_schema.predicates.{predicate.predicate_id}",
+                "predicate signature refers to an unknown contextual type",
+                predicate.predicate_id,
+                *sorted(unknown_types),
+            )
+        if len(predicate.role_names) != len(set(predicate.role_names)):
+            add(
+                ValidationCode.PREDICATE_SIGNATURE_MISMATCH,
+                f"local_schema.predicates.{predicate.predicate_id}.role_names",
+                "predicate role names must be unique",
+                predicate.predicate_id,
+            )
+
+    for kind, records in (("entities", graph.entities), ("events", graph.events)):
+        for record in records:
+            record_id = record.entity_id if kind == "entities" else record.event_id
+            if record.contextual_type_id not in type_by_id:
+                add(
+                    ValidationCode.UNKNOWN_REFERENCE,
+                    f"instance_graph.{kind}.{record_id}.contextual_type_id",
+                    "graph node refers to an unknown contextual type",
+                    record_id,
+                    record.contextual_type_id,
+                )
+            unknown_descriptions = set(record.description_assertion_ids) - set(assertion_by_id)
+            if unknown_descriptions:
+                add(
+                    ValidationCode.DESCRIPTION_SUPPORT_INVALID,
+                    f"instance_graph.{kind}.{record_id}.description_assertion_ids",
+                    "node description refers to an unknown assertion",
+                    record_id,
+                    *sorted(unknown_descriptions),
+                )
+
+    for entity in graph.entities:
+        unknown_mentions = set(entity.supported_mention_candidate_ids) - set(mention_by_id)
+        if unknown_mentions:
+            add(
+                ValidationCode.MENTION_SUPPORT_INVALID,
+                f"instance_graph.entities.{entity.entity_id}.supported_mention_candidate_ids",
+                "entity refers to a mention absent from the frozen evidence",
+                entity.entity_id,
+                *sorted(unknown_mentions),
+            )
+        misplaced = tuple(
+            candidate_id
+            for candidate_id in entity.supported_mention_candidate_ids
+            if candidate_id in mention_by_id
+            and mention_by_id[candidate_id].evidence_id not in entity.evidence_ids
+        )
+        if misplaced:
+            add(
+                ValidationCode.MENTION_SUPPORT_INVALID,
+                f"instance_graph.entities.{entity.entity_id}.evidence_ids",
+                "entity evidence omits the source of a supported mention",
+                entity.entity_id,
+                *misplaced,
+            )
+    for event in graph.events:
+        if not any(
+            candidate.evidence_id in event.evidence_ids
+            for candidate in event_candidate_by_id.values()
+        ):
+            add(
+                ValidationCode.MISSING_GROUNDING,
+                f"instance_graph.events.{event.event_id}.evidence_ids",
+                "reified event has no event-candidate anchor in cited evidence",
+                event.event_id,
+            )
+
+    def role_references(
+        *,
+        record_id: str,
+        roles: Sequence[RoleBinding],
+        evidence_ids: Sequence[str],
+        path: str,
+    ) -> tuple[str, ...]:
+        object_ids: list[str] = []
+        for index, role in enumerate(roles):
+            object_id = role.object_id
+            object_ids.append(object_id)
+            if object_id not in referent_ids:
+                add(
+                    ValidationCode.UNKNOWN_REFERENCE,
+                    f"{path}.roles.{index}.object_id",
+                    "role binding refers to an unknown graph object",
+                    record_id,
+                    object_id,
+                )
+            role_evidence = set(role.evidence_ids)
+            if not role_evidence or not role_evidence.issubset(evidence_ids):
+                add(
+                    ValidationCode.MISSING_GROUNDING,
+                    f"{path}.roles.{index}.evidence_ids",
+                    "role evidence must be nonempty and contained in parent evidence",
+                    record_id,
+                )
+        return tuple(object_ids)
+
+    for proposition in graph.proposition_contents:
+        predicate = predicate_by_id.get(proposition.predicate_id)
+        path = f"instance_graph.proposition_contents.{proposition.proposition_content_id}"
+        if predicate is None:
+            add(
+                ValidationCode.UNKNOWN_REFERENCE,
+                f"{path}.predicate_id",
+                "proposition refers to an unknown local predicate",
+                proposition.proposition_content_id,
+                proposition.predicate_id,
+            )
+        if proposition.subject_id is not None:
+            unknown = {
+                proposition.subject_id,
+                proposition.object_id,
+            } - referent_ids
+            unknown.discard(None)
+            if unknown:
+                add(
+                    ValidationCode.UNKNOWN_REFERENCE,
+                    path,
+                    "proposition endpoint refers to an unknown graph object",
+                    proposition.proposition_content_id,
+                    *sorted(unknown),
+                )
+            if predicate is not None and predicate.arity != 2:
+                add(
+                    ValidationCode.PREDICATE_SIGNATURE_MISMATCH,
+                    path,
+                    "binary proposition uses a non-binary local predicate",
+                    proposition.proposition_content_id,
+                    predicate.predicate_id,
+                )
+        else:
+            object_ids = role_references(
+                record_id=proposition.proposition_content_id,
+                roles=proposition.roles,
+                evidence_ids=proposition.evidence_ids,
+                path=path,
+            )
+            if predicate is not None and (
+                len(object_ids) != predicate.arity
+                or tuple(role.role for role in proposition.roles) != predicate.role_names
+            ):
+                add(
+                    ValidationCode.PREDICATE_SIGNATURE_MISMATCH,
+                    path,
+                    "proposition roles do not match the local predicate signature",
+                    proposition.proposition_content_id,
+                    predicate.predicate_id,
+                )
+
+    assertion_footprints: dict[str, set[str]] = {}
+    for assertion in graph.assertions:
+        path = f"instance_graph.assertions.{assertion.assertion_id}"
+        predicate = predicate_by_id.get(assertion.predicate_id)
+        footprint: set[str] = set()
+        if predicate is None:
+            add(
+                ValidationCode.UNKNOWN_REFERENCE,
+                f"{path}.predicate_id",
+                "assertion refers to an unknown local predicate",
+                assertion.assertion_id,
+                assertion.predicate_id,
+            )
+        if assertion.subject_id is not None:
+            endpoints = {assertion.subject_id, assertion.object_id}
+            unknown = endpoints - referent_ids
+            unknown.discard(None)
+            footprint.update(item for item in endpoints if item is not None)
+            if unknown:
+                add(
+                    ValidationCode.UNKNOWN_REFERENCE,
+                    path,
+                    "assertion endpoint refers to an unknown graph object",
+                    assertion.assertion_id,
+                    *sorted(unknown),
+                )
+            if predicate is not None and predicate.arity != 2:
+                add(
+                    ValidationCode.PREDICATE_SIGNATURE_MISMATCH,
+                    path,
+                    "binary assertion uses a non-binary local predicate",
+                    assertion.assertion_id,
+                    predicate.predicate_id,
+                )
+        else:
+            role_ids = role_references(
+                record_id=assertion.assertion_id,
+                roles=assertion.roles,
+                evidence_ids=assertion.evidence_ids,
+                path=path,
+            )
+            footprint.update(role_ids)
+            if predicate is not None and (
+                len(role_ids) != predicate.arity
+                or tuple(role.role for role in assertion.roles) != predicate.role_names
+            ):
+                add(
+                    ValidationCode.PREDICATE_SIGNATURE_MISMATCH,
+                    path,
+                    "assertion roles do not match the local predicate signature",
+                    assertion.assertion_id,
+                    predicate.predicate_id,
+                )
+        if assertion.proposition_content_id is not None:
+            proposition = proposition_by_id.get(assertion.proposition_content_id)
+            if proposition is None:
+                add(
+                    ValidationCode.UNKNOWN_REFERENCE,
+                    f"{path}.proposition_content_id",
+                    "epistemic assertion refers to unknown proposition content",
+                    assertion.assertion_id,
+                    assertion.proposition_content_id,
+                )
+            else:
+                footprint.update(
+                    item
+                    for item in (proposition.subject_id, proposition.object_id)
+                    if item is not None
+                )
+                footprint.update(role.object_id for role in proposition.roles)
+                assertion_shape = (
+                    assertion.predicate_id,
+                    assertion.subject_id,
+                    assertion.object_id,
+                    tuple(
+                        (role.role, role.object_id, role.evidence_ids) for role in assertion.roles
+                    ),
+                )
+                proposition_shape = (
+                    proposition.predicate_id,
+                    proposition.subject_id,
+                    proposition.object_id,
+                    tuple(
+                        (role.role, role.object_id, role.evidence_ids) for role in proposition.roles
+                    ),
+                )
+                if assertion_shape != proposition_shape or not set(
+                    proposition.evidence_ids
+                ).issubset(assertion.evidence_ids):
+                    add(
+                        ValidationCode.PROPOSITION_ASSERTION_MISMATCH,
+                        f"{path}.proposition_content_id",
+                        "attributed assertion does not preserve its proposition content",
+                        assertion.assertion_id,
+                        proposition.proposition_content_id,
+                    )
+        if assertion.epistemic_scope is not None:
+            if assertion.epistemic_scope.holder_id not in entity_by_id:
+                add(
+                    ValidationCode.UNKNOWN_REFERENCE,
+                    f"{path}.epistemic_scope.holder_id",
+                    "epistemic holder is not a materialized entity",
+                    assertion.assertion_id,
+                    assertion.epistemic_scope.holder_id,
+                )
+            footprint.add(assertion.epistemic_scope.holder_id)
+        provenance_ids = {item.evidence_id for item in assertion.provenance}
+        if provenance_ids != set(assertion.evidence_ids):
+            add(
+                ValidationCode.PROVENANCE_MISMATCH,
+                f"{path}.provenance",
+                "assertion provenance must cover exactly its cited evidence IDs",
+                assertion.assertion_id,
+                *sorted(set(assertion.evidence_ids) ^ provenance_ids),
+            )
+        assertion_footprints[assertion.assertion_id] = footprint
+
+    for kind, records in (("entities", graph.entities), ("events", graph.events)):
+        for record in records:
+            record_id = record.entity_id if kind == "entities" else record.event_id
+            for assertion_id in record.description_assertion_ids:
+                if (
+                    assertion_id in assertion_footprints
+                    and record_id not in assertion_footprints[assertion_id]
+                ):
+                    add(
+                        ValidationCode.DESCRIPTION_SUPPORT_INVALID,
+                        f"instance_graph.{kind}.{record_id}.description_assertion_ids",
+                        "description support assertion does not involve the described node",
+                        record_id,
+                        assertion_id,
+                    )
+
+    cited_ids = set()
+    grounded_records = (
+        *draft.local_schema.contextual_types,
+        *draft.local_schema.predicates,
+        *graph.entities,
+        *graph.events,
+        *graph.proposition_contents,
+        *graph.assertions,
+        *draft.decisions,
+    )
+    for record in grounded_records:
+        record_evidence = set(record.evidence_ids)
+        cited_ids.update(record_evidence)
+        unknown = record_evidence - set(evidence_by_id)
+        if unknown:
+            add(
+                ValidationCode.EVIDENCE_OUTSIDE_PACKET,
+                f"records.{_record_identifier(record.model_dump(mode='python'))}.evidence_ids",
+                "record cites evidence outside the complete frozen input",
+                *sorted(unknown),
+            )
+
+    all_input_ids = targetable_ids | candidate_ids
+    allowed_operators = {
+        operator
+        for operator, enabled in (
+            (ConstructionOperator.MERGE, capabilities.merge_split),
+            (ConstructionOperator.SPLIT, capabilities.merge_split),
+            (ConstructionOperator.CONTEXTUAL_TYPE, capabilities.create_entities),
+            (ConstructionOperator.SCHEMA_RELATION, capabilities.create_schema_predicates),
+            (ConstructionOperator.EVENT_REIFICATION, capabilities.reify_events),
+            (ConstructionOperator.ABSTRACTION, capabilities.change_abstraction),
+            (
+                ConstructionOperator.TEMPORAL_QUALIFICATION,
+                capabilities.add_temporal_qualification,
+            ),
+            (
+                ConstructionOperator.EPISTEMIC_QUALIFICATION,
+                capabilities.add_epistemic_qualification,
+            ),
+        )
+        if enabled
+    }
+    allowed_operators.update(
+        {
+            ConstructionOperator.INCLUDE_EXCLUDE,
+            ConstructionOperator.RARE_PRESERVATION,
+        }
+    )
+    if capabilities.select_existing:
+        allowed_operators.add(ConstructionOperator.SELECTION)
+    if capabilities.compress_existing:
+        allowed_operators.add(ConstructionOperator.COMPRESSION)
+    if capabilities.write_supported_descriptions:
+        allowed_operators.add(ConstructionOperator.SUPPORTED_DESCRIPTION)
+
+    operator_targets = {
+        ConstructionOperator.MERGE: set(entity_by_id),
+        ConstructionOperator.SPLIT: set(entity_by_id),
+        ConstructionOperator.CONTEXTUAL_TYPE: set(type_by_id),
+        ConstructionOperator.SCHEMA_RELATION: {draft.local_schema.schema_id} | set(predicate_by_id),
+        ConstructionOperator.EVENT_REIFICATION: set(event_by_id),
+        ConstructionOperator.ABSTRACTION: schema_ids | set(entity_by_id) | set(event_by_id),
+        ConstructionOperator.TEMPORAL_QUALIFICATION: set(assertion_by_id),
+        ConstructionOperator.EPISTEMIC_QUALIFICATION: set(proposition_by_id) | set(assertion_by_id),
+        ConstructionOperator.RARE_PRESERVATION: targetable_ids,
+    }
+    for decision in draft.decisions:
+        path = f"decisions.{decision.decision_id}"
+        if decision.operator not in allowed_operators:
+            add(
+                ValidationCode.DECISION_DELTA_INVALID,
+                f"{path}.operator",
+                "decision operator is disabled by the supplied capability manifest",
+                decision.decision_id,
+            )
+        unknown_inputs = set(decision.input_object_ids) - all_input_ids
+        unknown_created = set(decision.created_object_ids) - targetable_ids
+        unknown_removed = set(decision.removed_object_ids) - all_input_ids
+        if unknown_inputs or unknown_created or unknown_removed:
+            add(
+                ValidationCode.DECISION_DELTA_INVALID,
+                path,
+                "decision refers to an object absent from evidence or the generated graph",
+                decision.decision_id,
+                *sorted(unknown_inputs | unknown_created | unknown_removed),
+            )
+        if set(decision.removed_object_ids) & targetable_ids:
+            add(
+                ValidationCode.DECISION_DELTA_INVALID,
+                f"{path}.removed_object_ids",
+                "a reportedly removed object remains in the generated ontology",
+                decision.decision_id,
+            )
+        expected_targets = operator_targets.get(decision.operator)
+        if expected_targets is not None and (
+            not decision.created_object_ids
+            or not set(decision.created_object_ids).issubset(expected_targets)
+        ):
+            add(
+                ValidationCode.DECISION_DELTA_INVALID,
+                f"{path}.created_object_ids",
+                "constructive decision does not create an object of its declared kind",
+                decision.decision_id,
+                *decision.created_object_ids,
+            )
+        if decision.operator in {ConstructionOperator.MERGE, ConstructionOperator.SPLIT}:
+            if len(set(decision.input_object_ids)) < 2:
+                add(
+                    ValidationCode.DECISION_DELTA_INVALID,
+                    f"{path}.input_object_ids",
+                    "merge/split requires at least two distinct input objects",
+                    decision.decision_id,
+                )
+            for created_id in decision.created_object_ids:
+                entity = entity_by_id.get(created_id)
+                if entity is not None and not (
+                    set(entity.supported_mention_candidate_ids) & set(decision.input_object_ids)
+                ):
+                    add(
+                        ValidationCode.DECISION_DELTA_INVALID,
+                        path,
+                        "merge/split output is not anchored to any declared input mention",
+                        decision.decision_id,
+                        created_id,
+                    )
+
+    temporal_owners = referent_ids | set(assertion_by_id)
+    order_edges: dict[str, set[str]] = {identifier: set() for identifier in temporal_owners}
+
+    def validate_temporal(
+        owner_id: str,
+        field_name: str,
+        extent: StoryTime | ValidityTime | HolderRelativeTime,
+    ) -> None:
+        kind = extent.kind
+        path = f"temporal.{owner_id}.{field_name}"
+        start = extent.start
+        end = extent.end
+        if kind is TemporalKind.INTERVAL and start is not None and end is not None and start > end:
+            add(
+                ValidationCode.TEMPORAL_INTERVAL_INVALID,
+                path,
+                "temporal interval start exceeds its end",
+                owner_id,
+            )
+        if kind is TemporalKind.RELATIVE:
+            anchor = extent.anchor_id
+            relation = extent.relation
+            if anchor not in temporal_owners:
+                add(
+                    ValidationCode.UNKNOWN_REFERENCE,
+                    f"{path}.anchor_id",
+                    "relative temporal anchor is absent from the graph",
+                    owner_id,
+                    anchor,
+                )
+            elif relation in {AllenRelation.BEFORE, AllenRelation.MEETS}:
+                order_edges[owner_id].add(anchor)
+            elif relation in {AllenRelation.AFTER, AllenRelation.MET_BY}:
+                order_edges[anchor].add(owner_id)
+        if kind is TemporalKind.PARTIAL_ORDER:
+            for index, constraint in enumerate(extent.partial_order):
+                if (
+                    constraint.left_id not in temporal_owners
+                    or constraint.right_id not in temporal_owners
+                ):
+                    add(
+                        ValidationCode.UNKNOWN_REFERENCE,
+                        f"{path}.partial_order.{index}",
+                        "partial-order constraint names an absent graph object",
+                        constraint.left_id,
+                        constraint.right_id,
+                    )
+                elif constraint.relation in {AllenRelation.BEFORE, AllenRelation.MEETS}:
+                    order_edges[constraint.left_id].add(constraint.right_id)
+                elif constraint.relation in {AllenRelation.AFTER, AllenRelation.MET_BY}:
+                    order_edges[constraint.right_id].add(constraint.left_id)
+
+    for entity in graph.entities:
+        validate_temporal(entity.entity_id, "temporal_state", entity.temporal_state)
+    for event in graph.events:
+        validate_temporal(event.event_id, "occurrence_time", event.occurrence_time)
+    for proposition in graph.proposition_contents:
+        validate_temporal(
+            proposition.proposition_content_id,
+            "story_time",
+            proposition.temporal_content.story_time,
+        )
+        validate_temporal(
+            proposition.proposition_content_id,
+            "validity_time",
+            proposition.temporal_content.validity_time,
+        )
+    for assertion in graph.assertions:
+        validate_temporal(assertion.assertion_id, "story_time", assertion.temporal_scope.story_time)
+        validate_temporal(
+            assertion.assertion_id, "validity_time", assertion.temporal_scope.validity_time
+        )
+        if assertion.epistemic_scope is not None:
+            validate_temporal(
+                assertion.assertion_id,
+                "holder_relative_time",
+                assertion.epistemic_scope.holder_relative_time,
+            )
+
+    visiting: set[str] = set()
+    visited: set[str] = set()
+
+    def visit(identifier: str) -> bool:
+        if identifier in visiting:
+            return True
+        if identifier in visited:
+            return False
+        visiting.add(identifier)
+        if any(visit(next_id) for next_id in order_edges[identifier]):
+            return True
+        visiting.remove(identifier)
+        visited.add(identifier)
+        return False
+
+    if any(visit(identifier) for identifier in tuple(order_edges)):
+        add(
+            ValidationCode.TEMPORAL_ORDER_CYCLE,
+            "instance_graph",
+            "strict before/meets constraints contain a cycle",
+        )
+
+    return _report(diagnostics)
 
 
 class ConstructionLineageAudit(RuntimeManifest):

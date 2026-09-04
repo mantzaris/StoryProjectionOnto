@@ -9,6 +9,10 @@ from typing import Any
 
 import pytest
 
+from story_projection_onto.conditions.base import (
+    preontology_semantic_hash,
+    sealed_semantic_ids,
+)
 from story_projection_onto.contracts import (
     CONSTRUCTIVE_OPERATORS,
     FIXED_SELECT_ALLOWED_OPERATORS,
@@ -28,7 +32,9 @@ from story_projection_onto.contracts import (
     ReleaseClass,
     RetrievalMethod,
     StoryTime,
+    TemporalKind,
     ValidityTime,
+    canonical_sha256,
 )
 from story_projection_onto.llm import (
     CapabilityManifest,
@@ -38,12 +44,14 @@ from story_projection_onto.llm import (
     allowed_capabilities_for,
     enforce_fixed_select_draft,
     sealed_inventory_from_fixed_ontology,
+    semantic_fingerprints_from_draft,
 )
 from story_projection_onto.validate import (
     BoundaryValidationReport,
     GroundingSupportStatus,
     ValidationCode,
     validate_draft_evidence_grounding,
+    validate_repair_preservation,
     validate_single_repair_lineage,
 )
 
@@ -59,13 +67,13 @@ PROMPTS = {
 REPAIR_PROMPT = ROOT / "prompts" / "repair" / "prompt_v1.md"
 
 EXPECTED_PROMPT_HASHES = {
-    ConditionName.C1_LLM_PRE: "d6091ab01236e9e4c1164cf94f53ee4a9292dc1c4d482bdf18d0a40640c5fbe8",
-    ConditionName.C2_LLM_QUERY: "940ac8f56f457f5a2051f8548eac52e7aa2a9c1d11da9a4c8391b368dc28d71a",
+    ConditionName.C1_LLM_PRE: "0d6e54e8c3d1b80d31248b9f099a0a433e0a2b0cb9b2f4f70a2a6d547810b03e",
+    ConditionName.C2_LLM_QUERY: "f85a326675fe792d30789e3d4341e2e23bffb4649f350c07fa271914770b0e10",
     ConditionName.A_FIXED_SELECT: (
-        "9b71fe11c3ce74908b11214d2623f5b6a28b1f475e557739b3e0569faef6a018"
+        "1cafbb5130f1aa2694af764cdd6c7d034287926d519d7b8d157339307765fd5b"
     ),
 }
-EXPECTED_REPAIR_PROMPT_HASH = "29d059842f5bd1c3efc03ad2c110f75f4136ee85b3dbfda1b99f6fb3f732ab4d"
+EXPECTED_REPAIR_PROMPT_HASH = "6b7430d00daf1cd1b71a10d97d09c18d989444e9ef030ef33a3b16b2a1a4084c"
 
 
 def load_json(name: str) -> Any:
@@ -339,77 +347,195 @@ def test_capability_manifests_make_fixed_select_construction_impossible() -> Non
 
 def test_c1_and_c2_drafts_exercise_registered_construction_operators() -> None:
     c1 = OntologyDraft.model_validate(load_json("c1_pre_output.json"))
+    c1_secondary = OntologyDraft.model_validate(load_json("c1_pre_output_2.json"))
     c2 = OntologyDraft.model_validate(load_json("c2_query_output.json"))
+    c2_secondary = OntologyDraft.model_validate(load_json("c2_query_output_2.json"))
     c1_operators = {item.operator for item in c1.decisions}
+    c1_secondary_operators = {item.operator for item in c1_secondary.decisions}
     c2_operators = {item.operator for item in c2.decisions}
+    c2_secondary_operators = {item.operator for item in c2_secondary.decisions}
 
-    assert c1_operators == allowed_capabilities_for(ConditionName.C1_LLM_PRE)
-    assert c2_operators == set(ConstructionOperator)
-    assert all(item.decided_at < QUERY_REVEAL for item in c1.decisions)
-    assert all(item.decided_at > QUERY_REVEAL for item in c2.decisions)
+    # The pilot call set, rather than every individual 2,048-token response, is the
+    # registered unit of operator coverage.  Both references remain independently
+    # coherent while their union exercises every constructive operation.
+    assert c1_operators.issubset(allowed_capabilities_for(ConditionName.C1_LLM_PRE))
+    assert c1_secondary_operators.issubset(allowed_capabilities_for(ConditionName.C1_LLM_PRE))
+    assert c2_operators.issubset(allowed_capabilities_for(ConditionName.C2_LLM_QUERY))
+    assert c2_secondary_operators.issubset(allowed_capabilities_for(ConditionName.C2_LLM_QUERY))
+    assert c1_operators | c1_secondary_operators == CONSTRUCTIVE_OPERATORS
+    assert c2_operators | c2_secondary_operators == CONSTRUCTIVE_OPERATORS
+    assert c1_operators | c2_operators == CONSTRUCTIVE_OPERATORS
+    assert c1_operators.isdisjoint(c2_operators)
     assert all(
-        item.created_object_ids or item.removed_object_ids
-        for item in c2.decisions
-        if item.operator in CONSTRUCTIVE_OPERATORS
+        item.decided_at < QUERY_REVEAL for draft in (c1, c1_secondary) for item in draft.decisions
     )
-    assert_draft_referential_integrity(c1)
-    assert_draft_referential_integrity(c2)
+    assert all(
+        item.decided_at > QUERY_REVEAL for draft in (c2, c2_secondary) for item in draft.decisions
+    )
 
-    c2_ids = semantic_ids(c2)
+    for draft in (c1, c1_secondary, c2, c2_secondary):
+        assert_draft_referential_integrity(draft)
+        draft_ids = semantic_ids(draft)
+        for item in draft.decisions:
+            assert item.operator in CONSTRUCTIVE_OPERATORS
+            assert item.created_object_ids
+            assert set(item.created_object_ids).issubset(draft_ids)
+
+    c1_ids = semantic_ids(c1)
     event_decision = next(
-        item for item in c2.decisions if item.operator is ConstructionOperator.EVENT_REIFICATION
+        item for item in c1.decisions if item.operator is ConstructionOperator.EVENT_REIFICATION
     )
     assert set(event_decision.created_object_ids) == {
-        "event-c2-delivery",
-        "event-c2-opening",
+        "event-c1-delivery",
+        "event-c1-opening",
     }
-    assert set(event_decision.created_object_ids).issubset(c2_ids)
+    assert set(event_decision.created_object_ids).issubset(c1_ids)
+    c2_event_decision = next(
+        item
+        for item in c2_secondary.decisions
+        if item.operator is ConstructionOperator.EVENT_REIFICATION
+    )
+    assert set(c2_event_decision.created_object_ids) == {
+        "event-c2b-delivery",
+        "event-c2b-opening",
+    }
+    assert ConstructionOperator.MERGE in c1_operators
+    assert ConstructionOperator.SPLIT in c2_operators
     assert c2.local_schema.abstraction.value == "collective_causal_chain"
     assert all(
         item.abstraction.value == "collective_causal_chain" for item in c2.instance_graph.entities
     )
 
 
-def test_c2_identity_event_rare_temporal_and_epistemic_content_is_substantive() -> None:
+def test_reference_identity_event_rare_temporal_and_epistemic_content_is_substantive() -> None:
     request = ConstructionRequest.model_validate(load_json("c2_query_request.json"))
+    c1 = OntologyDraft.model_validate(load_json("c1_pre_output.json"))
     draft = OntologyDraft.model_validate(load_json("c2_query_output.json"))
+    c2_secondary = OntologyDraft.model_validate(load_json("c2_query_output_2.json"))
     evidence_ids = set(request.packet.ordered_evidence_ids)
     assertions = {item.assertion_id: item for item in draft.instance_graph.assertions}
+    c1_assertions = {item.assertion_id: item for item in c1.instance_graph.assertions}
     entities = {item.entity_id: item for item in draft.instance_graph.entities}
 
     assert "m-ash-courier" in entities["ent-c2-lio"].supported_mention_candidate_ids
     assert entities["ent-c2-ash-mechanic"].supported_mention_candidate_ids == ("m-ash-mechanic",)
     assert entities["ent-c2-lio"].entity_id != entities["ent-c2-ash-mechanic"].entity_id
-    assert {item.event_id for item in draft.instance_graph.events} == {
-        "event-c2-delivery",
-        "event-c2-opening",
+    assert not draft.instance_graph.events
+    assert {item.event_id for item in c2_secondary.instance_graph.events} == {
+        "event-c2b-delivery",
+        "event-c2b-opening",
     }
 
     rare_decision = next(
-        item for item in draft.decisions if item.operator is ConstructionOperator.RARE_PRESERVATION
+        item for item in c1.decisions if item.operator is ConstructionOperator.RARE_PRESERVATION
     )
     assert rare_decision.evidence_ids == ("ev-06",)
-    assert "ev-06" in assertions["assert-c2-enabled"].evidence_ids
-    assert assertions["assert-c2-enabled"].why_matters_evidence_ids == (
+    assert "ev-06" in c1_assertions["assert-c1-enabled"].evidence_ids
+    assert c1_assertions["assert-c1-enabled"].why_matters_evidence_ids == (
         "ev-04",
         "ev-06",
     )
 
     report = assertions["assert-c2-report"]
+    proposition = next(
+        item
+        for item in draft.instance_graph.proposition_contents
+        if item.proposition_content_id == "prop-c2-bridge-safe"
+    )
     assert report.narrative_commitment is NarrativeCommitment.HOLDER_ATTRIBUTED
     assert report.epistemic_scope is not None
     assert report.epistemic_scope.holder_id == "ent-c2-mara"
     assert report.epistemic_scope.attitude.value == "reported"
+    assert (
+        proposition.predicate_id,
+        proposition.subject_id,
+        proposition.object_id,
+    ) == (report.predicate_id, report.subject_id, report.object_id)
+    assert (proposition.subject_id, proposition.object_id) == (
+        "ent-c2-bridge",
+        "ent-c2-safe",
+    )
+    assert report.epistemic_scope.holder_id not in {
+        proposition.subject_id,
+        proposition.object_id,
+    }
+    safe = entities["ent-c2-safe"]
+    assert safe.supported_mention_candidate_ids == ("m-safe-05",)
+    assert report.assertion_id in safe.description_assertion_ids
     assert not any(
         item.proposition_content_id == "prop-c2-bridge-safe"
         and item.narrative_commitment is NarrativeCommitment.WORLD_COMMITTED
         for item in draft.instance_graph.assertions
     )
+    assert not c1.instance_graph.proposition_contents
     assert isinstance(report.temporal_scope.story_time, StoryTime)
     assert isinstance(report.temporal_scope.validity_time, ValidityTime)
+    assert report.temporal_scope.story_time.kind is TemporalKind.UNKNOWN
+    assert report.temporal_scope.validity_time.kind is TemporalKind.UNKNOWN
+    assert report.epistemic_scope.holder_relative_time.kind is TemporalKind.UNKNOWN
     assert report.temporal_scope.discourse_position.passage_order == 5
     assert report.temporal_scope.revelation_position.revelation_order == 5
     assert request.context.spoiler_horizon.max_discourse_position.passage_order == 7
+
+    for constructed, prefix in ((c1, "c1"), (c2_secondary, "c2b")):
+        constructed_types = {
+            item.type_id: item for item in constructed.local_schema.contextual_types
+        }
+        assert constructed_types[f"t-{prefix}"].parent_upper_type == "entity"
+        assert constructed_types[f"t-{prefix}-event"].parent_upper_type == "event"
+        assert {item.contextual_type_id for item in constructed.instance_graph.entities} == {
+            f"t-{prefix}"
+        }
+        assert {item.contextual_type_id for item in constructed.instance_graph.events} == {
+            f"t-{prefix}-event"
+        }
+        constructed_assertions = {
+            item.assertion_id: item for item in constructed.instance_graph.assertions
+        }
+        chain = constructed_assertions[f"assert-{prefix}-chain"]
+        enabled = constructed_assertions[f"assert-{prefix}-enabled"]
+        assert chain.temporal_scope.story_time.kind is TemporalKind.POINT
+        assert chain.temporal_scope.story_time.point == 2
+        assert chain.temporal_scope.validity_time.point == 2
+        assert chain.temporal_scope.discourse_position.passage_order == 4
+        assert chain.temporal_scope.revelation_position.revelation_order == 4
+        assert enabled.temporal_scope.story_time.point == 2
+        assert enabled.temporal_scope.validity_time.point == 2
+        assert enabled.temporal_scope.discourse_position.passage_order == 6
+        assert enabled.temporal_scope.revelation_position.revelation_order == 6
+        assert {item.occurrence_time.point for item in constructed.instance_graph.events} == {2}
+
+    c1_secondary = OntologyDraft.model_validate(load_json("c1_pre_output_2.json"))
+    for identity_draft, prefix in ((draft, "c2"), (c1_secondary, "c1b")):
+        identity_type_parents = {
+            item.parent_upper_type for item in identity_draft.local_schema.contextual_types
+        }
+        assert identity_type_parents == {"entity"}
+        identity_assertions = {
+            item.assertion_id: item for item in identity_draft.instance_graph.assertions
+        }
+        distinct = identity_assertions[f"assert-{prefix}-distinct"]
+        attributed = identity_assertions[f"assert-{prefix}-report"]
+        assert distinct.temporal_scope.story_time.kind is TemporalKind.UNKNOWN
+        assert distinct.temporal_scope.validity_time.kind is TemporalKind.UNKNOWN
+        assert distinct.temporal_scope.discourse_position.passage_order == 3
+        assert attributed.temporal_scope.story_time.kind is TemporalKind.UNKNOWN
+        assert attributed.temporal_scope.validity_time.kind is TemporalKind.UNKNOWN
+        assert attributed.temporal_scope.discourse_position.passage_order == 5
+
+    c1_predicates = {item.predicate_id: item for item in c1.local_schema.predicates}
+    c2_predicates = {item.predicate_id: item for item in draft.local_schema.predicates}
+    assert c1_predicates["p-c1-chain"].parent_upper_relation == "precedes"
+    assert c1_predicates["p-c1-credential-enabled"].parent_upper_relation == "causes"
+    assert c2_predicates["p-c2-status"].parent_upper_relation == "has_status"
+    assert all(
+        role.role != "separate_mechanic"
+        for assertion_item in (
+            *c1.instance_graph.assertions,
+            *c2_secondary.instance_graph.assertions,
+        )
+        for role in assertion_item.roles
+    )
 
     for _, citations in cited_records(draft):
         assert set(citations).issubset(evidence_ids)
@@ -458,10 +584,17 @@ def test_fixed_select_draft_is_a_semantically_unchanged_sealed_selection() -> No
         source_draft=source_draft,
     )
 
-    enforce_fixed_select_draft(selected_draft, sealed=sealed, seed_block=1)
-    assert {item.operator for item in selected_draft.decisions}.issubset(
-        FIXED_SELECT_ALLOWED_OPERATORS
+    assert request.fixed_ontology.local_schema == source_draft.local_schema
+    assert request.fixed_ontology.instance_graph == source_draft.instance_graph
+    assert request.fixed_ontology.construction_seal.ontology_hash == preontology_semantic_hash(
+        request.upper_ontology, source_draft
     )
+    assert request.fixed_ontology.construction_seal.sealed_object_ids == sealed_semantic_ids(
+        source_draft
+    )
+    assert sealed.objects == semantic_fingerprints_from_draft(source_draft)
+    enforce_fixed_select_draft(selected_draft, sealed=sealed, seed_block=1)
+    assert {item.operator for item in selected_draft.decisions} == FIXED_SELECT_ALLOWED_OPERATORS
     assert all(
         not item.created_object_ids and not item.removed_object_ids
         for item in selected_draft.decisions
@@ -506,6 +639,7 @@ def test_invalid_repair_case_is_fact_free_and_fails_packet_and_horizon_gates() -
     raw = load_json("invalid_repair_case.json")
     request = ConstructionRequest.model_validate(load_json("c2_query_request.json"))
     invalid_draft = OntologyDraft.model_validate(raw["base_draft"])
+    corrected_draft = OntologyDraft.model_validate(raw["corrected_draft"])
     recorded_report = BoundaryValidationReport.model_validate(raw["validation_report"])
     lineage = RepairLineageMetadata.model_validate(raw["repair_lineage"])
     snapshot, packet, context = full_validation_inputs(request)
@@ -521,6 +655,18 @@ def test_invalid_repair_case_is_fact_free_and_fails_packet_and_horizon_gates() -
         draft=invalid_draft,
         support_assessments=support,
     )
+    corrected_support = {
+        (record_id, evidence_id): GroundingSupportStatus.SUPPORTED
+        for record_id, citations in cited_records(corrected_draft)
+        for evidence_id in citations
+    }
+    corrected_report = validate_draft_evidence_grounding(
+        snapshot=snapshot,
+        packet=packet,
+        context=context,
+        draft=corrected_draft,
+        support_assessments=corrected_support,
+    )
 
     expected_codes = {
         ValidationCode.EVIDENCE_OUTSIDE_SNAPSHOT,
@@ -529,13 +675,24 @@ def test_invalid_repair_case_is_fact_free_and_fails_packet_and_horizon_gates() -
         ValidationCode.REVELATION_HORIZON_LEAK,
     }
     assert not recorded_report.accepted
+    assert len(invalid_draft.instance_graph.assertions) == 1
+    assert {item.path for item in recorded_report.diagnostics} == {"instance_graph.assertions"}
     assert not actual_report.accepted
+    assert corrected_report.accepted
     assert expected_codes.issubset({item.code for item in actual_report.diagnostics})
     assert expected_codes == {item.code for item in recorded_report.diagnostics}
     assert lineage.base_attempt_id == raw["base_attempt_id"]
     assert lineage.repair_attempt_id == raw["repair_attempt_id"]
+    assert lineage.semantic_request_hash == canonical_sha256(load_json("c2_query_request.json"))
+    assert lineage.base_output_hash == canonical_sha256(raw["base_draft"])
+    assert lineage.validation_record_hash == canonical_sha256(raw["validation_report"])
     assert validate_single_repair_lineage(
         (lineage,), known_attempt_ids=(raw["base_attempt_id"],)
+    ).accepted
+    assert validate_repair_preservation(
+        base_draft=raw["base_draft"],
+        repaired_draft=raw["corrected_draft"],
+        diagnosed_paths=tuple(item.path for item in recorded_report.diagnostics),
     ).accepted
 
     diagnostic_payload = raw["validation_report"]["diagnostics"]
@@ -559,3 +716,10 @@ def test_invalid_repair_case_is_fact_free_and_fails_packet_and_horizon_gates() -
     assert bad_assertion.temporal_scope.revelation_position.revelation_order > (
         request.context.spoiler_horizon.max_revelation_position.revelation_order
     )
+    corrected_assertion = corrected_draft.instance_graph.assertions[0]
+    assert bad_assertion.temporal_scope.story_time.point == 2
+    assert bad_assertion.temporal_scope.validity_time.point == 2
+    assert bad_assertion.temporal_scope.discourse_position.passage_order == 6
+    assert corrected_assertion.temporal_scope.story_time.point == 2
+    assert corrected_assertion.temporal_scope.validity_time.point == 2
+    assert corrected_assertion.temporal_scope.revelation_position.revelation_order == 6

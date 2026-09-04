@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import math
+import threading
 import time
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -22,9 +23,12 @@ from types import MappingProxyType, TracebackType
 from typing import Any, Self
 
 from story_projection_onto.store import (
+    GpuAllocationJournalState,
     GpuBudgetExceeded,
     GpuEvent,
     GpuEventKind,
+    GpuServiceJournalRecord,
+    GpuServiceJournalState,
     GpuServiceSession,
     Ledger,
 )
@@ -37,6 +41,7 @@ REGISTERED_SCHEDULED_SECONDS = 9 * 60 * 60
 REGISTERED_PREFERRED_SECONDS = 8.25 * 60 * 60
 REGISTERED_HARD_SECONDS = 10 * 60 * 60
 SESSION_START_CLASS = "gpu_session_start"
+REGISTERED_STORAGE_PHASES = tuple(f"phase_{index}" for index in range(1, 8))
 REGISTERED_CALL_CLASSES: Mapping[str, tuple[int, int]] = MappingProxyType(
     {
         "gpu_session_start": (8, 180),
@@ -331,6 +336,100 @@ class ResourceLimits:
         if not isinstance(value, Mapping):
             raise ValueError("resource-limit root must be an object")
         return cls.from_mapping(value)
+
+
+@dataclass(frozen=True)
+class PhaseStorageReservation:
+    """Concurrent writable-space reservation applied at one phase boundary."""
+
+    declared_growth_bytes: int
+    largest_atomic_temporary_bytes: int
+    quarantine_allowance_bytes: int
+    release_staging_bytes: int
+
+    def __post_init__(self) -> None:
+        for name in self.__dataclass_fields__:  # type: ignore[attr-defined]
+            value = getattr(self, name)
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                raise ValueError(f"{name} must be a nonnegative integer")
+
+    @classmethod
+    def from_mapping(cls, value: Mapping[str, object]) -> Self:
+        field_names = tuple(cls.__dataclass_fields__)  # type: ignore[attr-defined]
+        missing = [name for name in field_names if name not in value]
+        if missing:
+            raise ValueError("storage reservation missing fields: " + ", ".join(missing))
+        unknown = sorted(set(value) - set(field_names))
+        if unknown:
+            raise ValueError("storage reservation contains unknown fields: " + ", ".join(unknown))
+        return cls(**{name: value[name] for name in field_names})  # type: ignore[arg-type]
+
+    @property
+    def additional_reserved_bytes(self) -> int:
+        return sum(getattr(self, name) for name in self.__dataclass_fields__)  # type: ignore[attr-defined]
+
+    def preflight_arguments(self) -> dict[str, int]:
+        return {
+            name: getattr(self, name)
+            for name in self.__dataclass_fields__  # type: ignore[attr-defined]
+        }
+
+
+@dataclass(frozen=True)
+class StorageAllocationPlan:
+    """Typed seven-phase storage reservations loaded from tracked configuration."""
+
+    schema_version: str
+    reservations: Mapping[str, PhaseStorageReservation]
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.schema_version, str) or not self.schema_version:
+            raise ValueError("storage allocation schema_version must be nonempty")
+        actual = tuple(sorted(self.reservations))
+        expected = tuple(sorted(REGISTERED_STORAGE_PHASES))
+        if actual != expected:
+            raise ValueError("storage allocation phases must be exactly: " + ", ".join(expected))
+        if not all(
+            isinstance(item, PhaseStorageReservation) for item in self.reservations.values()
+        ):
+            raise ValueError("storage allocation contains an untyped reservation")
+        object.__setattr__(self, "reservations", MappingProxyType(dict(self.reservations)))
+
+    @classmethod
+    def from_mapping(cls, value: Mapping[str, object]) -> Self:
+        unknown = sorted(set(value) - {"schema_version", "reservations"})
+        if unknown:
+            raise ValueError(
+                "storage allocation plan contains unknown fields: " + ", ".join(unknown)
+            )
+        schema_version = value.get("schema_version")
+        raw_reservations = value.get("reservations")
+        if not isinstance(schema_version, str):
+            raise ValueError("storage allocation schema_version must be a string")
+        if not isinstance(raw_reservations, Mapping):
+            raise ValueError("storage allocation reservations must be an object")
+        reservations: dict[str, PhaseStorageReservation] = {}
+        for phase, raw_reservation in raw_reservations.items():
+            if not isinstance(phase, str) or not isinstance(raw_reservation, Mapping):
+                raise ValueError("each storage phase must map to a reservation object")
+            reservations[phase] = PhaseStorageReservation.from_mapping(raw_reservation)
+        return cls(schema_version=schema_version, reservations=reservations)
+
+    @classmethod
+    def load(cls, path: str | Path) -> Self:
+        try:
+            value = json.loads(Path(path).read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ValueError(f"cannot load storage allocation plan: {exc}") from exc
+        if not isinstance(value, Mapping):
+            raise ValueError("storage allocation plan root must be an object")
+        return cls.from_mapping(value)
+
+    def reservation_for(self, phase: str) -> PhaseStorageReservation:
+        try:
+            return self.reservations[phase]
+        except KeyError as exc:
+            raise KeyError(f"unknown storage phase {phase!r}") from exc
 
 
 def load_gpu_call_inventory(path: str | Path) -> GPUCallInventory:
@@ -880,6 +979,29 @@ class _AllocationContext:
         self.details = dict(details or {})
         self.handle: MeteredGPUAllocation | None = None
         self.started_monotonic: float | None = None
+        self._heartbeat_stop = threading.Event()
+        self._heartbeat_thread: threading.Thread | None = None
+        self._heartbeat_failure: BaseException | None = None
+
+    def _heartbeat(self) -> None:
+        assert self.started_monotonic is not None
+        while not self._heartbeat_stop.wait(self.meter.heartbeat_interval_seconds):
+            try:
+                elapsed = max(0.0, self.meter._monotonic_clock() - self.started_monotonic)
+                self.meter.ledger.record_gpu_allocation_observation(
+                    allocation_id=self.event_id,
+                    state=GpuAllocationJournalState.HEARTBEAT,
+                    intended_event_kind=self.event_kind,
+                    elapsed_seconds=elapsed,
+                    maximum_seconds=self.maximum_seconds,
+                    observed_at=self.meter._wall_clock(),
+                    job_id=self.job_id,
+                    attempt_id=self.attempt_id,
+                )
+            except BaseException as exc:
+                self._heartbeat_failure = exc
+                self._heartbeat_stop.set()
+                return
 
     def __enter__(self) -> MeteredGPUAllocation:
         self.meter.require_capacity(
@@ -892,12 +1014,29 @@ class _AllocationContext:
         if started_at.tzinfo is None or started_at.utcoffset() is None:
             raise ValueError("wall clock must return a timezone-aware datetime")
         self.started_monotonic = self.meter._monotonic_clock()
+        self.meter.ledger.record_gpu_allocation_observation(
+            allocation_id=self.event_id,
+            state=GpuAllocationJournalState.OPENED,
+            intended_event_kind=self.event_kind,
+            elapsed_seconds=0,
+            maximum_seconds=self.maximum_seconds,
+            observed_at=started_at,
+            job_id=self.job_id,
+            attempt_id=self.attempt_id,
+            details=self.details,
+        )
         self.handle = MeteredGPUAllocation(
             event_id=self.event_id,
             intended_kind=self.event_kind,
             maximum_seconds=self.maximum_seconds,
             started_at=started_at,
         )
+        self._heartbeat_thread = threading.Thread(
+            target=self._heartbeat,
+            name=f"gpu-allocation-heartbeat-{self.event_id}",
+            daemon=True,
+        )
+        self._heartbeat_thread.start()
         return self.handle
 
     def __exit__(
@@ -908,6 +1047,11 @@ class _AllocationContext:
     ) -> bool:
         if self.handle is None or self.started_monotonic is None:
             return False
+        self._heartbeat_stop.set()
+        if self._heartbeat_thread is not None:
+            self._heartbeat_thread.join(timeout=self.meter.heartbeat_interval_seconds + 1.0)
+            if self._heartbeat_thread.is_alive():
+                self._heartbeat_failure = RuntimeError("GPU allocation heartbeat did not stop")
         ended_monotonic = self.meter._monotonic_clock()
         elapsed = ended_monotonic - self.started_monotonic
         if not math.isfinite(elapsed) or elapsed < 0:
@@ -915,12 +1059,15 @@ class _AllocationContext:
         ended_at = self.meter._wall_clock()
         outcome = self.handle._outcome_kind or self.event_kind
         succeeded = self.handle._succeeded
-        if exc is not None:
+        effective_exception = exc if exc is not None else self._heartbeat_failure
+        if effective_exception is not None:
             outcome = (
-                GpuEventKind.TIMEOUT if isinstance(exc, TimeoutError) else GpuEventKind.FAILURE
+                GpuEventKind.TIMEOUT
+                if isinstance(effective_exception, TimeoutError)
+                else GpuEventKind.FAILURE
             )
             succeeded = False
-            self.details["exception_type"] = type(exc).__name__
+            self.details["exception_type"] = type(effective_exception).__name__
         elif succeeded is None:
             succeeded = outcome not in {GpuEventKind.FAILURE, GpuEventKind.TIMEOUT}
         self.details.update(self.handle._details)
@@ -937,7 +1084,20 @@ class _AllocationContext:
             attempt_id=self.attempt_id,
             details=self.details,
         )
+        self.meter.ledger.record_gpu_allocation_observation(
+            allocation_id=self.event_id,
+            state=GpuAllocationJournalState.CLOSED,
+            intended_event_kind=self.event_kind,
+            elapsed_seconds=elapsed,
+            maximum_seconds=self.maximum_seconds,
+            observed_at=ended_at,
+            job_id=self.job_id,
+            attempt_id=self.attempt_id,
+            details={"outcome_event_kind": outcome.value},
+        )
         self.handle._closed = True
+        if exc is None and self._heartbeat_failure is not None:
+            raise self._heartbeat_failure
         if elapsed > self.maximum_seconds and exc is None:
             raise GpuWatchdogExceeded(
                 f"GPU interval {self.event_id!r} used {elapsed:.6f}s, above its admitted "
@@ -957,6 +1117,7 @@ class AllocatedGPUMeter:
         hard_limit_seconds: float = REGISTERED_HARD_SECONDS,
         monotonic_clock: Callable[[], float] = time.monotonic,
         wall_clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+        heartbeat_interval_seconds: float = 5.0,
     ) -> None:
         self.ledger = ledger
         self.scheduled_limit_seconds = _nonnegative_finite(
@@ -969,6 +1130,13 @@ class AllocatedGPUMeter:
             raise ValueError("scheduled GPU limit must be below the hard limit")
         self._monotonic_clock = monotonic_clock
         self._wall_clock = wall_clock
+        self.heartbeat_interval_seconds = _nonnegative_finite(
+            "heartbeat_interval_seconds", heartbeat_interval_seconds
+        )
+        if self.heartbeat_interval_seconds <= 0:
+            raise ValueError("heartbeat_interval_seconds must be positive")
+        self._accounting_lock = threading.RLock()
+        self.ledger.recover_unclosed_gpu_allocations(recovered_at=self._wall_clock())
         self._last_observed_seconds = ledger.gpu_summary().total_allocated_seconds
 
     @classmethod
@@ -987,13 +1155,14 @@ class AllocatedGPUMeter:
 
     @property
     def actual_allocated_gpu_seconds(self) -> float:
-        observed = self.ledger.gpu_summary().total_allocated_seconds
-        if observed + 1e-9 < self._last_observed_seconds:
-            raise GpuAccountingRegression(
-                "actual_allocated_gpu_seconds decreased across a resume boundary"
-            )
-        self._last_observed_seconds = observed
-        return observed
+        with self._accounting_lock:
+            observed = self.ledger.gpu_summary().total_allocated_seconds
+            if observed + 1e-9 < self._last_observed_seconds:
+                raise GpuAccountingRegression(
+                    "actual_allocated_gpu_seconds decreased across a resume boundary"
+                )
+            self._last_observed_seconds = max(self._last_observed_seconds, observed)
+            return observed
 
     def require_capacity(
         self,
@@ -1036,26 +1205,143 @@ class AllocatedGPUMeter:
     ) -> GpuServiceSession:
         """Durably add only service time not already represented by GPU events."""
 
-        record = self.ledger.record_gpu_service_session(
-            service_session_id=service_session_id,
-            session_id=session_id,
-            service_seconds=_nonnegative_finite("service_seconds", service_seconds),
-            classified_event_seconds=_nonnegative_finite(
-                "classified_event_seconds", classified_event_seconds
-            ),
-            started_at=started_at,
-            ended_at=ended_at,
-            details=details,
-        )
-        current = self.ledger.gpu_summary().total_allocated_seconds
-        if current + 1e-9 < self._last_observed_seconds:
-            raise GpuAccountingRegression(
-                "GPU ledger total decreased after service-session reconciliation"
+        service = _nonnegative_finite("service_seconds", service_seconds)
+        classified = _nonnegative_finite("classified_event_seconds", classified_event_seconds)
+        journal = self.ledger.latest_gpu_service_journal(service_session_id)
+        if journal is None:
+            # Backward-compatible path for imported legacy accounting and
+            # bounded unit fixtures created before schema version 5.
+            record = self.ledger.record_gpu_service_session(
+                service_session_id=service_session_id,
+                session_id=session_id,
+                service_seconds=service,
+                classified_event_seconds=classified,
+                started_at=started_at,
+                ended_at=ended_at,
+                details=details,
             )
-        self._last_observed_seconds = current
+        else:
+            record = self.ledger.close_gpu_service_journal(
+                service_session_id=service_session_id,
+                session_id=session_id,
+                service_seconds=service,
+                classified_event_seconds=classified,
+                started_at=started_at,
+                ended_at=ended_at,
+                details=details,
+            )
+        with self._accounting_lock:
+            current = self.ledger.gpu_summary().total_allocated_seconds
+            if current + 1e-9 < self._last_observed_seconds:
+                raise GpuAccountingRegression(
+                    "GPU ledger total decreased after service-session reconciliation"
+                )
+            self._last_observed_seconds = max(self._last_observed_seconds, current)
         if current >= self.hard_limit_seconds:
             raise GpuBudgetExceeded(
                 "actual allocated GPU time reached/crossed the strict hard-stop boundary"
+            )
+        return record
+
+    def open_service_journal(
+        self,
+        *,
+        service_session_id: str,
+        session_id: str,
+        configuration_hash: str,
+        started_at: datetime,
+        ledger_allocated_seconds_before_session: float,
+        details: Mapping[str, object] | None = None,
+    ) -> GpuServiceJournalRecord:
+        """Open durable service accounting before the model process is spawned."""
+
+        baseline = _nonnegative_finite(
+            "ledger_allocated_seconds_before_session",
+            ledger_allocated_seconds_before_session,
+        )
+        observed = self.actual_allocated_gpu_seconds
+        if abs(observed - baseline) > 1e-6:
+            raise GpuAccountingRegression(
+                "GPU service baseline differs from the durable allocation ledger"
+            )
+        return self.ledger.record_gpu_service_observation(
+            service_session_id=service_session_id,
+            state=GpuServiceJournalState.OPENED,
+            session_id=session_id,
+            configuration_hash=configuration_hash,
+            service_started_at=started_at,
+            elapsed_seconds=0,
+            ledger_allocated_seconds_before_session=baseline,
+            hard_limit_seconds=self.hard_limit_seconds,
+            observed_at=started_at,
+            details=details,
+        )
+
+    def observe_service_journal(
+        self,
+        *,
+        service_session_id: str,
+        elapsed_seconds: float,
+        observed_at: datetime,
+        process_stopped: bool = False,
+        details: Mapping[str, object] | None = None,
+    ) -> GpuServiceJournalRecord:
+        """Heartbeat or mark a verified physical stop for an open service."""
+
+        elapsed = _nonnegative_finite("elapsed_seconds", elapsed_seconds)
+        latest = self.ledger.latest_gpu_service_journal(service_session_id)
+        if latest is None:
+            raise KeyError(f"unknown GPU service journal {service_session_id}")
+        state = (
+            GpuServiceJournalState.PROCESS_STOPPED
+            if process_stopped
+            else GpuServiceJournalState.HEARTBEAT
+        )
+        record = self.ledger.record_gpu_service_observation(
+            service_session_id=service_session_id,
+            state=state,
+            session_id=latest.session_id,
+            configuration_hash=latest.configuration_hash,
+            service_started_at=latest.service_started_at,
+            elapsed_seconds=elapsed,
+            ledger_allocated_seconds_before_session=(
+                latest.ledger_allocated_microseconds_before_session / 1_000_000
+            ),
+            hard_limit_seconds=latest.hard_limit_microseconds / 1_000_000,
+            observed_at=observed_at,
+            details=details,
+        )
+        estimated_total = latest.ledger_allocated_microseconds_before_session / 1_000_000 + elapsed
+        if estimated_total >= self.hard_limit_seconds:
+            raise GpuBudgetExceeded(
+                "live GPU service reached/crossed the strict hard-stop boundary"
+            )
+        return record
+
+    def recover_service_journal(
+        self,
+        *,
+        service_session_id: str,
+        recovered_at: datetime,
+        details: Mapping[str, object] | None = None,
+    ) -> GpuServiceSession:
+        """Account a stale journal after the caller verifies service absence."""
+
+        record = self.ledger.recover_gpu_service_journal(
+            service_session_id=service_session_id,
+            recovered_at=recovered_at,
+            details=details,
+        )
+        with self._accounting_lock:
+            current = self.ledger.gpu_summary().total_allocated_seconds
+            if current + 1e-9 < self._last_observed_seconds:
+                raise GpuAccountingRegression(
+                    "GPU ledger total decreased after service-journal recovery"
+                )
+            self._last_observed_seconds = max(self._last_observed_seconds, current)
+        if current >= self.hard_limit_seconds:
+            raise GpuBudgetExceeded(
+                "recovered GPU service reached/crossed the strict hard-stop boundary"
             )
         return record
 
@@ -1076,9 +1362,7 @@ class AllocatedGPUMeter:
             raise ValueError("event_id must be nonempty")
         normalized_kind = GpuEventKind(event_kind)
         if normalized_kind is GpuEventKind.SERVICE_OVERHEAD:
-            raise ValueError(
-                "service_overhead is session-derived; use reconcile_service_session"
-            )
+            raise ValueError("service_overhead is session-derived; use reconcile_service_session")
         return _AllocationContext(
             self,
             event_id=event_id,
@@ -1156,9 +1440,7 @@ class AllocatedGPUMeter:
         details: Mapping[str, object],
     ) -> GpuEvent:
         if event_kind is GpuEventKind.SERVICE_OVERHEAD:
-            raise ValueError(
-                "service_overhead is session-derived; use reconcile_service_session"
-            )
+            raise ValueError("service_overhead is session-derived; use reconcile_service_session")
         event = self.ledger.record_gpu_event(
             event_id=event_id,
             event_kind=event_kind,
@@ -1170,10 +1452,13 @@ class AllocatedGPUMeter:
             attempt_id=attempt_id,
             details=details,
         )
-        current = self.ledger.gpu_summary().total_allocated_seconds
-        if current + 1e-9 < self._last_observed_seconds:
-            raise GpuAccountingRegression("GPU ledger total decreased after appending an interval")
-        self._last_observed_seconds = current
+        with self._accounting_lock:
+            current = self.ledger.gpu_summary().total_allocated_seconds
+            if current + 1e-9 < self._last_observed_seconds:
+                raise GpuAccountingRegression(
+                    "GPU ledger total decreased after appending an interval"
+                )
+            self._last_observed_seconds = max(self._last_observed_seconds, current)
         if current >= self.hard_limit_seconds:
             raise GpuBudgetExceeded(
                 "actual allocated GPU time reached/crossed the strict hard-stop boundary"

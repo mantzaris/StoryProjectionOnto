@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0.0",
+  "activation": "only_after_primary_phase1_rejection",
+  "repository": "Qwen/Qwen3-8B-AWQ",
+  "revision": "4da05a8edb55c6046cce958586c33b61da07bb79",
+  "served_model_name": "qwen3-8b-awq-fallback",
+  "license": "Apache-2.0",
+  "quantization": "awq",
+  "model_search_allowed": false,
+  "maximum_simultaneous_model_snapshots": 1,
+  "delete_verified_rejected_primary_before_download": true,
+  "micro_pilot": {
+    "service_start_events": 1,
+    "calls": [
+      {
+        "call_id": "fallback-c1-01",
+        "form": "C1",
+        "reserve_tier": "reserve_long",
+        "watchdog_seconds": 240
+      },
+      {
+        "call_id": "fallback-c2-01",
+        "form": "C2",
+        "reserve_tier": "reserve_standard",
+        "watchdog_seconds": 150
+      },
+      {
+        "call_id": "fallback-c2-02",
+        "form": "C2",
+        "reserve_tier": "reserve_standard",
+        "watchdog_seconds": 150
+      },
+      {
+        "call_id": "fallback-fixed-01",
+        "form": "A-FixedSelect",
+        "reserve_tier": "reserve_short",
+        "watchdog_seconds": 90
+      }
+    ],
+    "repair": {
+      "maximum_calls": 1,
+      "reserve_tier": "reserve_short",
+      "watchdog_seconds": 90
+    }
+  }
+}

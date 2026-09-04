@@ -13,6 +13,7 @@ import hashlib
 import json
 import os
 import tempfile
+from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
 from enum import StrEnum
@@ -33,18 +34,22 @@ from story_projection_onto.experiment import (
     AllocatedGPUMeter,
     GPUCallInventory,
     ResourceLimits,
+    StorageAllocationPlan,
     TimingObservation,
     forecast_gpu_schedule,
     summarize_call_class_timings,
 )
 from story_projection_onto.gpu_runtime import (
     PINNED_MODEL_REVISION,
+    PINNED_RUNTIME_VERSION,
     SERVED_MODEL_NAME,
     ChatMessage,
     GenerationResult,
+    GPUHardwareIdentity,
     GuidedJSONRequest,
     ResourceSampler,
     ResourceWatchdog,
+    RuntimeResourceLimitExceeded,
     RuntimeStackManifest,
     ServiceState,
     TokenizerManifest,
@@ -52,6 +57,7 @@ from story_projection_onto.gpu_runtime import (
     VLLMLaunchConfiguration,
     VLLMService,
     atomic_write_public_json,
+    capture_gpu_hardware_identity,
     capture_runtime_stack,
     capture_tokenizer_manifest,
     public_runtime_manifest,
@@ -65,18 +71,27 @@ from story_projection_onto.llm import (
     enforce_fixed_select_draft,
     sealed_inventory_from_fixed_ontology,
 )
+from story_projection_onto.scorer_only.acceptance_grounding import (
+    audit_acceptance_semantic_grounding,
+)
 from story_projection_onto.store import (
     ArtifactStore,
     AttemptKind,
     BlobStore,
     FailureKind,
+    GpuEventKind,
     Ledger,
     ModelBackend,
     ModelCallRole,
     ReleaseClass,
     RetryClass,
     StorageBudget,
+    StorageBudgetExceeded,
     StoragePreflight,
+)
+from story_projection_onto.validate import (
+    validate_draft_structure,
+    validate_repair_preservation,
 )
 
 SCHEMA_VERSION = "1.0.0"
@@ -86,6 +101,37 @@ EXPECTED_ACCEPTANCE_COUNTS = {
     "acceptance_fixed_select": 2,
     "acceptance_repair": 1,
 }
+
+# The pilot plan hash is also its executable-protocol identity.  Keep this list
+# deliberately bounded to code and configuration that can affect the pilot;
+# the repository-wide source manifest records the broader working tree.
+ACCEPTANCE_IMPLEMENTATION_FILES = (
+    "artifacts/public/manifests/environment-freeze.txt",
+    "artifacts/public/manifests/environment.json",
+    "artifacts/public/manifests/model_snapshot.json",
+    "configs/study/authority.json",
+    "configs/study/decoding.json",
+    "configs/study/fallback_model.json",
+    "configs/study/gpu_call_inventory.json",
+    "configs/study/model.json",
+    "configs/study/resource_limits.json",
+    "configs/study/storage_phase_allocations.json",
+    "plan_notes/IMPLEMENTATION_PLAN_QUERY_DEPENDENT_TEMPORAL_ONTOLOGY.md",
+    "plan_notes/METHODOLOGICAL_PLAN_QUERY_DEPENDENT_TEMPORAL_ONTOLOGY.md",
+    "pyproject.toml",
+    "scripts/run_phase1_gpu_acceptance.py",
+    "scripts/run_storage_preflight.py",
+    "src/story_projection_onto/contracts.py",
+    "src/story_projection_onto/experiment.py",
+    "src/story_projection_onto/gpu_runtime.py",
+    "src/story_projection_onto/llm.py",
+    "src/story_projection_onto/model_gate.py",
+    "src/story_projection_onto/phase1_acceptance.py",
+    "src/story_projection_onto/scorer_only/acceptance_grounding.py",
+    "src/story_projection_onto/store.py",
+    "src/story_projection_onto/validate.py",
+    "uv.lock",
+)
 
 
 class AcceptanceStatus(StrEnum):
@@ -258,6 +304,10 @@ def acceptance_plan_manifest(root: Path) -> dict[str, object]:
         "class_counts": EXPECTED_ACCEPTANCE_COUNTS,
         "output_schema_file": "schemas/jsonschema/ontology_draft.schema.json",
         "output_schema_sha256": _file_hash(schema_file),
+        "implementation_files": [
+            {"path": relative, "sha256": _file_hash(root / relative)}
+            for relative in ACCEPTANCE_IMPLEMENTATION_FILES
+        ],
         "calls": [call.public_manifest(root) for call in calls],
         "executes_gpu": False,
     }
@@ -345,6 +395,28 @@ def validate_verified_model_manifest(
             snapshot.relative_to(cache)
         except ValueError as exc:
             raise ValueError("verified snapshot is outside the one shared cache") from exc
+        expected_repository_directory = "models--Qwen--Qwen3-14B-AWQ"
+        if (
+            snapshot.name != PINNED_MODEL_REVISION
+            or snapshot.parent.name != "snapshots"
+            or snapshot.parent.parent.name != expected_repository_directory
+        ):
+            raise ValueError("snapshot path does not identify the pinned repository/revision")
+        repository_directories = {
+            candidate.resolve()
+            for candidate in cache.rglob("models--*")
+            if candidate.is_dir() and (candidate / "snapshots").is_dir()
+        }
+        if repository_directories != {snapshot.parent.parent}:
+            raise ValueError("shared cache does not contain exactly the pinned model repository")
+        discovered_snapshots = {
+            candidate.resolve()
+            for repository in repository_directories
+            for candidate in (repository / "snapshots").iterdir()
+            if candidate.is_dir()
+        }
+        if discovered_snapshots != {snapshot}:
+            raise ValueError("shared cache does not contain exactly the pinned model snapshot")
         expected_paths = {cast(str, entry["path"]) for entry in files}
         actual_paths = {
             candidate.relative_to(snapshot).as_posix()
@@ -363,6 +435,13 @@ def validate_verified_model_manifest(
                 raise ValueError(f"snapshot size changed for {entry['path']}")
             if _file_hash(candidate) != entry["sha256"]:
                 raise ValueError(f"snapshot hash changed for {entry['path']}")
+        model_config = _load_json_object(snapshot / "config.json")
+        quantization = model_config.get("quantization_config")
+        if (
+            not isinstance(quantization, Mapping)
+            or str(quantization.get("quant_method", "")).casefold() != "awq"
+        ):
+            raise ValueError("pinned model config does not declare AWQ quantization")
         if any(candidate.is_file() for candidate in cache.rglob("*.incomplete")):
             raise ValueError("shared model cache still contains an incomplete file")
     return manifest
@@ -384,9 +463,19 @@ def _condition_output_schema(
     """Derive the selection-only grammar; C1/C2 retain the common schema."""
 
     schema = cast(dict[str, object], copy.deepcopy(dict(base_schema)))
+    definitions = cast(dict[str, dict[str, object]], schema.get("$defs"))
+    accounting_properties = cast(
+        dict[str, dict[str, object]], definitions["BudgetAccounting"]["properties"]
+    )
+    # Token usage is known only after vLLM returns.  The raw model emits an
+    # explicit zero sentinel; the runner replaces these two administrative
+    # fields with the authoritative server counts before validating/storing a
+    # normalized draft.  Semantic graph budgets remain model-declared and are
+    # independently recomputed below.
+    accounting_properties["input_tokens"] = {"const": 0, "type": "integer"}
+    accounting_properties["output_tokens"] = {"const": 0, "type": "integer"}
     if call.condition is not ConditionName.A_FIXED_SELECT:
         return schema
-    definitions = cast(dict[str, dict[str, object]], schema.get("$defs"))
     fixed = cast(Mapping[str, object], fixture.get("fixed_ontology"))
     packet = cast(Mapping[str, object], fixture.get("packet"))
     local_schema = cast(Mapping[str, object], fixed.get("local_schema"))
@@ -406,6 +495,23 @@ def _condition_output_schema(
     object_ids = [cast(str, value) for value in seal["sealed_object_ids"]]
     evidence_ids = [cast(str, row["evidence_id"]) for row in packet["evidence"]]
     referent_ids = [*entity_ids, *event_ids, *proposition_ids]
+
+    if not proposition_ids:
+        instance_graph_properties = cast(
+            dict[str, dict[str, object]], definitions["InstanceGraph"]["properties"]
+        )
+        instance_graph_properties["proposition_contents"]["maxItems"] = 0
+        assertion_properties = cast(
+            dict[str, dict[str, object]], definitions["QualifiedAssertion"]["properties"]
+        )
+        # With no sealed proposition content, an attributed assertion would
+        # necessarily invent a semantic object.  Force both optional entry
+        # points to JSON null while the top-level proposition array stays empty.
+        assertion_properties["proposition_content_id"] = {
+            "const": None,
+            "type": "null",
+        }
+        assertion_properties["epistemic_scope"] = {"const": None, "type": "null"}
 
     definitions["ConstructionOperator"]["enum"] = [
         operator.value for operator in CapabilityManifest.for_condition(call.condition).allowed
@@ -440,6 +546,18 @@ def _condition_output_schema(
     )
     for definition_name, property_name, allowed in identifier_constraints:
         properties = cast(dict[str, dict[str, object]], definitions[definition_name]["properties"])
+        if not allowed and definition_name == "PropositionContent":
+            # This definition is unreachable because InstanceGraph constrains
+            # proposition_contents to maxItems=0.  Leaving its base shape intact
+            # avoids an invalid empty enum in xgrammar.
+            continue
+        if (
+            not allowed
+            and definition_name in {"QualifiedAssertion", "EpistemicScope"}
+            and property_name == "proposition_content_id"
+        ):
+            properties[property_name] = {"const": None, "type": "null"}
+            continue
         original = properties[property_name]
         constraint = _string_enum(allowed)
         if original.get("type") == "array":
@@ -539,6 +657,37 @@ def build_acceptance_request(
         fixture=fixture,
     )
     prompt = (root / call.prompt_file).read_text(encoding="utf-8")
+    output_schema_hash = canonical_sha256(output_schema)
+    maximum_input_tokens, maximum_output_tokens = {
+        DecodingPass.FIRST_PASS: (10_240, 2_048),
+        DecodingPass.REPAIR: (10_752, 1_536),
+    }[call.decoding_pass]
+    constructor = (
+        DecodingManifest.first_pass
+        if call.decoding_pass is DecodingPass.FIRST_PASS
+        else DecodingManifest.repair
+    )
+    decoding = constructor(
+        seed=call.seed_block,
+        eos_token_id=tokenizer_manifest.eos_token_id,
+        end_of_turn_token_ids=tokenizer_manifest.end_of_turn_token_ids,
+        chat_template_hash=tokenizer_manifest.chat_template_sha256,
+        output_schema_hash=output_schema_hash,
+        structured_decoder="vllm-0.10.2-xgrammar-no-fallback",
+        tokenizer_revision=tokenizer_manifest.tokenizer_revision,
+        maximum_input_tokens=maximum_input_tokens,
+        maximum_output_tokens=maximum_output_tokens,
+    )
+    if call.decoding_pass is DecodingPass.FIRST_PASS:
+        fixture["runtime"] = {
+            "model_id": SERVED_MODEL_NAME,
+            "model_revision": PINNED_MODEL_REVISION,
+            "tokenizer_hash": tokenizer_manifest.manifest_sha256,
+            "runtime_version": PINNED_RUNTIME_VERSION,
+            "prompt_hash": hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
+            "output_schema_hash": output_schema_hash,
+            "decoding_config_hash": decoding.content_hash,
+        }
     sections = _request_sections(call, fixture)
     user_content = canonical_json(sections)
     messages = (
@@ -554,7 +703,6 @@ def build_acceptance_request(
     if not isinstance(rendered, Sequence) or isinstance(rendered, (str, bytes, bytearray)):
         raise ValueError("tokenizer did not return rendered prompt token IDs")
     rendered_count = len(rendered)
-    output_schema_hash = canonical_sha256(output_schema)
     named_text = {"system_prompt": prompt, **sections}
     # vLLM receives the complete schema through its guided_json request field,
     # not as duplicated chat text. Bind the full canonical schema hash and mark
@@ -581,9 +729,7 @@ def build_acceptance_request(
     # bound into GuidedJSONRequest and independently checked against the cap.
     individually_encoded = sum(section.token_count for section in packing_sections)
     if rendered_count < individually_encoded:
-        raise ValueError(
-            "independently encoded prompt sections exceed exact rendered token count"
-        )
+        raise ValueError("independently encoded prompt sections exceed exact rendered token count")
     if rendered_count > individually_encoded:
         packing_sections.append(
             PackingSection(
@@ -592,26 +738,6 @@ def build_acceptance_request(
                 token_count=rendered_count - individually_encoded,
             )
         )
-    maximum_input_tokens, maximum_output_tokens = {
-        DecodingPass.FIRST_PASS: (10_240, 2_048),
-        DecodingPass.REPAIR: (10_752, 1_536),
-    }[call.decoding_pass]
-    constructor = (
-        DecodingManifest.first_pass
-        if call.decoding_pass is DecodingPass.FIRST_PASS
-        else DecodingManifest.repair
-    )
-    decoding = constructor(
-        seed=call.seed_block,
-        eos_token_id=tokenizer_manifest.eos_token_id,
-        end_of_turn_token_ids=tokenizer_manifest.end_of_turn_token_ids,
-        chat_template_hash=tokenizer_manifest.chat_template_sha256,
-        output_schema_hash=output_schema_hash,
-        structured_decoder="vllm-0.10.2-guided_json",
-        tokenizer_revision=tokenizer_manifest.tokenizer_revision,
-        maximum_input_tokens=maximum_input_tokens,
-        maximum_output_tokens=maximum_output_tokens,
-    )
     required = {
         ConditionName.C1_LLM_PRE: (
             "system_prompt",
@@ -680,10 +806,23 @@ def validate_acceptance_generation(
     root: Path,
     call: AcceptanceCall,
     parsed_object: Mapping[str, object],
+    authoritative_prompt_tokens: int | None = None,
+    authoritative_completion_tokens: int | None = None,
 ) -> dict[str, object]:
     """Mechanically audit schema, budget, evidence, and condition capabilities."""
 
-    draft = OntologyDraft.model_validate(parsed_object)
+    if (authoritative_prompt_tokens is None) != (authoritative_completion_tokens is None):
+        raise ValueError("authoritative prompt/completion counts must be supplied together")
+    normalized_object = copy.deepcopy(dict(parsed_object))
+    if authoritative_prompt_tokens is not None and authoritative_completion_tokens is not None:
+        accounting = normalized_object.get("budget_accounting")
+        if not isinstance(accounting, dict):
+            raise ValueError("generated draft omitted budget accounting")
+        if accounting.get("input_tokens") != 0 or accounting.get("output_tokens") != 0:
+            raise ValueError("raw model token fields must use the schema-bound zero sentinel")
+        accounting["input_tokens"] = authoritative_prompt_tokens
+        accounting["output_tokens"] = authoritative_completion_tokens
+    draft = OntologyDraft.model_validate(normalized_object)
     if call.decoding_pass is DecodingPass.REPAIR:
         request_raw = _load_json_object(root / "tests/fixtures/phase1/c2_query_request.json")
     else:
@@ -701,11 +840,17 @@ def validate_acceptance_generation(
         request = PreconstructionRequest.model_validate(request_raw)
         evidence_ids = {item.evidence_id for item in request.evidence}
         budgets = request.budgets
+        upper_ontology = request.upper_ontology
+        evidence = request.evidence
+        request_capabilities = request.capabilities
         horizon_leaks: list[str] = []
     else:
         request = ConstructionRequest.model_validate(request_raw)
         evidence_ids = {item.evidence_id for item in request.packet.evidence}
         budgets = request.budgets
+        upper_ontology = request.upper_ontology
+        evidence = request.packet.evidence
+        request_capabilities = request.capabilities
         maximum_discourse = request.context.spoiler_horizon.max_discourse_position.ordering_key
         maximum_revelation = request.context.spoiler_horizon.max_revelation_position
         maximum_revelation_order = (
@@ -741,7 +886,25 @@ def validate_acceptance_generation(
                 source_draft=source_draft,
             )
             enforce_fixed_select_draft(draft, sealed=sealed, seed_block=call.seed_block)
-    draft.budget_accounting.validate_against(budgets)
+    structural = validate_draft_structure(
+        draft=draft,
+        upper_ontology=upper_ontology,
+        evidence=evidence,
+        budgets=budgets,
+        capabilities=request_capabilities,
+    )
+    structural.raise_for_errors()
+    if call.decoding_pass is DecodingPass.REPAIR:
+        repair_fixture = _load_json_object(root / call.request_fixture)
+        validation_report = cast(Mapping[str, object], repair_fixture["validation_report"])
+        diagnostics = cast(Sequence[Mapping[str, object]], validation_report["diagnostics"])
+        diagnosed_paths = tuple(cast(str, item["path"]) for item in diagnostics)
+        preservation = validate_repair_preservation(
+            base_draft=cast(Mapping[str, object], repair_fixture["base_draft"]),
+            repaired_draft=parsed_object,
+            diagnosed_paths=diagnosed_paths,
+        )
+        preservation.raise_for_errors()
     cited = _cited_evidence_ids(draft.model_dump(mode="json"))
     unknown = sorted(cited - evidence_ids)
     if unknown:
@@ -774,6 +937,11 @@ def validate_acceptance_generation(
     ]
     if missing_grounding or unsupported_descriptions or missing_why_support:
         raise ValueError("generated draft lacks required evidence/description grounding")
+    semantic_grounding = audit_acceptance_semantic_grounding(
+        draft=draft,
+        evidence=evidence,
+    )
+    semantic_grounding.raise_for_failure()
     constructive = sorted(
         {
             decision.operator.value
@@ -787,6 +955,7 @@ def validate_acceptance_generation(
     ):
         raise ValueError("active construction acceptance output has no construction operation")
     graph = draft.instance_graph
+    semantic_manifest = semantic_grounding.public_manifest()
     return {
         "draft_hash": draft.content_hash,
         "schema_valid": True,
@@ -794,7 +963,18 @@ def validate_acceptance_generation(
         "evidence_ids_valid": True,
         "evidence_citation_count": len(cited),
         "grounded_record_count": len(grounded_records),
-        "grounding_complete": True,
+        "grounding_complete": semantic_grounding.complete,
+        "grounding_precision": semantic_grounding.grounding_precision,
+        "semantic_grounding_assessment_count": len(semantic_grounding.assessments),
+        "semantic_grounding_supported_count": semantic_grounding.supported_count,
+        "semantic_grounding_unsupported_count": semantic_grounding.unsupported_count,
+        "semantic_grounding_unknown_count": semantic_grounding.unknown_count,
+        "scorer_only_oracle_revision": semantic_manifest["scorer_only_oracle_revision"],
+        "structural_diagnostic_count": len(structural.diagnostics),
+        "repair_preservation_valid": (True if call.decoding_pass is DecodingPass.REPAIR else None),
+        "runtime_token_accounting_normalized": authoritative_prompt_tokens is not None,
+        "authoritative_prompt_tokens": authoritative_prompt_tokens,
+        "authoritative_completion_tokens": authoritative_completion_tokens,
         "horizon_leak_count": len(horizon_leaks),
         "capability_valid": True,
         "entity_count": len(graph.entities),
@@ -861,6 +1041,7 @@ class AcceptanceRunner:
     tokenizer_manifest: TokenizerManifest
     checkpoint_path: Path
     runtime_stack: RuntimeStackManifest | None = None
+    gpu_hardware: GPUHardwareIdentity | None = None
 
     def __post_init__(self) -> None:
         if (
@@ -919,6 +1100,23 @@ class AcceptanceRunner:
         ):
             raise ValueError("acceptance checkpoint has invalid resume sequence")
         return cast(list[str], completed), resume_sequence
+
+    def _settle_unresumable_service(self) -> None:
+        """Stop an adopted service or recover a provably stale allocation.
+
+        A failed resume is not permission to consume another model load.  First
+        ask the service to shut down any process it may have adopted while
+        validating the checkpoint.  Only a controller with no live-session
+        uptime can enter the stricter stale-lease recovery path, which proves
+        PID, process-group, and endpoint absence before charging the journal.
+        """
+
+        uptime = self.service.shutdown()
+        if uptime is not None:
+            return
+        if self.service.state is not ServiceState.STOPPED:
+            raise RuntimeError("unresumable vLLM service did not reach a verified stopped state")
+        self.service.recover_stale_service_lease()
 
     def _ensure_independent_repair_base(self, plan_hash: str) -> tuple[str, str]:
         """Ledger the hand-authored invalid base without pretending it was a GPU call."""
@@ -980,7 +1178,52 @@ class AcceptanceRunner:
         calls = phase1_acceptance_calls()
         validate_acceptance_calls(calls)
         plan = acceptance_plan_manifest(self.root)
-        plan_hash = cast(str, plan["manifest_sha256"])
+        plan_manifest_hash = cast(str, plan["manifest_sha256"])
+        execution_identity: dict[str, object] = {
+            "acceptance_plan_manifest_sha256": plan_manifest_hash,
+            "launcher_configuration_sha256": self.service.configuration.configuration_hash,
+            "tokenizer_manifest_sha256": self.tokenizer_manifest.manifest_sha256,
+            "runtime_stack_manifest_sha256": (
+                None
+                if self.runtime_stack is None
+                else cast(str, self.runtime_stack.public_manifest()["manifest_sha256"])
+            ),
+            "gpu_hardware_manifest_sha256": (
+                None
+                if self.gpu_hardware is None
+                else cast(str, self.gpu_hardware.public_manifest()["manifest_sha256"])
+            ),
+        }
+        plan_hash = canonical_sha256(execution_identity)
+        resource_limits = ResourceLimits.load(self.root / "configs/study/resource_limits.json")
+        prior_resource_samples = self.ledger.resource_samples_with_prefix(f"{self.run_id}-")
+        prior_resource_violations = tuple(
+            sample.sample_id
+            for sample in prior_resource_samples
+            if (
+                sample.process_ram_bytes >= resource_limits.maximum_process_ram_bytes
+                or sample.gpu_vram_bytes >= resource_limits.maximum_peak_vram_bytes
+                or sample.project_storage_bytes > resource_limits.maximum_project_occupied_bytes
+                or sample.cpu_worker_count > resource_limits.maximum_cpu_workers
+            )
+        )
+        if prior_resource_violations:
+            raise RuntimeError(
+                "prior append-only resource samples violated a hard pilot limit: "
+                + ", ".join(prior_resource_violations)
+            )
+        prior_storage_violations = tuple(
+            sample.sample_id
+            for sample in self.ledger.storage_samples_with_phase_prefix(
+                f"resource_sample:{self.run_id}-"
+            )
+            if not sample.allowed
+        )
+        if prior_storage_violations:
+            raise RuntimeError(
+                "prior append-only storage samples violated a hard pilot limit: "
+                + ", ".join(prior_storage_violations)
+            )
         completed, previous_resume_sequence = self._resume_state(plan_hash)
         resume_sequence = previous_resume_sequence + 1
         self._checkpoint(completed, plan_hash, resume_sequence=resume_sequence)
@@ -990,41 +1233,46 @@ class AcceptanceRunner:
         call_jobs: dict[str, str] = {}
         remaining_call_ceiling = sum(call.watchdog_seconds for call in calls)
         service_checkpoint = self.checkpoint_path.with_name(self.checkpoint_path.name + ".service")
+        service_checkpoint_existed = service_checkpoint.exists()
         resumed_live_service = False
-        if service_checkpoint.exists() and hasattr(self.service, "resume_from_checkpoint"):
-            resumed_live_service = self.service.resume_from_checkpoint(service_checkpoint)
-        service_event_id: str | None = None
-        if self.service.state is ServiceState.STOPPED:
+        if service_checkpoint_existed and hasattr(self.service, "resume_from_checkpoint"):
+            try:
+                resumed_live_service = self.service.resume_from_checkpoint(service_checkpoint)
+            except BaseException:
+                self._settle_unresumable_service()
+                raise
+        lifecycle_event_id: str | None = None
+        if resumed_live_service:
+            # The operational service checkpoint is written only after the
+            # one registered acceptance restart. Repeating it after controller
+            # recovery would silently consume an unregistered model load.
+            if self.service.state is not ServiceState.READY:
+                self._settle_unresumable_service()
+                raise RuntimeError("resumed vLLM service is not ready")
+        elif service_checkpoint_existed or previous_resume_sequence > 0:
+            self._settle_unresumable_service()
+            raise RuntimeError(
+                "acceptance lifecycle cannot recover a stale/missing service checkpoint "
+                "without an explicitly reserve-charged new run"
+            )
+        elif self.service.state is ServiceState.STOPPED:
             service_event_id = f"{self.run_id}-service-start-{resume_sequence:03d}"
-            before_start = self.ledger.gpu_summary().total_allocated_microseconds
             self.service.start(
                 session_id=self.run_id,
                 event_id=service_event_id,
                 watchdog_seconds=180,
                 remaining_required_seconds=remaining_call_ceiling + 180,
             )
-            after_start = self.ledger.gpu_summary().total_allocated_microseconds
-            timing_observations.append(
-                TimingObservation(
-                    call_class="gpu_session_start",
-                    allocated_seconds=(after_start - before_start) / 1_000_000,
-                )
+            restart_event_id = f"{self.run_id}-restart-{resume_sequence:03d}"
+            self.service.restart(
+                event_id=restart_event_id,
+                watchdog_seconds=180,
+                remaining_required_seconds=remaining_call_ceiling,
             )
-        restart_event_id = f"{self.run_id}-restart-{resume_sequence:03d}"
-        before_restart = self.ledger.gpu_summary().total_allocated_microseconds
-        self.service.restart(
-            event_id=restart_event_id,
-            watchdog_seconds=180,
-            remaining_required_seconds=remaining_call_ceiling,
-        )
-        after_restart = self.ledger.gpu_summary().total_allocated_microseconds
-        timing_observations.append(
-            TimingObservation(
-                call_class="gpu_session_start",
-                allocated_seconds=(after_restart - before_restart) / 1_000_000,
-            )
-        )
-        self.service = self.service.handoff_resume(service_checkpoint)
+            lifecycle_event_id = restart_event_id
+            self.service = self.service.handoff_resume(service_checkpoint)
+        else:
+            raise RuntimeError("new acceptance lifecycle must begin from a stopped service")
         uptime = None
         resource_watchdog = ResourceWatchdog(
             sampler=self.resource_sampler,
@@ -1038,7 +1286,7 @@ class AcceptanceRunner:
             self.resource_sampler.sample(
                 sample_id=f"{self.run_id}-after-load-{resume_sequence:03d}",
                 root_pid=self.service.pid,
-                gpu_event_id=restart_event_id,
+                gpu_event_id=lifecycle_event_id,
             )
             for call_index, call in enumerate(calls):
                 request = build_acceptance_request(
@@ -1055,6 +1303,46 @@ class AcceptanceRunner:
                     call_jobs[call.call_id] = model_call.job_id
                     if model_call.response_artifact_hash is None:
                         raise RuntimeError("resumed model call has no response artifact")
+                    expected_role = (
+                        ModelCallRole.REPAIR
+                        if call.decoding_pass is DecodingPass.REPAIR
+                        else ModelCallRole.PILOT
+                    )
+                    expected_retry = (
+                        RetryClass.SHORT
+                        if call.decoding_pass is DecodingPass.REPAIR
+                        else RetryClass.BASE
+                    )
+                    expected_unit_hash = canonical_sha256(
+                        {"fixture": call.request_fixture, "seed_block": call.seed_block}
+                    )
+                    attempt = self.ledger.attempt_lineage(model_call.attempt_id)[-1]
+                    expected_attempt_kind = (
+                        AttemptKind.REPAIR
+                        if call.decoding_pass is DecodingPass.REPAIR
+                        else AttemptKind.BASE
+                    )
+                    if (
+                        model_call.backend is not ModelBackend.VLLM_GPU
+                        or model_call.call_role is not expected_role
+                        or model_call.retry_class is not expected_retry
+                        or not model_call.successful
+                        or model_call.model_manifest_hash
+                        != self.service.configuration.configuration_hash
+                        or model_call.decoding_manifest_hash != request.decoding.content_hash
+                        or model_call.request_hash != request.request_hash
+                        or model_call.construction_unit_hash != expected_unit_hash
+                        or model_call.served_context_count != 1
+                        or model_call.prompt_tokens != request.rendered_input_token_count
+                        or model_call.completion_tokens > request.decoding.maximum_output_tokens
+                        or attempt.attempt_kind is not expected_attempt_kind
+                        or attempt.input_hash != request.request_hash
+                        or attempt.config_hash != request.decoding.content_hash
+                        or attempt.seed != request.decoding.seed
+                    ):
+                        raise RuntimeError(
+                            f"resumed model call metadata changed for {call.call_id}"
+                        )
                     stored = self.artifacts.blobs.read_bytes(
                         self.ledger.get_artifact(model_call.response_artifact_hash)
                     )
@@ -1062,6 +1350,8 @@ class AcceptanceRunner:
                         root=self.root,
                         call=call,
                         parsed_object=_parsed_object_from_vllm_response(stored),
+                        authoritative_prompt_tokens=model_call.prompt_tokens,
+                        authoritative_completion_tokens=model_call.completion_tokens,
                     )
                     successful_audits.append((call, audit))
                     timing_observations.append(
@@ -1293,6 +1583,8 @@ class AcceptanceRunner:
                         root=self.root,
                         call=call,
                         parsed_object=generated.parsed_object,
+                        authoritative_prompt_tokens=generated.prompt_tokens,
+                        authoritative_completion_tokens=generated.completion_tokens,
                     )
                 except Exception as exc:
                     self.ledger.record_model_call(**common_model_call, successful=False)
@@ -1357,6 +1649,14 @@ class AcceptanceRunner:
                         ),
                     }
                 )
+        except RuntimeResourceLimitExceeded:
+            self._checkpoint(
+                completed,
+                plan_hash,
+                failed_call_id="resource-sample",
+                resume_sequence=resume_sequence,
+            )
+            raise
         finally:
             resource_watchdog.stop(raise_failure=False)
             uptime = self.service.shutdown()
@@ -1368,6 +1668,24 @@ class AcceptanceRunner:
                 failed_call_id="resource-watchdog",
                 resume_sequence=resume_sequence,
             )
+        lifecycle_events = tuple(
+            event
+            for event in self.ledger.gpu_events_with_prefix(f"{self.run_id}-")
+            if event.event_kind in {GpuEventKind.GPU_SESSION_START, GpuEventKind.RESTART}
+        )
+        lifecycle_overhead = 0.0 if uptime is None else uptime.unclassified_service_seconds
+        timing_observations.extend(
+            TimingObservation(
+                call_class="gpu_session_start",
+                allocated_seconds=(event.allocated_microseconds / 1_000_000)
+                # The shutdown reconciliation currently establishes one
+                # service-wide overhead interval.  Assign it wholly to one
+                # observed lifecycle block so the nearest-rank p95 cannot be
+                # understated by averaging an unknown [0, overhead] split.
+                + (lifecycle_overhead if event.event_id == lifecycle_events[-1].event_id else 0.0),
+            )
+            for event in lifecycle_events
+        )
         timing = summarize_call_class_timings(timing_observations)
         timing_by_name = {item.call_class: item for item in timing}
         timing_gate = {
@@ -1387,14 +1705,30 @@ class AcceptanceRunner:
                 if timing_by_name.get("gpu_session_start") is None
                 else timing_by_name["gpu_session_start"].sample_count
             ),
+            "model_load_sample_count_exact": len(lifecycle_events) == 2,
+            "service_overhead_seconds_included": lifecycle_overhead,
         }
         inventory = GPUCallInventory.load(self.root / "configs/study/gpu_call_inventory.json")
-        resource_limits = ResourceLimits.load(self.root / "configs/study/resource_limits.json")
         forecast = forecast_gpu_schedule(
             inventory,
             timing_observations,
             limits=resource_limits,
         )
+        consumed_counts = Counter(call.call_class for call in calls if call.call_id in completed)
+        consumed_counts["gpu_session_start"] = len(lifecycle_events)
+        remaining_forecast_seconds = sum(
+            max(0, row.count - consumed_counts[row.call_class]) * row.forecast_p95_seconds
+            for row in forecast.rows
+        )
+        actual_allocated_seconds = self.ledger.gpu_summary().total_allocated_seconds
+        continuation_forecast_seconds = actual_allocated_seconds + remaining_forecast_seconds
+        continuation_gate = {
+            "actual_allocated_seconds": actual_allocated_seconds,
+            "remaining_forecast_seconds": remaining_forecast_seconds,
+            "actual_plus_remaining_seconds": continuation_forecast_seconds,
+            "scheduled_limit_seconds": resource_limits.scheduled_gpu_seconds,
+            "admitted": (continuation_forecast_seconds <= resource_limits.scheduled_gpu_seconds),
+        }
         required_operators = {operator.value for operator in CONSTRUCTIVE_OPERATORS}
         c1_operators = {
             operator
@@ -1431,12 +1765,16 @@ class AcceptanceRunner:
             and audit_gate
             and timing_gate["all_classes_observed"] is True
             and timing_gate["acceptance_sample_counts_complete"] is True
+            and timing_gate["model_load_sample_count_exact"] is True
+            and continuation_gate["admitted"] is True
         )
         payload: dict[str, object] = {
             "schema_version": SCHEMA_VERSION,
             "kind": "phase1_gpu_acceptance_result",
             "run_id": self.run_id,
             "plan_hash": plan_hash,
+            "acceptance_plan_manifest_sha256": plan_manifest_hash,
+            "execution_identity": execution_identity,
             "call_count": len(calls),
             "completed_call_count": len(completed),
             "gate_passed": gate_passed,
@@ -1445,6 +1783,7 @@ class AcceptanceRunner:
                 launcher=self.service.configuration,
                 tokenizer=self.tokenizer_manifest,
                 runtime_stack=self.runtime_stack,
+                gpu_hardware=self.gpu_hardware,
                 resource_samples=self.resource_sampler.samples,
                 uptime=uptime,
                 ledger=self.ledger,
@@ -1470,6 +1809,7 @@ class AcceptanceRunner:
                 "admitted": forecast.admitted,
                 "within_preferred_margin": forecast.within_preferred_margin,
             },
+            "actual_plus_remaining_forecast": continuation_gate,
             "operator_coverage_gate": operator_gate,
             "grounding_horizon_gate": audit_gate,
         }
@@ -1526,6 +1866,8 @@ def main(arguments: Sequence[str] | None = None) -> int:
         port=options.port,
     )
     limits = ResourceLimits.load(root / "configs/study/resource_limits.json")
+    storage_plan = StorageAllocationPlan.load(root / "configs/study/storage_phase_allocations.json")
+    phase_one_reservation = storage_plan.reservation_for("phase_1")
     budget = StorageBudget(
         total_allocation_bytes=limits.maximum_project_allocation_bytes,
         max_occupied_bytes=limits.maximum_project_occupied_bytes,
@@ -1544,26 +1886,42 @@ def main(arguments: Sequence[str] | None = None) -> int:
         controlled_paths=controlled_paths,
         budget=budget,
     )
-    storage.require()
-    verified_model = validate_verified_model_manifest(
-        options.verified_model_manifest,
-        snapshot_path=options.snapshot,
-        shared_cache=options.shared_cache,
-        model_configuration_path=root / "configs/study/model.json",
-    )
-    if verified_model["manifest_sha256"] != configuration.verified_snapshot_manifest_sha256:
-        raise RuntimeError("launcher and reverified snapshot manifests differ")
-    tokenizer_manifest = capture_tokenizer_manifest(options.snapshot)
-    runtime_stack = capture_runtime_stack()
-    from transformers import AutoTokenizer
-
-    tokenizer = AutoTokenizer.from_pretrained(
-        str(options.snapshot),
-        local_files_only=True,
-        trust_remote_code=False,
-        revision=PINNED_MODEL_REVISION,
-    )
+    preflight_report = storage.check(**phase_one_reservation.preflight_arguments())
     with Ledger(options.ledger) as ledger:
+        prior_preflights = ledger.storage_samples_with_phase_prefix(
+            f"phase1_preflight:{options.run_id}"
+        )
+        ledger.record_storage_sample(
+            preflight_report,
+            phase=f"phase1_preflight:{options.run_id}",
+        )
+        if any(not sample.allowed for sample in prior_preflights):
+            raise RuntimeError(
+                "a prior append-only Phase-1 storage preflight failed for this run ID"
+            )
+        if not preflight_report.allowed:
+            raise StorageBudgetExceeded(preflight_report)
+        verified_model = validate_verified_model_manifest(
+            options.verified_model_manifest,
+            snapshot_path=options.snapshot,
+            shared_cache=options.shared_cache,
+            model_configuration_path=root / "configs/study/model.json",
+        )
+        if verified_model["manifest_sha256"] != configuration.verified_snapshot_manifest_sha256:
+            raise RuntimeError("launcher and reverified snapshot manifests differ")
+        tokenizer_manifest = capture_tokenizer_manifest(options.snapshot)
+        runtime_stack = capture_runtime_stack()
+        gpu_hardware = capture_gpu_hardware_identity(
+            root / "artifacts/public/manifests/environment.json"
+        )
+        from transformers import AutoTokenizer
+
+        tokenizer = AutoTokenizer.from_pretrained(
+            str(options.snapshot),
+            local_files_only=True,
+            trust_remote_code=False,
+            revision=PINNED_MODEL_REVISION,
+        )
         meter = AllocatedGPUMeter.from_limits(ledger, limits)
         client = VLLMGuidedJSONClient(configuration.base_url)
         resource_sampler = ResourceSampler(limits=limits, storage=storage, ledger=ledger)
@@ -1587,6 +1945,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
             tokenizer_manifest=tokenizer_manifest,
             checkpoint_path=options.checkpoint,
             runtime_stack=runtime_stack,
+            gpu_hardware=gpu_hardware,
         )
         try:
             result = runner.run()
@@ -1607,6 +1966,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
                     launcher=active_service.configuration,
                     tokenizer=tokenizer_manifest,
                     runtime_stack=runtime_stack,
+                    gpu_hardware=gpu_hardware,
                     resource_samples=resource_sampler.samples,
                     uptime=uptime,
                     ledger=ledger,
@@ -1622,6 +1982,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
 
 
 __all__ = [
+    "ACCEPTANCE_IMPLEMENTATION_FILES",
     "EXPECTED_ACCEPTANCE_COUNTS",
     "SCHEMA_VERSION",
     "AcceptanceCall",

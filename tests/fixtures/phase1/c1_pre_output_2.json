@@ -7,14 +7,14 @@
     "nodes_used": 5,
     "output_tokens": 0
   },
-  "contextual_interpretation": "The query needs separate courier and mechanic identities and Mara's report.",
+  "contextual_interpretation": "Query-blind split identities and a holder-attributed report.",
   "decisions": [
     {
       "created_object_ids": [
-        "assert-c2-report"
+        "assert-c1b-report"
       ],
-      "decided_at": "2026-09-03T12:00:11Z",
-      "decision_id": "d-c2-include",
+      "decided_at": "2026-09-03T11:45:01Z",
+      "decision_id": "d-c1b-include",
       "evidence_ids": [
         "ev-05"
       ],
@@ -23,11 +23,11 @@
     },
     {
       "created_object_ids": [
-        "ent-c2-lio",
-        "ent-c2-ash-mechanic"
+        "ent-c1b-lio",
+        "ent-c1b-ash-mechanic"
       ],
-      "decided_at": "2026-09-03T12:00:12Z",
-      "decision_id": "d-c2-split",
+      "decided_at": "2026-09-03T11:45:02Z",
+      "decision_id": "d-c1b-split",
       "evidence_ids": [
         "ev-02",
         "ev-03"
@@ -41,10 +41,10 @@
     },
     {
       "created_object_ids": [
-        "t-c2"
+        "t-c1b"
       ],
-      "decided_at": "2026-09-03T12:00:13Z",
-      "decision_id": "d-c2-type",
+      "decided_at": "2026-09-03T11:45:03Z",
+      "decision_id": "d-c1b-type",
       "evidence_ids": [
         "ev-04"
       ],
@@ -53,10 +53,10 @@
     },
     {
       "created_object_ids": [
-        "s-c2"
+        "s-c1b"
       ],
-      "decided_at": "2026-09-03T12:00:14Z",
-      "decision_id": "d-c2-abstraction",
+      "decided_at": "2026-09-03T11:45:04Z",
+      "decision_id": "d-c1b-abstraction",
       "evidence_ids": [
         "ev-04"
       ],
@@ -65,11 +65,11 @@
     },
     {
       "created_object_ids": [
-        "prop-c2-bridge-safe",
-        "assert-c2-report"
+        "prop-c1b-bridge-safe",
+        "assert-c1b-report"
       ],
-      "decided_at": "2026-09-03T12:00:15Z",
-      "decision_id": "d-c2-epistemic",
+      "decided_at": "2026-09-03T11:45:05Z",
+      "decision_id": "d-c1b-epistemic",
       "evidence_ids": [
         "ev-05"
       ],
@@ -80,7 +80,7 @@
   "instance_graph": {
     "assertions": [
       {
-        "assertion_id": "assert-c2-distinct",
+        "assertion_id": "assert-c1b-distinct",
         "confidence": 1,
         "contextual_relevance": 1,
         "evidence_ids": [
@@ -88,25 +88,25 @@
           "ev-03"
         ],
         "narrative_commitment": "world_committed",
-        "object_id": "ent-c2-lio",
-        "predicate_id": "p-c2-distinct",
+        "object_id": "ent-c1b-lio",
+        "predicate_id": "p-c1b-distinct",
         "provenance": [
           {
             "confidence": 1,
             "evidence_id": "ev-02",
             "extraction_method": "hand fixture",
             "locator": "ev-02",
-            "provenance_id": "v-c2-distinct-02"
+            "provenance_id": "v-c1b-distinct-02"
           },
           {
             "confidence": 1,
             "evidence_id": "ev-03",
             "extraction_method": "hand fixture",
             "locator": "ev-03",
-            "provenance_id": "v-c2-distinct-03"
+            "provenance_id": "v-c1b-distinct-03"
           }
         ],
-        "subject_id": "ent-c2-ash-mechanic",
+        "subject_id": "ent-c1b-ash-mechanic",
         "temporal_scope": {
           "discourse_position": {
             "passage_order": 3
@@ -129,7 +129,7 @@
         ]
       },
       {
-        "assertion_id": "assert-c2-report",
+        "assertion_id": "assert-c1b-report",
         "confidence": 1,
         "contextual_relevance": 1,
         "epistemic_scope": {
@@ -137,30 +137,30 @@
           "evidence_ids": [
             "ev-05"
           ],
-          "holder_id": "ent-c2-mara",
+          "holder_id": "ent-c1b-mara",
           "holder_relative_time": {
             "kind": "unknown",
             "reason": "Evidence gives no holder-relative time."
           },
-          "proposition_content_id": "prop-c2-bridge-safe"
+          "proposition_content_id": "prop-c1b-bridge-safe"
         },
         "evidence_ids": [
           "ev-05"
         ],
         "narrative_commitment": "holder_attributed",
-        "object_id": "ent-c2-safe",
-        "predicate_id": "p-c2-status",
-        "proposition_content_id": "prop-c2-bridge-safe",
+        "object_id": "ent-c1b-safe",
+        "predicate_id": "p-c1b-status",
+        "proposition_content_id": "prop-c1b-bridge-safe",
         "provenance": [
           {
             "confidence": 1,
             "evidence_id": "ev-05",
             "extraction_method": "hand fixture",
             "locator": "ev-05",
-            "provenance_id": "v-c2-report-05"
+            "provenance_id": "v-c1b-report-05"
           }
         ],
-        "subject_id": "ent-c2-bridge",
+        "subject_id": "ent-c1b-bridge",
         "temporal_scope": {
           "discourse_position": {
             "passage_order": 5
@@ -185,15 +185,15 @@
     ],
     "entities": [
       {
-        "abstraction": "collective_causal_chain",
+        "abstraction": "event_role",
         "confidence": 1,
         "contextual_role": "credential courier",
-        "contextual_type_id": "t-c2",
+        "contextual_type_id": "t-c1b",
         "description": "Courier identity distinct from the mechanic.",
         "description_assertion_ids": [
-          "assert-c2-distinct"
+          "assert-c1b-distinct"
         ],
-        "entity_id": "ent-c2-lio",
+        "entity_id": "ent-c1b-lio",
         "evidence_ids": [
           "ev-02"
         ],
@@ -208,15 +208,15 @@
         "uncertainty": "known"
       },
       {
-        "abstraction": "collective_causal_chain",
+        "abstraction": "event_role",
         "confidence": 1,
         "contextual_role": "separate mechanic",
-        "contextual_type_id": "t-c2",
+        "contextual_type_id": "t-c1b",
         "description": "Mechanic identity distinct from the courier.",
         "description_assertion_ids": [
-          "assert-c2-distinct"
+          "assert-c1b-distinct"
         ],
-        "entity_id": "ent-c2-ash-mechanic",
+        "entity_id": "ent-c1b-ash-mechanic",
         "evidence_ids": [
           "ev-03"
         ],
@@ -231,15 +231,15 @@
         "uncertainty": "known"
       },
       {
-        "abstraction": "collective_causal_chain",
+        "abstraction": "event_role",
         "confidence": 1,
         "contextual_role": "report holder",
-        "contextual_type_id": "t-c2",
+        "contextual_type_id": "t-c1b",
         "description": "Holder of the bridge report.",
         "description_assertion_ids": [
-          "assert-c2-report"
+          "assert-c1b-report"
         ],
-        "entity_id": "ent-c2-mara",
+        "entity_id": "ent-c1b-mara",
         "evidence_ids": [
           "ev-05"
         ],
@@ -254,15 +254,15 @@
         "uncertainty": "known"
       },
       {
-        "abstraction": "collective_causal_chain",
+        "abstraction": "event_role",
         "confidence": 1,
         "contextual_role": "reported infrastructure",
-        "contextual_type_id": "t-c2",
+        "contextual_type_id": "t-c1b",
         "description": "Safe only inside Mara's report.",
         "description_assertion_ids": [
-          "assert-c2-report"
+          "assert-c1b-report"
         ],
-        "entity_id": "ent-c2-bridge",
+        "entity_id": "ent-c1b-bridge",
         "evidence_ids": [
           "ev-05"
         ],
@@ -277,15 +277,15 @@
         "uncertainty": "known"
       },
       {
-        "abstraction": "collective_causal_chain",
+        "abstraction": "event_role",
         "confidence": 1,
         "contextual_role": "reported state",
-        "contextual_type_id": "t-c2",
+        "contextual_type_id": "t-c1b",
         "description": "Safety state inside Mara's report.",
         "description_assertion_ids": [
-          "assert-c2-report"
+          "assert-c1b-report"
         ],
-        "entity_id": "ent-c2-safe",
+        "entity_id": "ent-c1b-safe",
         "evidence_ids": [
           "ev-05"
         ],
@@ -306,10 +306,10 @@
         "evidence_ids": [
           "ev-05"
         ],
-        "object_id": "ent-c2-safe",
-        "predicate_id": "p-c2-status",
-        "proposition_content_id": "prop-c2-bridge-safe",
-        "subject_id": "ent-c2-bridge",
+        "object_id": "ent-c1b-safe",
+        "predicate_id": "p-c1b-status",
+        "proposition_content_id": "prop-c1b-bridge-safe",
+        "subject_id": "ent-c1b-bridge",
         "temporal_content": {
           "discourse_position": {
             "passage_order": 5
@@ -330,10 +330,10 @@
     ]
   },
   "local_schema": {
-    "abstraction": "collective_causal_chain",
+    "abstraction": "event_role",
     "contextual_types": [
       {
-        "abstraction": "collective_causal_chain",
+        "abstraction": "event_role",
         "definition": "A context-specific narrative role.",
         "evidence_ids": [
           "ev-02",
@@ -341,7 +341,7 @@
         ],
         "label": "Role",
         "parent_upper_type": "entity",
-        "type_id": "t-c2"
+        "type_id": "t-c1b"
       }
     ],
     "predicates": [
@@ -354,7 +354,7 @@
         ],
         "label": "distinct",
         "parent_upper_relation": "related_to",
-        "predicate_id": "p-c2-distinct"
+        "predicate_id": "p-c1b-distinct"
       },
       {
         "arity": 2,
@@ -364,9 +364,9 @@
         ],
         "label": "reported status",
         "parent_upper_relation": "has_status",
-        "predicate_id": "p-c2-status"
+        "predicate_id": "p-c1b-status"
       }
     ],
-    "schema_id": "s-c2"
+    "schema_id": "s-c1b"
   }
 }

@@ -7,14 +7,14 @@
     "nodes_used": 4,
     "output_tokens": 0
   },
-  "contextual_interpretation": "Query-blind identity, ordered events, and rare credential evidence.",
+  "contextual_interpretation": "The query needs merged aliases, ordered events, and the rare mark.",
   "decisions": [
     {
       "created_object_ids": [
-        "ent-c1-lio"
+        "ent-c2b-lio"
       ],
-      "decided_at": "2026-09-03T11:45:01Z",
-      "decision_id": "d-c1-merge",
+      "decided_at": "2026-09-03T12:00:01Z",
+      "decision_id": "d-c2b-merge",
       "evidence_ids": [
         "ev-02",
         "ev-04"
@@ -28,10 +28,10 @@
     },
     {
       "created_object_ids": [
-        "s-c1"
+        "s-c2b"
       ],
-      "decided_at": "2026-09-03T11:45:02Z",
-      "decision_id": "d-c1-schema",
+      "decided_at": "2026-09-03T12:00:02Z",
+      "decision_id": "d-c2b-schema",
       "evidence_ids": [
         "ev-04"
       ],
@@ -43,11 +43,11 @@
     },
     {
       "created_object_ids": [
-        "event-c1-delivery",
-        "event-c1-opening"
+        "event-c2b-delivery",
+        "event-c2b-opening"
       ],
-      "decided_at": "2026-09-03T11:45:03Z",
-      "decision_id": "d-c1-events",
+      "decided_at": "2026-09-03T12:00:03Z",
+      "decision_id": "d-c2b-events",
       "evidence_ids": [
         "ev-04"
       ],
@@ -60,26 +60,26 @@
     },
     {
       "created_object_ids": [
-        "assert-c1-chain"
+        "assert-c2b-chain"
       ],
-      "decided_at": "2026-09-03T11:45:04Z",
-      "decision_id": "d-c1-temporal",
+      "decided_at": "2026-09-03T12:00:04Z",
+      "decision_id": "d-c2b-temporal",
       "evidence_ids": [
         "ev-04"
       ],
       "input_object_ids": [
-        "event-c1-delivery",
-        "event-c1-opening"
+        "event-c2b-delivery",
+        "event-c2b-opening"
       ],
       "operator": "temporal_qualification",
       "rationale": "Qualify delivery before opening."
     },
     {
       "created_object_ids": [
-        "assert-c1-enabled"
+        "assert-c2b-enabled"
       ],
-      "decided_at": "2026-09-03T11:45:05Z",
-      "decision_id": "d-c1-rare",
+      "decided_at": "2026-09-03T12:00:05Z",
+      "decision_id": "d-c2b-rare",
       "evidence_ids": [
         "ev-06"
       ],
@@ -93,21 +93,21 @@
   "instance_graph": {
     "assertions": [
       {
-        "assertion_id": "assert-c1-chain",
+        "assertion_id": "assert-c2b-chain",
         "confidence": 1,
         "contextual_relevance": 1,
         "evidence_ids": [
           "ev-04"
         ],
         "narrative_commitment": "world_committed",
-        "predicate_id": "p-c1-chain",
+        "predicate_id": "p-c2b-chain",
         "provenance": [
           {
             "confidence": 1,
             "evidence_id": "ev-04",
             "extraction_method": "hand fixture",
             "locator": "ev-04",
-            "provenance_id": "v-c1-chain-04"
+            "provenance_id": "v-c2b-chain-04"
           }
         ],
         "roles": [
@@ -115,28 +115,28 @@
             "evidence_ids": [
               "ev-04"
             ],
-            "object_id": "event-c1-delivery",
+            "object_id": "event-c2b-delivery",
             "role": "delivery"
           },
           {
             "evidence_ids": [
               "ev-04"
             ],
-            "object_id": "event-c1-opening",
+            "object_id": "event-c2b-opening",
             "role": "opening"
           },
           {
             "evidence_ids": [
               "ev-04"
             ],
-            "object_id": "ent-c1-lio",
+            "object_id": "ent-c2b-lio",
             "role": "courier"
           },
           {
             "evidence_ids": [
               "ev-04"
             ],
-            "object_id": "ent-c1-seal",
+            "object_id": "ent-c2b-seal",
             "role": "seal"
           }
         ],
@@ -164,7 +164,7 @@
         ]
       },
       {
-        "assertion_id": "assert-c1-enabled",
+        "assertion_id": "assert-c2b-enabled",
         "confidence": 1,
         "contextual_relevance": 1,
         "evidence_ids": [
@@ -172,25 +172,25 @@
           "ev-06"
         ],
         "narrative_commitment": "world_committed",
-        "object_id": "event-c1-opening",
-        "predicate_id": "p-c1-credential-enabled",
+        "object_id": "event-c2b-opening",
+        "predicate_id": "p-c2b-credential-enabled",
         "provenance": [
           {
             "confidence": 1,
             "evidence_id": "ev-04",
             "extraction_method": "hand fixture",
             "locator": "ev-04",
-            "provenance_id": "v-c1-enabled-04"
+            "provenance_id": "v-c2b-enabled-04"
           },
           {
             "confidence": 1,
             "evidence_id": "ev-06",
             "extraction_method": "hand fixture",
             "locator": "ev-06",
-            "provenance_id": "v-c1-enabled-06"
+            "provenance_id": "v-c2b-enabled-06"
           }
         ],
-        "subject_id": "ent-c1-seal",
+        "subject_id": "ent-c2b-seal",
         "temporal_scope": {
           "discourse_position": {
             "passage_order": 6
@@ -218,15 +218,15 @@
     ],
     "entities": [
       {
-        "abstraction": "event_role",
+        "abstraction": "collective_causal_chain",
         "confidence": 1,
         "contextual_role": "credential courier",
-        "contextual_type_id": "t-c1",
+        "contextual_type_id": "t-c2b",
         "description": "Lio delivered the marked seal.",
         "description_assertion_ids": [
-          "assert-c1-chain"
+          "assert-c2b-chain"
         ],
-        "entity_id": "ent-c1-lio",
+        "entity_id": "ent-c2b-lio",
         "evidence_ids": [
           "ev-02",
           "ev-04"
@@ -244,16 +244,16 @@
         "uncertainty": "known"
       },
       {
-        "abstraction": "event_role",
+        "abstraction": "collective_causal_chain",
         "confidence": 1,
         "contextual_role": "rare credential",
-        "contextual_type_id": "t-c1",
+        "contextual_type_id": "t-c2b",
         "description": "Its rare mark enabled opening.",
         "description_assertion_ids": [
-          "assert-c1-chain",
-          "assert-c1-enabled"
+          "assert-c2b-chain",
+          "assert-c2b-enabled"
         ],
-        "entity_id": "ent-c1-seal",
+        "entity_id": "ent-c2b-seal",
         "evidence_ids": [
           "ev-04",
           "ev-06"
@@ -274,12 +274,12 @@
     "events": [
       {
         "confidence": 1,
-        "contextual_type_id": "t-c1-event",
+        "contextual_type_id": "t-c2b-event",
         "description": "Delivery preceded opening.",
         "description_assertion_ids": [
-          "assert-c1-chain"
+          "assert-c2b-chain"
         ],
-        "event_id": "event-c1-delivery",
+        "event_id": "event-c2b-delivery",
         "evidence_ids": [
           "ev-04"
         ],
@@ -294,13 +294,13 @@
       },
       {
         "confidence": 1,
-        "contextual_type_id": "t-c1-event",
+        "contextual_type_id": "t-c2b-event",
         "description": "Opening required the rare mark.",
         "description_assertion_ids": [
-          "assert-c1-chain",
-          "assert-c1-enabled"
+          "assert-c2b-chain",
+          "assert-c2b-enabled"
         ],
-        "event_id": "event-c1-opening",
+        "event_id": "event-c2b-opening",
         "evidence_ids": [
           "ev-04"
         ],
@@ -317,27 +317,27 @@
     "proposition_contents": []
   },
   "local_schema": {
-    "abstraction": "event_role",
+    "abstraction": "collective_causal_chain",
     "contextual_types": [
       {
-        "abstraction": "event_role",
+        "abstraction": "collective_causal_chain",
         "definition": "A context-specific narrative role.",
         "evidence_ids": [
           "ev-04"
         ],
         "label": "Role",
         "parent_upper_type": "entity",
-        "type_id": "t-c1"
+        "type_id": "t-c2b"
       },
       {
-        "abstraction": "event_role",
+        "abstraction": "collective_causal_chain",
         "definition": "A reified occurrence in the local event chain.",
         "evidence_ids": [
           "ev-04"
         ],
         "label": "Narrative event",
         "parent_upper_type": "event",
-        "type_id": "t-c1-event"
+        "type_id": "t-c2b-event"
       }
     ],
     "predicates": [
@@ -349,7 +349,7 @@
         ],
         "label": "credential chain",
         "parent_upper_relation": "precedes",
-        "predicate_id": "p-c1-chain",
+        "predicate_id": "p-c2b-chain",
         "role_names": [
           "delivery",
           "opening",
@@ -366,9 +366,9 @@
         ],
         "label": "enabled",
         "parent_upper_relation": "causes",
-        "predicate_id": "p-c1-credential-enabled"
+        "predicate_id": "p-c2b-credential-enabled"
       }
     ],
-    "schema_id": "s-c1"
+    "schema_id": "s-c2b"
   }
 }

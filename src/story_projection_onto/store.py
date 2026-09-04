@@ -32,7 +32,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, ClassVar
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 5
 DECIMAL_GIGABYTE = 1_000_000_000
 DEFAULT_TOTAL_ALLOCATION_BYTES = 30 * DECIMAL_GIGABYTE
 DEFAULT_MAX_OCCUPIED_BYTES = 25 * DECIMAL_GIGABYTE
@@ -159,6 +159,29 @@ class GpuEventKind(enum.StrEnum):
     # Durable complement of classified events within a live model-service
     # session. Stored in gpu_service_sessions, never as an enclosing event.
     SERVICE_OVERHEAD = "service_overhead"
+
+
+class GpuAllocationJournalState(enum.StrEnum):
+    OPENED = "opened"
+    HEARTBEAT = "heartbeat"
+    CLOSED = "closed"
+    RECOVERED = "recovered"
+
+
+class GpuServiceJournalState(enum.StrEnum):
+    """Durable lifecycle states for one exclusive GPU model service.
+
+    The journal is distinct from ``gpu_service_sessions``: it is written while
+    a service is live so controller death cannot erase idle, load, or restart
+    allocation.  ``CLOSED`` and ``RECOVERED`` are terminal observations made
+    only after the immutable service-session accounting row exists.
+    """
+
+    OPENED = "opened"
+    HEARTBEAT = "heartbeat"
+    PROCESS_STOPPED = "process_stopped"
+    CLOSED = "closed"
+    RECOVERED = "recovered"
 
 
 class InputKind(enum.StrEnum):
@@ -337,6 +360,37 @@ class GpuServiceSession:
 
 
 @dataclass(frozen=True)
+class GpuAllocationJournalRecord:
+    journal_id: str
+    allocation_id: str
+    sequence: int
+    state: GpuAllocationJournalState
+    intended_event_kind: GpuEventKind
+    elapsed_microseconds: int
+    maximum_microseconds: int
+    observed_at: str
+    job_id: str | None
+    attempt_id: str | None
+    details_json: str
+
+
+@dataclass(frozen=True)
+class GpuServiceJournalRecord:
+    journal_id: str
+    service_session_id: str
+    sequence: int
+    state: GpuServiceJournalState
+    session_id: str
+    configuration_hash: str
+    service_started_at: str
+    elapsed_microseconds: int
+    ledger_allocated_microseconds_before_session: int
+    hard_limit_microseconds: int
+    observed_at: str
+    details_json: str
+
+
+@dataclass(frozen=True)
 class GpuSummary:
     total_allocated_microseconds: int
     event_count: int
@@ -512,6 +566,22 @@ class ResourceSampleRecord:
     project_storage_bytes: int
     cpu_worker_count: int
     sampled_at: str
+
+
+@dataclass(frozen=True)
+class StorageSampleRecord:
+    """Durable storage/headroom observation used for interrupted-run replay."""
+
+    sample_id: str
+    phase: str
+    sampled_at: str
+    current_occupied_bytes: int
+    additional_reserved_bytes: int
+    projected_occupied_bytes: int
+    filesystem_free_bytes: int
+    effective_projected_headroom_bytes: int
+    allowed: bool
+    violations: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -852,6 +922,8 @@ class Ledger:
         "job_artifacts",
         "inputs",
         "evidence_snapshots",
+        "gpu_allocation_journal",
+        "gpu_service_journal",
         "gpu_events",
         "gpu_service_sessions",
         "model_calls",
@@ -1002,6 +1074,40 @@ class Ledger:
             job_id TEXT REFERENCES jobs(job_id),
             attempt_id TEXT REFERENCES attempts(attempt_id),
             details_json TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS gpu_allocation_journal (
+            journal_id TEXT PRIMARY KEY,
+            allocation_id TEXT NOT NULL,
+            sequence INTEGER NOT NULL CHECK (sequence >= 0),
+            state TEXT NOT NULL CHECK (
+                state IN ('opened','heartbeat','closed','recovered')
+            ),
+            intended_event_kind TEXT NOT NULL CHECK (intended_event_kind IN ({gpu_values})),
+            elapsed_microseconds INTEGER NOT NULL CHECK (elapsed_microseconds >= 0),
+            maximum_microseconds INTEGER NOT NULL CHECK (maximum_microseconds > 0),
+            observed_at TEXT NOT NULL,
+            job_id TEXT REFERENCES jobs(job_id),
+            attempt_id TEXT REFERENCES attempts(attempt_id),
+            details_json TEXT NOT NULL,
+            UNIQUE(allocation_id, sequence)
+        );
+        CREATE TABLE IF NOT EXISTS gpu_service_journal (
+            journal_id TEXT PRIMARY KEY,
+            service_session_id TEXT NOT NULL,
+            sequence INTEGER NOT NULL CHECK (sequence >= 0),
+            state TEXT NOT NULL CHECK (
+                state IN ('opened','heartbeat','process_stopped','closed','recovered')
+            ),
+            session_id TEXT NOT NULL,
+            configuration_hash TEXT NOT NULL,
+            service_started_at TEXT NOT NULL,
+            elapsed_microseconds INTEGER NOT NULL CHECK (elapsed_microseconds >= 0),
+            ledger_allocated_microseconds_before_session INTEGER NOT NULL
+                CHECK (ledger_allocated_microseconds_before_session >= 0),
+            hard_limit_microseconds INTEGER NOT NULL CHECK (hard_limit_microseconds > 0),
+            observed_at TEXT NOT NULL,
+            details_json TEXT NOT NULL,
+            UNIQUE(service_session_id, sequence)
         );
         CREATE TABLE IF NOT EXISTS gpu_service_sessions (
             service_session_id TEXT PRIMARY KEY,
@@ -2114,6 +2220,32 @@ class Ledger:
             sampled_at=row["sampled_at"],
         )
 
+    def resource_samples_with_prefix(
+        self, sample_id_prefix: str
+    ) -> tuple[ResourceSampleRecord, ...]:
+        """Read prior append-only samples for interrupted-run gate replay."""
+
+        if not sample_id_prefix:
+            raise ValueError("sample_id_prefix must be nonempty")
+        rows = self._connection.execute(
+            "SELECT * FROM resource_samples ORDER BY sampled_at, sample_id"
+        ).fetchall()
+        return tuple(
+            ResourceSampleRecord(
+                sample_id=row["sample_id"],
+                job_id=row["job_id"],
+                gpu_event_id=row["gpu_event_id"],
+                process_ram_bytes=row["process_ram_bytes"],
+                system_available_ram_bytes=row["system_available_ram_bytes"],
+                gpu_vram_bytes=row["gpu_vram_bytes"],
+                project_storage_bytes=row["project_storage_bytes"],
+                cpu_worker_count=row["cpu_worker_count"],
+                sampled_at=row["sampled_at"],
+            )
+            for row in rows
+            if row["sample_id"].startswith(sample_id_prefix)
+        )
+
     def create_or_resume_job(
         self,
         identity_components: Mapping[str, Any],
@@ -2614,7 +2746,197 @@ class Ledger:
                 )
             except sqlite3.IntegrityError as exc:
                 raise KeyError("unknown parent artifact or conflicting artifact link") from exc
-        return link_id
+            return link_id
+
+    @staticmethod
+    def _gpu_allocation_journal_from_row(
+        row: sqlite3.Row,
+    ) -> GpuAllocationJournalRecord:
+        return GpuAllocationJournalRecord(
+            journal_id=row["journal_id"],
+            allocation_id=row["allocation_id"],
+            sequence=row["sequence"],
+            state=GpuAllocationJournalState(row["state"]),
+            intended_event_kind=GpuEventKind(row["intended_event_kind"]),
+            elapsed_microseconds=row["elapsed_microseconds"],
+            maximum_microseconds=row["maximum_microseconds"],
+            observed_at=row["observed_at"],
+            job_id=row["job_id"],
+            attempt_id=row["attempt_id"],
+            details_json=row["details_json"],
+        )
+
+    def record_gpu_allocation_observation(
+        self,
+        *,
+        allocation_id: str,
+        state: GpuAllocationJournalState,
+        intended_event_kind: GpuEventKind,
+        elapsed_seconds: Any,
+        maximum_seconds: Any,
+        observed_at: Any,
+        job_id: str | None = None,
+        attempt_id: str | None = None,
+        details: Mapping[str, Any] | None = None,
+    ) -> GpuAllocationJournalRecord:
+        """Append an open/heartbeat/close record before final event reconciliation."""
+
+        _metadata_token("allocation_id", allocation_id)
+        journal_state = GpuAllocationJournalState(state)
+        intended = GpuEventKind(intended_event_kind)
+        if intended is GpuEventKind.SERVICE_OVERHEAD:
+            raise ValueError("service overhead uses service-session reconciliation")
+        elapsed = _seconds_to_microseconds(elapsed_seconds)
+        maximum = _seconds_to_microseconds(maximum_seconds)
+        if maximum <= 0:
+            raise ValueError("GPU allocation journal maximum must be positive")
+        timestamp = _normalise_timestamp(observed_at)
+        details_json = canonical_json(details or {})
+        with self._transaction() as cursor:
+            previous = cursor.execute(
+                """SELECT * FROM gpu_allocation_journal
+                   WHERE allocation_id = ? ORDER BY sequence DESC LIMIT 1""",
+                (allocation_id,),
+            ).fetchone()
+            if previous is None:
+                if journal_state is not GpuAllocationJournalState.OPENED or elapsed != 0:
+                    raise ValueError("first GPU allocation observation must open at zero")
+                sequence = 0
+            else:
+                previous_record = self._gpu_allocation_journal_from_row(previous)
+                if previous_record.state in {
+                    GpuAllocationJournalState.CLOSED,
+                    GpuAllocationJournalState.RECOVERED,
+                }:
+                    raise DuplicateConflictError("GPU allocation journal is already terminal")
+                if journal_state is GpuAllocationJournalState.OPENED:
+                    raise DuplicateConflictError("GPU allocation cannot be opened twice")
+                if intended is not previous_record.intended_event_kind:
+                    raise DuplicateConflictError("GPU allocation event kind changed")
+                if maximum != previous_record.maximum_microseconds:
+                    raise DuplicateConflictError("GPU allocation maximum changed")
+                if job_id != previous_record.job_id or attempt_id != previous_record.attempt_id:
+                    raise DuplicateConflictError("GPU allocation lineage changed")
+                if elapsed < previous_record.elapsed_microseconds:
+                    raise ValueError("GPU allocation elapsed time regressed")
+                if _parse_timestamp(timestamp) < _parse_timestamp(previous_record.observed_at):
+                    raise ValueError("GPU allocation observation time regressed")
+                sequence = previous_record.sequence + 1
+            if job_id is not None:
+                job = cursor.execute("SELECT 1 FROM jobs WHERE job_id = ?", (job_id,)).fetchone()
+                if job is None:
+                    raise KeyError(f"unknown job {job_id}")
+            if attempt_id is not None:
+                attempt = cursor.execute(
+                    "SELECT job_id FROM attempts WHERE attempt_id = ?", (attempt_id,)
+                ).fetchone()
+                if attempt is None:
+                    raise KeyError(f"unknown attempt {attempt_id}")
+                if job_id is not None and attempt["job_id"] != job_id:
+                    raise ValueError("GPU allocation attempt cannot cross jobs")
+            contents = {
+                "allocation_id": allocation_id,
+                "sequence": sequence,
+                "state": journal_state.value,
+                "intended_event_kind": intended.value,
+                "elapsed_microseconds": elapsed,
+                "maximum_microseconds": maximum,
+                "observed_at": timestamp,
+                "job_id": job_id,
+                "attempt_id": attempt_id,
+                "details_json": details_json,
+            }
+            journal_id = sha256_bytes(canonical_json(contents).encode("utf-8"))
+            cursor.execute(
+                """INSERT INTO gpu_allocation_journal
+                   (journal_id, allocation_id, sequence, state, intended_event_kind,
+                    elapsed_microseconds, maximum_microseconds, observed_at, job_id,
+                    attempt_id, details_json)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (journal_id, *contents.values()),
+            )
+            inserted = cursor.execute(
+                "SELECT * FROM gpu_allocation_journal WHERE journal_id = ?",
+                (journal_id,),
+            ).fetchone()
+            assert inserted is not None
+            return self._gpu_allocation_journal_from_row(inserted)
+
+    def unresolved_gpu_allocations(self) -> tuple[GpuAllocationJournalRecord, ...]:
+        """Return latest nonterminal journals that have no reconciled GPU event."""
+
+        rows = self._connection.execute(
+            """SELECT journal.*
+               FROM gpu_allocation_journal AS journal
+               JOIN (
+                   SELECT allocation_id, MAX(sequence) AS maximum_sequence
+                   FROM gpu_allocation_journal GROUP BY allocation_id
+               ) AS latest
+                 ON latest.allocation_id = journal.allocation_id
+                AND latest.maximum_sequence = journal.sequence
+               LEFT JOIN gpu_events AS event ON event.event_id = journal.allocation_id
+               WHERE event.event_id IS NULL
+                 AND journal.state IN ('opened', 'heartbeat')
+               ORDER BY journal.observed_at, journal.allocation_id"""
+        ).fetchall()
+        return tuple(self._gpu_allocation_journal_from_row(row) for row in rows)
+
+    def recover_unclosed_gpu_allocations(self, *, recovered_at: Any) -> tuple[GpuEvent, ...]:
+        """Conservatively charge crash-open intervals before any new allocation."""
+
+        recovery_timestamp = _normalise_timestamp(recovered_at)
+        recovery_time = _parse_timestamp(recovery_timestamp)
+        recovered: list[GpuEvent] = []
+        for latest in self.unresolved_gpu_allocations():
+            opened_row = self._connection.execute(
+                """SELECT * FROM gpu_allocation_journal
+                   WHERE allocation_id = ? ORDER BY sequence LIMIT 1""",
+                (latest.allocation_id,),
+            ).fetchone()
+            assert opened_row is not None
+            opened = self._gpu_allocation_journal_from_row(opened_row)
+            wall_microseconds = max(
+                0,
+                int(
+                    decimal.Decimal(
+                        str((recovery_time - _parse_timestamp(opened.observed_at)).total_seconds())
+                    )
+                    * _MICROSECONDS_PER_SECOND
+                ),
+            )
+            charged_microseconds = min(
+                latest.maximum_microseconds,
+                max(latest.elapsed_microseconds, wall_microseconds),
+            )
+            event = self.record_gpu_event(
+                event_id=latest.allocation_id,
+                event_kind=GpuEventKind.FAILURE,
+                allocated_seconds=decimal.Decimal(charged_microseconds) / _MICROSECONDS_PER_SECOND,
+                started_at=opened.observed_at,
+                ended_at=recovery_timestamp,
+                succeeded=False,
+                job_id=latest.job_id,
+                attempt_id=latest.attempt_id,
+                details={
+                    "recovered_from_open_journal": True,
+                    "intended_event_kind": latest.intended_event_kind.value,
+                    "admitted_maximum_seconds": latest.maximum_microseconds / 1_000_000,
+                },
+            )
+            self.record_gpu_allocation_observation(
+                allocation_id=latest.allocation_id,
+                state=GpuAllocationJournalState.RECOVERED,
+                intended_event_kind=latest.intended_event_kind,
+                elapsed_seconds=decimal.Decimal(charged_microseconds) / _MICROSECONDS_PER_SECOND,
+                maximum_seconds=decimal.Decimal(latest.maximum_microseconds)
+                / _MICROSECONDS_PER_SECOND,
+                observed_at=recovery_timestamp,
+                job_id=latest.job_id,
+                attempt_id=latest.attempt_id,
+                details={"event_id": event.event_id},
+            )
+            recovered.append(event)
+        return tuple(recovered)
 
     def record_gpu_event(
         self,
@@ -2633,9 +2955,7 @@ class Ledger:
             raise ValueError("event_id must be nonempty")
         kind = GpuEventKind(event_kind)
         if kind is GpuEventKind.SERVICE_OVERHEAD:
-            raise ValueError(
-                "service_overhead is session-derived; use record_gpu_service_session"
-            )
+            raise ValueError("service_overhead is session-derived; use record_gpu_service_session")
         micros = _seconds_to_microseconds(allocated_seconds)
         start = _normalise_timestamp(started_at)
         end = _normalise_timestamp(ended_at)
@@ -2725,6 +3045,384 @@ class Ledger:
             attempt_id=row["attempt_id"],
             details_json=row["details_json"],
         )
+
+    def gpu_events_with_prefix(self, event_id_prefix: str) -> tuple[GpuEvent, ...]:
+        """Return an ordered, typed view of one runner's allocation events.
+
+        Prefix filtering is performed in Python so ``%`` and ``_`` remain
+        ordinary identifier characters rather than SQL pattern operators.
+        The event table is intentionally small (the registered study has 286
+        allocation events), making this both bounded and unambiguous.
+        """
+
+        if not event_id_prefix:
+            raise ValueError("event_id_prefix must be nonempty")
+        rows = self._connection.execute(
+            "SELECT * FROM gpu_events ORDER BY started_at, event_id"
+        ).fetchall()
+        return tuple(
+            self._gpu_event_from_row(row)
+            for row in rows
+            if row["event_id"].startswith(event_id_prefix)
+        )
+
+    @staticmethod
+    def _gpu_service_journal_from_row(
+        row: sqlite3.Row,
+    ) -> GpuServiceJournalRecord:
+        return GpuServiceJournalRecord(
+            journal_id=row["journal_id"],
+            service_session_id=row["service_session_id"],
+            sequence=row["sequence"],
+            state=GpuServiceJournalState(row["state"]),
+            session_id=row["session_id"],
+            configuration_hash=row["configuration_hash"],
+            service_started_at=row["service_started_at"],
+            elapsed_microseconds=row["elapsed_microseconds"],
+            ledger_allocated_microseconds_before_session=row[
+                "ledger_allocated_microseconds_before_session"
+            ],
+            hard_limit_microseconds=row["hard_limit_microseconds"],
+            observed_at=row["observed_at"],
+            details_json=row["details_json"],
+        )
+
+    def record_gpu_service_observation(
+        self,
+        *,
+        service_session_id: str,
+        state: GpuServiceJournalState,
+        session_id: str,
+        configuration_hash: str,
+        service_started_at: Any,
+        elapsed_seconds: Any,
+        ledger_allocated_seconds_before_session: Any,
+        hard_limit_seconds: Any,
+        observed_at: Any,
+        details: Mapping[str, Any] | None = None,
+    ) -> GpuServiceJournalRecord:
+        """Append a crash-durable observation of one exclusive GPU service.
+
+        A journal is opened before process creation and becomes terminal only
+        after its immutable ``gpu_service_sessions`` accounting row exists.
+        Stable identity and budget fields are repeated on every observation so
+        a corrupt or mixed recovery cannot silently adopt another service.
+        """
+
+        _metadata_token("service_session_id", service_session_id)
+        _metadata_token("session_id", session_id)
+        configuration = _normalise_hash("configuration_hash", configuration_hash)
+        journal_state = GpuServiceJournalState(state)
+        started = _normalise_timestamp(service_started_at)
+        elapsed = _seconds_to_microseconds(elapsed_seconds)
+        baseline = _seconds_to_microseconds(ledger_allocated_seconds_before_session)
+        hard_limit = _seconds_to_microseconds(hard_limit_seconds)
+        if hard_limit <= 0:
+            raise ValueError("GPU service journal hard limit must be positive")
+        timestamp = _normalise_timestamp(observed_at)
+        if _parse_timestamp(timestamp) < _parse_timestamp(started):
+            raise ValueError("GPU service observation predates service start")
+        details_json = canonical_json(details or {})
+        with self._transaction() as cursor:
+            previous = cursor.execute(
+                """SELECT * FROM gpu_service_journal
+                   WHERE service_session_id = ? ORDER BY sequence DESC LIMIT 1""",
+                (service_session_id,),
+            ).fetchone()
+            if previous is None:
+                unresolved_other = cursor.execute(
+                    """SELECT latest.service_session_id
+                       FROM gpu_service_journal AS latest
+                       JOIN (
+                           SELECT service_session_id, MAX(sequence) AS maximum_sequence
+                           FROM gpu_service_journal GROUP BY service_session_id
+                       ) AS terminal
+                         ON terminal.service_session_id = latest.service_session_id
+                        AND terminal.maximum_sequence = latest.sequence
+                       WHERE latest.state NOT IN ('closed','recovered')
+                         AND latest.service_session_id != ?
+                       LIMIT 1""",
+                    (service_session_id,),
+                ).fetchone()
+                if unresolved_other is not None:
+                    raise DuplicateConflictError("another GPU service journal remains unresolved")
+                if journal_state is not GpuServiceJournalState.OPENED or elapsed != 0:
+                    raise ValueError("first GPU service observation must open at zero")
+                if timestamp != started:
+                    raise ValueError("opening GPU service observation must equal start time")
+                sequence = 0
+            else:
+                previous_record = self._gpu_service_journal_from_row(previous)
+                if previous_record.state in {
+                    GpuServiceJournalState.CLOSED,
+                    GpuServiceJournalState.RECOVERED,
+                }:
+                    raise DuplicateConflictError("GPU service journal is already terminal")
+                stable_actual = (
+                    previous_record.session_id,
+                    previous_record.configuration_hash,
+                    previous_record.service_started_at,
+                    previous_record.ledger_allocated_microseconds_before_session,
+                    previous_record.hard_limit_microseconds,
+                )
+                stable_expected = (session_id, configuration, started, baseline, hard_limit)
+                if stable_actual != stable_expected:
+                    raise DuplicateConflictError("GPU service journal identity changed")
+                if journal_state is GpuServiceJournalState.OPENED:
+                    raise DuplicateConflictError("GPU service journal cannot be opened twice")
+                allowed_states = {
+                    GpuServiceJournalState.OPENED: {
+                        GpuServiceJournalState.HEARTBEAT,
+                        GpuServiceJournalState.PROCESS_STOPPED,
+                        GpuServiceJournalState.RECOVERED,
+                    },
+                    GpuServiceJournalState.HEARTBEAT: {
+                        GpuServiceJournalState.HEARTBEAT,
+                        GpuServiceJournalState.PROCESS_STOPPED,
+                        GpuServiceJournalState.RECOVERED,
+                    },
+                    GpuServiceJournalState.PROCESS_STOPPED: {
+                        GpuServiceJournalState.CLOSED,
+                        GpuServiceJournalState.RECOVERED,
+                    },
+                }
+                if journal_state not in allowed_states[previous_record.state]:
+                    raise ValueError(
+                        "invalid GPU service journal transition "
+                        f"{previous_record.state.value}->{journal_state.value}"
+                    )
+                if elapsed < previous_record.elapsed_microseconds:
+                    raise ValueError("GPU service elapsed time regressed")
+                if _parse_timestamp(timestamp) < _parse_timestamp(previous_record.observed_at):
+                    raise ValueError("GPU service observation time regressed")
+                sequence = previous_record.sequence + 1
+            contents = {
+                "service_session_id": service_session_id,
+                "sequence": sequence,
+                "state": journal_state.value,
+                "session_id": session_id,
+                "configuration_hash": configuration,
+                "service_started_at": started,
+                "elapsed_microseconds": elapsed,
+                "ledger_allocated_microseconds_before_session": baseline,
+                "hard_limit_microseconds": hard_limit,
+                "observed_at": timestamp,
+                "details_json": details_json,
+            }
+            journal_id = sha256_bytes(canonical_json(contents).encode("utf-8"))
+            cursor.execute(
+                """INSERT INTO gpu_service_journal
+                   (journal_id, service_session_id, sequence, state, session_id,
+                    configuration_hash, service_started_at, elapsed_microseconds,
+                    ledger_allocated_microseconds_before_session,
+                    hard_limit_microseconds, observed_at, details_json)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (journal_id, *contents.values()),
+            )
+            inserted = cursor.execute(
+                "SELECT * FROM gpu_service_journal WHERE journal_id = ?",
+                (journal_id,),
+            ).fetchone()
+            assert inserted is not None
+            return self._gpu_service_journal_from_row(inserted)
+
+    def latest_gpu_service_journal(self, service_session_id: str) -> GpuServiceJournalRecord | None:
+        _metadata_token("service_session_id", service_session_id)
+        row = self._connection.execute(
+            """SELECT * FROM gpu_service_journal
+               WHERE service_session_id = ? ORDER BY sequence DESC LIMIT 1""",
+            (service_session_id,),
+        ).fetchone()
+        return None if row is None else self._gpu_service_journal_from_row(row)
+
+    def unresolved_gpu_service_journals(self) -> tuple[GpuServiceJournalRecord, ...]:
+        """Return latest nonterminal service journals in deterministic order."""
+
+        rows = self._connection.execute(
+            """SELECT journal.*
+               FROM gpu_service_journal AS journal
+               JOIN (
+                   SELECT service_session_id, MAX(sequence) AS maximum_sequence
+                   FROM gpu_service_journal GROUP BY service_session_id
+               ) AS latest
+                 ON latest.service_session_id = journal.service_session_id
+                AND latest.maximum_sequence = journal.sequence
+               WHERE journal.state NOT IN ('closed','recovered')
+               ORDER BY journal.service_started_at, journal.service_session_id"""
+        ).fetchall()
+        return tuple(self._gpu_service_journal_from_row(row) for row in rows)
+
+    def get_gpu_service_session(self, service_session_id: str) -> GpuServiceSession | None:
+        _metadata_token("service_session_id", service_session_id)
+        row = self._connection.execute(
+            "SELECT * FROM gpu_service_sessions WHERE service_session_id = ?",
+            (service_session_id,),
+        ).fetchone()
+        return None if row is None else self._gpu_service_session_from_row(row)
+
+    def recover_gpu_service_journal(
+        self,
+        *,
+        service_session_id: str,
+        recovered_at: Any,
+        details: Mapping[str, Any] | None = None,
+    ) -> GpuServiceSession:
+        """Conservatively close one service after verified process/endpoint absence.
+
+        The caller owns OS-level absence checks.  A live/open journal is charged
+        through recovery time; a durably ``process_stopped`` journal uses its
+        earlier verified stop observation.  Replaying after a crash between the
+        accounting row and terminal journal observation is idempotent.
+        """
+
+        latest = self.latest_gpu_service_journal(service_session_id)
+        if latest is None:
+            raise KeyError(f"unknown GPU service journal {service_session_id}")
+        if latest.state in {
+            GpuServiceJournalState.CLOSED,
+            GpuServiceJournalState.RECOVERED,
+        }:
+            existing_terminal = self.get_gpu_service_session(service_session_id)
+            if existing_terminal is None:
+                raise StoreError("terminal GPU service journal has no accounting row")
+            return existing_terminal
+        recovery_timestamp = _normalise_timestamp(recovered_at)
+        recovery_time = _parse_timestamp(recovery_timestamp)
+        if latest.state is GpuServiceJournalState.PROCESS_STOPPED:
+            ended_at = latest.observed_at
+            elapsed_micros = latest.elapsed_microseconds
+        else:
+            if recovery_time < _parse_timestamp(latest.observed_at):
+                raise ValueError("GPU service recovery time regressed")
+            ended_at = recovery_timestamp
+            wall_seconds = (
+                recovery_time - _parse_timestamp(latest.service_started_at)
+            ).total_seconds()
+            wall_micros = max(
+                0,
+                int(decimal.Decimal(str(wall_seconds)) * _MICROSECONDS_PER_SECOND),
+            )
+            elapsed_micros = max(latest.elapsed_microseconds, wall_micros)
+
+        existing = self.get_gpu_service_session(service_session_id)
+        if existing is None:
+            current_micros = self.gpu_summary().total_allocated_microseconds
+            baseline_micros = latest.ledger_allocated_microseconds_before_session
+            if current_micros < baseline_micros:
+                raise StoreError("GPU ledger total predates service journal baseline")
+            classified_micros = current_micros - baseline_micros
+            service_micros = max(elapsed_micros, classified_micros)
+            recovery_details = dict(details or {})
+            recovery_details.update(
+                {
+                    "accounting_method": "conservative_service_journal_recovery",
+                    "configuration_hash": latest.configuration_hash,
+                    "latest_journal_state": latest.state.value,
+                    "recovered_from_open_service_journal": True,
+                }
+            )
+            existing = self.record_gpu_service_session(
+                service_session_id=service_session_id,
+                session_id=latest.session_id,
+                service_seconds=decimal.Decimal(service_micros) / _MICROSECONDS_PER_SECOND,
+                classified_event_seconds=decimal.Decimal(classified_micros)
+                / _MICROSECONDS_PER_SECOND,
+                started_at=latest.service_started_at,
+                ended_at=ended_at,
+                details=recovery_details,
+            )
+        self.record_gpu_service_observation(
+            service_session_id=service_session_id,
+            state=GpuServiceJournalState.RECOVERED,
+            session_id=latest.session_id,
+            configuration_hash=latest.configuration_hash,
+            service_started_at=latest.service_started_at,
+            elapsed_seconds=decimal.Decimal(existing.service_microseconds)
+            / _MICROSECONDS_PER_SECOND,
+            ledger_allocated_seconds_before_session=decimal.Decimal(
+                latest.ledger_allocated_microseconds_before_session
+            )
+            / _MICROSECONDS_PER_SECOND,
+            hard_limit_seconds=decimal.Decimal(latest.hard_limit_microseconds)
+            / _MICROSECONDS_PER_SECOND,
+            observed_at=max(
+                _parse_timestamp(recovery_timestamp),
+                _parse_timestamp(latest.observed_at),
+            ),
+            details={"accounting_row_created": True},
+        )
+        return existing
+
+    def close_gpu_service_journal(
+        self,
+        *,
+        service_session_id: str,
+        session_id: str,
+        service_seconds: Any,
+        classified_event_seconds: Any,
+        started_at: Any,
+        ended_at: Any,
+        details: Mapping[str, Any] | None = None,
+    ) -> GpuServiceSession:
+        """Create the accounting row, then durably terminalize a normal stop.
+
+        A replay after a crash between those two append-only writes is safe: the
+        immutable accounting insert is idempotent and the still-pending journal
+        receives its terminal observation on the second call.
+        """
+
+        latest = self.latest_gpu_service_journal(service_session_id)
+        if latest is None:
+            raise KeyError(f"unknown GPU service journal {service_session_id}")
+        if latest.state is GpuServiceJournalState.RECOVERED:
+            raise DuplicateConflictError("a recovered GPU service cannot close normally")
+        if latest.state is GpuServiceJournalState.CLOSED:
+            return self.record_gpu_service_session(
+                service_session_id=service_session_id,
+                session_id=session_id,
+                service_seconds=service_seconds,
+                classified_event_seconds=classified_event_seconds,
+                started_at=started_at,
+                ended_at=ended_at,
+                details=details,
+            )
+        if latest.state is not GpuServiceJournalState.PROCESS_STOPPED:
+            raise ValueError("GPU service must be durably process-stopped before close")
+        normalized_start = _normalise_timestamp(started_at)
+        normalized_end = _normalise_timestamp(ended_at)
+        if session_id != latest.session_id or normalized_start != latest.service_started_at:
+            raise DuplicateConflictError("GPU service close identity changed")
+        if normalized_end != latest.observed_at:
+            raise DuplicateConflictError("GPU service close end differs from verified stop")
+        service_micros = _seconds_to_microseconds(service_seconds)
+        if service_micros < latest.elapsed_microseconds:
+            raise ValueError("GPU service close time is below the stopped observation")
+        record = self.record_gpu_service_session(
+            service_session_id=service_session_id,
+            session_id=session_id,
+            service_seconds=service_seconds,
+            classified_event_seconds=classified_event_seconds,
+            started_at=normalized_start,
+            ended_at=normalized_end,
+            details=details,
+        )
+        self.record_gpu_service_observation(
+            service_session_id=service_session_id,
+            state=GpuServiceJournalState.CLOSED,
+            session_id=latest.session_id,
+            configuration_hash=latest.configuration_hash,
+            service_started_at=latest.service_started_at,
+            elapsed_seconds=decimal.Decimal(record.service_microseconds) / _MICROSECONDS_PER_SECOND,
+            ledger_allocated_seconds_before_session=decimal.Decimal(
+                latest.ledger_allocated_microseconds_before_session
+            )
+            / _MICROSECONDS_PER_SECOND,
+            hard_limit_seconds=decimal.Decimal(latest.hard_limit_microseconds)
+            / _MICROSECONDS_PER_SECOND,
+            observed_at=normalized_end,
+            details={"accounting_row_created": True},
+        )
+        return record
 
     def record_gpu_service_session(
         self,
@@ -2827,10 +3525,7 @@ class Ledger:
             """SELECT event_kind, SUM(allocated_microseconds) AS total, COUNT(*) AS count
                FROM gpu_events GROUP BY event_kind ORDER BY event_kind"""
         ).fetchall()
-        by_kind_values = {
-            GpuEventKind(row["event_kind"]): int(row["total"])
-            for row in rows
-        }
+        by_kind_values = {GpuEventKind(row["event_kind"]): int(row["total"]) for row in rows}
         service_row = self._connection.execute(
             """SELECT COALESCE(SUM(overhead_microseconds), 0) AS total, COUNT(*) AS count
                FROM gpu_service_sessions"""
@@ -2908,6 +3603,41 @@ class Ledger:
                 ),
             )
         return sample_id
+
+    def storage_samples_with_phase_prefix(
+        self, phase_prefix: str
+    ) -> tuple[StorageSampleRecord, ...]:
+        """Read immutable storage observations for a run or phase prefix."""
+
+        if not phase_prefix:
+            raise ValueError("phase_prefix must be nonempty")
+        rows = self._connection.execute(
+            "SELECT * FROM storage_samples ORDER BY sampled_at, sample_id"
+        ).fetchall()
+        records: list[StorageSampleRecord] = []
+        for row in rows:
+            if not row["phase"].startswith(phase_prefix):
+                continue
+            violations = json.loads(row["violations_json"])
+            if not isinstance(violations, list) or not all(
+                isinstance(item, str) for item in violations
+            ):
+                raise ArtifactIntegrityError("storage sample contains invalid violation metadata")
+            records.append(
+                StorageSampleRecord(
+                    sample_id=row["sample_id"],
+                    phase=row["phase"],
+                    sampled_at=row["sampled_at"],
+                    current_occupied_bytes=row["current_occupied_bytes"],
+                    additional_reserved_bytes=row["additional_reserved_bytes"],
+                    projected_occupied_bytes=row["projected_occupied_bytes"],
+                    filesystem_free_bytes=row["filesystem_free_bytes"],
+                    effective_projected_headroom_bytes=row["effective_projected_headroom_bytes"],
+                    allowed=bool(row["allowed"]),
+                    violations=tuple(violations),
+                )
+            )
+        return tuple(records)
 
     def count_rows(self, table: str) -> int:
         """Return a test/verification count for a known append-only table."""
@@ -3087,9 +3817,13 @@ __all__ = [
     "FeedbackKind",
     "FeedbackRecord",
     "FeedbackResolutionStatus",
+    "GpuAllocationJournalRecord",
+    "GpuAllocationJournalState",
     "GpuBudgetExceeded",
     "GpuEvent",
     "GpuEventKind",
+    "GpuServiceJournalRecord",
+    "GpuServiceJournalState",
     "GpuServiceSession",
     "GpuSummary",
     "InputKind",
@@ -3113,6 +3847,7 @@ __all__ = [
     "StorageBudgetExceeded",
     "StoragePreflight",
     "StorageReport",
+    "StorageSampleRecord",
     "StudyJobRecord",
     "StudyRecord",
     "TemporalValidationStatus",

@@ -35,5 +35,7 @@ Emit only `selection`, `compression`, and `supported_description` decision opera
 Each decision may reference sealed IDs but must have an empty `created_object_ids` and
 `removed_object_ids`. Preserve the complete semantic payload of each selected object;
 the runner rejects novel IDs, hash changes, cross-seed input, or constructive
-operators. If the sealed ontology cannot express the requested interpretation, omit
+operators. Set `budget_accounting.input_tokens` and `output_tokens` to the required
+zero sentinel; the runner replaces only those administrative fields with measured
+server counts. If the sealed ontology cannot express the requested interpretation, omit
 unsupported content and record the limitation rather than constructing it.

@@ -1,60 +1,263 @@
 [
   {
-    "condition": "C1",
-    "tokenizer_revision": "tokenizer@immutable-phase1-revision",
-    "maximum_model_tokens": 12288,
-    "maximum_input_tokens": 10240,
-    "reserved_output_tokens": 2048,
-    "input_token_count": 2080,
-    "sections": [
-      {"name": "system_prompt", "section_content_hash": "d6091ab01236e9e4c1164cf94f53ee4a9292dc1c4d482bdf18d0a40640c5fbe8", "token_count": 330},
-      {"name": "output_schema", "section_content_hash": "3333333333333333333333333333333333333333333333333333333333333333", "token_count": 640},
-      {"name": "upper_ontology", "section_content_hash": "7777777777777777777777777777777777777777777777777777777777777777", "token_count": 110},
-      {"name": "evidence_snapshot", "section_content_hash": "1111111111111111111111111111111111111111111111111111111111111111", "token_count": 1000}
-    ],
-    "required_section_names": ["system_prompt", "output_schema", "upper_ontology", "evidence_snapshot"],
+    "complete_evidence_packet": null,
     "complete_evidence_snapshot": true,
-    "truncation_applied": false,
-    "omitted_section_names": []
+    "complete_sealed_ontology": null,
+    "condition": "C1",
+    "content_hash": "4ef3ed977a6f443bb30420245ba2ab02b35108a50674b6b728c2530ce89fc088",
+    "input_token_count": 4762,
+    "maximum_input_tokens": 10240,
+    "maximum_model_tokens": 12288,
+    "omitted_section_names": [],
+    "required_section_names": [
+      "system_prompt",
+      "output_schema",
+      "upper_ontology",
+      "evidence_snapshot"
+    ],
+    "reserved_output_tokens": 2048,
+    "schema_version": "1.0.0",
+    "sections": [
+      {
+        "complete": true,
+        "content_hash": "b5f947332ee946336c6381e8f86c1decc9a39a411f83246d49e1553eb1d8002d",
+        "content_hash_value": "0b605bf4ed55dfe3bc7e14f988f9df002a7a295b8515be1274e774c4b03bf883",
+        "name": "output_schema",
+        "required": true,
+        "schema_version": "1.0.0",
+        "token_count": 0
+      },
+      {
+        "complete": true,
+        "content_hash": "b11b901e01a9bed2d1b3bc1dbff6bec6e3f2d35222502ab6375ac5f7af32de11",
+        "content_hash_value": "0d6e54e8c3d1b80d31248b9f099a0a433e0a2b0cb9b2f4f70a2a6d547810b03e",
+        "name": "system_prompt",
+        "required": true,
+        "schema_version": "1.0.0",
+        "token_count": 571
+      },
+      {
+        "complete": true,
+        "content_hash": "37ffc5268a68d94cf316cde1195a3c95de78b4a76c073ec33af7ad6c8784dd58",
+        "content_hash_value": "f0644cc91e91597cb94ec69cb37792f6c533e94f59121a8d9a674caba7bce27c",
+        "name": "upper_ontology",
+        "required": true,
+        "schema_version": "1.0.0",
+        "token_count": 111
+      },
+      {
+        "complete": true,
+        "content_hash": "91df332e0bbf7afb3a2c6c879f480b239ffe9fdbc722cd420c23ec54e2f9c7c9",
+        "content_hash_value": "a20b09f014e86dbb5ef490beb35134b75a1ad306536de6d0d07e4570de8f1b73",
+        "name": "evidence_snapshot",
+        "required": true,
+        "schema_version": "1.0.0",
+        "token_count": 3521
+      },
+      {
+        "complete": true,
+        "content_hash": "80680f49f6eb8b9a0f6dfd81af1ef6125b700ed255affd403bdf5b1b379d5e8c",
+        "content_hash_value": "4d1beca854a6f34928b5896c75abe5c828177389616617dc10896cf7a17317ee",
+        "name": "request_envelope",
+        "required": true,
+        "schema_version": "1.0.0",
+        "token_count": 531
+      },
+      {
+        "complete": true,
+        "content_hash": "9b6bf3f96d0d5456868b04e5006cef8b522e8c9bcf7f17fb294ab935fc3e2d52",
+        "content_hash_value": "bfb15667fb5cc52e39d1e4658bcc5681c5f6fd5a42f1e895982c428609c64f1b",
+        "name": "chat_protocol",
+        "required": true,
+        "schema_version": "1.0.0",
+        "token_count": 28
+      }
+    ],
+    "tokenizer_revision": "1a6fe1ecf891437a270cce11ad54d796c4f56ce0",
+    "truncation_applied": false
   },
   {
+    "complete_evidence_packet": true,
+    "complete_evidence_snapshot": null,
+    "complete_sealed_ontology": null,
     "condition": "C2",
-    "tokenizer_revision": "tokenizer@immutable-phase1-revision",
-    "maximum_model_tokens": 12288,
+    "content_hash": "f08946ca7c095ac86bd7a1536f55d7f295ef2b137dd4ab73d35eafce501a4975",
+    "input_token_count": 5180,
     "maximum_input_tokens": 10240,
-    "reserved_output_tokens": 2048,
-    "input_token_count": 2330,
-    "sections": [
-      {"name": "system_prompt", "section_content_hash": "940ac8f56f457f5a2051f8548eac52e7aa2a9c1d11da9a4c8391b368dc28d71a", "token_count": 500},
-      {"name": "output_schema", "section_content_hash": "3333333333333333333333333333333333333333333333333333333333333333", "token_count": 640},
-      {"name": "upper_ontology", "section_content_hash": "7777777777777777777777777777777777777777777777777777777777777777", "token_count": 110},
-      {"name": "query_context", "section_content_hash": "8888888888888888888888888888888888888888888888888888888888888888", "token_count": 180},
-      {"name": "evidence_packet", "section_content_hash": "5555555555555555555555555555555555555555555555555555555555555555", "token_count": 900}
+    "maximum_model_tokens": 12288,
+    "omitted_section_names": [],
+    "required_section_names": [
+      "system_prompt",
+      "output_schema",
+      "upper_ontology",
+      "query_context",
+      "evidence_packet"
     ],
-    "required_section_names": ["system_prompt", "output_schema", "upper_ontology", "query_context", "evidence_packet"],
-    "complete_evidence_packet": true,
-    "truncation_applied": false,
-    "omitted_section_names": []
+    "reserved_output_tokens": 2048,
+    "schema_version": "1.0.0",
+    "sections": [
+      {
+        "complete": true,
+        "content_hash": "b5f947332ee946336c6381e8f86c1decc9a39a411f83246d49e1553eb1d8002d",
+        "content_hash_value": "0b605bf4ed55dfe3bc7e14f988f9df002a7a295b8515be1274e774c4b03bf883",
+        "name": "output_schema",
+        "required": true,
+        "schema_version": "1.0.0",
+        "token_count": 0
+      },
+      {
+        "complete": true,
+        "content_hash": "b5a7e9aab806b8f7cde0a649c46c578cbc33bad1b1c614f2741c2fc03ad0042e",
+        "content_hash_value": "f85a326675fe792d30789e3d4341e2e23bffb4649f350c07fa271914770b0e10",
+        "name": "system_prompt",
+        "required": true,
+        "schema_version": "1.0.0",
+        "token_count": 667
+      },
+      {
+        "complete": true,
+        "content_hash": "37ffc5268a68d94cf316cde1195a3c95de78b4a76c073ec33af7ad6c8784dd58",
+        "content_hash_value": "f0644cc91e91597cb94ec69cb37792f6c533e94f59121a8d9a674caba7bce27c",
+        "name": "upper_ontology",
+        "required": true,
+        "schema_version": "1.0.0",
+        "token_count": 111
+      },
+      {
+        "complete": true,
+        "content_hash": "a04745574d7d504c353db3a295ff835975ad0011b68b6cc5e098e321c13bfea8",
+        "content_hash_value": "7f690c67c8f717701e23f4dd6961dede0d12da75ada96aa7313786c58c235495",
+        "name": "query_context",
+        "required": true,
+        "schema_version": "1.0.0",
+        "token_count": 203
+      },
+      {
+        "complete": true,
+        "content_hash": "312a5e51686697f0cbf275d912e235d0a6bf16cceabe49e98e97ffd809fdf008",
+        "content_hash_value": "8b28a5b4e1edc35e8f994b7f1e104988657ba9f7de5897f5cc9a1950647596fa",
+        "name": "evidence_packet",
+        "required": true,
+        "schema_version": "1.0.0",
+        "token_count": 3641
+      },
+      {
+        "complete": true,
+        "content_hash": "1afd29b7477dd9d1214656856e23d2d4ab5d6872b161c991ed7161fc573cfe0a",
+        "content_hash_value": "d8a5be3c6ee5ee3a297c65ed7f222dd1f567c64a66fb62ca874d9ec4e896c83f",
+        "name": "request_envelope",
+        "required": true,
+        "schema_version": "1.0.0",
+        "token_count": 528
+      },
+      {
+        "complete": true,
+        "content_hash": "c9d4b769a2744a2dc34f4c82a0d6855323c92b20d04cd93466776cc2672d6b4e",
+        "content_hash_value": "bfb15667fb5cc52e39d1e4658bcc5681c5f6fd5a42f1e895982c428609c64f1b",
+        "name": "chat_protocol",
+        "required": true,
+        "schema_version": "1.0.0",
+        "token_count": 30
+      }
+    ],
+    "tokenizer_revision": "1a6fe1ecf891437a270cce11ad54d796c4f56ce0",
+    "truncation_applied": false
   },
   {
-    "condition": "A-FixedSelect",
-    "tokenizer_revision": "tokenizer@immutable-phase1-revision",
-    "maximum_model_tokens": 12288,
-    "maximum_input_tokens": 10240,
-    "reserved_output_tokens": 2048,
-    "input_token_count": 3910,
-    "sections": [
-      {"name": "system_prompt", "section_content_hash": "9b71fe11c3ce74908b11214d2623f5b6a28b1f475e557739b3e0569faef6a018", "token_count": 400},
-      {"name": "output_schema", "section_content_hash": "3333333333333333333333333333333333333333333333333333333333333333", "token_count": 640},
-      {"name": "upper_ontology", "section_content_hash": "7777777777777777777777777777777777777777777777777777777777777777", "token_count": 110},
-      {"name": "query_context", "section_content_hash": "8888888888888888888888888888888888888888888888888888888888888888", "token_count": 180},
-      {"name": "evidence_packet", "section_content_hash": "5555555555555555555555555555555555555555555555555555555555555555", "token_count": 900},
-      {"name": "sealed_ontology", "section_content_hash": "6666666666666666666666666666666666666666666666666666666666666666", "token_count": 1680}
-    ],
-    "required_section_names": ["system_prompt", "output_schema", "upper_ontology", "query_context", "evidence_packet", "sealed_ontology"],
     "complete_evidence_packet": true,
+    "complete_evidence_snapshot": null,
     "complete_sealed_ontology": true,
-    "truncation_applied": false,
-    "omitted_section_names": []
+    "condition": "A-FixedSelect",
+    "content_hash": "e0c7314aeb4aaa0a55cd7ad2f9087ae46bec5c6e152d3bdd0024220bdcb3a357",
+    "input_token_count": 6476,
+    "maximum_input_tokens": 10240,
+    "maximum_model_tokens": 12288,
+    "omitted_section_names": [],
+    "required_section_names": [
+      "system_prompt",
+      "output_schema",
+      "upper_ontology",
+      "query_context",
+      "evidence_packet",
+      "sealed_ontology"
+    ],
+    "reserved_output_tokens": 2048,
+    "schema_version": "1.0.0",
+    "sections": [
+      {
+        "complete": true,
+        "content_hash": "294732c16b4c21833b224f0b49c87307620bf1d4241b5b972532f7555b4abfb4",
+        "content_hash_value": "ada9630ca7a2c45054685036b1af25c75732f4c4587cba72eba1308ac458e87b",
+        "name": "output_schema",
+        "required": true,
+        "schema_version": "1.0.0",
+        "token_count": 0
+      },
+      {
+        "complete": true,
+        "content_hash": "214441dfc368330918c66fb68607e2cb9d9b04ce7ac199d9928d929b26d9ecbb",
+        "content_hash_value": "1cafbb5130f1aa2694af764cdd6c7d034287926d519d7b8d157339307765fd5b",
+        "name": "system_prompt",
+        "required": true,
+        "schema_version": "1.0.0",
+        "token_count": 427
+      },
+      {
+        "complete": true,
+        "content_hash": "37ffc5268a68d94cf316cde1195a3c95de78b4a76c073ec33af7ad6c8784dd58",
+        "content_hash_value": "f0644cc91e91597cb94ec69cb37792f6c533e94f59121a8d9a674caba7bce27c",
+        "name": "upper_ontology",
+        "required": true,
+        "schema_version": "1.0.0",
+        "token_count": 111
+      },
+      {
+        "complete": true,
+        "content_hash": "a04745574d7d504c353db3a295ff835975ad0011b68b6cc5e098e321c13bfea8",
+        "content_hash_value": "7f690c67c8f717701e23f4dd6961dede0d12da75ada96aa7313786c58c235495",
+        "name": "query_context",
+        "required": true,
+        "schema_version": "1.0.0",
+        "token_count": 203
+      },
+      {
+        "complete": true,
+        "content_hash": "312a5e51686697f0cbf275d912e235d0a6bf16cceabe49e98e97ffd809fdf008",
+        "content_hash_value": "8b28a5b4e1edc35e8f994b7f1e104988657ba9f7de5897f5cc9a1950647596fa",
+        "name": "evidence_packet",
+        "required": true,
+        "schema_version": "1.0.0",
+        "token_count": 3641
+      },
+      {
+        "complete": true,
+        "content_hash": "cc97f90189c7831b6b3cfa481210ba73c94cbeb27698fca8f94e02be0c554eb4",
+        "content_hash_value": "a56fb8a49c09c993ca258146a853f19e2293b23ef0b8b82c563b5db4e930f9d2",
+        "name": "request_envelope",
+        "required": true,
+        "schema_version": "1.0.0",
+        "token_count": 520
+      },
+      {
+        "complete": true,
+        "content_hash": "0dd8f77c209e31105e8d316c6ebf74b10935569f38ab801ced6ee25ec9727b7a",
+        "content_hash_value": "8f62b17c9cc0cc76837bf4dde42a4b44288b94c6b2cbee41bae34005fc184412",
+        "name": "sealed_ontology",
+        "required": true,
+        "schema_version": "1.0.0",
+        "token_count": 1540
+      },
+      {
+        "complete": true,
+        "content_hash": "c047bad0260c2741d045ea253d8580ad9c1fe089134c8067a69f51b281d94d7a",
+        "content_hash_value": "bfb15667fb5cc52e39d1e4658bcc5681c5f6fd5a42f1e895982c428609c64f1b",
+        "name": "chat_protocol",
+        "required": true,
+        "schema_version": "1.0.0",
+        "token_count": 34
+      }
+    ],
+    "tokenizer_revision": "1a6fe1ecf891437a270cce11ad54d796c4f56ce0",
+    "truncation_applied": false
   }
 ]

@@ -19,6 +19,8 @@ change the seed/configuration, relax a horizon, or use scorer information. For
 exists, abstain or omit the defective content rather than inventing semantics.
 
 Preserve all valid unaffected content. Keep repair lineage direct from the base
-attempt. This is repair attempt 1 of 1; no second repair is permitted. The runner will
+attempt. Set `budget_accounting.input_tokens` and `output_tokens` to the required zero
+sentinel; the runner replaces only those administrative fields with measured server
+counts. This is repair attempt 1 of 1; no second repair is permitted. The runner will
 validate the entire returned draft again and will retain both the invalid base output
 and this attempt.

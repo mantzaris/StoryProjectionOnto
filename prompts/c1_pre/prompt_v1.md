@@ -40,5 +40,7 @@ evidence. It does not perform query-time selection or compression.
 Unknown or conflicting information stays explicit. Do not complete missing facts,
 infer causation from temporal precedence alone, or use evidence beyond the sealed
 snapshot. Use only supplied evidence IDs and candidate IDs. Report budget use
-exactly. The runner will validate grounding, time, lineage, and budgets and may issue
+exactly. Set `budget_accounting.input_tokens` and `output_tokens` to the required zero
+sentinel; the runner replaces only those administrative fields with vLLM's measured
+counts. The runner will validate grounding, time, lineage, and budgets and may issue
 at most one diagnostic-only repair request.

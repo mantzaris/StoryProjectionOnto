@@ -46,5 +46,7 @@ Perform substantive context-dependent construction:
 Use only supplied evidence and candidate IDs. Do not infer causation from temporal
 precedence alone. Preserve conflicts and underdetermination instead of inventing a
 resolution. Descriptions must be concise, informative, and fully supported. Report
-budget use exactly. The runner validates semantics but never constructs missing
+semantic node/assertion/display budget use exactly. Set the two token-use fields to
+the required zero sentinel; the runner replaces only those administrative fields
+with vLLM's measured counts. The runner validates semantics but never constructs missing
 semantics; it may issue at most one diagnostic-only repair request.

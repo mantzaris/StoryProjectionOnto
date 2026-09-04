@@ -22,6 +22,7 @@ from story_projection_onto.store import (
     FeedbackResolutionStatus,
     GpuBudgetExceeded,
     GpuEventKind,
+    GpuServiceJournalState,
     InputKind,
     InvalidTransitionError,
     JobState,
@@ -363,6 +364,11 @@ def test_gpu_accounting_counts_load_failure_and_restart_and_is_monotonic(
     assert summary.seconds_for(GpuEventKind.MODEL_LOAD) == pytest.approx(2.25)
     assert summary.seconds_for(GpuEventKind.FAILURE) == pytest.approx(3.5)
     assert summary.seconds_for(GpuEventKind.RESTART) == pytest.approx(1.5)
+    prefixed = ledger.gpu_events_with_prefix("f")
+    assert [event.event_id for event in prefixed] == ["failed"]
+    assert ledger.gpu_events_with_prefix("missing-") == ()
+    with pytest.raises(ValueError, match="event_id_prefix"):
+        ledger.gpu_events_with_prefix("")
 
     duplicate = ledger.record_gpu_event(
         event_id="failed",
@@ -433,6 +439,177 @@ def test_gpu_service_reconciliation_absorbs_only_microsecond_rounding(
         )
 
 
+def test_gpu_service_journal_closes_only_after_durable_process_stop(
+    ledger: Ledger,
+) -> None:
+    opened = ledger.record_gpu_service_observation(
+        service_session_id="service-journal-normal",
+        state=GpuServiceJournalState.OPENED,
+        session_id="pilot",
+        configuration_hash=HASH_A,
+        service_started_at=T0,
+        elapsed_seconds=0,
+        ledger_allocated_seconds_before_session=0,
+        hard_limit_seconds=36_000,
+        observed_at=T0,
+    )
+    assert opened.sequence == 0
+    assert ledger.unresolved_gpu_service_journals() == (opened,)
+    ledger.record_gpu_service_observation(
+        service_session_id=opened.service_session_id,
+        state=GpuServiceJournalState.HEARTBEAT,
+        session_id=opened.session_id,
+        configuration_hash=opened.configuration_hash,
+        service_started_at=opened.service_started_at,
+        elapsed_seconds=1,
+        ledger_allocated_seconds_before_session=0,
+        hard_limit_seconds=36_000,
+        observed_at=T1,
+    )
+    with pytest.raises(ValueError, match="process-stopped"):
+        ledger.close_gpu_service_journal(
+            service_session_id=opened.service_session_id,
+            session_id=opened.session_id,
+            service_seconds=2,
+            classified_event_seconds=0,
+            started_at=T0,
+            ended_at=T2,
+        )
+    ledger.record_gpu_event(
+        event_id="service-journal-inference",
+        event_kind=GpuEventKind.INFERENCE,
+        allocated_seconds=0.5,
+        started_at=T1,
+        ended_at=T2,
+        succeeded=True,
+    )
+    ledger.record_gpu_service_observation(
+        service_session_id=opened.service_session_id,
+        state=GpuServiceJournalState.PROCESS_STOPPED,
+        session_id=opened.session_id,
+        configuration_hash=opened.configuration_hash,
+        service_started_at=opened.service_started_at,
+        elapsed_seconds=2,
+        ledger_allocated_seconds_before_session=0,
+        hard_limit_seconds=36_000,
+        observed_at=T2,
+    )
+    closed = ledger.close_gpu_service_journal(
+        service_session_id=opened.service_session_id,
+        session_id=opened.session_id,
+        service_seconds=2,
+        classified_event_seconds=0.5,
+        started_at=T0,
+        ended_at=T2,
+        details={"normal_shutdown": True},
+    )
+    assert closed.service_seconds == 2
+    assert ledger.gpu_summary().total_allocated_seconds == 2
+    assert ledger.unresolved_gpu_service_journals() == ()
+    assert (
+        ledger.latest_gpu_service_journal(opened.service_session_id).state
+        is GpuServiceJournalState.CLOSED
+    )
+    assert (
+        ledger.close_gpu_service_journal(
+            service_session_id=opened.service_session_id,
+            session_id=opened.session_id,
+            service_seconds=2,
+            classified_event_seconds=0.5,
+            started_at=T0,
+            ended_at=T2,
+            details={"normal_shutdown": True},
+        )
+        == closed
+    )
+
+
+def test_gpu_service_journal_recovery_charges_through_verified_absence(
+    ledger: Ledger,
+) -> None:
+    ledger.record_gpu_service_observation(
+        service_session_id="service-journal-crash",
+        state=GpuServiceJournalState.OPENED,
+        session_id="pilot-crash",
+        configuration_hash=HASH_B,
+        service_started_at=T0,
+        elapsed_seconds=0,
+        ledger_allocated_seconds_before_session=0,
+        hard_limit_seconds=36_000,
+        observed_at=T0,
+    )
+    ledger.record_gpu_service_observation(
+        service_session_id="service-journal-crash",
+        state=GpuServiceJournalState.HEARTBEAT,
+        session_id="pilot-crash",
+        configuration_hash=HASH_B,
+        service_started_at=T0,
+        elapsed_seconds=1,
+        ledger_allocated_seconds_before_session=0,
+        hard_limit_seconds=36_000,
+        observed_at=T1,
+    )
+    recovered = ledger.recover_gpu_service_journal(
+        service_session_id="service-journal-crash",
+        recovered_at=T3,
+        details={"pid_absent": True, "endpoint_absent": True},
+    )
+    assert recovered.service_seconds == 3
+    assert recovered.overhead_seconds == 3
+    assert ledger.gpu_summary().total_allocated_seconds == 3
+    assert ledger.unresolved_gpu_service_journals() == ()
+    assert (
+        ledger.latest_gpu_service_journal("service-journal-crash").state
+        is GpuServiceJournalState.RECOVERED
+    )
+    assert (
+        ledger.recover_gpu_service_journal(
+            service_session_id="service-journal-crash", recovered_at=T3
+        )
+        == recovered
+    )
+
+
+def test_gpu_service_journal_rejects_mixed_identity_and_parallel_open(
+    ledger: Ledger,
+) -> None:
+    ledger.record_gpu_service_observation(
+        service_session_id="exclusive-a",
+        state=GpuServiceJournalState.OPENED,
+        session_id="pilot",
+        configuration_hash=HASH_A,
+        service_started_at=T0,
+        elapsed_seconds=0,
+        ledger_allocated_seconds_before_session=0,
+        hard_limit_seconds=36_000,
+        observed_at=T0,
+    )
+    with pytest.raises(DuplicateConflictError, match="another GPU service"):
+        ledger.record_gpu_service_observation(
+            service_session_id="exclusive-b",
+            state=GpuServiceJournalState.OPENED,
+            session_id="pilot",
+            configuration_hash=HASH_A,
+            service_started_at=T1,
+            elapsed_seconds=0,
+            ledger_allocated_seconds_before_session=0,
+            hard_limit_seconds=36_000,
+            observed_at=T1,
+        )
+    with pytest.raises(DuplicateConflictError, match="identity changed"):
+        ledger.record_gpu_service_observation(
+            service_session_id="exclusive-a",
+            state=GpuServiceJournalState.HEARTBEAT,
+            session_id="different-session",
+            configuration_hash=HASH_A,
+            service_started_at=T0,
+            elapsed_seconds=1,
+            ledger_allocated_seconds_before_session=0,
+            hard_limit_seconds=36_000,
+            observed_at=T1,
+        )
+
+
 def test_storage_preflight_enforces_25gb_occupied_and_5gb_headroom(
     tmp_path: Path, ledger: Ledger
 ) -> None:
@@ -457,6 +634,16 @@ def test_storage_preflight_enforces_25gb_occupied_and_5gb_headroom(
     second_sample = ledger.record_storage_sample(boundary, phase="phase_1", sampled_at=T0)
     assert first_sample == second_sample
     assert ledger.count_rows("storage_samples") == 1
+    stored = ledger.storage_samples_with_phase_prefix("phase_")
+    assert len(stored) == 1
+    assert stored[0].sample_id == first_sample
+    assert stored[0].filesystem_free_bytes == 6 * gigabyte
+    assert stored[0].effective_projected_headroom_bytes == 5 * gigabyte
+    assert stored[0].allowed is True
+    assert stored[0].violations == ()
+    assert ledger.storage_samples_with_phase_prefix("other") == ()
+    with pytest.raises(ValueError, match="phase_prefix"):
+        ledger.storage_samples_with_phase_prefix("")
 
     with pytest.raises(StorageBudgetExceeded) as occupied_error:
         preflight.require(
@@ -819,13 +1006,14 @@ def test_v2_ledger_migrates_additively_without_rewriting_existing_rows(
         legacy.close()
 
     with Ledger(database) as migrated:
-        assert migrated.schema_versions() == (1, 2, 3)
+        assert migrated.schema_versions() == (1, 2, store_module.SCHEMA_VERSION)
         assert migrated.get_job(HASH_A).state is JobState.PLANNED
         expected_new_tables = {
             "studies",
             "study_jobs",
             "inputs",
             "evidence_snapshots",
+            "gpu_service_journal",
             "gpu_service_sessions",
             "model_calls",
             "validations",

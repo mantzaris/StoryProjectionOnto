@@ -22,6 +22,7 @@ from story_projection_onto.validate import (
     validate_construction_lineage,
     validate_evidence_grounding,
     validate_fixed_select,
+    validate_repair_preservation,
     validate_single_repair_lineage,
 )
 
@@ -359,3 +360,37 @@ def test_only_one_repair_is_permitted_and_parent_must_exist() -> None:
     codes = {item.code for item in report.diagnostics}
     assert ValidationCode.MULTIPLE_REPAIRS in codes
     assert ValidationCode.INVALID_REPAIR_PARENT in codes
+
+
+def test_repair_preservation_allows_only_diagnosed_keyed_record_path() -> None:
+    base = {
+        "instance_graph": {
+            "assertions": [
+                {"assertion_id": "a-1", "evidence_ids": ["e-bad"], "confidence": 0.8},
+                {"assertion_id": "a-2", "evidence_ids": ["e-2"], "confidence": 0.9},
+            ]
+        }
+    }
+    repaired = {
+        "instance_graph": {
+            "assertions": [
+                {"assertion_id": "a-1", "evidence_ids": ["e-1"], "confidence": 0.8},
+                {"assertion_id": "a-2", "evidence_ids": ["e-2"], "confidence": 0.9},
+            ]
+        }
+    }
+    allowed = ("instance_graph.assertions.a-1.evidence_ids",)
+    assert validate_repair_preservation(
+        base_draft=base,
+        repaired_draft=repaired,
+        diagnosed_paths=allowed,
+    ).accepted
+
+    repaired["instance_graph"]["assertions"][1]["confidence"] = 0.1
+    report = validate_repair_preservation(
+        base_draft=base,
+        repaired_draft=repaired,
+        diagnosed_paths=allowed,
+    )
+    assert not report.accepted
+    assert report.diagnostics[0].code is ValidationCode.REPAIR_MUTATION_OUTSIDE_DIAGNOSTIC

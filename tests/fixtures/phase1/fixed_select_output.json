@@ -1,966 +1,346 @@
 {
-  "contextual_interpretation": "Selection-only view of the complete sealed C1 ontology for the revealed credential-chain query.",
-  "local_schema": {
-    "schema_id": "schema-c1-harbor",
-    "contextual_types": [
-      {
-        "type_id": "type-c1-person",
-        "label": "Narrative person",
-        "definition": "A person participating in an evidenced action, identity record, or attributed report.",
-        "parent_upper_type": "person",
-        "abstraction": "event_role",
-        "evidence_ids": [
-          "ev-01",
-          "ev-02",
-          "ev-03",
-          "ev-04",
-          "ev-05"
-        ]
-      },
-      {
-        "type_id": "type-c1-artifact",
-        "label": "Narrative artifact",
-        "definition": "A supported physical item that participates in a narrative event.",
-        "parent_upper_type": "artifact",
-        "abstraction": "event_role",
-        "evidence_ids": [
-          "ev-01",
-          "ev-04",
-          "ev-06"
-        ]
-      },
-      {
-        "type_id": "type-c1-infrastructure",
-        "label": "Infrastructure",
-        "definition": "A supported built object whose operation or status is described.",
-        "parent_upper_type": "infrastructure",
-        "abstraction": "event_role",
-        "evidence_ids": [
-          "ev-04",
-          "ev-05"
-        ]
-      },
-      {
-        "type_id": "type-c1-event",
-        "label": "Narrative event",
-        "definition": "A reified occurrence with independently represented participants or temporal order.",
-        "parent_upper_type": "event",
-        "abstraction": "event_role",
-        "evidence_ids": [
-          "ev-04"
-        ]
-      },
-      {
-        "type_id": "type-c1-state",
-        "label": "Reported state",
-        "definition": "A state used inside proposition content without implying global commitment.",
-        "parent_upper_type": "state",
-        "abstraction": "event_role",
-        "evidence_ids": [
-          "ev-05"
-        ]
-      }
-    ],
-    "predicates": [
-      {
-        "predicate_id": "pred-c1-carried",
-        "label": "carried",
-        "definition": "A person carried an artifact at the stated story time.",
-        "arity": 2,
-        "domain_type_ids": [
-          "type-c1-person"
-        ],
-        "range_type_ids": [
-          "type-c1-artifact"
-        ],
-        "parent_upper_relation": "related_to",
-        "evidence_ids": [
-          "ev-01"
-        ]
-      },
-      {
-        "predicate_id": "pred-c1-distinct-from",
-        "label": "distinct from",
-        "definition": "Two supported person assemblies remain separate identities.",
-        "arity": 2,
-        "domain_type_ids": [
-          "type-c1-person"
-        ],
-        "range_type_ids": [
-          "type-c1-person"
-        ],
-        "parent_upper_relation": "related_to",
-        "evidence_ids": [
-          "ev-02",
-          "ev-03"
-        ]
-      },
-      {
-        "predicate_id": "pred-c1-delivery-roles",
-        "label": "delivery roles",
-        "definition": "Connects a delivery event with its courier and delivered artifact.",
-        "arity": 3,
-        "role_names": [
-          "event",
-          "courier",
-          "artifact"
-        ],
-        "parent_upper_relation": "participates_in",
-        "evidence_ids": [
-          "ev-04"
-        ]
-      },
-      {
-        "predicate_id": "pred-c1-opening-roles",
-        "label": "opening roles",
-        "definition": "Connects an opening event with the acting collective and opened infrastructure.",
-        "arity": 3,
-        "role_names": [
-          "event",
-          "actor",
-          "infrastructure"
-        ],
-        "parent_upper_relation": "participates_in",
-        "evidence_ids": [
-          "ev-04"
-        ]
-      },
-      {
-        "predicate_id": "pred-c1-precedes",
-        "label": "precedes",
-        "definition": "The first event occurs before the second without alone asserting causation.",
-        "arity": 2,
-        "domain_type_ids": [
-          "type-c1-event"
-        ],
-        "range_type_ids": [
-          "type-c1-event"
-        ],
-        "parent_upper_relation": "precedes",
-        "evidence_ids": [
-          "ev-04"
-        ]
-      },
-      {
-        "predicate_id": "pred-c1-credential-enabled",
-        "label": "credential enabled",
-        "definition": "The marked seal supplied the evidenced credential condition for gate acceptance.",
-        "arity": 2,
-        "domain_type_ids": [
-          "type-c1-artifact"
-        ],
-        "range_type_ids": [
-          "type-c1-event"
-        ],
-        "parent_upper_relation": "causes",
-        "evidence_ids": [
-          "ev-04",
-          "ev-06"
-        ]
-      },
-      {
-        "predicate_id": "pred-c1-status",
-        "label": "has status",
-        "definition": "Relates an infrastructure object to a state inside proposition content.",
-        "arity": 2,
-        "domain_type_ids": [
-          "type-c1-infrastructure"
-        ],
-        "range_type_ids": [
-          "type-c1-state"
-        ],
-        "parent_upper_relation": "has_status",
-        "evidence_ids": [
-          "ev-05"
-        ]
-      },
-      {
-        "predicate_id": "pred-c1-reported",
-        "label": "reported",
-        "definition": "Attributes proposition content to a reporting holder without world endorsement.",
-        "arity": 2,
-        "domain_type_ids": [
-          "type-c1-person"
-        ],
-        "parent_upper_relation": "reports",
-        "evidence_ids": [
-          "ev-05"
-        ]
-      }
-    ],
-    "abstraction": "event_role"
+  "budget_accounting": {
+    "assertions_used": 2,
+    "display_assertions_used": 2,
+    "display_nodes_used": 4,
+    "input_tokens": 0,
+    "nodes_used": 4,
+    "output_tokens": 0
   },
+  "contextual_interpretation": "Selection-only credential-chain view of sealed C1.",
+  "decisions": [
+    {
+      "decided_at": "2026-09-03T12:00:21Z",
+      "decision_id": "d-fixed-select",
+      "evidence_ids": [
+        "ev-04",
+        "ev-06"
+      ],
+      "input_object_ids": [
+        "s-c1",
+        "t-c1",
+        "t-c1-event",
+        "p-c1-chain",
+        "p-c1-credential-enabled",
+        "ent-c1-lio",
+        "ent-c1-seal",
+        "event-c1-delivery",
+        "event-c1-opening",
+        "assert-c1-chain",
+        "assert-c1-enabled"
+      ],
+      "operator": "selection",
+      "rationale": "Select a closed subset of sealed C1 objects."
+    },
+    {
+      "decided_at": "2026-09-03T12:00:22Z",
+      "decision_id": "d-fixed-compress",
+      "evidence_ids": [
+        "ev-04",
+        "ev-06"
+      ],
+      "input_object_ids": [
+        "assert-c1-chain",
+        "assert-c1-enabled"
+      ],
+      "operator": "compression",
+      "rationale": "Use the sealed assertions as the compact display."
+    },
+    {
+      "decided_at": "2026-09-03T12:00:23Z",
+      "decision_id": "d-fixed-describe",
+      "evidence_ids": [
+        "ev-04",
+        "ev-06"
+      ],
+      "input_object_ids": [
+        "ent-c1-lio",
+        "ent-c1-seal",
+        "event-c1-delivery",
+        "event-c1-opening"
+      ],
+      "operator": "supported_description",
+      "rationale": "Retain only descriptions already supported in C1."
+    }
+  ],
   "instance_graph": {
-    "entities": [
-      {
-        "entity_id": "ent-c1-lio",
-        "label": "Lio (courier called Ash)",
-        "supported_mention_candidate_ids": [
-          "m-lio-01",
-          "m-ash-courier",
-          "m-lio-roster",
-          "m-lio-04"
-        ],
-        "aliases": [
-          "Lio",
-          "Ash"
-        ],
-        "contextual_type_id": "type-c1-person",
-        "contextual_role": "courier and seal deliverer",
-        "abstraction": "event_role",
-        "temporal_state": {
-          "kind": "interval",
-          "start": 1,
-          "end": 2,
-          "label": "days one through two"
-        },
-        "uncertainty": "known",
-        "confidence": 0.94,
-        "evidence_ids": [
-          "ev-01",
-          "ev-02",
-          "ev-04"
-        ],
-        "description": "The courier identified as Lio and also called Ash carried and delivered the seal.",
-        "description_assertion_ids": [
-          "assert-c1-carried",
-          "assert-c1-delivery"
-        ]
-      },
-      {
-        "entity_id": "ent-c1-ash-mechanic",
-        "label": "Ash (mechanic)",
-        "supported_mention_candidate_ids": [
-          "m-ash-mechanic"
-        ],
-        "aliases": [
-          "Ash"
-        ],
-        "contextual_type_id": "type-c1-person",
-        "contextual_role": "separately located mechanic",
-        "abstraction": "event_role",
-        "temporal_state": {
-          "kind": "point",
-          "point": 1,
-          "label": "day one"
-        },
-        "uncertainty": "known",
-        "confidence": 0.91,
-        "evidence_ids": [
-          "ev-02",
-          "ev-03"
-        ],
-        "description": "The mechanic mention remains distinct from the courier identity called Ash.",
-        "description_assertion_ids": [
-          "assert-c1-distinct"
-        ]
-      },
-      {
-        "entity_id": "ent-c1-seal",
-        "label": "Copper seal",
-        "supported_mention_candidate_ids": [
-          "m-seal-01",
-          "m-seal-02",
-          "m-seal-04",
-          "m-seal-06"
-        ],
-        "aliases": [
-          "seal",
-          "copper seal"
-        ],
-        "contextual_type_id": "type-c1-artifact",
-        "contextual_role": "carried artifact and gate credential",
-        "abstraction": "event_role",
-        "temporal_state": {
-          "kind": "interval",
-          "start": 1,
-          "end": 2,
-          "label": "carriage through delivery"
-        },
-        "uncertainty": "known",
-        "confidence": 0.98,
-        "evidence_ids": [
-          "ev-01",
-          "ev-02",
-          "ev-04",
-          "ev-06"
-        ],
-        "description": "The carried seal was delivered and its one-off scratched mark supplied the acceptance condition.",
-        "description_assertion_ids": [
-          "assert-c1-carried",
-          "assert-c1-delivery",
-          "assert-c1-enabled"
-        ]
-      },
-      {
-        "entity_id": "ent-c1-council",
-        "label": "Council",
-        "supported_mention_candidate_ids": [
-          "m-council-04"
-        ],
-        "contextual_type_id": "type-c1-person",
-        "contextual_role": "collective gate-opening actor",
-        "abstraction": "event_role",
-        "temporal_state": {
-          "kind": "point",
-          "point": 2,
-          "label": "day two"
-        },
-        "uncertainty": "known",
-        "confidence": 0.98,
-        "evidence_ids": [
-          "ev-04"
-        ],
-        "description": "The council acted in the reified floodgate-opening event.",
-        "description_assertion_ids": [
-          "assert-c1-opening"
-        ]
-      },
-      {
-        "entity_id": "ent-c1-floodgate",
-        "label": "Floodgate",
-        "supported_mention_candidate_ids": [
-          "m-floodgate-04"
-        ],
-        "contextual_type_id": "type-c1-infrastructure",
-        "contextual_role": "opened infrastructure",
-        "abstraction": "event_role",
-        "temporal_state": {
-          "kind": "point",
-          "point": 2,
-          "label": "opened on day two"
-        },
-        "uncertainty": "known",
-        "confidence": 0.98,
-        "evidence_ids": [
-          "ev-04"
-        ],
-        "description": "The floodgate is the infrastructure affected by the council's opening event.",
-        "description_assertion_ids": [
-          "assert-c1-opening"
-        ]
-      },
-      {
-        "entity_id": "ent-c1-mara",
-        "label": "Mara",
-        "supported_mention_candidate_ids": [
-          "m-mara-05"
-        ],
-        "contextual_type_id": "type-c1-person",
-        "contextual_role": "holder of an attributed report",
-        "abstraction": "event_role",
-        "temporal_state": {
-          "kind": "point",
-          "point": 3,
-          "label": "day three"
-        },
-        "uncertainty": "known",
-        "confidence": 0.99,
-        "evidence_ids": [
-          "ev-05"
-        ],
-        "description": "Mara reported the bridge-safe proposition without having inspected the bridge.",
-        "description_assertion_ids": [
-          "assert-c1-report"
-        ]
-      },
-      {
-        "entity_id": "ent-c1-bridge",
-        "label": "Bridge",
-        "supported_mention_candidate_ids": [
-          "m-bridge-05"
-        ],
-        "contextual_type_id": "type-c1-infrastructure",
-        "contextual_role": "subject of attributed status content",
-        "abstraction": "event_role",
-        "temporal_state": {
-          "kind": "unknown",
-          "reason": "the report does not establish the bridge's actual state"
-        },
-        "uncertainty": "unknown",
-        "confidence": 0.55,
-        "evidence_ids": [
-          "ev-05"
-        ],
-        "description": "The bridge is the subject of Mara's reported safety proposition, not an established safe object.",
-        "description_assertion_ids": [
-          "assert-c1-report"
-        ]
-      },
-      {
-        "entity_id": "ent-c1-safe-state",
-        "label": "Safe state",
-        "supported_mention_candidate_ids": [
-          "m-safe-05"
-        ],
-        "contextual_type_id": "type-c1-state",
-        "contextual_role": "status content attributed to Mara",
-        "abstraction": "event_role",
-        "temporal_state": {
-          "kind": "unknown",
-          "reason": "only a report supplies the state"
-        },
-        "uncertainty": "unknown",
-        "confidence": 0.5,
-        "evidence_ids": [
-          "ev-05"
-        ],
-        "description": "Safety appears only inside the proposition reported by Mara.",
-        "description_assertion_ids": [
-          "assert-c1-report"
-        ]
-      }
-    ],
-    "events": [
-      {
-        "event_id": "event-c1-delivery",
-        "label": "Seal delivery",
-        "contextual_type_id": "type-c1-event",
-        "occurrence_time": {
-          "kind": "point",
-          "point": 2,
-          "label": "day two before opening"
-        },
-        "reification_reason": "The delivery has independently relevant courier, artifact, and temporal roles.",
-        "uncertainty": "known",
-        "confidence": 0.98,
-        "evidence_ids": [
-          "ev-04"
-        ],
-        "description": "Lio delivered the seal before the council opened the floodgate.",
-        "description_assertion_ids": [
-          "assert-c1-delivery",
-          "assert-c1-precedes"
-        ]
-      },
-      {
-        "event_id": "event-c1-opening",
-        "label": "Floodgate opening",
-        "contextual_type_id": "type-c1-event",
-        "occurrence_time": {
-          "kind": "point",
-          "point": 2,
-          "label": "day two after delivery"
-        },
-        "reification_reason": "The opening has an acting collective, affected infrastructure, and credential condition.",
-        "uncertainty": "known",
-        "confidence": 0.97,
-        "evidence_ids": [
-          "ev-04",
-          "ev-06"
-        ],
-        "description": "The council opened the floodgate after delivery under the marked-seal acceptance condition.",
-        "description_assertion_ids": [
-          "assert-c1-opening",
-          "assert-c1-precedes",
-          "assert-c1-enabled"
-        ]
-      }
-    ],
-    "proposition_contents": [
-      {
-        "proposition_content_id": "prop-c1-bridge-safe",
-        "predicate_id": "pred-c1-status",
-        "subject_id": "ent-c1-bridge",
-        "object_id": "ent-c1-safe-state",
-        "temporal_content": {
-          "story_time": {
-            "kind": "point",
-            "point": 3,
-            "label": "reported day three"
-          },
-          "validity_time": {
-            "kind": "unknown",
-            "reason": "the report supplies no verified validity interval"
-          },
-          "discourse_position": {
-            "passage_order": 5
-          },
-          "revelation_position": {
-            "revelation_order": 5,
-            "label": "bridge report revealed"
-          }
-        },
-        "evidence_ids": [
-          "ev-05"
-        ]
-      }
-    ],
     "assertions": [
       {
-        "assertion_id": "assert-c1-carried",
-        "predicate_id": "pred-c1-carried",
-        "subject_id": "ent-c1-lio",
-        "object_id": "ent-c1-seal",
-        "temporal_scope": {
-          "story_time": {
-            "kind": "point",
-            "point": 1,
-            "label": "day one dawn"
-          },
-          "validity_time": {
-            "kind": "point",
-            "point": 1,
-            "label": "during arrival"
-          },
-          "discourse_position": {
-            "passage_order": 1
-          },
-          "revelation_position": {
-            "revelation_order": 1,
-            "label": "arrival revealed"
-          }
-        },
-        "narrative_commitment": "world_committed",
-        "confidence": 0.97,
+        "assertion_id": "assert-c1-chain",
+        "confidence": 1,
+        "contextual_relevance": 1,
         "evidence_ids": [
-          "ev-01"
+          "ev-04"
         ],
+        "narrative_commitment": "world_committed",
+        "predicate_id": "p-c1-chain",
         "provenance": [
           {
-            "provenance_id": "prov-ev-01",
-            "evidence_id": "ev-01",
-            "extraction_method": "hand-authored acceptance fixture",
-            "locator": "phase1:ev-01",
-            "confidence": 1.0
+            "confidence": 1,
+            "evidence_id": "ev-04",
+            "extraction_method": "hand fixture",
+            "locator": "ev-04",
+            "provenance_id": "v-c1-chain-04"
           }
         ],
-        "contextual_relevance": 0.7,
-        "why_matters": "The carried seal links the courier identity to the later delivery.",
-        "why_matters_evidence_ids": [
-          "ev-01"
-        ]
-      },
-      {
-        "assertion_id": "assert-c1-distinct",
-        "predicate_id": "pred-c1-distinct-from",
-        "subject_id": "ent-c1-ash-mechanic",
-        "object_id": "ent-c1-lio",
-        "temporal_scope": {
-          "story_time": {
-            "kind": "point",
-            "point": 1,
-            "label": "simultaneous day-one accounts"
-          },
-          "validity_time": {
-            "kind": "interval",
-            "start": 1,
-            "label": "identity distinction from day one"
-          },
-          "discourse_position": {
-            "passage_order": 3
-          },
-          "revelation_position": {
-            "revelation_order": 3,
-            "label": "separate mechanic revealed"
-          }
-        },
-        "narrative_commitment": "world_committed",
-        "confidence": 0.9,
-        "evidence_ids": [
-          "ev-02",
-          "ev-03"
-        ],
-        "provenance": [
-          {
-            "provenance_id": "prov-ev-02",
-            "evidence_id": "ev-02",
-            "extraction_method": "hand-authored acceptance fixture",
-            "locator": "phase1:ev-02",
-            "confidence": 1.0
-          },
-          {
-            "provenance_id": "prov-ev-03",
-            "evidence_id": "ev-03",
-            "extraction_method": "hand-authored acceptance fixture",
-            "locator": "phase1:ev-03",
-            "confidence": 1.0
-          }
-        ],
-        "contextual_relevance": 0.75,
-        "why_matters": "Keeping the mechanic separate prevents the courier alias from merging two simultaneous roles.",
-        "why_matters_evidence_ids": [
-          "ev-02",
-          "ev-03"
-        ]
-      },
-      {
-        "assertion_id": "assert-c1-delivery",
-        "predicate_id": "pred-c1-delivery-roles",
         "roles": [
           {
-            "role": "event",
+            "evidence_ids": [
+              "ev-04"
+            ],
             "object_id": "event-c1-delivery",
+            "role": "delivery"
+          },
+          {
             "evidence_ids": [
               "ev-04"
-            ]
-          },
-          {
-            "role": "courier",
-            "object_id": "ent-c1-lio",
-            "evidence_ids": [
-              "ev-04"
-            ]
-          },
-          {
-            "role": "artifact",
-            "object_id": "ent-c1-seal",
-            "evidence_ids": [
-              "ev-04"
-            ]
-          }
-        ],
-        "temporal_scope": {
-          "story_time": {
-            "kind": "point",
-            "point": 2,
-            "label": "day two before opening"
-          },
-          "validity_time": {
-            "kind": "point",
-            "point": 2,
-            "label": "delivery occurrence"
-          },
-          "discourse_position": {
-            "passage_order": 4,
-            "sentence_order": 0,
-            "token_order": 1
-          },
-          "revelation_position": {
-            "revelation_order": 4,
-            "label": "delivery revealed"
-          }
-        },
-        "narrative_commitment": "world_committed",
-        "confidence": 0.98,
-        "evidence_ids": [
-          "ev-04"
-        ],
-        "provenance": [
-          {
-            "provenance_id": "prov-ev-04",
-            "evidence_id": "ev-04",
-            "extraction_method": "hand-authored acceptance fixture",
-            "locator": "phase1:ev-04",
-            "confidence": 1.0
-          }
-        ],
-        "contextual_relevance": 0.8,
-        "why_matters": "The delivery supplies the artifact involved immediately before gate opening.",
-        "why_matters_evidence_ids": [
-          "ev-04"
-        ]
-      },
-      {
-        "assertion_id": "assert-c1-opening",
-        "predicate_id": "pred-c1-opening-roles",
-        "roles": [
-          {
-            "role": "event",
+            ],
             "object_id": "event-c1-opening",
-            "evidence_ids": [
-              "ev-04"
-            ]
+            "role": "opening"
           },
           {
-            "role": "actor",
-            "object_id": "ent-c1-council",
             "evidence_ids": [
               "ev-04"
-            ]
+            ],
+            "object_id": "ent-c1-lio",
+            "role": "courier"
           },
           {
-            "role": "infrastructure",
-            "object_id": "ent-c1-floodgate",
             "evidence_ids": [
               "ev-04"
-            ]
+            ],
+            "object_id": "ent-c1-seal",
+            "role": "seal"
           }
         ],
         "temporal_scope": {
-          "story_time": {
-            "kind": "point",
-            "point": 2,
-            "label": "day two after delivery"
-          },
-          "validity_time": {
-            "kind": "point",
-            "point": 2,
-            "label": "opening occurrence"
-          },
-          "discourse_position": {
-            "passage_order": 4,
-            "sentence_order": 0,
-            "token_order": 2
-          },
-          "revelation_position": {
-            "revelation_order": 4,
-            "label": "opening revealed"
-          }
-        },
-        "narrative_commitment": "world_committed",
-        "confidence": 0.98,
-        "evidence_ids": [
-          "ev-04"
-        ],
-        "provenance": [
-          {
-            "provenance_id": "prov-ev-04-opening",
-            "evidence_id": "ev-04",
-            "extraction_method": "hand-authored acceptance fixture",
-            "locator": "phase1:ev-04",
-            "confidence": 1.0
-          }
-        ],
-        "contextual_relevance": 0.8,
-        "why_matters": "The opening connects the council to the affected floodgate.",
-        "why_matters_evidence_ids": [
-          "ev-04"
-        ]
-      },
-      {
-        "assertion_id": "assert-c1-precedes",
-        "predicate_id": "pred-c1-precedes",
-        "subject_id": "event-c1-delivery",
-        "object_id": "event-c1-opening",
-        "temporal_scope": {
-          "story_time": {
-            "kind": "relative",
-            "anchor_id": "event-c1-opening",
-            "relation": "before",
-            "label": "delivery before opening"
-          },
-          "validity_time": {
-            "kind": "not_applicable"
-          },
           "discourse_position": {
             "passage_order": 4
           },
           "revelation_position": {
-            "revelation_order": 4,
-            "label": "order jointly revealed"
+            "revelation_order": 4
+          },
+          "story_time": {
+            "kind": "point",
+            "label": "day 2",
+            "point": 2
+          },
+          "validity_time": {
+            "kind": "point",
+            "label": "day 2",
+            "point": 2
           }
         },
-        "narrative_commitment": "world_committed",
-        "confidence": 0.97,
-        "evidence_ids": [
-          "ev-04"
-        ],
-        "provenance": [
-          {
-            "provenance_id": "prov-ev-04-order",
-            "evidence_id": "ev-04",
-            "extraction_method": "hand-authored acceptance fixture",
-            "locator": "phase1:ev-04",
-            "confidence": 1.0
-          }
-        ],
-        "contextual_relevance": 0.8,
-        "why_matters": "The temporal order is explicit but is kept separate from the credential-enabling claim.",
+        "why_matters": "Shows roles and temporal order.",
         "why_matters_evidence_ids": [
           "ev-04"
         ]
       },
       {
         "assertion_id": "assert-c1-enabled",
-        "predicate_id": "pred-c1-credential-enabled",
-        "subject_id": "ent-c1-seal",
+        "confidence": 1,
+        "contextual_relevance": 1,
+        "evidence_ids": [
+          "ev-04",
+          "ev-06"
+        ],
+        "narrative_commitment": "world_committed",
         "object_id": "event-c1-opening",
+        "predicate_id": "p-c1-credential-enabled",
+        "provenance": [
+          {
+            "confidence": 1,
+            "evidence_id": "ev-04",
+            "extraction_method": "hand fixture",
+            "locator": "ev-04",
+            "provenance_id": "v-c1-enabled-04"
+          },
+          {
+            "confidence": 1,
+            "evidence_id": "ev-06",
+            "extraction_method": "hand fixture",
+            "locator": "ev-06",
+            "provenance_id": "v-c1-enabled-06"
+          }
+        ],
+        "subject_id": "ent-c1-seal",
         "temporal_scope": {
-          "story_time": {
-            "kind": "point",
-            "point": 2,
-            "label": "at gate opening"
-          },
-          "validity_time": {
-            "kind": "point",
-            "point": 2,
-            "label": "credential acceptance"
-          },
           "discourse_position": {
             "passage_order": 6
           },
           "revelation_position": {
-            "revelation_order": 6,
-            "label": "mark significance revealed"
-          }
-        },
-        "narrative_commitment": "world_committed",
-        "confidence": 0.95,
-        "evidence_ids": [
-          "ev-04",
-          "ev-06"
-        ],
-        "provenance": [
-          {
-            "provenance_id": "prov-ev-04-enable",
-            "evidence_id": "ev-04",
-            "extraction_method": "hand-authored acceptance fixture",
-            "locator": "phase1:ev-04",
-            "confidence": 1.0
+            "revelation_order": 6
           },
-          {
-            "provenance_id": "prov-ev-06",
-            "evidence_id": "ev-06",
-            "extraction_method": "hand-authored acceptance fixture",
-            "locator": "phase1:ev-06",
-            "confidence": 1.0
-          }
-        ],
-        "contextual_relevance": 0.85,
-        "why_matters": "The once-mentioned mark explains why the delivered seal could be accepted for the opening.",
-        "why_matters_evidence_ids": [
-          "ev-04",
-          "ev-06"
-        ]
-      },
-      {
-        "assertion_id": "assert-c1-report",
-        "proposition_content_id": "prop-c1-bridge-safe",
-        "predicate_id": "pred-c1-reported",
-        "subject_id": "ent-c1-mara",
-        "object_id": "prop-c1-bridge-safe",
-        "temporal_scope": {
           "story_time": {
             "kind": "point",
-            "point": 3,
-            "label": "day three"
+            "label": "day 2",
+            "point": 2
           },
           "validity_time": {
             "kind": "point",
-            "point": 3,
-            "label": "time of report"
-          },
-          "discourse_position": {
-            "passage_order": 5
-          },
-          "revelation_position": {
-            "revelation_order": 5,
-            "label": "report revealed"
+            "label": "day 2",
+            "point": 2
           }
         },
-        "epistemic_scope": {
-          "holder_id": "ent-c1-mara",
-          "attitude": "reported",
-          "proposition_content_id": "prop-c1-bridge-safe",
-          "holder_relative_time": {
-            "kind": "point",
-            "point": 3,
-            "label": "when Mara reported it"
-          },
-          "evidence_ids": [
-            "ev-05"
-          ]
-        },
-        "narrative_commitment": "holder_attributed",
-        "confidence": 0.93,
-        "evidence_ids": [
-          "ev-05"
-        ],
-        "provenance": [
-          {
-            "provenance_id": "prov-ev-05",
-            "evidence_id": "ev-05",
-            "extraction_method": "hand-authored acceptance fixture",
-            "locator": "phase1:ev-05",
-            "confidence": 1.0
-          }
-        ],
-        "contextual_relevance": 0.65,
-        "why_matters": "The claim is available as Mara's report while bridge safety remains uncommitted globally.",
+        "why_matters": "The rare mark explains opening.",
         "why_matters_evidence_ids": [
-          "ev-05"
+          "ev-04",
+          "ev-06"
         ]
+      }
+    ],
+    "entities": [
+      {
+        "abstraction": "event_role",
+        "confidence": 1,
+        "contextual_role": "credential courier",
+        "contextual_type_id": "t-c1",
+        "description": "Lio delivered the marked seal.",
+        "description_assertion_ids": [
+          "assert-c1-chain"
+        ],
+        "entity_id": "ent-c1-lio",
+        "evidence_ids": [
+          "ev-02",
+          "ev-04"
+        ],
+        "label": "Lio",
+        "supported_mention_candidate_ids": [
+          "m-lio-04",
+          "m-ash-courier"
+        ],
+        "temporal_state": {
+          "kind": "point",
+          "label": "day 2",
+          "point": 2
+        },
+        "uncertainty": "known"
+      },
+      {
+        "abstraction": "event_role",
+        "confidence": 1,
+        "contextual_role": "rare credential",
+        "contextual_type_id": "t-c1",
+        "description": "Its rare mark enabled opening.",
+        "description_assertion_ids": [
+          "assert-c1-chain",
+          "assert-c1-enabled"
+        ],
+        "entity_id": "ent-c1-seal",
+        "evidence_ids": [
+          "ev-04",
+          "ev-06"
+        ],
+        "label": "Marked seal",
+        "supported_mention_candidate_ids": [
+          "m-seal-04",
+          "m-mark-06"
+        ],
+        "temporal_state": {
+          "kind": "point",
+          "label": "day 2",
+          "point": 2
+        },
+        "uncertainty": "known"
+      }
+    ],
+    "events": [
+      {
+        "confidence": 1,
+        "contextual_type_id": "t-c1-event",
+        "description": "Delivery preceded opening.",
+        "description_assertion_ids": [
+          "assert-c1-chain"
+        ],
+        "event_id": "event-c1-delivery",
+        "evidence_ids": [
+          "ev-04"
+        ],
+        "label": "Seal delivery",
+        "occurrence_time": {
+          "kind": "point",
+          "label": "day 2",
+          "point": 2
+        },
+        "reification_reason": "Needed for temporal roles.",
+        "uncertainty": "known"
+      },
+      {
+        "confidence": 1,
+        "contextual_type_id": "t-c1-event",
+        "description": "Opening required the rare mark.",
+        "description_assertion_ids": [
+          "assert-c1-chain",
+          "assert-c1-enabled"
+        ],
+        "event_id": "event-c1-opening",
+        "evidence_ids": [
+          "ev-04"
+        ],
+        "label": "Floodgate opening",
+        "occurrence_time": {
+          "kind": "point",
+          "label": "day 2",
+          "point": 2
+        },
+        "reification_reason": "Needed for temporal roles.",
+        "uncertainty": "known"
       }
     ]
   },
-  "decisions": [
-    {
-      "decision_id": "decision-fixed-selection",
-      "operator": "selection",
-      "evidence_ids": [
-        "ev-01",
-        "ev-02",
-        "ev-03",
-        "ev-04",
-        "ev-05",
-        "ev-06"
-      ],
-      "rationale": "Select existing sealed objects that support the revealed credential, identity, and attributed-report lens.",
-      "decided_at": "2026-09-03T12:00:31Z",
-      "input_object_ids": [
-        "ent-c1-lio",
-        "ent-c1-ash-mechanic",
-        "ent-c1-seal",
-        "event-c1-delivery",
-        "event-c1-opening",
-        "ent-c1-mara",
-        "prop-c1-bridge-safe"
-      ],
-      "created_object_ids": [],
-      "removed_object_ids": []
-    },
-    {
-      "decision_id": "decision-fixed-compression",
-      "operator": "compression",
-      "evidence_ids": [
-        "ev-01",
-        "ev-02",
-        "ev-03",
-        "ev-04",
-        "ev-05",
-        "ev-06"
-      ],
-      "rationale": "Use concise display wording without changing sealed semantics.",
-      "decided_at": "2026-09-03T12:00:32Z",
-      "input_object_ids": [
-        "schema-c1-harbor"
-      ],
-      "created_object_ids": [],
-      "removed_object_ids": []
-    },
-    {
-      "decision_id": "decision-fixed-description",
-      "operator": "supported_description",
-      "evidence_ids": [
-        "ev-01",
-        "ev-02",
-        "ev-03",
-        "ev-04",
-        "ev-05",
-        "ev-06"
-      ],
-      "rationale": "Reuse only descriptions supported by sealed assertions and packet evidence.",
-      "decided_at": "2026-09-03T12:00:33Z",
-      "input_object_ids": [
-        "assert-c1-carried",
-        "assert-c1-distinct",
-        "assert-c1-delivery",
-        "assert-c1-opening",
-        "assert-c1-precedes",
-        "assert-c1-enabled",
-        "assert-c1-report"
-      ],
-      "created_object_ids": [],
-      "removed_object_ids": []
-    }
-  ],
-  "omissions": [
-    {
-      "evidence_id": "ev-07",
-      "reason": "Incidental market activity is retained as evidence but not materialized under the bounded comprehensive fixture.",
-      "confidence": 0.95
-    }
-  ],
-  "uncertainty_and_abstentions": [
-    "The bridge's actual safety is unknown because the available evidence only attributes a report to Mara."
-  ],
-  "budget_accounting": {
-    "nodes_used": 10,
-    "assertions_used": 7,
-    "display_nodes_used": 10,
-    "display_assertions_used": 7,
-    "input_tokens": 2420,
-    "output_tokens": 1420
+  "local_schema": {
+    "abstraction": "event_role",
+    "contextual_types": [
+      {
+        "abstraction": "event_role",
+        "definition": "A context-specific narrative role.",
+        "evidence_ids": [
+          "ev-04"
+        ],
+        "label": "Role",
+        "parent_upper_type": "entity",
+        "type_id": "t-c1"
+      },
+      {
+        "abstraction": "event_role",
+        "definition": "A reified occurrence in the local event chain.",
+        "evidence_ids": [
+          "ev-04"
+        ],
+        "label": "Narrative event",
+        "parent_upper_type": "event",
+        "type_id": "t-c1-event"
+      }
+    ],
+    "predicates": [
+      {
+        "arity": 4,
+        "definition": "Delivery precedes opening.",
+        "evidence_ids": [
+          "ev-04"
+        ],
+        "label": "credential chain",
+        "parent_upper_relation": "precedes",
+        "predicate_id": "p-c1-chain",
+        "role_names": [
+          "delivery",
+          "opening",
+          "courier",
+          "seal"
+        ]
+      },
+      {
+        "arity": 2,
+        "definition": "A rare mark enabled opening.",
+        "evidence_ids": [
+          "ev-04",
+          "ev-06"
+        ],
+        "label": "enabled",
+        "parent_upper_relation": "causes",
+        "predicate_id": "p-c1-credential-enabled"
+      }
+    ],
+    "schema_id": "s-c1"
   }
 }
