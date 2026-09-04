@@ -1,0 +1,50 @@
+{
+  "activation": {
+    "file": "fallback_activation.json",
+    "file_sha256": "b458b368d4420dd1f8948893e8cdeb684cbf0f52cc558d9a9454b3c58ff17244",
+    "manifest_sha256": "84cd76f0de47a1ceb9154df150c8ead022aa4e544bd0a1c4e31cfee36aab9eb7",
+    "primary_incident_manifest_sha256": "380e01caff5f40cb423bc507c05a343c34eb185744f6c4df9ed0f817d9d2e843"
+  },
+  "cache_state": {
+    "fallback_download_incomplete_file_count": 0,
+    "model_repository_count": 1,
+    "primary_and_fallback_never_coexisted": true,
+    "repository": "Qwen/Qwen3-8B-AWQ",
+    "single_shared_cache": true
+  },
+  "fallback": {
+    "downloaded_file_count": 12,
+    "downloaded_total_bytes": 6114568235,
+    "license": "Apache-2.0",
+    "manifest_file": "model_snapshot_fallback.json",
+    "manifest_file_sha256": "b8c2f719d2e48d7190e8d4995bd31bc990ca288f6d0f13563171e9d4c940ca7b",
+    "manifest_sha256": "ea7a19bebd6cfd02d6f71846e0e46f2672ffff5e0ced607cc29e4ca1ce867f69",
+    "quantization": "awq",
+    "repository": "Qwen/Qwen3-8B-AWQ",
+    "revision": "4da05a8edb55c6046cce958586c33b61da07bb79"
+  },
+  "kind": "model_cache_replacement_receipt",
+  "manifest_sha256": "521c6fc0bd4eb4dc35b4d9795994271eb6a1eae7c7066be539f65fe09dab2ccf",
+  "placement_note": "The downloader initially placed the sole repository one level above the established hub namespace; it was moved in place without copying or re-downloading.",
+  "primary": {
+    "compile_cache_bytes_removed": 8473062,
+    "manifest_file": "model_snapshot.json",
+    "manifest_file_sha256": "03758c521a69b121491cc95f22916d1a02838e592401028f5f6c1d494c6ea354",
+    "manifest_sha256": "7b2bfb59175c5d5906c8ddb99a19adb8c652198f1cee210258b0f02a1b621064",
+    "removed_file_count": 12,
+    "removed_total_bytes": 9992685319,
+    "repository": "Qwen/Qwen3-14B-AWQ",
+    "revision": "1a6fe1ecf891437a270cce11ad54d796c4f56ce0",
+    "weights_recoverability": "Public pinned revision can be downloaded again; no local weight copy was retained."
+  },
+  "schema_version": "1.0.0",
+  "storage_preflight": {
+    "allowed": true,
+    "current_occupied_bytes_before_download": 3621762560,
+    "effective_projected_headroom_bytes": 15141311725,
+    "largest_atomic_temporary_bytes": 4853922024,
+    "projected_occupied_bytes": 14858688275,
+    "sample_id": "fa0963b3b9253b71cbb6715a2391205b5a343cae93c9b295a46640b56b451d79"
+  },
+  "verified_at": "2026-09-04T02:33:53Z"
+}
