@@ -53,8 +53,8 @@ def test_precedence_chain_cycle_detection_is_order_independent(
 @settings(max_examples=16, deadline=None)
 @given(st.binary(min_size=0, max_size=2_048))
 def test_content_addressed_gzip_writes_deduplicate_for_arbitrary_bytes(
-    payload: bytes,
     tmp_path: Path,
+    payload: bytes,
 ) -> None:
     example_root = tmp_path / hashlib.sha256(payload).hexdigest()
     store = BlobStore(example_root / "blobs", compression=Compression.GZIP)
