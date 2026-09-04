@@ -673,7 +673,18 @@ class FallbackCallSpec:
     def required_constructive_operators(self) -> tuple[str, ...]:
         all_operators = tuple(sorted(operator.value for operator in CONSTRUCTIVE_OPERATORS))
         if self.condition is ConditionName.C1_LLM_PRE:
-            return all_operators
+            # The fallback protocol has one C1 call rather than the normal block's
+            # two C1 calls.  Keep this bounded call a substantive, richly grounded
+            # probe that fits the registered 2,048-token output cap.  The integrated
+            # 24-call development gate remains responsible for the preregistered
+            # *complete* C1 operator inventory, grounding, and union-gold recall.
+            return (
+                "event_reification",
+                "merge",
+                "rare_preservation",
+                "schema_relation",
+                "temporal_qualification",
+            )
         if self.call_id == "fallback-c2-01":
             return (
                 "abstraction",
@@ -798,6 +809,11 @@ def fallback_plan_manifest(root: Path) -> dict[str, object]:
         "development_continuation": {
             "same_live_model_service_required": True,
             "next_registered_call_count": 24,
+            "micro_pilot_c1_operator_scope": "representative_grounded_subset",
+            "complete_c1_operator_inventory_gate": (
+                "DevelopmentScientificAssessment."
+                "c1_all_construction_operators_exercised"
+            ),
             "authenticated_adopter_must_be_integrated_before_gpu_execution": True,
             "adopter_protocol": "fallback-live-development-adopter-v1",
             "adopter_registration_binds": [
@@ -878,6 +894,16 @@ def build_fallback_acceptance_request(
             call.required_constructive_operators
         ),
         "facts_or_gold_labels_supplied": False,
+        "coverage_scope": (
+            "bounded_micro_pilot_subset"
+            if call.condition is ConditionName.C1_LLM_PRE
+            else "bounded_micro_pilot_partition"
+        ),
+        "complete_c1_inventory_gate": (
+            "integrated_24_call_development_scientific_assessment"
+            if call.condition is ConditionName.C1_LLM_PRE
+            else None
+        ),
     }
     return build_acceptance_request(
         root=root,
@@ -3812,6 +3838,18 @@ class FallbackAcceptanceRunner:
         }
 
         required_operators = {operator.value for operator in CONSTRUCTIVE_OPERATORS}
+        c1_pilot_required = {
+            operator
+            for call in calls
+            if call.condition is ConditionName.C1_LLM_PRE
+            for operator in call.required_constructive_operators
+        }
+        c2_pilot_required = {
+            operator
+            for call in calls
+            if call.condition is ConditionName.C2_LLM_QUERY
+            for operator in call.required_constructive_operators
+        }
         c1_operators = {
             operator
             for call, audit in successful_audits
@@ -3825,11 +3863,18 @@ class FallbackAcceptanceRunner:
             for operator in cast(Sequence[str], audit["constructive_operators"])
         }
         operator_gate = {
-            "required": sorted(required_operators),
+            "global_constructive_operator_inventory": sorted(required_operators),
+            "c1_pilot_required": sorted(c1_pilot_required),
+            "c2_pilot_required": sorted(c2_pilot_required),
             "c1_observed": sorted(c1_operators),
             "c2_observed": sorted(c2_operators),
-            "c1_complete": required_operators.issubset(c1_operators),
-            "c2_complete": required_operators.issubset(c2_operators),
+            "c1_pilot_complete": c1_pilot_required.issubset(c1_operators),
+            "c1_global_complete_in_micro_pilot": required_operators.issubset(c1_operators),
+            "c1_global_completion_gate": (
+                "integrated_development_scientific_assessment."
+                "c1_all_construction_operators_exercised"
+            ),
+            "c2_complete": c2_pilot_required.issubset(c2_operators),
             "c1_behaviorally_valid": all(
                 cast(Mapping[str, object], audit.get("operator_behavior", {})).get(
                     "behaviorally_valid"
@@ -3891,7 +3936,7 @@ class FallbackAcceptanceRunner:
             and resource_watchdog.failure is None
             and resource_gate["accepted"] is True
             and continuation["admitted"] is True
-            and operator_gate["c1_complete"] is True
+            and operator_gate["c1_pilot_complete"] is True
             and operator_gate["c2_complete"] is True
             and operator_gate["c1_behaviorally_valid"] is True
             and operator_gate["c2_behaviorally_valid"] is True

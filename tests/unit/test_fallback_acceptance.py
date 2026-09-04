@@ -141,6 +141,12 @@ def test_fallback_plan_binds_exact_calls_reserves_and_no_primary_block() -> None
     assert continuation["fallback_owner_performs_final_shutdown"] is True
     assert continuation["callback_returns"] == "canonical DevelopmentExecutionResult"
     assert continuation["fallback_owner_derives_continuation_receipt"] is True
+    assert continuation["micro_pilot_c1_operator_scope"] == (
+        "representative_grounded_subset"
+    )
+    assert continuation["complete_c1_operator_inventory_gate"] == (
+        "DevelopmentScientificAssessment.c1_all_construction_operators_exercised"
+    )
     assert continuation["standalone_cli_gpu_execution_enabled"] is True
     assert continuation["standalone_registered_factory"] == (
         "story_projection_onto.development_continuation:"
@@ -169,6 +175,30 @@ def test_fallback_plan_binds_exact_calls_reserves_and_no_primary_block() -> None
         "reserve_standard",
         "reserve_short",
     ]
+    all_construction_operators = {
+        "abstraction",
+        "contextual_type",
+        "epistemic_qualification",
+        "event_reification",
+        "include_exclude",
+        "merge",
+        "rare_preservation",
+        "schema_relation",
+        "split",
+        "temporal_qualification",
+    }
+    assert set(calls[0]["required_constructive_operators"]) == {
+        "event_reification",
+        "merge",
+        "rare_preservation",
+        "schema_relation",
+        "temporal_qualification",
+    }
+    assert set(calls[0]["required_constructive_operators"]) < all_construction_operators
+    assert (
+        set(calls[1]["required_constructive_operators"])
+        | set(calls[2]["required_constructive_operators"])
+    ) == all_construction_operators
     assert plan["repair"]["watchdog_seconds"] == 90
     assert plan["repair"]["trigger_rule"] == REPAIR_TRIGGER_RULE
 
@@ -368,33 +398,6 @@ def test_execution_source_association_rehashes_manifest_and_current_tree(
     (source_root / "README.md").write_text("changed\n", encoding="utf-8")
     with pytest.raises(ValueError, match="current source tree"):
         validate_source_association(association_path, source_root=source_root)
-
-
-def _combined_c1_output() -> dict[str, object]:
-    first = json.loads((ROOT / "tests/fixtures/phase1/c1_pre_output.json").read_text())
-    second = json.loads((ROOT / "tests/fixtures/phase1/c1_pre_output_2.json").read_text())
-    result = copy.deepcopy(first)
-    for name in ("contextual_types", "predicates"):
-        result["local_schema"][name].extend(second["local_schema"][name])
-    result["local_schema"]["abstraction"] = second["local_schema"]["abstraction"]
-    for name in ("entities", "events", "proposition_contents", "assertions"):
-        result["instance_graph"][name].extend(second["instance_graph"][name])
-    result["decisions"].extend(second["decisions"])
-    for decision in result["decisions"]:
-        decision["created_object_ids"] = [
-            "s-c1" if object_id == "s-c1b" else object_id
-            for object_id in decision.get("created_object_ids", [])
-        ]
-    graph = result["instance_graph"]
-    result["budget_accounting"].update(
-        {
-            "nodes_used": len(graph["entities"]) + len(graph["events"]),
-            "assertions_used": len(graph["assertions"]),
-            "display_nodes_used": len(graph["entities"]) + len(graph["events"]),
-            "display_assertions_used": len(graph["assertions"]),
-        }
-    )
-    return cast(dict[str, object], result)
 
 
 def test_operator_probe_rejects_labels_without_behavior() -> None:
@@ -1094,24 +1097,19 @@ def _runner(
 
 
 def _fallback_outputs(*, trigger_repair: bool) -> dict[str, Mapping[str, object]]:
-    combined = _combined_c1_output()
-    first_c1 = copy.deepcopy(combined)
+    accepted_c1 = json.loads(
+        (ROOT / "tests/fixtures/phase1/c1_pre_output.json").read_text()
+    )
+    first_c1 = copy.deepcopy(accepted_c1)
     if trigger_repair:
-        retained = {
-            "merge",
-            "schema_relation",
-            "event_reification",
-            "temporal_qualification",
-            "rare_preservation",
-        }
         first_c1["decisions"] = [
             decision
             for decision in cast(list[dict[str, object]], first_c1["decisions"])
-            if decision["operator"] in retained
+            if decision["operator"] != "rare_preservation"
         ]
     return {
         "fallback-c1-01": first_c1,
-        "fallback-c1-01-repair-01": combined,
+        "fallback-c1-01-repair-01": accepted_c1,
         "fallback-c2-01": json.loads(
             (ROOT / "tests/fixtures/phase1/c2_query_output.json").read_text()
         ),
@@ -1166,7 +1164,12 @@ def test_two_controller_fallback_runner_is_bounded_resumable_and_audited(
         assert result["repair_attempt_count"] == int(trigger_repair)
         assert result["controller_resume_gate"]["controller_process_restart"] is True
         assert result["controller_resume_gate"]["model_process_restart"] is False
-        assert result["operator_coverage_gate"]["c1_complete"] is True
+        assert result["operator_coverage_gate"]["c1_pilot_complete"] is True
+        assert result["operator_coverage_gate"]["c1_global_complete_in_micro_pilot"] is False
+        assert result["operator_coverage_gate"]["c1_global_completion_gate"] == (
+            "integrated_development_scientific_assessment."
+            "c1_all_construction_operators_exercised"
+        )
         assert result["operator_coverage_gate"]["c2_complete"] is True
         assert result["actual_plus_remaining_forecast"]["admitted"] is True
         assert result["normal_acceptance_block_executed"] is False
