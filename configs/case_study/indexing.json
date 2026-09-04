@@ -1,0 +1,12 @@
+{
+  "chapter_heading_pattern": "^(?:PROLOGUE|EPILOGUE|CHAPTER(?:[ \\t]+[0-9IVXLCDM]+)?|[A-Z][A-Z .'-]{1,40})[ \\t]*$",
+  "corpus_id": "agot-first-novel-case",
+  "edition_label": "lawfully supplied local English edition",
+  "encoding": "utf-8",
+  "fts_tokenizer": "unicode61 remove_diacritics 2",
+  "operational_max_evidence_tokens": 6144,
+  "operational_top_k": 12,
+  "passage_max_characters": 1800,
+  "passage_target_characters": 1200,
+  "unicode_normalization": "NFC"
+}
