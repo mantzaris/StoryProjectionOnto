@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -505,6 +505,85 @@ def test_exact_inventory_executes_once_resumes_and_detects_tamper(tmp_path: Path
             output_root=root,
             completed_at=finished,
         )
+
+
+def test_completion_clock_is_evaluated_once_after_all_nine_terminal_calls(
+    tmp_path: Path,
+) -> None:
+    protocol, gate, inputs = _inputs()
+    adapter = _Adapter()
+    evaluations = []
+
+    def completion_clock():
+        assert len(adapter.calls) == 9
+        evaluations.append(tuple(adapter.calls))
+        return NOW + timedelta(minutes=5)
+
+    result = execute_phase5(
+        inputs=inputs,
+        protocol=protocol,
+        prerequisites=gate,
+        adapter=adapter,
+        ledger_verifier=_Verifier(),
+        output_root=tmp_path / "TEST-ONLY-clock",
+        completed_at=completion_clock,
+    )
+    assert len(evaluations) == 1
+    assert result.completed_at == NOW + timedelta(minutes=5)
+
+
+def test_completion_clock_must_be_aware_and_cannot_backdate_terminal_calls(
+    tmp_path: Path,
+) -> None:
+    protocol, gate, inputs = _inputs()
+    adapter = _Adapter()
+    with pytest.raises(Phase5ExecutionError, match="aware datetime"):
+        execute_phase5(
+            inputs=inputs,
+            protocol=protocol,
+            prerequisites=gate,
+            adapter=adapter,
+            ledger_verifier=_Verifier(),
+            output_root=tmp_path / "TEST-ONLY-naive-clock",
+            completed_at=lambda: datetime(2025, 1, 1),
+        )
+    assert len(adapter.calls) == 9
+
+    backdated_root = tmp_path / "TEST-ONLY-backdated-clock"
+    with pytest.raises(Phase5ExecutionError, match="predates"):
+        execute_phase5(
+            inputs=inputs,
+            protocol=protocol,
+            prerequisites=gate,
+            adapter=_Adapter(),
+            ledger_verifier=_Verifier(),
+            output_root=backdated_root,
+            completed_at=lambda: NOW,
+        )
+    assert not (backdated_root / "feedback_manifest.json").exists()
+    assert not (backdated_root / "execution_index.json").exists()
+
+
+def test_completion_clock_is_not_evaluated_when_an_episode_raises(tmp_path: Path) -> None:
+    protocol, gate, inputs = _inputs()
+    evaluated = False
+
+    def forbidden_clock():
+        nonlocal evaluated
+        evaluated = True
+        return NOW + timedelta(minutes=5)
+
+    with pytest.raises(RuntimeError, match="controller loss"):
+        execute_phase5(
+            inputs=inputs,
+            protocol=protocol,
+            prerequisites=gate,
+            adapter=_CrashBeforeResultAdapter(),
+            ledger_verifier=_Verifier(),
+            output_root=tmp_path / "TEST-ONLY-clock-on-failure",
+            completed_at=forbidden_clock,
+        )
+    assert evaluated is False
 
 
 def test_model_visible_c2_request_excludes_scorer_bindings() -> None:

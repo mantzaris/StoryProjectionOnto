@@ -12,6 +12,7 @@ import hashlib
 import os
 import sqlite3
 from collections import Counter
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 from typing import Literal, Protocol, Self, runtime_checkable
@@ -1060,7 +1061,7 @@ def execute_phase5(
     adapter: C2RegenerationAdapter,
     ledger_verifier: FeedbackLedgerVerifier,
     output_root: Path,
-    completed_at: AwareDatetime,
+    completed_at: AwareDatetime | Callable[[], datetime],
 ) -> Phase5JournalIndex:
     """Execute/resume the frozen inventory after prerequisites were verified."""
 
@@ -1236,20 +1237,28 @@ def execute_phase5(
         _append_exact(path, record)
         records.append(record)
 
+    resolved_completed_at = completed_at() if callable(completed_at) else completed_at
+    if (
+        not isinstance(resolved_completed_at, datetime)
+        or resolved_completed_at.tzinfo is None
+        or resolved_completed_at.utcoffset() is None
+    ):
+        raise Phase5ExecutionError("Phase 5 completion clock must return an aware datetime")
     manifest = FeedbackStudyExecutionManifest(
         protocol_hash=protocol.content_hash,
         scripted_revision_freezes=tuple(item.freeze for item in inputs.scripted_inputs),
         executions=tuple(item.execution for item in records),
-        generated_at=completed_at,
+        generated_at=resolved_completed_at,
     )
     assert_feedback_manifest_matches_protocol(manifest, protocol)
     if any(
-        item.execution.replay is not None and item.execution.replay.checked_at > completed_at
+        item.execution.replay is not None
+        and item.execution.replay.checked_at > resolved_completed_at
         for item in records
     ):
         raise Phase5ExecutionError("Phase 5 completion timestamp predates replay validation")
-    if completed_at < inputs.frozen_at or any(
-        item.cpu_receipt is not None and item.cpu_receipt.completed_at > completed_at
+    if resolved_completed_at < inputs.frozen_at or any(
+        item.cpu_receipt is not None and item.cpu_receipt.completed_at > resolved_completed_at
         for item in records
     ):
         raise Phase5ExecutionError("Phase 5 completion timestamp predates frozen work")
@@ -1261,7 +1270,7 @@ def execute_phase5(
     if len(c2_receipts) != 9 or any(item is None for item in c2_receipts):
         raise Phase5ExecutionError("Phase 5 did not retain all nine C2 call receipts")
     concrete_c2_receipts = [item for item in c2_receipts if item is not None]
-    if any(item.completed_at > completed_at for item in concrete_c2_receipts):
+    if any(item.completed_at > resolved_completed_at for item in concrete_c2_receipts):
         raise Phase5ExecutionError("Phase 5 completion timestamp predates GPU work")
     if Counter(item.execution.kind for item in records) != Counter(
         {
@@ -1356,7 +1365,7 @@ def execute_phase5(
         repair_gpu_request_count=sum(item.attempt_kind == "repair" for item in ledger_calls),
         allocated_gpu_seconds=sum(item.allocated_gpu_seconds for item in ledger_calls),
         artifact_bindings=tuple(artifact_bindings),
-        completed_at=completed_at,
+        completed_at=resolved_completed_at,
     )
     _append_exact(root / "execution_index.json", index)
     return index
@@ -1372,7 +1381,7 @@ def run_phase5_from_files(
     output_root: Path,
     adapter: C2RegenerationAdapter,
     ledger_verifier: FeedbackLedgerVerifier,
-    completed_at: AwareDatetime,
+    completed_at: AwareDatetime | Callable[[], datetime],
     protocol_path: Path | None = None,
 ) -> Phase5JournalIndex:
     inputs = load_phase5_input_manifest(input_manifest_path)
