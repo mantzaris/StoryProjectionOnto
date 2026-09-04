@@ -1,0 +1,147 @@
+{
+  "accounting": {
+    "cumulative_gpu_microseconds": 815215409,
+    "failed_call_microseconds": 852878,
+    "gpu_event_count": 5,
+    "gpu_service_session_count": 4,
+    "model_call_count": 1,
+    "prior_gpu_microseconds": 422961986,
+    "service_overhead_microseconds": 177366051,
+    "v3_service_microseconds": 392253423,
+    "v3_startup_microseconds": 214034494
+  },
+  "diagnosis": {
+    "classification": "decoder_schema_rejected_before_generation",
+    "cpu_reproduction": {
+      "cuda_visible_devices_disabled": true,
+      "exact_request_hash_reproduced": true,
+      "gpu_memory_before_and_after_mib": 1,
+      "rendered_input_tokens": 4843,
+      "request_hash": "1cc73c5525e096a4df830892f37cdc8062899363a0b75835bb2f04b3a14a0d44",
+      "schema_canonical_bytes": 24654,
+      "schema_sha256": "0b605bf4ed55dfe3bc7e14f988f9df002a7a295b8515be1274e774c4b03bf883"
+    },
+    "exception_type": "RuntimeTransportError",
+    "failed_call_id": "fallback-c1-01",
+    "http_status_inference": "A client-visible HTTP 400 is strongly inferred from the pinned vLLM validation path, but the response body and status were not retained by the v3 transport.",
+    "inference_call_reached_generation": false,
+    "pinned_runtime_validation": {
+      "converter_error": "EBNF parser error: Expect element, but got |",
+      "empty_alternative_content_hash_patterns": 22,
+      "empty_alternative_patterns_removed_then_conversion_succeeded": true,
+      "installed_runtime_version": "0.10.2",
+      "runtime_source": "vllm/v1/structured_output/backend_xgrammar.py",
+      "string_format_constraints": 1,
+      "string_format_path": "$defs.OntologyDecision.properties.decided_at",
+      "string_format_would_then_be_rejected": true
+    },
+    "raw_error_response_retained": false,
+    "token_counts": {
+      "completion": 0,
+      "prompt": 0
+    }
+  },
+  "forecast_defect": {
+    "affected_published_field": "actual_plus_remaining_forecast",
+    "failed_duration_incorrectly_used_as_successful_c1_proxy_seconds": 0.852878,
+    "published_forecast_is_valid_for_admission": false,
+    "required_correction": "Failed transport durations must remain in actual GPU accounting but must not replace provisional latency for unexecuted C1 calls."
+  },
+  "kind": "fallback_gpu_acceptance_incident_association",
+  "manifest_sha256": "2e33bcca745dfd5e85b02e5f0f1039444cb082cd7bb88ed252677414f83e249a",
+  "provenance": {
+    "controller_handoff": {
+      "file": "../results/fallback_gpu_acceptance_development_v3.json.controller-handoff.json",
+      "file_sha256": "392eb534e024af28ac80f2ae9e290470793592229d6e83e2eed4705129991b77",
+      "manifest_sha256": "eb29bc3491b63b4dbb484268e5515edcd4ce5ae46ef4045055f2a3205096a410"
+    },
+    "failed_result": {
+      "file": "../results/fallback_gpu_acceptance_development_v3.json",
+      "file_sha256": "9279cdcb048be6bf44da6570d26df9ffd048d839a3bb9f5d76a328f6ea62108a",
+      "manifest_sha256": "6a76fae9bb970fdf11a9ae37cf785910cf6c270146ca7b752a6aedb678de3efd"
+    },
+    "preflight": {
+      "file": "fallback_gpu_acceptance_development_v3.preflight.json",
+      "file_sha256": "cf55e1ef833381cdc2d39d8f970ebe6ec42eae5f362b9a967109c909437c5eb4",
+      "manifest_sha256": "121d042d0dc6647011454b6e4bb8a5f7d1526290c7cefff03dbb2cca9d996e6b"
+    },
+    "retry_amendment": {
+      "file": "../../../configs/study/fallback_service_retry_amendment.json",
+      "file_sha256": "c4737e2a654a06e6e7f9c020c76933280ab93357376e293b2146f30c94294494",
+      "manifest_sha256": "9ef82782c03d9915c081e89cf554a531ef3d1fba42836c522d6ebf97cdce0f28"
+    },
+    "source_tree": {
+      "association_file": "source_tree_fallback_development_v5.association.json",
+      "association_file_sha256": "7ea272737f3e77f495b7db8e4718f3a262b1de70b0d6d88dc9c63434ce23d774",
+      "association_manifest_sha256": "1ce70d1c0796e5cc085d55ec535594b5b1e4d913eff3314b200562c5c095d4b4",
+      "git_commit": "8a77a3aafa0acc834a6563b0015b5fdff29151f8",
+      "tree_sha256": "81edb1ba173458970e93b903efa27981a96fb3008a8b4ec221f5810f4c515b20"
+    }
+  },
+  "recorded_at": "2026-09-04T23:24:55Z",
+  "restricted_evidence": {
+    "cas": {
+      "artifact_count": 17,
+      "inventory_sha256": "f14194fb1f3240c3c95b80c9ef71898911dc0ffaaacd8abaa3db806d1538b880",
+      "stored_bytes": 144107
+    },
+    "checkpoint": {
+      "sha256": "1a0a8a8ffc3438b700ed6179c30d1ac183e62d6ba87bb6da69a50c8ddc650110",
+      "snapshot_name": "checkpoint.json"
+    },
+    "controller_guard": {
+      "manifest_sha256": "b24b80bd4d599f92a20c67b358357f1389eb9c654aee4ddc006fb8adc9f9babc",
+      "sha256": "4a2eab03d1c5525e18b19bf0998887008bf6d34cc760be676bbdaf4753676c64",
+      "snapshot_name": "checkpoint.json.orchestrator-guard.json"
+    },
+    "launch_identity": {
+      "manifest_sha256": "b3f0012bac12490a98e37cfca174b7f4d61aa527ff13601ef244f4634fe24086",
+      "sha256": "f4c361712122d161ed4e161d9ae2e30d84cd4aba7ecf6dafd5680152e11ebc09",
+      "snapshot_name": "launch.identity.json"
+    },
+    "ledger": {
+      "artifact_count": 17,
+      "integrity_check": "verified",
+      "issue_count": 0,
+      "schema_versions": [
+        5,
+        6
+      ],
+      "sha256": "4c40e50719169dc5a8983ef4b16a5207e9a5da3ae28a0981af8ab8b8097b4a7",
+      "snapshot_name": "phase1_acceptance.sqlite",
+      "unresolved_allocation_count": 0,
+      "unresolved_service_count": 0
+    },
+    "service_lease": {
+      "lease_state": "stopped_verified",
+      "sha256": "ed408aed13b4d7792b5dc75c5908fdf5f603a1589ee51dc27f6be4ecd66fc2f8",
+      "snapshot_name": "service-lease.stopped.json"
+    },
+    "vllm_log": {
+      "byte_count": 22718,
+      "request_logging_enabled": false,
+      "sha256": "b5815307495747a510eb64bde15eda234e3810e0553d8413590602cd9d6f7608",
+      "snapshot_name": "fallback-qwen3-8b-awq-development-v3.vllm.log"
+    }
+  },
+  "run_id": "fallback-qwen3-8b-awq-development-v3",
+  "schema_version": "1.0.0",
+  "terminal_state": {
+    "accepted_output_count": 0,
+    "completed_base_call_count": 0,
+    "development_call_count": 0,
+    "gate_passed": false,
+    "outer_exit_code": 2,
+    "physical_service_live": false,
+    "retry_authorization_consumed": true,
+    "unresolved_gpu_allocation_count": 0,
+    "unresolved_gpu_service_count": 0,
+    "vllm_service_stopped": true
+  },
+  "resource_maxima": {
+    "gpu_vram_bytes": 22525509632,
+    "process_ram_bytes": 2955644928,
+    "project_storage_bytes": 13623907840,
+    "resource_violation_count": 0
+  }
+}

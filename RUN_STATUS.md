@@ -1,6 +1,6 @@
 # Run status
 
-Updated: 2026-09-04 (fallback retry preflight passed)
+Updated: 2026-09-04 (fallback v3 terminal failure reconciled)
 
 ## Verified durable state
 
@@ -37,6 +37,13 @@ Updated: 2026-09-04 (fallback retry preflight passed)
   `121d042d0dc6647011454b6e4bb8a5f7d1526290c7cefff03dbb2cca9d996e6b`
   (file SHA-256
   `cf55e1ef833381cdc2d39d8f970ebe6ec42eae5f362b9a967109c909437c5eb4`).
+- The sole authorized v3 retry ran from 23:01:36Z through 23:09:49Z. Model
+  startup, controller restart, and live-service adoption succeeded, but the
+  first `fallback-c1-01` request was rejected before generation with a
+  `RuntimeTransportError`. No output was accepted and no development call ran.
+  The service lease is `stopped_verified`; the GPU is idle and port 8000 is
+  closed. Incident manifest:
+  `2e33bcca745dfd5e85b02e5f0f1039444cb082cd7bb88ed252677414f83e249a`.
 - Current project-controlled remote occupancy at recovery was 15,135,812,608
   bytes. The maximum persisted ledger sample was 13,623,907,840 bytes; the
   difference is retained recovery/source material rather than a larger study.
@@ -45,7 +52,7 @@ Updated: 2026-09-04 (fallback retry preflight passed)
 
 | Phase | State | Last verified evidence |
 |---|---|---|
-| 1 — contracts and GPU acceptance | In progress | Contracts, storage/GPU controls, ledger/CAS, schemas, primary rejection, pinned fallback, and one bounded retry amendment exist. The permitted fallback acceptance/development retry has not started. |
+| 1 — contracts and GPU acceptance | Blocked before another allocation | Contracts, storage/GPU controls, ledger/CAS, schemas, primary rejection, pinned fallback, and the consumed v3 retry exist. v3 loaded successfully but its first decoder schema was rejected before generation; no further service start is currently authorized. |
 | 2 — synthetic benchmark | Blocked only at external review | Four development worlds, 12 held-out worlds, 36 held-out contexts, mutation checks, sealed stages, and the unchanged condition-blind three-world/nine-projection review package exist and hash-reproduce. The source-bound lineage was safely resealed after runtime-boundary hardening; no scientific payload changed. Independent reviewer decisions and adjudication are absent. |
 | 3 — conditions and primary run | In progress | C0/C1/C2/FixedSelect implementations and production control planes exist. The 24 development calls and all 168 held-out calls remain unexecuted. |
 | 4 — metrics and ablations | Software implemented; execution pending | Registered metric/statistical primitives exist. The 28 ablation calls and 12 paraphrase calls remain unexecuted. |
@@ -69,30 +76,44 @@ Updated: 2026-09-04 (fallback retry preflight passed)
 - The recovered ledger/CAS verifies with 17 artifacts, three closed GPU events,
   three closed service sessions, zero model calls, zero attempts, zero unresolved
   allocations, and exactly 422.961986 allocated GPU seconds.
+- After v3, the ledger/CAS again verifies with 17 artifacts, five closed GPU
+  events, four closed service sessions, one failed attempt/model call, zero
+  unresolved allocations, and exactly 815.215409 cumulative GPU seconds.
+  Peak v3 VRAM was 22,525,509,632 bytes; peak process RAM was 2,955,644,928
+  bytes; no resource limit was violated.
+- A CUDA-disabled reconstruction reproduced the exact failed request hash
+  `1cc73c5525e096a4df830892f37cdc8062899363a0b75835bb2f04b3a14a0d44`.
+  The pinned XGrammar converter rejects 22 empty-alternative `content_hash`
+  patterns while translating the schema; after those are removed, pinned vLLM
+  would separately reject the single string `date-time` format. The canonical
+  validation schema remains valid; only a decoder-compatibility projection is
+  required.
 - A final bounded adversarial audit found no remaining high- or medium-severity
   duplicate-call, accounting, gold/query-boundary, TOCTOU, or public-path leak.
 
 ## Remaining registered GPU inventory
 
-- Next authorized allocation: the single amended fallback service start, with a
-  300-second startup watchdog and no added inference slot.
+- No GPU allocation is currently authorized. The single amended fallback v3
+  service start and one long-reserve failed request were consumed.
 - Remaining base scientific calls before repairs: 258 (four fallback
   micro-pilot calls, 24 development calls, 168 held-out primary calls, 49
   combined synthetic calls, and 13 case-study calls).
-- Forecast after recovered allocation plus the authorized retry start and all
-  mandatory remaining work: 30,421.961986 seconds.
-- Scheduled reserve at that gate: 1,978.038014 seconds; protected hard-stop
-  margin after two 30-second shutdown allowances: 5,518.038014 seconds.
+- Actual allocated GPU time is now 815.215409 seconds. The v3 result's remaining
+  forecast is not valid admission evidence because it incorrectly uses the
+  0.852878-second failed transport duration as a successful C1 latency proxy.
+  Recompute the forecast from provisional C1 timing after fixing that defect and
+  before proposing any new amendment.
 - The preflight counted 287 effective accounting events and no more than 278
   inference attempts. It projected 11,058,371,456 occupied bytes and
   18,941,628,544 bytes of effective storage headroom.
 
 ## Gates and blockers
 
-- The reconciled source tree has passed the complete validation matrix, has the
-  recovery checkpoint above, and has a fresh byte-identical local/RunPod source
-  association. The fallback controller must still pass its validation-only
-  preflight before the retry may start.
+- The v5 tree and preflight remain immutable evidence for the consumed v3 run.
+  Do not reuse them to authorize another call. A decoder-compatibility repair,
+  corrected forecast, complete CPU validation, fresh source association, a new
+  explicit service-start/inference amendment, and a fresh validation-only gate
+  are required before another GPU allocation.
 - Do not open held-out query payloads or start held-out inference until the
   independent review completion reproduces.
 - Do not start the case-study phase until all synthetic pre-case gates pass and
@@ -102,10 +123,8 @@ Updated: 2026-09-04 (fallback retry preflight passed)
 
 ## Exact resume command
 
-From `/workspace/StoryProjectionOnto`, launch the already validated
-`scripts/run_fallback_gpu_acceptance.py --execute --controller-stage orchestrate`
-command for run ID `fallback-qwen3-8b-awq-development-v3` inside the named
-`storyprojection-study` tmux session. Use the v5 source association, the v3
-preflight identity, the registered activation/retry artifacts, and the existing
-ledger/CAS paths. Do not launch a second controller if that session, its exact
-PID identity, or any v3 checkpoint already exists.
+Resume with CPU-only implementation and tests for decoder-schema compatibility,
+failed-transport diagnostics, and successful-only timing forecasts. Preserve the
+v3 result, ledger, CAS, checkpoints, lease, and logs. Do not run
+`run_fallback_gpu_acceptance.py --execute` or start vLLM: v3 is terminal and no
+additional service start or inference attempt is authorized.
