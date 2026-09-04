@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0.0",
+  "root_seed": 20260903,
+  "frozen_at": "2026-09-03T00:00:00Z",
+  "development_world_count": 4,
+  "held_out_world_count": 12,
+  "contexts_per_world": 3,
+  "paraphrase_context_count": 12,
+  "independent_review_world_count": 3,
+  "matcher_revision": "synthetic-anchor-matcher-v3-joint",
+  "generator_revision": "semantic-query-compiler-v3",
+  "index_revision": "synthetic-query-blind-index-v3",
+  "development_surface_renderers": [
+    "development_direct_v1"
+  ],
+  "held_out_surface_renderers": [
+    "held_out_chronicle_v1",
+    "held_out_dispatch_v1"
+  ],
+  "query_renderers": [
+    "query_direct_v3",
+    "query_paraphrase_v3"
+  ],
+  "gold_node_targets": {
+    "easy": 10,
+    "medium": 15,
+    "hard": 20
+  },
+  "minimum_factor_world_count": 3,
+  "minimum_temporal_change_world_count": 6,
+  "minimum_rare_ablation_context_count": 8,
+  "minimum_temporal_epistemic_ablation_context_count": 8,
+  "minimum_community_world_count": 8
+}
