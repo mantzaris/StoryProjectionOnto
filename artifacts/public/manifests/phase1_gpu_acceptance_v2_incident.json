@@ -24,7 +24,7 @@
     "restart_reached": false
   },
   "kind": "phase1_gpu_acceptance_incident_association",
-  "manifest_sha256": "f2321410b72c4b63e1c4ba8c26a992b23565e3e810effa7c19ff4105c792bc55",
+  "manifest_sha256": "380e01caff5f40cb423bc507c05a343c34eb185744f6c4df9ed0f817d9d2e843",
   "provenance": {
     "acceptance_checkpoint_plan_sha256": "06d1354facf79786aa11f3c84dfd1b6e136f2322c7efc7f48dc5903170a51cff",
     "acceptance_plan": {
@@ -44,11 +44,13 @@
     }
   },
   "recorded_at": "2026-09-04T02:23:25Z",
-  "resource_peaks": {
+  "sampled_resource_maxima": {
+    "acceptance_conclusion_available": false,
     "gpu_vram_bytes": 10638852096,
     "process_ram_bytes": 2432729088,
     "project_storage_bytes": 13623907840,
-    "resource_limit_violation_count": 0
+    "resource_limit_violation_count": 0,
+    "sampling_interval_seconds_approximately": 30
   },
   "restricted_evidence": {
     "checkpoint": {
