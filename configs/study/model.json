@@ -14,5 +14,6 @@
   "thinking_mode": false,
   "prefix_decoding": false,
   "speculative_decoding": false,
+  "enforce_eager": true,
   "request_concurrency": 1
 }

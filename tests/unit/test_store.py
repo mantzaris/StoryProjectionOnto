@@ -30,6 +30,8 @@ from story_projection_onto.store import (
     MetricStatus,
     ModelBackend,
     ModelCallRole,
+    PrequeryBarrierRecord,
+    QueryAccessRecord,
     ReleaseClass,
     ReleaseViolationError,
     RetryClass,
@@ -170,6 +172,107 @@ def test_content_addressed_blobs_deduplicate_and_enforce_release_class(
     )
     with pytest.raises(DuplicateConflictError):
         ledger.register_artifact(relabeled)
+
+
+def test_query_access_event_id_lookup_is_exact_unknown_safe_and_unique(
+    tmp_path: Path,
+    ledger: Ledger,
+) -> None:
+    blobs = BlobStore(tmp_path / "query-lookup-blobs", compression=Compression.GZIP)
+    barrier_artifact = blobs.put_bytes(
+        b'{"barrier":"query-lookup"}\n',
+        media_type="application/vnd.story-projection.prequery-barrier+json",
+        release_class=ReleaseClass.PUBLIC,
+        created_at=T0,
+    )
+    barrier = ledger.persist_prequery_barrier(
+        PrequeryBarrierRecord(
+            barrier_hash=HASH_A,
+            barrier_id="query-lookup-barrier",
+            execution_id="query-lookup-execution",
+            execution_manifest_hash=HASH_B,
+            barrier_artifact_hash=barrier_artifact.content_hash,
+            preparation_count=1,
+            sealed_at=T0,
+            persisted_at=T0,
+            release_class=ReleaseClass.PUBLIC,
+        ),
+        barrier_artifact=barrier_artifact,
+    )
+    query_payload_artifact = blobs.put_bytes(
+        b'{"query":"exact"}\n',
+        media_type="application/vnd.story-projection.query-reveal+json",
+        release_class=ReleaseClass.PUBLIC,
+        created_at=T1,
+    )
+    access_event_artifact = blobs.put_bytes(
+        b'{"access":"first"}\n',
+        media_type="application/vnd.story-projection.query-access+json",
+        release_class=ReleaseClass.PUBLIC,
+        created_at=T1,
+    )
+    persisted = ledger.persist_query_access(
+        QueryAccessRecord(
+            access_event_hash="c" * 64,
+            access_event_id="query-access-exact-01",
+            execution_id=barrier.execution_id,
+            query_context_hash="d" * 64,
+            model_visible_query_hash="e" * 64,
+            snapshot_hash="f" * 64,
+            stage_manifest_hash="1" * 64,
+            query_artifact_hash="2" * 64,
+            prequery_barrier_hash=barrier.barrier_hash,
+            packet_hash=None,
+            query_payload_artifact_hash=query_payload_artifact.content_hash,
+            access_event_artifact_hash=access_event_artifact.content_hash,
+            registered_revealed_at=T0,
+            accessed_at=T1,
+            release_class=ReleaseClass.PUBLIC,
+        ),
+        query_payload_artifact=query_payload_artifact,
+        access_event_artifact=access_event_artifact,
+    )
+
+    assert ledger.get_query_access_by_event_id("query-access-exact-01") == persisted
+    assert ledger.get_query_access(persisted.access_event_hash) == persisted
+    with pytest.raises(KeyError, match="unknown query access event"):
+        ledger.get_query_access_by_event_id("query-access-exact")
+    with pytest.raises(KeyError, match="unknown query access event"):
+        ledger.get_query_access_by_event_id("query-access-exact-01 ")
+    with pytest.raises(ValueError):
+        ledger.get_query_access_by_event_id("")
+
+    conflicting_access_artifact = blobs.put_bytes(
+        b'{"access":"conflicting-duplicate-id"}\n',
+        media_type="application/vnd.story-projection.query-access+json",
+        release_class=ReleaseClass.PUBLIC,
+        created_at=T2,
+    )
+    with pytest.raises(DuplicateConflictError, match="immutable event"):
+        ledger.persist_query_access(
+            QueryAccessRecord(
+                access_event_hash="3" * 64,
+                access_event_id=persisted.access_event_id,
+                execution_id=barrier.execution_id,
+                query_context_hash="4" * 64,
+                model_visible_query_hash="5" * 64,
+                snapshot_hash=persisted.snapshot_hash,
+                stage_manifest_hash="6" * 64,
+                query_artifact_hash="7" * 64,
+                prequery_barrier_hash=barrier.barrier_hash,
+                packet_hash=None,
+                query_payload_artifact_hash=query_payload_artifact.content_hash,
+                access_event_artifact_hash=conflicting_access_artifact.content_hash,
+                registered_revealed_at=T0,
+                accessed_at=T2,
+                release_class=ReleaseClass.PUBLIC,
+            ),
+            query_payload_artifact=query_payload_artifact,
+            access_event_artifact=conflicting_access_artifact,
+        )
+
+    assert ledger.count_rows("query_access_events") == 1
+    assert ledger.get_query_access_by_event_id(persisted.access_event_id) == persisted
 
 
 def test_requested_zstd_never_falls_back_to_gzip(tmp_path: Path, monkeypatch) -> None:
@@ -1018,6 +1121,9 @@ def test_v2_ledger_migrates_additively_without_rewriting_existing_rows(
             "study_jobs",
             "inputs",
             "evidence_snapshots",
+            "prequery_barriers",
+            "query_access_events",
+            "packet_materialization_events",
             "gpu_service_journal",
             "gpu_service_sessions",
             "model_calls",

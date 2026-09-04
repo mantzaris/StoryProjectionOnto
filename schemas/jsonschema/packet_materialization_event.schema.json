@@ -1,0 +1,88 @@
+{
+  "$defs": {
+    "RetrievalMethod": {
+      "enum": [
+        "all_admissible",
+        "sqlite_fts5_bm25"
+      ],
+      "title": "RetrievalMethod",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Post-access receipt for a query-dependent evidence packet, such as FTS/BM25.",
+  "properties": {
+    "completed_at": {
+      "format": "date-time",
+      "title": "Completed At",
+      "type": "string"
+    },
+    "content_hash": {
+      "default": "",
+      "pattern": "^(?:|[0-9a-f]{64})$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "execution_id": {
+      "maxLength": 192,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+      "title": "Execution Id",
+      "type": "string"
+    },
+    "materialization_event_id": {
+      "maxLength": 192,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+      "title": "Materialization Event Id",
+      "type": "string"
+    },
+    "packet_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Packet Hash",
+      "type": "string"
+    },
+    "query_access_event_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Query Access Event Hash",
+      "type": "string"
+    },
+    "retrieval_config_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Retrieval Config Hash",
+      "type": "string"
+    },
+    "retrieval_method": {
+      "$ref": "#/$defs/RetrievalMethod"
+    },
+    "schema_version": {
+      "const": "1.0.0",
+      "default": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "snapshot_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Snapshot Hash",
+      "type": "string"
+    },
+    "started_at": {
+      "format": "date-time",
+      "title": "Started At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "materialization_event_id",
+    "execution_id",
+    "query_access_event_hash",
+    "snapshot_hash",
+    "packet_hash",
+    "retrieval_method",
+    "retrieval_config_hash",
+    "started_at",
+    "completed_at"
+  ],
+  "title": "PacketMaterializationEvent",
+  "type": "object"
+}

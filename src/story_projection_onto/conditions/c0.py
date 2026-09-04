@@ -11,13 +11,15 @@ temporal/epistemic qualifications after reveal.
 from __future__ import annotations
 
 import hashlib
+import importlib.metadata
 import re
 from collections import Counter, defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from datetime import datetime
 from enum import StrEnum
 from itertools import pairwise
-from typing import Protocol
+from pathlib import Path
+from typing import Literal, Protocol
 
 from pydantic import Field, model_validator
 
@@ -184,10 +186,24 @@ class ClassicalEvidenceAnalysis(ImmutableRecord):
     dependency_backend: str = Field(min_length=1)
 
 
+class ClassicalProjectionWeights(ImmutableRecord):
+    lexical_context: float = Field(default=1.0, ge=0.0)
+    time_compatibility: float = Field(default=0.2, ge=0.0)
+    confidence_support: float = Field(default=0.1, ge=0.0)
+    low_frequency_support: float = Field(default=0.12, ge=0.0)
+    typed_path_continuity: float = Field(default=0.15, ge=0.0)
+
+
 class ClassicalRuleConfig(ImmutableRecord):
     """Frozen development-tunable rule vocabulary for the classical baseline."""
 
     config_id: str = "c0-rules-v1"
+    backend: Literal["spacy-ner-dependency-plus-deterministic-rules-v2"] = (
+        "spacy-ner-dependency-plus-deterministic-rules-v2"
+    )
+    spacy_model_package: Literal["en_core_web_sm"] = "en_core_web_sm"
+    spacy_model_version: Literal["3.8.0"] = "3.8.0"
+    query_blind: Literal[True] = True
     honorifics: frozenset[str] = frozenset(
         {"captain", "commander", "doctor", "dr", "king", "lady", "lord", "queen", "ser"}
     )
@@ -237,8 +253,49 @@ class ClassicalRuleConfig(ImmutableRecord):
     )
     alias_suffix_merge: bool = True
     local_pronoun_coreference: bool = True
-    low_frequency_support_bonus: float = Field(default=0.12, ge=0.0, le=1.0)
-    typed_path_continuity_bonus: float = Field(default=0.15, ge=0.0, le=1.0)
+    fixed_query_time_weights: ClassicalProjectionWeights = Field(
+        default_factory=ClassicalProjectionWeights
+    )
+    frozen_on: Literal["development_only_before_held_out_reveal"] = (
+        "development_only_before_held_out_reveal"
+    )
+    prohibited_query_time_operations: tuple[str, ...] = (
+        "create_entity",
+        "merge_split",
+        "create_schema_or_predicate",
+        "event_reification",
+        "abstraction_change",
+        "temporal_or_epistemic_qualification",
+    )
+
+    @model_validator(mode="after")
+    def fixed_projection_capabilities_are_exact(self) -> ClassicalRuleConfig:
+        expected = (
+            "create_entity",
+            "merge_split",
+            "create_schema_or_predicate",
+            "event_reification",
+            "abstraction_change",
+            "temporal_or_epistemic_qualification",
+        )
+        if self.prohibited_query_time_operations != expected:
+            raise ValueError("C0 query-time construction prohibition list changed")
+        return self
+
+
+class ClassicalBackendManifest(ImmutableRecord):
+    config_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    backend_name: Literal["spacy-ner-dependency-plus-deterministic-rules-v2"]
+    spacy_library_version: str = Field(min_length=1)
+    model_package: Literal["en_core_web_sm"]
+    model_version: Literal["3.8.0"]
+    pipeline_components: tuple[str, ...]
+
+    @model_validator(mode="after")
+    def required_pipeline_components_exist(self) -> ClassicalBackendManifest:
+        if not {"parser", "ner", "tagger"}.issubset(self.pipeline_components):
+            raise ValueError("production C0 requires spaCy NER, tagging, parsing, and sentences")
+        return self
 
 
 class ClassicalCandidateBackend(Protocol):
@@ -583,6 +640,58 @@ class SpacyCandidateBackend:
             temporal_expressions=base.temporal_expressions,
             dependency_backend=self.backend_name,
         )
+
+
+def load_classical_rule_config(
+    path: Path = Path("configs/study/c0_rules.json"),
+) -> ClassicalRuleConfig:
+    """Load the exact frozen C0 configuration without ignoring audit fields."""
+
+    if path.is_symlink():
+        raise ConditionIntegrityError("C0 rule configuration cannot be a symlink")
+    try:
+        payload = path.resolve(strict=True).read_text(encoding="utf-8")
+        return ClassicalRuleConfig.model_validate_json(payload)
+    except (OSError, ValueError) as exc:
+        raise ConditionIntegrityError("invalid frozen C0 rule configuration") from exc
+
+
+def load_production_classical_builder(
+    config_path: Path = Path("configs/study/c0_rules.json"),
+) -> tuple[ClassicalPreBuilder, ClassicalBackendManifest]:
+    """Load the pinned CPU spaCy pipeline used for scientific C0 execution.
+
+    This function never downloads a model and never falls back silently. The
+    deterministic backend remains available explicitly for bounded unit fixtures,
+    while a scientific run fails closed if its pinned NER/parser package is absent.
+    """
+
+    config = load_classical_rule_config(config_path)
+    try:
+        import spacy
+
+        nlp = spacy.load(config.spacy_model_package)
+        package_version = importlib.metadata.version(config.spacy_model_package)
+    except (ImportError, OSError, ValueError) as exc:
+        raise ConditionIntegrityError(
+            "pinned spaCy C0 model is unavailable; refusing deterministic fallback"
+        ) from exc
+    if package_version != config.spacy_model_version:
+        raise ConditionIntegrityError(
+            "installed spaCy model version differs from the frozen C0 configuration"
+        )
+    backend = SpacyCandidateBackend(nlp)
+    if backend.backend_name != config.backend:
+        raise ConditionIntegrityError("C0 backend identity differs from its frozen configuration")
+    manifest = ClassicalBackendManifest(
+        config_hash=config.content_hash,
+        backend_name=backend.backend_name,
+        spacy_library_version=spacy.__version__,
+        model_package=config.spacy_model_package,
+        model_version=config.spacy_model_version,
+        pipeline_components=tuple(nlp.pipe_names),
+    )
+    return ClassicalPreBuilder(config=config, candidate_backend=backend), manifest
 
 
 def _span_overlaps_any(start: int, end: int, occupied: Sequence[tuple[int, int]]) -> bool:
@@ -1621,7 +1730,7 @@ class ClassicalPreBuilder:
         preontology = inputs.preparation.sealed_preontology
         if preontology is None or preontology.condition is not self.condition:
             raise ConditionIntegrityError("C0 query projection requires its sealed preontology")
-        projection = project_sealed_c0(preontology, inputs)
+        projection = project_sealed_c0(preontology, inputs, rule_config=self.config)
         return ConditionAttemptRecord(
             attempt_id=_identifier("c0-attempt", inputs.context.content_hash),
             condition=self.condition,
@@ -1651,7 +1760,7 @@ def _time_compatibility(assertion: QualifiedAssertion, query_story_time: StoryTi
     left_end = float("inf") if query_end is None else query_end
     right_start = float("-inf") if assertion_start is None else assertion_start
     right_end = float("inf") if assertion_end is None else assertion_end
-    return 0.2 if max(left_start, right_start) <= min(left_end, right_end) else -0.35
+    return 1.0 if max(left_start, right_start) <= min(left_end, right_end) else -1.75
 
 
 def _assertion_endpoints(assertion: QualifiedAssertion) -> frozenset[str]:
@@ -1663,11 +1772,15 @@ def _assertion_endpoints(assertion: QualifiedAssertion) -> frozenset[str]:
 def project_sealed_c0(
     preontology: SealedPreontology,
     inputs: ProduceInputs,
+    *,
+    rule_config: ClassicalRuleConfig | None = None,
 ) -> OntologyProjection:
     """Fixed support-aware projection; every semantic atom must inherit a seal ID."""
 
-    if preontology.construction_seal.sealed_at >= inputs.context.revealed_at:
-        raise ConditionIntegrityError("C0 ontology was not sealed strictly before query reveal")
+    if preontology.construction_seal.sealed_at >= inputs.query_access.accessed_at:
+        raise ConditionIntegrityError("C0 ontology was not sealed before physical query access")
+    config = rule_config or ClassicalRuleConfig()
+    weights = config.fixed_query_time_weights
     source_graph = preontology.draft.instance_graph
     entity_by_id = {item.entity_id: item for item in source_graph.entities}
     event_by_id = {item.event_id: item for item in source_graph.events}
@@ -1699,14 +1812,16 @@ def project_sealed_c0(
             if item in event_by_id
         )
         terms = _words(" ".join(labels))
-        lexical = len(query_terms & terms) / max(1, len(query_terms))
-        support = 0.1 * assertion.confidence
+        lexical = weights.lexical_context * len(query_terms & terms) / max(1, len(query_terms))
+        support = weights.confidence_support * assertion.confidence
         rarity = min(
             (1.0 / evidence_frequency[evidence_id] for evidence_id in assertion.evidence_ids),
             default=0.0,
         )
-        rare_bonus = rarity * 0.12
-        temporal = _time_compatibility(assertion, inputs.context.story_scope)
+        rare_bonus = rarity * weights.low_frequency_support
+        temporal = weights.time_compatibility * _time_compatibility(
+            assertion, inputs.context.story_scope
+        )
         return lexical + support + rare_bonus + temporal, assertion.assertion_id
 
     ranked = sorted(source_graph.assertions, key=lambda item: (-score(item)[0], score(item)[1]))
@@ -1740,7 +1855,11 @@ def project_sealed_c0(
             range(len(remaining)),
             key=lambda index: (
                 score(remaining[index])[0]
-                + (0.15 if selected_node_ids & _assertion_endpoints(remaining[index]) else 0.0),
+                + (
+                    weights.typed_path_continuity
+                    if selected_node_ids & _assertion_endpoints(remaining[index])
+                    else 0.0
+                ),
                 tuple(-ord(char) for char in remaining[index].assertion_id),
             ),
         )
@@ -1801,7 +1920,7 @@ def project_sealed_c0(
             rationale=(
                 "Frozen lexical/time/support/path scoring selected only sealed pre-query objects."
             ),
-            decided_at=inputs.context.revealed_at,
+            decided_at=inputs.query_processing_started_at,
             input_object_ids=tuple(sorted(selected_semantic_ids)),
         ),
     )
@@ -1828,7 +1947,7 @@ def project_sealed_c0(
         evidence_support_status=EvidenceSupportStatus.SUPPORTED,
         temporal_status=TemporalDeterminationStatus.VALID,
         commitment_status=CommitmentCheckStatus.VALID,
-        validated_at=inputs.context.revealed_at,
+        validated_at=inputs.query_processing_started_at,
     )
     projection_id = validation.target_id
     return OntologyProjection(
@@ -1837,6 +1956,7 @@ def project_sealed_c0(
         snapshot_hash=inputs.snapshot.content_hash,
         packet_hash=inputs.packet.content_hash,
         context_hash=inputs.context.content_hash,
+        query_access_event_hash=inputs.query_access.content_hash,
         upper_ontology=preontology.upper_ontology,
         local_schema=preontology.draft.local_schema,
         instance_graph=InstanceGraph(

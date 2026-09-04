@@ -9,9 +9,11 @@ from story_projection_onto.conditions.base import ProduceInputs, RunConditionCon
 from story_projection_onto.conditions.c0 import (
     ClassicalEntityKind,
     ClassicalPreBuilder,
+    ClassicalProjectionWeights,
     ClassicalRuleConfig,
     RuleCandidateBackend,
     SpacyCandidateBackend,
+    load_classical_rule_config,
 )
 from story_projection_onto.contracts import (
     AbstractionLevel,
@@ -22,9 +24,13 @@ from story_projection_onto.contracts import (
     EvidencePacket,
     EvidenceRecord,
     MentionCandidate,
+    OntologyProjection,
     OutputBudgets,
     Passage,
+    PrequeryBarrier,
+    PrequeryPreparationBinding,
     ProvenanceReference,
+    QueryAccessEvent,
     QueryContext,
     RelationPhraseCandidate,
     ReleaseClass,
@@ -36,6 +42,8 @@ from story_projection_onto.contracts import (
     TemporalClue,
     TemporalKind,
     UpperOntology,
+    canonical_sha256,
+    to_model_visible_query,
 )
 from story_projection_onto.evidence import build_evidence_snapshot
 
@@ -219,6 +227,22 @@ def upper() -> UpperOntology:
     )
 
 
+def test_frozen_c0_config_loads_exact_spacy_backend_and_projection_weights() -> None:
+    config = load_classical_rule_config()
+    assert config.backend == "spacy-ner-dependency-plus-deterministic-rules-v2"
+    assert config.spacy_model_package == "en_core_web_sm"
+    assert config.spacy_model_version == "3.8.0"
+    assert config.query_blind is True
+    assert config.fixed_query_time_weights == ClassicalProjectionWeights(
+        lexical_context=1.0,
+        time_compatibility=0.2,
+        confidence_support=0.1,
+        low_frequency_support=0.12,
+        typed_path_continuity=0.15,
+    )
+    assert len(config.prohibited_query_time_operations) == 6
+
+
 def semantic_budgets() -> OutputBudgets:
     return OutputBudgets(
         node_budget=20,
@@ -357,14 +381,53 @@ def test_c0_query_projection_selects_only_sealed_ids_under_equal_final_budgets()
         budgets=final_budgets,
         maximum_input_tokens=10_240,
         maximum_output_tokens=2_048,
+        scored_schema_hash=canonical_sha256(
+            OntologyProjection.model_json_schema(mode="validation")
+        ),
         validator_hash=digest("validator-v1"),
         upper_ontology_hash=upper_ontology.content_hash,
+    )
+    assert preparation.sealed_preontology is not None
+    barrier = PrequeryBarrier(
+        barrier_id="barrier-c0-unit",
+        execution_id="c0-unit-execution",
+        execution_manifest_hash=digest("c0-execution-manifest"),
+        neutral_evidence_artifact_hashes=(digest("c0-neutral-evidence"),),
+        preparation_bindings=(
+            PrequeryPreparationBinding(
+                unit_id=snapshot.world_or_window_id,
+                condition=ConditionName.C0_CLASSICAL_PRE,
+                snapshot_hash=snapshot.content_hash,
+                preparation_hash=preparation.content_hash,
+                lineage_artifact_hash=(
+                    preparation.sealed_preontology.construction_seal.content_hash
+                ),
+                completed_at=preparation.completed_at,
+            ),
+        ),
+        sealed_at=context.revealed_at - timedelta(microseconds=1),
+    )
+    query_access = QueryAccessEvent(
+        access_event_id="access-context-c0",
+        execution_id=barrier.execution_id,
+        query_context_hash=context.content_hash,
+        model_visible_query_hash=to_model_visible_query(context).content_hash,
+        snapshot_hash=snapshot.content_hash,
+        stage_manifest_hash=digest("c0-query-stage"),
+        query_artifact_hash=digest("c0-query-artifact"),
+        prequery_barrier_hash=barrier.content_hash,
+        packet_hash=packet.content_hash,
+        registered_revealed_at=context.revealed_at,
+        accessed_at=context.revealed_at,
     )
     inputs = ProduceInputs(
         preparation=preparation,
         snapshot=snapshot,
         packet=packet,
         context=context,
+        query_access=query_access,
+        prequery_barrier=barrier,
+        query_processing_started_at=context.revealed_at + timedelta(microseconds=1),
         upper_ontology=upper_ontology,
         run_config=config,
     )

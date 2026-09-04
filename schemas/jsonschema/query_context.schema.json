@@ -436,7 +436,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "Runner-side query record; scorer and contrast metadata have no fields here.",
+  "description": "Registered query semantics; ``revealed_at`` is the frozen logical timestamp.\n\nA scientific execution records the later, physical disclosure separately in a\n:class:`QueryAccessEvent`.  Keeping the two records distinct lets sealed benchmark\ncontexts remain immutable while still proving that a newly constructed C0/C1\npreontology or C2 empty inventory existed before the executing controller could\naccess the query.",
   "properties": {
     "abstraction": {
       "$ref": "#/$defs/AbstractionLevel"

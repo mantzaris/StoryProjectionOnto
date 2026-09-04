@@ -15,26 +15,34 @@ from typing import Literal, Self
 from pydantic import AwareDatetime, Field, field_validator, model_validator
 
 from .contracts import (
+    ACTIVE_QUERY_CONSTRUCTION_CONDITIONS,
     CONSTRUCTIVE_OPERATORS,
     AllenRelation,
     ConditionName,
     ConstructionCapabilities,
     ConstructionOperator,
+    DiscoursePosition,
     EvidencePacket,
     EvidenceSnapshot,
     HolderRelativeTime,
     ModelVisibleEvidenceRecord,
+    NarrativeCommitment,
     OntologyDraft,
     OntologyProjection,
     OutputBudgets,
+    PacketMaterializationEvent,
+    QueryAccessEvent,
     QueryContext,
+    RevelationPosition,
     RoleBinding,
     StoryTime,
     TemporalKind,
     UpperOntology,
     ValidityTime,
+    to_model_visible_query,
 )
 from .llm import (
+    ABLATION_QUALIFICATION_REASON,
     ConstructionCapability,
     FixedSelectCapabilityError,
     FixedSelectOutputAudit,
@@ -80,6 +88,7 @@ class ValidationCode(StrEnum):
     UNSEALED_LINEAGE_ID = "unsealed_lineage_id"
     CROSS_SEED_LINEAGE = "cross_seed_lineage"
     FIXED_SELECT_CAPABILITY = "fixed_select_capability"
+    ABLATION_QUALIFICATION_PRESENT = "ablation_qualification_present"
     MULTIPLE_REPAIRS = "multiple_repairs"
     INVALID_REPAIR_PARENT = "invalid_repair_parent"
     BUDGET_ACCOUNTING_MISMATCH = "budget_accounting_mismatch"
@@ -720,6 +729,65 @@ def validate_draft_structure(
     graph_ids = referent_ids | set(assertion_by_id)
     schema_ids = {draft.local_schema.schema_id} | set(type_by_id) | set(predicate_by_id)
     targetable_ids = graph_ids | schema_ids
+
+    qualification_ablation = (
+        capabilities == ConstructionCapabilities.active_without_temporal_epistemic()
+    )
+    if qualification_ablation:
+        if graph.proposition_contents:
+            add(
+                ValidationCode.ABLATION_QUALIFICATION_PRESENT,
+                "instance_graph.proposition_contents",
+                "A-NoTemporalEpistemic cannot emit epistemic proposition content",
+                *(item.proposition_content_id for item in graph.proposition_contents),
+            )
+
+        def is_ablated_extent(extent: StoryTime | ValidityTime) -> bool:
+            return (
+                extent.kind is TemporalKind.UNKNOWN
+                and extent.reason == ABLATION_QUALIFICATION_REASON
+            )
+
+        for entity in graph.entities:
+            if not is_ablated_extent(entity.temporal_state):
+                add(
+                    ValidationCode.ABLATION_QUALIFICATION_PRESENT,
+                    f"instance_graph.entities.{entity.entity_id}.temporal_state",
+                    "A-NoTemporalEpistemic cannot supply entity temporal state",
+                    entity.entity_id,
+                )
+        for event in graph.events:
+            if not is_ablated_extent(event.occurrence_time):
+                add(
+                    ValidationCode.ABLATION_QUALIFICATION_PRESENT,
+                    f"instance_graph.events.{event.event_id}.occurrence_time",
+                    "A-NoTemporalEpistemic cannot supply event occurrence time",
+                    event.event_id,
+                )
+        for assertion in graph.assertions:
+            scope = assertion.temporal_scope
+            temporal_absent = (
+                is_ablated_extent(scope.story_time)
+                and is_ablated_extent(scope.validity_time)
+                and scope.discourse_position == DiscoursePosition(passage_order=0)
+                and scope.revelation_position
+                == RevelationPosition(
+                    revelation_order=0,
+                    label="qualification-ablated",
+                )
+            )
+            epistemic_absent = (
+                assertion.proposition_content_id is None
+                and assertion.epistemic_scope is None
+                and assertion.narrative_commitment is NarrativeCommitment.UNKNOWN
+            )
+            if not temporal_absent or not epistemic_absent:
+                add(
+                    ValidationCode.ABLATION_QUALIFICATION_PRESENT,
+                    f"instance_graph.assertions.{assertion.assertion_id}",
+                    "A-NoTemporalEpistemic cannot supply temporal or epistemic qualification",
+                    assertion.assertion_id,
+                )
 
     evidence_by_id = {item.evidence_id: item for item in evidence}
     mention_by_id = {
@@ -1405,7 +1473,7 @@ def validate_construction_lineage(
                 )
             )
 
-    elif audit.condition is LLMCondition.C2_LLM_QUERY:
+    elif audit.condition in ACTIVE_QUERY_CONSTRUCTION_CONDITIONS:
         if audit.prequery_inventory_recorded_at is None:
             diagnostics.append(
                 ValidationDiagnostic(
@@ -1512,17 +1580,21 @@ def validate_projection_lineage(
     projection: OntologyProjection,
     context: QueryContext,
     *,
+    query_access: QueryAccessEvent,
+    packet_materialization: PacketMaterializationEvent | None = None,
     request_created_at: AwareDatetime | None,
     seed_block: int,
     sealed_seed_block: int | None = None,
 ) -> BoundaryValidationReport:
     """Adapt a full projection's seals/certificates to the timing-lineage gate."""
 
-    if projection.condition not in {
-        ConditionName.C1_LLM_PRE,
-        ConditionName.C2_LLM_QUERY,
-        ConditionName.A_FIXED_SELECT,
-    }:
+    if projection.condition not in (
+        {
+            ConditionName.C1_LLM_PRE,
+            ConditionName.A_FIXED_SELECT,
+        }
+        | ACTIVE_QUERY_CONSTRUCTION_CONDITIONS
+    ):
         raise ValueError("GPU lineage adapter accepts only C1, C2, and A-FixedSelect")
 
     diagnostics: list[ValidationDiagnostic] = []
@@ -1532,6 +1604,72 @@ def validate_projection_lineage(
                 code=ValidationCode.CONTEXT_LINEAGE_MISMATCH,
                 path="projection.context_hash",
                 message="projection does not cite the supplied query context",
+            )
+        )
+
+    if query_access.query_context_hash != context.content_hash:
+        diagnostics.append(
+            ValidationDiagnostic(
+                code=ValidationCode.CONTEXT_LINEAGE_MISMATCH,
+                path="query_access.query_context_hash",
+                message="query-access event cites a different query context",
+            )
+        )
+    if query_access.model_visible_query_hash != to_model_visible_query(context).content_hash:
+        diagnostics.append(
+            ValidationDiagnostic(
+                code=ValidationCode.CONTEXT_LINEAGE_MISMATCH,
+                path="query_access.model_visible_query_hash",
+                message="query-access event cites different model-visible query semantics",
+            )
+        )
+    if projection.query_access_event_hash != query_access.content_hash:
+        diagnostics.append(
+            ValidationDiagnostic(
+                code=ValidationCode.LINEAGE_HASH_MISMATCH,
+                path="projection.query_access_event_hash",
+                message="projection does not cite the supplied query-access event",
+            )
+        )
+    if query_access.snapshot_hash != projection.snapshot_hash:
+        diagnostics.append(
+            ValidationDiagnostic(
+                code=ValidationCode.LINEAGE_HASH_MISMATCH,
+                path="query_access.snapshot_hash",
+                message="query-access event cites a different evidence snapshot",
+            )
+        )
+    bound_packet_hash = query_access.packet_hash
+    if bound_packet_hash is None and packet_materialization is not None:
+        if (
+            packet_materialization.execution_id != query_access.execution_id
+            or packet_materialization.query_access_event_hash != query_access.content_hash
+            or packet_materialization.snapshot_hash != query_access.snapshot_hash
+            or packet_materialization.started_at < query_access.accessed_at
+        ):
+            diagnostics.append(
+                ValidationDiagnostic(
+                    code=ValidationCode.LINEAGE_HASH_MISMATCH,
+                    path="packet_materialization",
+                    message="packet materialization does not descend from query access",
+                )
+            )
+        else:
+            bound_packet_hash = packet_materialization.packet_hash
+    if bound_packet_hash != projection.packet_hash:
+        diagnostics.append(
+            ValidationDiagnostic(
+                code=ValidationCode.LINEAGE_HASH_MISMATCH,
+                path="query_access.packet_hash",
+                message="query access/materialization cites a different evidence packet",
+            )
+        )
+    if query_access.registered_revealed_at != context.revealed_at:
+        diagnostics.append(
+            ValidationDiagnostic(
+                code=ValidationCode.CONTEXT_LINEAGE_MISMATCH,
+                path="query_access.registered_revealed_at",
+                message="query-access event and registered reveal timestamp differ",
             )
         )
 
@@ -1573,28 +1711,40 @@ def validate_projection_lineage(
                 message="certificate packet hash differs from the projection packet hash",
             )
         )
-    if certificate is not None and certificate.query_revealed_at != context.revealed_at:
+    if certificate is not None and (
+        certificate.query_revealed_at != query_access.accessed_at
+        or certificate.query_access_event_hash != query_access.content_hash
+        or certificate.stage_manifest_hash != query_access.stage_manifest_hash
+        or certificate.prequery_barrier_hash != query_access.prequery_barrier_hash
+    ):
         diagnostics.append(
             ValidationDiagnostic(
                 code=ValidationCode.CONTEXT_LINEAGE_MISMATCH,
                 path="construction_certificate.query_revealed_at",
-                message="certificate and context query-reveal timestamps differ",
+                message="certificate and physical query-access lineage differ",
             )
         )
 
     construction_times = tuple(
         decision.decided_at
         for decision in projection.decisions
-        if (
-            projection.condition is not ConditionName.C1_LLM_PRE
-            or decision.operator in CONSTRUCTIVE_OPERATORS
-        )
+        if decision.operator in CONSTRUCTIVE_OPERATORS
     )
     selection_times = tuple(
         decision.decided_at
         for decision in projection.decisions
         if decision.operator not in CONSTRUCTIVE_OPERATORS
     )
+    if projection.condition is ConditionName.C1_LLM_PRE and any(
+        timestamp <= query_access.accessed_at for timestamp in selection_times
+    ):
+        diagnostics.append(
+            ValidationDiagnostic(
+                code=ValidationCode.QUERY_DECISION_BEFORE_REVEAL,
+                path="projection.decisions",
+                message="C1 query-time projection decision did not follow physical query access",
+            )
+        )
     prequery_inventory_ids: tuple[str, ...] = ()
     if inventory is not None:
         prequery_inventory_ids = tuple(
@@ -1615,11 +1765,11 @@ def validate_projection_lineage(
         if certificate is not None
         else seal.sealed_at
         if seal is not None
-        else context.revealed_at
+        else query_access.accessed_at
     )
     audit = ConstructionLineageAudit(
         condition=projection.condition,
-        query_revealed_at=context.revealed_at,
+        query_revealed_at=query_access.accessed_at,
         request_created_at=request_created_at,
         completed_at=completed_at,
         prequery_seal_completed_at=seal.sealed_at if seal is not None else None,

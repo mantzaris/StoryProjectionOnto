@@ -74,8 +74,19 @@ def verify_snapshot(
     configured = json.loads(model_configuration_path.read_text(encoding="utf-8"))
     revision = configured["revision"]
     repository = configured["repository"]
+    if not isinstance(repository, str) or repository.count("/") != 1:
+        raise ValueError("model repository must be one owner/name identity")
+    if not isinstance(revision, str) or len(revision) != 40:
+        raise ValueError("model revision must be one immutable 40-character commit")
     if snapshot.name != revision:
         raise ValueError("snapshot directory does not match the pinned revision")
+
+    expected_repository_directory = "models--" + repository.replace("/", "--")
+    if (
+        snapshot.parent.name != "snapshots"
+        or snapshot.parent.parent.name != expected_repository_directory
+    ):
+        raise ValueError("snapshot path does not match the configured model repository")
 
     model_cache_directories = tuple(
         path
@@ -84,10 +95,19 @@ def verify_snapshot(
     )
     if len(model_cache_directories) != 1:
         raise ValueError("shared cache must contain exactly one model repository")
+    if model_cache_directories[0].name != expected_repository_directory:
+        raise ValueError("shared cache model repository differs from configuration")
     snapshots = tuple(
-        path for path in (model_cache_directories[0] / "snapshots").iterdir() if path.is_dir()
+        sorted(
+            (
+                path
+                for path in (model_cache_directories[0] / "snapshots").iterdir()
+                if path.is_dir()
+            ),
+            key=lambda path: path.name,
+        )
     )
-    if len(snapshots) != 1 or snapshots[0].name != revision:
+    if len(snapshots) != 1 or snapshots[0].resolve(strict=True) != snapshot:
         raise ValueError("shared cache must contain exactly one pinned snapshot")
     incomplete = tuple(shared_cache.rglob("*.incomplete"))
     if incomplete:

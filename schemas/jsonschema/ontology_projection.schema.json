@@ -139,6 +139,11 @@
           "title": "Decisions",
           "type": "array"
         },
+        "generation_lineage_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Generation Lineage Hash",
+          "type": "string"
+        },
         "inherited_construction_seal_hash": {
           "anyOf": [
             {
@@ -151,6 +156,11 @@
           ],
           "default": null,
           "title": "Inherited Construction Seal Hash"
+        },
+        "normalized_draft_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Normalized Draft Hash",
+          "type": "string"
         },
         "packet_hash": {
           "pattern": "^[0-9a-f]{64}$",
@@ -170,6 +180,16 @@
           "default": null,
           "title": "Pre Query Inventory Hash"
         },
+        "prequery_barrier_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Prequery Barrier Hash",
+          "type": "string"
+        },
+        "query_access_event_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Query Access Event Hash",
+          "type": "string"
+        },
         "query_context_hash": {
           "pattern": "^[0-9a-f]{64}$",
           "title": "Query Context Hash",
@@ -178,6 +198,11 @@
         "query_revealed_at": {
           "format": "date-time",
           "title": "Query Revealed At",
+          "type": "string"
+        },
+        "raw_output_artifact_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Raw Output Artifact Hash",
           "type": "string"
         },
         "schema_version": {
@@ -190,6 +215,16 @@
           "pattern": "^[0-9a-f]{64}$",
           "title": "Snapshot Hash",
           "type": "string"
+        },
+        "stage_manifest_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Stage Manifest Hash",
+          "type": "string"
+        },
+        "validation_bundle_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Validation Bundle Hash",
+          "type": "string"
         }
       },
       "required": [
@@ -198,6 +233,13 @@
         "snapshot_hash",
         "packet_hash",
         "query_context_hash",
+        "query_access_event_hash",
+        "stage_manifest_hash",
+        "prequery_barrier_hash",
+        "generation_lineage_hash",
+        "raw_output_artifact_hash",
+        "normalized_draft_hash",
+        "validation_bundle_hash",
         "query_revealed_at",
         "completed_at",
         "decisions"
@@ -2386,11 +2428,37 @@
       "title": "Decisions",
       "type": "array"
     },
+    "generation_lineage_hash": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Generation Lineage Hash"
+    },
     "instance_graph": {
       "$ref": "#/$defs/InstanceGraph"
     },
     "local_schema": {
       "$ref": "#/$defs/LocalContextSchema"
+    },
+    "normalized_draft_hash": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Normalized Draft Hash"
     },
     "omissions": {
       "default": [],
@@ -2434,6 +2502,24 @@
       "title": "Projection Id",
       "type": "string"
     },
+    "query_access_event_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Query Access Event Hash",
+      "type": "string"
+    },
+    "raw_output_artifact_hash": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Raw Output Artifact Hash"
+    },
     "release_class": {
       "$ref": "#/$defs/ReleaseClass"
     },
@@ -2458,6 +2544,19 @@
     "upper_ontology": {
       "$ref": "#/$defs/UpperOntology"
     },
+    "validation_bundle_hash": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Validation Bundle Hash"
+    },
     "validation_records": {
       "items": {
         "$ref": "#/$defs/ValidationRecord"
@@ -2472,6 +2571,7 @@
     "snapshot_hash",
     "packet_hash",
     "context_hash",
+    "query_access_event_hash",
     "upper_ontology",
     "local_schema",
     "instance_graph",

@@ -730,6 +730,58 @@ class Event(ImmutableRecord):
         return self
 
 
+class NoTemporalEpistemicEntity(ImmutableRecord):
+    """Entity shape exposed only to the qualification-removal ablation.
+
+    The absence of ``temporal_state`` is methodological, not an optional model
+    omission.  ``extra='forbid'`` on :class:`ImmutableRecord` mechanically rejects a
+    model that attempts to smuggle the ordinary temporal field into this grammar.
+    """
+
+    entity_id: Identifier
+    label: NonEmptyText
+    supported_mention_candidate_ids: tuple[Identifier, ...]
+    aliases: tuple[str, ...] = ()
+    contextual_type_id: Identifier
+    contextual_role: NonEmptyText
+    abstraction: AbstractionLevel
+    uncertainty: ExplicitValueState
+    confidence: UnitInterval
+    evidence_ids: tuple[Identifier, ...]
+    description: NonEmptyText
+    description_assertion_ids: tuple[Identifier, ...]
+
+    @model_validator(mode="after")
+    def require_entity_support(self) -> Self:
+        if not self.supported_mention_candidate_ids or not self.evidence_ids:
+            raise ValueError("entities require mention and evidence support")
+        if not self.description_assertion_ids:
+            raise ValueError("entity descriptions require supporting assertion IDs")
+        return self
+
+
+class NoTemporalEpistemicEvent(ImmutableRecord):
+    """Event output with occurrence time deliberately absent from the grammar."""
+
+    event_id: Identifier
+    label: NonEmptyText
+    contextual_type_id: Identifier
+    reification_reason: NonEmptyText
+    uncertainty: ExplicitValueState
+    confidence: UnitInterval
+    evidence_ids: tuple[Identifier, ...]
+    description: NonEmptyText
+    description_assertion_ids: tuple[Identifier, ...]
+
+    @model_validator(mode="after")
+    def require_event_support(self) -> Self:
+        if not self.evidence_ids:
+            raise ValueError("events require evidence support")
+        if not self.description_assertion_ids:
+            raise ValueError("event descriptions require supporting assertion IDs")
+        return self
+
+
 class RoleBinding(ImmutableRecord):
     role: Identifier
     object_id: Identifier
@@ -841,6 +893,63 @@ class QualifiedAssertion(ImmutableRecord):
         return self
 
 
+class NoTemporalEpistemicAssertion(ImmutableRecord):
+    """Unqualified assertion emitted by ``A-NoTemporalEpistemic``.
+
+    Temporal scope, proposition-content linkage, epistemic scope, and narrative
+    commitment are intentionally not fields of this model.  This makes the ablation
+    a real removal from constrained decoding rather than a prompt-only suggestion.
+    """
+
+    assertion_id: Identifier
+    predicate_id: Identifier
+    subject_id: Identifier | None = None
+    object_id: Identifier | None = None
+    roles: tuple[RoleBinding, ...] = ()
+    direction: Literal["forward", "inverse"] = "forward"
+    confidence: UnitInterval
+    evidence_ids: tuple[Identifier, ...]
+    provenance: tuple[ProvenanceReference, ...]
+    contextual_relevance: UnitInterval
+    why_matters: NonEmptyText
+    why_matters_evidence_ids: tuple[Identifier, ...]
+
+    @model_validator(mode="after")
+    def validate_assertion_shape_and_support(self) -> Self:
+        binary = self.subject_id is not None and self.object_id is not None
+        partial_binary = (self.subject_id is None) != (self.object_id is None)
+        if partial_binary or binary == bool(self.roles):
+            raise ValueError("assertion requires exactly one binary or n-ary shape")
+        if self.roles and len(self.roles) < 2:
+            raise ValueError("n-ary assertions require at least two roles")
+        if not self.evidence_ids or not self.provenance:
+            raise ValueError("assertions require evidence and provenance")
+        if not self.why_matters_evidence_ids:
+            raise ValueError("why_matters requires explicit evidence support")
+        if not set(self.why_matters_evidence_ids).issubset(self.evidence_ids):
+            raise ValueError("why_matters evidence must be assertion evidence")
+        if any(item.evidence_id not in self.evidence_ids for item in self.provenance):
+            raise ValueError("all provenance references must name assertion evidence")
+        return self
+
+
+class NoTemporalEpistemicInstanceGraph(ImmutableRecord):
+    """Graph grammar with no proposition-content or qualification surface."""
+
+    entities: tuple[NoTemporalEpistemicEntity, ...]
+    events: tuple[NoTemporalEpistemicEvent, ...]
+    assertions: tuple[NoTemporalEpistemicAssertion, ...]
+
+    @model_validator(mode="after")
+    def graph_object_ids_are_unique(self) -> Self:
+        object_ids = [item.entity_id for item in self.entities]
+        object_ids.extend(item.event_id for item in self.events)
+        object_ids.extend(item.assertion_id for item in self.assertions)
+        if len(object_ids) != len(set(object_ids)):
+            raise ValueError("instance graph object IDs must be globally unique")
+        return self
+
+
 class ValidationStatus(StrEnum):
     ACCEPTED = "accepted"
     REJECTED = "rejected"
@@ -903,7 +1012,14 @@ class EpistemicViewpoint(ImmutableRecord):
 
 
 class QueryContext(ImmutableRecord):
-    """Runner-side query record; scorer and contrast metadata have no fields here."""
+    """Registered query semantics; ``revealed_at`` is the frozen logical timestamp.
+
+    A scientific execution records the later, physical disclosure separately in a
+    :class:`QueryAccessEvent`.  Keeping the two records distinct lets sealed benchmark
+    contexts remain immutable while still proving that a newly constructed C0/C1
+    preontology or C2 empty inventory existed before the executing controller could
+    access the query.
+    """
 
     context_id: Identifier
     wording: NonEmptyText
@@ -917,6 +1033,105 @@ class QueryContext(ImmutableRecord):
     revealed_at: AwareDatetime
 
 
+class PrequeryPreparationBinding(ImmutableRecord):
+    """One preparation included in an execution's query-access barrier."""
+
+    unit_id: Identifier
+    condition: ConditionName
+    seed_block: NonNegativeInt | None = None
+    snapshot_hash: Sha256Digest
+    preparation_hash: Sha256Digest
+    lineage_artifact_hash: Sha256Digest
+    completed_at: AwareDatetime
+
+    @model_validator(mode="after")
+    def seed_matches_condition(self) -> Self:
+        if self.condition is ConditionName.C0_CLASSICAL_PRE:
+            if self.seed_block is not None:
+                raise ValueError("C0 prequery barrier bindings cannot carry an LLM seed")
+        elif self.seed_block is None:
+            raise ValueError("LLM prequery barrier bindings require their seed block")
+        return self
+
+
+class PrequeryBarrier(ImmutableRecord):
+    """Seal proving all declared preparation artifacts existed before query access."""
+
+    barrier_id: Identifier
+    execution_id: Identifier
+    execution_manifest_hash: Sha256Digest
+    neutral_evidence_artifact_hashes: tuple[Sha256Digest, ...]
+    preparation_bindings: tuple[PrequeryPreparationBinding, ...]
+    sealed_at: AwareDatetime
+
+    @model_validator(mode="after")
+    def barrier_is_complete_and_unique(self) -> Self:
+        if not self.neutral_evidence_artifact_hashes:
+            raise ValueError("prequery barrier requires neutral evidence artifacts")
+        if len(self.neutral_evidence_artifact_hashes) != len(
+            set(self.neutral_evidence_artifact_hashes)
+        ):
+            raise ValueError("prequery barrier evidence hashes must be unique")
+        if not self.preparation_bindings:
+            raise ValueError("prequery barrier requires condition preparations")
+        keys = tuple(
+            (item.unit_id, item.condition, item.seed_block)
+            for item in self.preparation_bindings
+        )
+        if len(keys) != len(set(keys)):
+            raise ValueError("prequery barrier preparation bindings must be unique")
+        if any(item.completed_at >= self.sealed_at for item in self.preparation_bindings):
+            raise ValueError("every preparation must strictly precede its prequery barrier seal")
+        return self
+
+
+class QueryAccessEvent(ImmutableRecord):
+    """Hash-bound evidence that one controller obtained a registered query.
+
+    The model-visible query contains none of these audit fields.  The event binds the
+    frozen semantic query, evidence boundary, and execution batch to a wall-clock
+    access time.  It must be persisted before any query-time production starts.
+    """
+
+    access_event_id: Identifier
+    execution_id: Identifier
+    query_context_hash: Sha256Digest
+    model_visible_query_hash: Sha256Digest
+    snapshot_hash: Sha256Digest
+    stage_manifest_hash: Sha256Digest
+    query_artifact_hash: Sha256Digest
+    prequery_barrier_hash: Sha256Digest
+    packet_hash: Sha256Digest | None = None
+    registered_revealed_at: AwareDatetime
+    accessed_at: AwareDatetime
+
+    @model_validator(mode="after")
+    def access_cannot_precede_registered_reveal(self) -> Self:
+        if self.accessed_at < self.registered_revealed_at:
+            raise ValueError("physical query access cannot predate the registered reveal")
+        return self
+
+
+class PacketMaterializationEvent(ImmutableRecord):
+    """Post-access receipt for a query-dependent evidence packet, such as FTS/BM25."""
+
+    materialization_event_id: Identifier
+    execution_id: Identifier
+    query_access_event_hash: Sha256Digest
+    snapshot_hash: Sha256Digest
+    packet_hash: Sha256Digest
+    retrieval_method: RetrievalMethod
+    retrieval_config_hash: Sha256Digest
+    started_at: AwareDatetime
+    completed_at: AwareDatetime
+
+    @model_validator(mode="after")
+    def materialization_has_forward_time(self) -> Self:
+        if self.completed_at < self.started_at:
+            raise ValueError("packet materialization cannot complete before it starts")
+        return self
+
+
 class ModelVisibleQueryContext(ImmutableRecord):
     """Exact query-time allowlist passed to C2 and A-FixedSelect."""
 
@@ -927,6 +1142,25 @@ class ModelVisibleQueryContext(ImmutableRecord):
     spoiler_horizon: SpoilerHorizon
     viewpoint: EpistemicViewpoint | None = None
     abstraction: AbstractionLevel
+    budgets: OutputBudgets
+
+
+GENERIC_CONSTRUCTION_REQUEST = (
+    "Construct a compact evidence-grounded ontology from the complete supplied packet."
+)
+
+
+class ModelVisibleGenericConstructionContext(ImmutableRecord):
+    """Query-free request used only by the registered ``A-NoContext`` ablation.
+
+    The output budgets remain visible so the one-switch comparison retains the
+    common resource envelope.  No query wording, semantic lens, target, story
+    scope, spoiler horizon, viewpoint, or abstraction field exists in this type.
+    """
+
+    generic_request: Literal[
+        "Construct a compact evidence-grounded ontology from the complete supplied packet."
+    ] = GENERIC_CONSTRUCTION_REQUEST
     budgets: OutputBudgets
 
 
@@ -943,10 +1177,23 @@ MODEL_VISIBLE_QUERY_FIELDS = frozenset(
     }
 )
 
+MODEL_VISIBLE_GENERIC_CONTEXT_FIELDS = frozenset({"generic_request", "budgets"})
+
 
 def to_model_visible_query(context: QueryContext) -> ModelVisibleQueryContext:
     values = {name: getattr(context, name) for name in MODEL_VISIBLE_QUERY_FIELDS}
     return ModelVisibleQueryContext(**values)
+
+
+def to_model_visible_context_for_condition(
+    context: QueryContext,
+    condition: ConditionName,
+) -> ModelVisibleQueryContext | ModelVisibleGenericConstructionContext:
+    """Expose registered query fields unless the no-context switch is active."""
+
+    if condition is ConditionName.A_NO_CONTEXT:
+        return ModelVisibleGenericConstructionContext(budgets=context.budgets)
+    return to_model_visible_query(context)
 
 
 class ConstructionOperator(StrEnum):
@@ -1037,6 +1284,20 @@ class ConstructionCapabilities(ImmutableRecord):
         )
 
     @classmethod
+    def active_without_temporal_epistemic(cls) -> ConstructionCapabilities:
+        """One-switch ablation: construction remains active but qualification is forbidden."""
+
+        return cls(
+            create_entities=True,
+            merge_split=True,
+            create_schema_predicates=True,
+            reify_events=True,
+            change_abstraction=True,
+            add_temporal_qualification=False,
+            add_epistemic_qualification=False,
+        )
+
+    @classmethod
     def fixed_selection(cls) -> ConstructionCapabilities:
         return cls(
             create_entities=False,
@@ -1101,6 +1362,18 @@ class OntologyDraft(ImmutableRecord):
     budget_accounting: BudgetAccounting
 
 
+class NoTemporalEpistemicOntologyDraft(ImmutableRecord):
+    """Exact constrained-decoding surface for ``A-NoTemporalEpistemic``."""
+
+    contextual_interpretation: NonEmptyText
+    local_schema: LocalContextSchema
+    instance_graph: NoTemporalEpistemicInstanceGraph
+    decisions: tuple[OntologyDecision, ...]
+    omissions: tuple[OmissionRecord, ...] = ()
+    uncertainty_and_abstentions: tuple[NonEmptyText, ...] = ()
+    budget_accounting: BudgetAccounting
+
+
 class ConstructionSeal(ImmutableRecord):
     seal_id: Identifier
     condition: ConditionName
@@ -1159,6 +1432,13 @@ class ConstructionCertificate(ImmutableRecord):
     snapshot_hash: Sha256Digest
     packet_hash: Sha256Digest
     query_context_hash: Sha256Digest
+    query_access_event_hash: Sha256Digest
+    stage_manifest_hash: Sha256Digest
+    prequery_barrier_hash: Sha256Digest
+    generation_lineage_hash: Sha256Digest
+    raw_output_artifact_hash: Sha256Digest
+    normalized_draft_hash: Sha256Digest
+    validation_bundle_hash: Sha256Digest
     query_revealed_at: AwareDatetime
     completed_at: AwareDatetime
     decisions: tuple[OntologyDecision, ...]
@@ -1171,10 +1451,12 @@ class ConstructionCertificate(ImmutableRecord):
             ConditionName.A_FIXED_SELECT
         }:
             raise ValueError("construction certificates are query-time C2/fixed-select records")
-        if self.completed_at < self.query_revealed_at:
-            raise ValueError("construction completion predates query reveal")
-        if any(decision.decided_at < self.query_revealed_at for decision in self.decisions):
-            raise ValueError("every query-time decision must follow query reveal")
+        if self.completed_at <= self.query_revealed_at:
+            raise ValueError("construction completion must strictly follow query reveal")
+        if any(decision.decided_at <= self.query_revealed_at for decision in self.decisions):
+            raise ValueError("every query-time decision must strictly follow query reveal")
+        if any(decision.decided_at > self.completed_at for decision in self.decisions):
+            raise ValueError("a query-time decision cannot follow construction completion")
         if self.condition in ACTIVE_QUERY_CONSTRUCTION_CONDITIONS:
             if self.pre_query_inventory_hash is None:
                 raise ValueError("C2 certificate requires its empty pre-query inventory hash")
@@ -1226,6 +1508,11 @@ class OntologyProjection(ImmutableRecord):
     snapshot_hash: Sha256Digest
     packet_hash: Sha256Digest
     context_hash: Sha256Digest
+    query_access_event_hash: Sha256Digest
+    generation_lineage_hash: Sha256Digest | None = None
+    raw_output_artifact_hash: Sha256Digest | None = None
+    normalized_draft_hash: Sha256Digest | None = None
+    validation_bundle_hash: Sha256Digest | None = None
     upper_ontology: UpperOntology
     local_schema: LocalContextSchema
     instance_graph: InstanceGraph
@@ -1244,6 +1531,29 @@ class OntologyProjection(ImmutableRecord):
     @model_validator(mode="after")
     def validate_projection_lineage_and_budget(self) -> Self:
         self.budget_accounting.validate_against(self.budgets)
+        if self.construction_certificate is not None:
+            certificate = self.construction_certificate
+            if certificate.snapshot_hash != self.snapshot_hash:
+                raise ValueError("projection and construction-certificate snapshots differ")
+            if certificate.packet_hash != self.packet_hash:
+                raise ValueError("projection and construction-certificate packets differ")
+            if certificate.query_context_hash != self.context_hash:
+                raise ValueError("projection and construction-certificate contexts differ")
+            if certificate.query_access_event_hash != self.query_access_event_hash:
+                raise ValueError("projection and certificate query-access events differ")
+            certificate_bindings = (
+                (certificate.generation_lineage_hash, self.generation_lineage_hash),
+                (certificate.raw_output_artifact_hash, self.raw_output_artifact_hash),
+                (certificate.normalized_draft_hash, self.normalized_draft_hash),
+                (certificate.validation_bundle_hash, self.validation_bundle_hash),
+            )
+            if any(left != right for left, right in certificate_bindings):
+                raise ValueError("projection and certificate generation lineage differ")
+        if (
+            self.validation_bundle_hash is not None
+            and self.validation_bundle_hash != canonical_sha256(self.validation_records)
+        ):
+            raise ValueError("projection validation bundle hash is incorrect")
         if self.condition in {
             ConditionName.C0_CLASSICAL_PRE,
             ConditionName.C1_LLM_PRE,
@@ -1258,17 +1568,46 @@ class OntologyProjection(ImmutableRecord):
                 raise ValueError("C0/C1 projections cannot carry C2 query-time lineage")
             if self.parent_projection_ref is not None:
                 raise ValueError("C0/C1 cannot use a C2 parent projection")
+            generation_fields = (
+                self.generation_lineage_hash,
+                self.raw_output_artifact_hash,
+                self.normalized_draft_hash,
+                self.validation_bundle_hash,
+            )
+            if self.condition is ConditionName.C0_CLASSICAL_PRE and any(
+                item is not None for item in generation_fields
+            ):
+                raise ValueError("C0 cannot claim LLM generation lineage")
+            if self.condition is ConditionName.C1_LLM_PRE and any(
+                item is None for item in generation_fields
+            ):
+                raise ValueError("C1 projection requires its preconstruction generation lineage")
         elif self.condition in ACTIVE_QUERY_CONSTRUCTION_CONDITIONS:
             if self.pre_query_inventory is None or self.construction_certificate is None:
                 raise ValueError("C2 requires empty inventory and construction certificate")
             if self.construction_seal is not None:
                 raise ValueError("C2 cannot carry a preconstructed ontology seal")
+            if any(
+                item is None
+                for item in (
+                    self.generation_lineage_hash,
+                    self.raw_output_artifact_hash,
+                    self.normalized_draft_hash,
+                    self.validation_bundle_hash,
+                )
+            ):
+                raise ValueError("C2 projection requires validated generation lineage")
             if self.pre_query_inventory.snapshot_hash != self.snapshot_hash:
                 raise ValueError("projection and empty-inventory snapshots differ")
             if self.pre_query_inventory.condition is not self.condition:
                 raise ValueError("projection and empty-inventory conditions differ")
             if self.construction_certificate.condition is not self.condition:
                 raise ValueError("C2 projection and certificate conditions differ")
+            if (
+                self.construction_certificate.query_access_event_hash
+                != self.query_access_event_hash
+            ):
+                raise ValueError("C2 certificate cites a different query-access event")
             if self.pre_query_inventory.content_hash != (
                 self.construction_certificate.pre_query_inventory_hash
             ):
@@ -1290,6 +1629,21 @@ class OntologyProjection(ImmutableRecord):
                 raise ValueError("projection and inherited-seal snapshots differ")
             if self.pre_query_inventory is not None:
                 raise ValueError("A-FixedSelect cannot claim a C2 empty inventory")
+            if any(
+                item is None
+                for item in (
+                    self.generation_lineage_hash,
+                    self.raw_output_artifact_hash,
+                    self.normalized_draft_hash,
+                    self.validation_bundle_hash,
+                )
+            ):
+                raise ValueError("A-FixedSelect requires validated generation lineage")
+            if (
+                self.construction_certificate.query_access_event_hash
+                != self.query_access_event_hash
+            ):
+                raise ValueError("A-FixedSelect certificate cites a different query-access event")
             if self.parent_projection_ref is not None:
                 raise ValueError("A-FixedSelect cannot inherit a C2 parent projection")
             if self.construction_certificate.inherited_construction_seal_hash != (
@@ -1607,6 +1961,142 @@ class RuntimeIdentifiers(ImmutableRecord):
     decoding_config_hash: Sha256Digest
 
 
+def draft_semantics_hash(draft: OntologyDraft) -> str:
+    """Hash model semantics while excluding runner-owned timing/token metadata."""
+
+    payload = draft.model_dump(mode="python", exclude={"content_hash"})
+    for decision in payload["decisions"]:
+        decision.pop("content_hash", None)
+        decision.pop("decided_at", None)
+    accounting = payload["budget_accounting"]
+    accounting.pop("content_hash", None)
+    accounting.pop("input_tokens", None)
+    accounting.pop("output_tokens", None)
+    return canonical_sha256(payload)
+
+
+def normalize_generation_metadata(
+    raw_draft: OntologyDraft,
+    *,
+    decision_recorded_at: datetime,
+    input_tokens: int,
+    output_tokens: int,
+) -> OntologyDraft:
+    """Replace only untrusted runtime metadata with controller observations."""
+
+    payload = raw_draft.model_dump(mode="python", exclude={"content_hash"})
+    for decision in payload["decisions"]:
+        decision.pop("content_hash", None)
+        decision["decided_at"] = decision_recorded_at
+    accounting = payload["budget_accounting"]
+    accounting.pop("content_hash", None)
+    accounting["input_tokens"] = input_tokens
+    accounting["output_tokens"] = output_tokens
+    normalized = OntologyDraft.model_validate(payload)
+    if draft_semantics_hash(raw_draft) != draft_semantics_hash(normalized):
+        raise ValueError("generation metadata normalization changed ontology semantics")
+    return normalized
+
+
+class ValidatedGeneration(ImmutableRecord):
+    """Trusted envelope around one parsed and deterministically validated LLM output.
+
+    ``raw_parsed_draft`` preserves exactly what the structured decoder returned.
+    ``draft`` may differ only in runner-owned decision timestamps and authoritative
+    token accounting.  Finalizers consume this record rather than loose drafts and
+    caller-asserted validation flags.
+    """
+
+    generation_id: Identifier
+    condition: ConditionName
+    request_hash: Sha256Digest
+    raw_output_artifact_hash: Sha256Digest
+    raw_parsed_draft: OntologyDraft
+    draft: OntologyDraft
+    normalized_draft_hash: Sha256Digest
+    stage_manifest_hash: Sha256Digest
+    query_access_event_hash: Sha256Digest | None = None
+    prequery_barrier_hash: Sha256Digest | None = None
+    packing_report_hash: Sha256Digest
+    capability_manifest_hash: Sha256Digest
+    seed_manifest_hash: Sha256Digest
+    prompt_hash: Sha256Digest
+    output_schema_hash: Sha256Digest
+    decoding_manifest_hash: Sha256Digest
+    validator_hash: Sha256Digest
+    model_stack_hash: Sha256Digest
+    seed: NonNegativeInt
+    input_tokens: NonNegativeInt
+    output_tokens: NonNegativeInt
+    generation_started_at: AwareDatetime
+    generation_completed_at: AwareDatetime
+    decision_recorded_at: AwareDatetime
+    validation_records: tuple[ValidationRecord, ...]
+    validator_report_hashes: tuple[Sha256Digest, ...]
+    validated_at: AwareDatetime
+    repair_attempt: Annotated[int, Field(ge=0, le=1)] = 0
+    repair_parent_raw_output_hash: Sha256Digest | None = None
+
+    @model_validator(mode="after")
+    def validate_trusted_generation(self) -> Self:
+        if self.condition not in (
+            {ConditionName.C1_LLM_PRE, ConditionName.A_FIXED_SELECT}
+            | ACTIVE_QUERY_CONSTRUCTION_CONDITIONS
+        ):
+            raise ValueError("validated generation requires an LLM construction condition")
+        if self.normalized_draft_hash != self.draft.content_hash:
+            raise ValueError("normalized draft hash does not match the bound draft")
+        if draft_semantics_hash(self.raw_parsed_draft) != draft_semantics_hash(self.draft):
+            raise ValueError("runner normalization changed model-authored ontology semantics")
+        if any(
+            decision.decided_at != self.decision_recorded_at
+            for decision in self.draft.decisions
+        ):
+            raise ValueError("normalized decision timestamps must be runner-issued")
+        if (
+            self.draft.budget_accounting.input_tokens != self.input_tokens
+            or self.draft.budget_accounting.output_tokens != self.output_tokens
+        ):
+            raise ValueError("draft token accounting differs from authoritative runtime counts")
+        if not (
+            self.generation_started_at
+            <= self.decision_recorded_at
+            <= self.generation_completed_at
+            <= self.validated_at
+        ):
+            raise ValueError("generation, decision, and validation timestamps are inconsistent")
+        if not self.validation_records or not self.validator_report_hashes:
+            raise ValueError("validated generation requires nonempty validation evidence")
+        if len(set(self.validator_report_hashes)) != len(self.validator_report_hashes):
+            raise ValueError("validator report hashes must be unique")
+        for record in self.validation_records:
+            if record.target_id != self.draft.content_hash:
+                raise ValueError("validation record targets a different normalized draft")
+            if record.validation_status is not ValidationStatus.ACCEPTED:
+                raise ValueError("validated generation contains a rejected validation record")
+            if record.evidence_support_status is not EvidenceSupportStatus.SUPPORTED:
+                raise ValueError("validated generation lacks supported grounding")
+            if record.temporal_status is not TemporalDeterminationStatus.VALID:
+                raise ValueError("validated generation lacks valid temporal qualification")
+            if record.commitment_status is not CommitmentCheckStatus.VALID:
+                raise ValueError("validated generation lacks valid epistemic commitment")
+            if not (
+                self.generation_completed_at <= record.validated_at <= self.validated_at
+            ):
+                raise ValueError("validation record timestamp is outside the trusted envelope")
+        query_time = self.condition in (
+            {ConditionName.A_FIXED_SELECT} | ACTIVE_QUERY_CONSTRUCTION_CONDITIONS
+        )
+        if query_time:
+            if self.query_access_event_hash is None or self.prequery_barrier_hash is None:
+                raise ValueError("query-time generation requires access and barrier hashes")
+        elif self.query_access_event_hash is not None or self.prequery_barrier_hash is not None:
+            raise ValueError("C1 preconstruction cannot cite a query-access event")
+        if (self.repair_attempt == 0) != (self.repair_parent_raw_output_hash is None):
+            raise ValueError("repair attempt and repair-parent lineage disagree")
+        return self
+
+
 class PreconstructionRequest(ImmutableRecord):
     request_id: Identifier
     condition: Literal[ConditionName.C1_LLM_PRE] = ConditionName.C1_LLM_PRE
@@ -1643,7 +2133,7 @@ class ConstructionRequest(ImmutableRecord):
     condition: ConditionName
     snapshot_hash: Sha256Digest
     packet: ModelVisibleEvidencePacket
-    context: ModelVisibleQueryContext
+    context: ModelVisibleQueryContext | ModelVisibleGenericConstructionContext
     upper_ontology: UpperOntology
     budgets: OutputBudgets
     capabilities: ConstructionCapabilities
@@ -1655,11 +2145,23 @@ class ConstructionRequest(ImmutableRecord):
 
     @model_validator(mode="after")
     def validate_condition_capabilities(self) -> Self:
+        if self.condition is ConditionName.A_NO_CONTEXT:
+            if not isinstance(self.context, ModelVisibleGenericConstructionContext):
+                raise ValueError("A-NoContext requires the query-free generic context")
+        elif not isinstance(self.context, ModelVisibleQueryContext):
+            raise ValueError("only A-NoContext may use the query-free generic context")
         if self.condition in ACTIVE_QUERY_CONSTRUCTION_CONDITIONS:
             if self.fixed_ontology is not None:
                 raise ValueError("C2 cannot receive a hidden preconstructed ontology")
-            if self.capabilities != ConstructionCapabilities.active_construction():
-                raise ValueError("C2 requires the active construction capability set")
+            expected_capabilities = (
+                ConstructionCapabilities.active_without_temporal_epistemic()
+                if self.condition is ConditionName.A_NO_TEMPORAL_EPISTEMIC
+                else ConstructionCapabilities.active_construction()
+            )
+            if self.capabilities != expected_capabilities:
+                raise ValueError(
+                    f"{self.condition.value} requires its registered construction capabilities"
+                )
             if self.same_context_parent is not None:
                 parent = self.same_context_parent
                 if parent.snapshot_hash != self.snapshot_hash:
@@ -2095,16 +2597,22 @@ MODEL_VISIBLE_SCHEMA_TYPES: tuple[type[ImmutableRecord], ...] = (
     ModelVisibleEvidenceRecord,
     ModelVisibleEvidencePacket,
     ModelVisibleQueryContext,
+    ModelVisibleGenericConstructionContext,
     ModelVisibleRevision,
     PreconstructionRequest,
     ConstructionRequest,
     OntologyDraft,
+    NoTemporalEpistemicOntologyDraft,
 )
 
 PUBLIC_SCHEMA_TYPES: tuple[type[ImmutableRecord], ...] = (
     EvidenceSnapshot,
     EvidencePacket,
     QueryContext,
+    PrequeryBarrier,
+    QueryAccessEvent,
+    PacketMaterializationEvent,
+    ValidatedGeneration,
     QualifiedAssertion,
     OntologyProjection,
     VisualizationNode,

@@ -32,7 +32,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, ClassVar
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 DECIMAL_GIGABYTE = 1_000_000_000
 DEFAULT_TOTAL_ALLOCATION_BYTES = 30 * DECIMAL_GIGABYTE
 DEFAULT_MAX_OCCUPIED_BYTES = 25 * DECIMAL_GIGABYTE
@@ -449,6 +449,55 @@ class EvidenceSnapshotRecord:
     prequery_seal_hash: str
     eligible_evidence_count: int
     created_at: str
+
+
+@dataclass(frozen=True)
+class PrequeryBarrierRecord:
+    barrier_hash: str
+    barrier_id: str
+    execution_id: str
+    execution_manifest_hash: str
+    barrier_artifact_hash: str
+    preparation_count: int
+    sealed_at: str
+    persisted_at: str
+    release_class: ReleaseClass
+
+
+@dataclass(frozen=True)
+class QueryAccessRecord:
+    access_event_hash: str
+    access_event_id: str
+    execution_id: str
+    query_context_hash: str
+    model_visible_query_hash: str
+    snapshot_hash: str
+    stage_manifest_hash: str
+    query_artifact_hash: str
+    prequery_barrier_hash: str
+    packet_hash: str | None
+    query_payload_artifact_hash: str
+    access_event_artifact_hash: str
+    registered_revealed_at: str
+    accessed_at: str
+    release_class: ReleaseClass
+
+
+@dataclass(frozen=True)
+class PacketMaterializationRecord:
+    materialization_event_hash: str
+    materialization_event_id: str
+    execution_id: str
+    query_access_event_hash: str
+    snapshot_hash: str
+    packet_hash: str
+    retrieval_method: str
+    retrieval_config_hash: str
+    packet_artifact_hash: str
+    materialization_event_artifact_hash: str
+    started_at: str
+    completed_at: str
+    release_class: ReleaseClass
 
 
 @dataclass(frozen=True)
@@ -922,6 +971,9 @@ class Ledger:
         "job_artifacts",
         "inputs",
         "evidence_snapshots",
+        "prequery_barriers",
+        "query_access_events",
+        "packet_materialization_events",
         "gpu_allocation_journal",
         "gpu_service_journal",
         "gpu_events",
@@ -966,7 +1018,7 @@ class Ledger:
             cursor.execute("BEGIN IMMEDIATE")
             try:
                 yield cursor
-            except Exception:
+            except BaseException:
                 cursor.execute("ROLLBACK")
                 raise
             else:
@@ -1000,8 +1052,6 @@ class Ledger:
             schema_version INTEGER PRIMARY KEY,
             created_at TEXT NOT NULL
         );
-        INSERT OR IGNORE INTO schema_metadata(schema_version, created_at)
-            VALUES ({SCHEMA_VERSION}, '{_normalise_timestamp()}');
 
         CREATE TABLE IF NOT EXISTS jobs (
             job_id TEXT PRIMARY KEY,
@@ -1171,6 +1221,58 @@ class Ledger:
             eligible_evidence_count INTEGER NOT NULL CHECK (eligible_evidence_count >= 0),
             created_at TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS prequery_barriers (
+            barrier_hash TEXT PRIMARY KEY,
+            barrier_id TEXT NOT NULL UNIQUE,
+            execution_id TEXT NOT NULL,
+            execution_manifest_hash TEXT NOT NULL,
+            barrier_artifact_hash TEXT NOT NULL UNIQUE REFERENCES artifacts(content_hash),
+            preparation_count INTEGER NOT NULL CHECK (preparation_count >= 1),
+            sealed_at TEXT NOT NULL,
+            persisted_at TEXT NOT NULL,
+            release_class TEXT NOT NULL CHECK (release_class IN ({release_values})),
+            CHECK (sealed_at <= persisted_at)
+        );
+        CREATE TABLE IF NOT EXISTS query_access_events (
+            access_event_hash TEXT PRIMARY KEY,
+            access_event_id TEXT NOT NULL UNIQUE,
+            execution_id TEXT NOT NULL,
+            query_context_hash TEXT NOT NULL,
+            model_visible_query_hash TEXT NOT NULL,
+            snapshot_hash TEXT NOT NULL,
+            stage_manifest_hash TEXT NOT NULL,
+            query_artifact_hash TEXT NOT NULL,
+            prequery_barrier_hash TEXT NOT NULL REFERENCES prequery_barriers(barrier_hash),
+            packet_hash TEXT CHECK (packet_hash IS NULL),
+            query_payload_artifact_hash TEXT NOT NULL REFERENCES artifacts(content_hash),
+            access_event_artifact_hash TEXT NOT NULL UNIQUE REFERENCES artifacts(content_hash),
+            registered_revealed_at TEXT NOT NULL,
+            accessed_at TEXT NOT NULL,
+            release_class TEXT NOT NULL CHECK (release_class IN ({release_values})),
+            UNIQUE (execution_id, query_artifact_hash),
+            UNIQUE (execution_id, stage_manifest_hash),
+            CHECK (registered_revealed_at <= accessed_at)
+        );
+        CREATE TABLE IF NOT EXISTS packet_materialization_events (
+            materialization_event_hash TEXT PRIMARY KEY,
+            materialization_event_id TEXT NOT NULL UNIQUE,
+            execution_id TEXT NOT NULL,
+            query_access_event_hash TEXT NOT NULL UNIQUE
+                REFERENCES query_access_events(access_event_hash),
+            snapshot_hash TEXT NOT NULL,
+            packet_hash TEXT NOT NULL,
+            retrieval_method TEXT NOT NULL CHECK (
+                retrieval_method IN ('all_admissible','sqlite_fts5_bm25')
+            ),
+            retrieval_config_hash TEXT NOT NULL,
+            packet_artifact_hash TEXT NOT NULL REFERENCES artifacts(content_hash),
+            materialization_event_artifact_hash TEXT NOT NULL UNIQUE
+                REFERENCES artifacts(content_hash),
+            started_at TEXT NOT NULL,
+            completed_at TEXT NOT NULL,
+            release_class TEXT NOT NULL CHECK (release_class IN ({release_values})),
+            CHECK (started_at <= completed_at)
+        );
         CREATE TABLE IF NOT EXISTS model_calls (
             model_call_id TEXT PRIMARY KEY,
             job_id TEXT NOT NULL REFERENCES jobs(job_id),
@@ -1296,23 +1398,63 @@ class Ledger:
             sampled_at TEXT NOT NULL
         );
         """
+        lineage_triggers = """
+        CREATE TRIGGER IF NOT EXISTS query_access_require_barrier_lineage
+        BEFORE INSERT ON query_access_events
+        WHEN NOT EXISTS (
+            SELECT 1 FROM prequery_barriers
+            WHERE barrier_hash = NEW.prequery_barrier_hash
+              AND execution_id = NEW.execution_id
+              AND sealed_at < NEW.accessed_at
+              AND persisted_at < NEW.accessed_at
+        )
+        BEGIN
+            SELECT RAISE(ABORT, 'query access has invalid prequery lineage');
+        END;
+        CREATE TRIGGER IF NOT EXISTS packet_materialization_require_access_lineage
+        BEFORE INSERT ON packet_materialization_events
+        WHEN NOT EXISTS (
+            SELECT 1 FROM query_access_events
+            WHERE access_event_hash = NEW.query_access_event_hash
+              AND execution_id = NEW.execution_id
+              AND snapshot_hash = NEW.snapshot_hash
+              AND accessed_at <= NEW.started_at
+        )
+        BEGIN
+            SELECT RAISE(ABORT, 'packet materialization has invalid query lineage');
+        END;
+        """
+        append_only_triggers = "".join(
+            f"""
+            CREATE TRIGGER IF NOT EXISTS {table}_reject_update
+            BEFORE UPDATE ON {table}
+            BEGIN
+                SELECT RAISE(ABORT, 'append-only table: {table}');
+            END;
+            CREATE TRIGGER IF NOT EXISTS {table}_reject_delete
+            BEFORE DELETE ON {table}
+            BEGIN
+                SELECT RAISE(ABORT, 'append-only table: {table}');
+            END;
+            """
+            for table in self._APPEND_ONLY_TABLES
+        )
+        migration = f"""
+        BEGIN IMMEDIATE;
+        {schema}
+        {lineage_triggers}
+        {append_only_triggers}
+        INSERT OR IGNORE INTO schema_metadata(schema_version, created_at)
+            VALUES ({SCHEMA_VERSION}, '{_normalise_timestamp()}');
+        COMMIT;
+        """
         with self._lock:
-            self._connection.executescript(schema)
-            for table in self._APPEND_ONLY_TABLES:
-                self._connection.executescript(
-                    f"""
-                    CREATE TRIGGER IF NOT EXISTS {table}_reject_update
-                    BEFORE UPDATE ON {table}
-                    BEGIN
-                        SELECT RAISE(ABORT, 'append-only table: {table}');
-                    END;
-                    CREATE TRIGGER IF NOT EXISTS {table}_reject_delete
-                    BEFORE DELETE ON {table}
-                    BEGIN
-                        SELECT RAISE(ABORT, 'append-only table: {table}');
-                    END;
-                    """
-                )
+            try:
+                self._connection.executescript(migration)
+            except BaseException:
+                if self._connection.in_transaction:
+                    self._connection.execute("ROLLBACK")
+                raise
 
     def _append_metadata_record(
         self,
@@ -1358,6 +1500,50 @@ class Ledger:
             ).fetchone()
             assert inserted is not None
             return inserted
+
+    def _insert_immutable_row(
+        self,
+        cursor: sqlite3.Cursor,
+        *,
+        table: str,
+        key_column: str,
+        fields: Mapping[str, Any],
+    ) -> sqlite3.Row:
+        """Insert one fully timestamped immutable row inside a caller transaction."""
+
+        if table not in self._APPEND_ONLY_TABLES or table == "schema_metadata":
+            raise ValueError("unsupported append-only metadata table")
+        if key_column not in fields:
+            raise ValueError("immutable row omits its primary identity")
+        for identifier in (key_column, *fields):
+            if not identifier.replace("_", "").isalnum():
+                raise ValueError("invalid SQL metadata identifier")
+        key = fields[key_column]
+        existing = cursor.execute(
+            f"SELECT * FROM {table} WHERE {key_column} = ?", (key,)
+        ).fetchone()
+        if existing is not None:
+            if tuple(existing[name] for name in fields) != tuple(fields.values()):
+                raise DuplicateConflictError(
+                    f"{table}.{key_column} was reused with different immutable metadata"
+                )
+            return existing
+        columns = tuple(fields)
+        try:
+            cursor.execute(
+                f"INSERT INTO {table} ({','.join(columns)}) "
+                f"VALUES ({','.join('?' for _ in columns)})",
+                tuple(fields.values()),
+            )
+        except sqlite3.IntegrityError as exc:
+            raise DuplicateConflictError(
+                f"{table} conflicts with an existing immutable event"
+            ) from exc
+        inserted = cursor.execute(
+            f"SELECT * FROM {table} WHERE {key_column} = ?", (key,)
+        ).fetchone()
+        assert inserted is not None
+        return inserted
 
     def schema_versions(self) -> tuple[int, ...]:
         rows = self._connection.execute(
@@ -1563,6 +1749,350 @@ class Ledger:
             eligible_evidence_count=row["eligible_evidence_count"],
             created_at=row["created_at"],
         )
+
+    @staticmethod
+    def _prequery_barrier_from_row(row: sqlite3.Row) -> PrequeryBarrierRecord:
+        return PrequeryBarrierRecord(
+            barrier_hash=row["barrier_hash"],
+            barrier_id=row["barrier_id"],
+            execution_id=row["execution_id"],
+            execution_manifest_hash=row["execution_manifest_hash"],
+            barrier_artifact_hash=row["barrier_artifact_hash"],
+            preparation_count=row["preparation_count"],
+            sealed_at=row["sealed_at"],
+            persisted_at=row["persisted_at"],
+            release_class=ReleaseClass(row["release_class"]),
+        )
+
+    def get_prequery_barrier(self, barrier_hash: str) -> PrequeryBarrierRecord:
+        _normalise_hash("barrier_hash", barrier_hash)
+        row = self._connection.execute(
+            "SELECT * FROM prequery_barriers WHERE barrier_hash = ?", (barrier_hash,)
+        ).fetchone()
+        if row is None:
+            raise KeyError(f"unknown prequery barrier {barrier_hash}")
+        return self._prequery_barrier_from_row(row)
+
+    def persist_prequery_barrier(
+        self,
+        record: PrequeryBarrierRecord,
+        *,
+        barrier_artifact: ArtifactRecord,
+    ) -> PrequeryBarrierRecord:
+        """Atomically register one barrier artifact and its append-only receipt."""
+
+        for name, value in (
+            ("barrier_hash", record.barrier_hash),
+            ("execution_manifest_hash", record.execution_manifest_hash),
+            ("barrier_artifact_hash", record.barrier_artifact_hash),
+        ):
+            _normalise_hash(name, value)
+        for name, value in (
+            ("barrier_id", record.barrier_id),
+            ("execution_id", record.execution_id),
+        ):
+            _metadata_token(name, value)
+        if record.preparation_count < 1:
+            raise ValueError("prequery barrier must contain at least one preparation")
+        sealed_at = _normalise_timestamp(record.sealed_at)
+        persisted_at = _normalise_timestamp(record.persisted_at)
+        if _parse_timestamp(sealed_at) > _parse_timestamp(persisted_at):
+            raise ValueError("prequery barrier cannot be persisted before it is sealed")
+        release = ReleaseClass(record.release_class)
+        if record.barrier_artifact_hash != barrier_artifact.content_hash:
+            raise ValueError("prequery barrier receipt cites a different CAS artifact")
+        if barrier_artifact.release_class is not release:
+            raise ReleaseViolationError(
+                "prequery barrier and its CAS artifact require the same release class"
+            )
+        fields = {
+            "barrier_hash": record.barrier_hash,
+            "barrier_id": record.barrier_id,
+            "execution_id": record.execution_id,
+            "execution_manifest_hash": record.execution_manifest_hash,
+            "barrier_artifact_hash": record.barrier_artifact_hash,
+            "preparation_count": record.preparation_count,
+            "sealed_at": sealed_at,
+            "persisted_at": persisted_at,
+            "release_class": release.value,
+        }
+        with self._transaction() as cursor:
+            self._register_artifact_with_cursor(cursor, barrier_artifact)
+            row = self._insert_immutable_row(
+                cursor,
+                table="prequery_barriers",
+                key_column="barrier_hash",
+                fields=fields,
+            )
+        return self._prequery_barrier_from_row(row)
+
+    @staticmethod
+    def _query_access_from_row(row: sqlite3.Row) -> QueryAccessRecord:
+        return QueryAccessRecord(
+            access_event_hash=row["access_event_hash"],
+            access_event_id=row["access_event_id"],
+            execution_id=row["execution_id"],
+            query_context_hash=row["query_context_hash"],
+            model_visible_query_hash=row["model_visible_query_hash"],
+            snapshot_hash=row["snapshot_hash"],
+            stage_manifest_hash=row["stage_manifest_hash"],
+            query_artifact_hash=row["query_artifact_hash"],
+            prequery_barrier_hash=row["prequery_barrier_hash"],
+            packet_hash=row["packet_hash"],
+            query_payload_artifact_hash=row["query_payload_artifact_hash"],
+            access_event_artifact_hash=row["access_event_artifact_hash"],
+            registered_revealed_at=row["registered_revealed_at"],
+            accessed_at=row["accessed_at"],
+            release_class=ReleaseClass(row["release_class"]),
+        )
+
+    def get_query_access(self, access_event_hash: str) -> QueryAccessRecord:
+        _normalise_hash("access_event_hash", access_event_hash)
+        row = self._connection.execute(
+            "SELECT * FROM query_access_events WHERE access_event_hash = ?",
+            (access_event_hash,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(f"unknown query access event {access_event_hash}")
+        return self._query_access_from_row(row)
+
+    def get_query_access_by_event_id(self, access_event_id: str) -> QueryAccessRecord:
+        """Resolve exactly one audited access by its controller-issued identity.
+
+        This narrow lookup lets an interrupted query-opening controller detect a
+        durable commit without enumerating query records or rereading query.json.
+        """
+
+        _metadata_token("access_event_id", access_event_id)
+        rows = self._connection.execute(
+            "SELECT * FROM query_access_events WHERE access_event_id = ?",
+            (access_event_id,),
+        ).fetchall()
+        if not rows:
+            raise KeyError(f"unknown query access event {access_event_id}")
+        if len(rows) != 1:
+            raise ArtifactIntegrityError("query access event identity is not unique")
+        return self._query_access_from_row(rows[0])
+
+    def persist_query_access(
+        self,
+        record: QueryAccessRecord,
+        *,
+        query_payload_artifact: ArtifactRecord,
+        access_event_artifact: ArtifactRecord,
+    ) -> QueryAccessRecord:
+        """Commit query payload, access receipt, and lineage in one SQLite transaction."""
+
+        for name, value in (
+            ("access_event_hash", record.access_event_hash),
+            ("query_context_hash", record.query_context_hash),
+            ("model_visible_query_hash", record.model_visible_query_hash),
+            ("snapshot_hash", record.snapshot_hash),
+            ("stage_manifest_hash", record.stage_manifest_hash),
+            ("query_artifact_hash", record.query_artifact_hash),
+            ("prequery_barrier_hash", record.prequery_barrier_hash),
+            ("query_payload_artifact_hash", record.query_payload_artifact_hash),
+            ("access_event_artifact_hash", record.access_event_artifact_hash),
+        ):
+            _normalise_hash(name, value)
+        if record.packet_hash is not None:
+            raise ValueError("query access cannot carry a packet hash before materialization")
+        for name, value in (
+            ("access_event_id", record.access_event_id),
+            ("execution_id", record.execution_id),
+        ):
+            _metadata_token(name, value)
+        registered = _normalise_timestamp(record.registered_revealed_at)
+        accessed = _normalise_timestamp(record.accessed_at)
+        if _parse_timestamp(accessed) < _parse_timestamp(registered):
+            raise ValueError("query access cannot predate its registered reveal")
+        release = ReleaseClass(record.release_class)
+        expected_artifacts = {
+            record.query_payload_artifact_hash: query_payload_artifact,
+            record.access_event_artifact_hash: access_event_artifact,
+        }
+        if len(expected_artifacts) != 2 or any(
+            digest != artifact.content_hash
+            for digest, artifact in expected_artifacts.items()
+        ):
+            raise ValueError("query access CAS artifact bindings are inconsistent")
+        if any(artifact.release_class is not release for artifact in expected_artifacts.values()):
+            raise ReleaseViolationError(
+                "query access and both CAS artifacts require the same release class"
+            )
+        fields = {
+            "access_event_hash": record.access_event_hash,
+            "access_event_id": record.access_event_id,
+            "execution_id": record.execution_id,
+            "query_context_hash": record.query_context_hash,
+            "model_visible_query_hash": record.model_visible_query_hash,
+            "snapshot_hash": record.snapshot_hash,
+            "stage_manifest_hash": record.stage_manifest_hash,
+            "query_artifact_hash": record.query_artifact_hash,
+            "prequery_barrier_hash": record.prequery_barrier_hash,
+            "packet_hash": None,
+            "query_payload_artifact_hash": record.query_payload_artifact_hash,
+            "access_event_artifact_hash": record.access_event_artifact_hash,
+            "registered_revealed_at": registered,
+            "accessed_at": accessed,
+            "release_class": release.value,
+        }
+        with self._transaction() as cursor:
+            barrier = cursor.execute(
+                "SELECT * FROM prequery_barriers WHERE barrier_hash = ?",
+                (record.prequery_barrier_hash,),
+            ).fetchone()
+            if barrier is None:
+                raise ValueError("query access requires a persisted prequery barrier")
+            if (
+                barrier["execution_id"] != record.execution_id
+                or _parse_timestamp(barrier["sealed_at"]) >= _parse_timestamp(accessed)
+                or _parse_timestamp(barrier["persisted_at"]) >= _parse_timestamp(accessed)
+            ):
+                raise ValueError("query access does not strictly follow its prequery barrier")
+            if barrier["release_class"] != release.value:
+                raise ReleaseViolationError(
+                    "query access and prequery barrier require the same release class"
+                )
+            for artifact in expected_artifacts.values():
+                self._register_artifact_with_cursor(cursor, artifact)
+            row = self._insert_immutable_row(
+                cursor,
+                table="query_access_events",
+                key_column="access_event_hash",
+                fields=fields,
+            )
+        return self._query_access_from_row(row)
+
+    @staticmethod
+    def _packet_materialization_from_row(
+        row: sqlite3.Row,
+    ) -> PacketMaterializationRecord:
+        return PacketMaterializationRecord(
+            materialization_event_hash=row["materialization_event_hash"],
+            materialization_event_id=row["materialization_event_id"],
+            execution_id=row["execution_id"],
+            query_access_event_hash=row["query_access_event_hash"],
+            snapshot_hash=row["snapshot_hash"],
+            packet_hash=row["packet_hash"],
+            retrieval_method=row["retrieval_method"],
+            retrieval_config_hash=row["retrieval_config_hash"],
+            packet_artifact_hash=row["packet_artifact_hash"],
+            materialization_event_artifact_hash=row[
+                "materialization_event_artifact_hash"
+            ],
+            started_at=row["started_at"],
+            completed_at=row["completed_at"],
+            release_class=ReleaseClass(row["release_class"]),
+        )
+
+    def get_packet_materialization(
+        self,
+        materialization_event_hash: str,
+    ) -> PacketMaterializationRecord:
+        _normalise_hash("materialization_event_hash", materialization_event_hash)
+        row = self._connection.execute(
+            "SELECT * FROM packet_materialization_events "
+            "WHERE materialization_event_hash = ?",
+            (materialization_event_hash,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(
+                f"unknown packet materialization event {materialization_event_hash}"
+            )
+        return self._packet_materialization_from_row(row)
+
+    def persist_packet_materialization(
+        self,
+        record: PacketMaterializationRecord,
+        *,
+        packet_artifact: ArtifactRecord,
+        materialization_event_artifact: ArtifactRecord,
+    ) -> PacketMaterializationRecord:
+        """Atomically persist one post-access packet and its timing receipt."""
+
+        for name, value in (
+            ("materialization_event_hash", record.materialization_event_hash),
+            ("query_access_event_hash", record.query_access_event_hash),
+            ("snapshot_hash", record.snapshot_hash),
+            ("packet_hash", record.packet_hash),
+            ("retrieval_config_hash", record.retrieval_config_hash),
+            ("packet_artifact_hash", record.packet_artifact_hash),
+            (
+                "materialization_event_artifact_hash",
+                record.materialization_event_artifact_hash,
+            ),
+        ):
+            _normalise_hash(name, value)
+        for name, value in (
+            ("materialization_event_id", record.materialization_event_id),
+            ("execution_id", record.execution_id),
+            ("retrieval_method", record.retrieval_method),
+        ):
+            _metadata_token(name, value)
+        if record.retrieval_method not in {"all_admissible", "sqlite_fts5_bm25"}:
+            raise ValueError("packet materialization uses an unregistered retrieval method")
+        started = _normalise_timestamp(record.started_at)
+        completed = _normalise_timestamp(record.completed_at)
+        if _parse_timestamp(completed) < _parse_timestamp(started):
+            raise ValueError("packet materialization completion predates its start")
+        release = ReleaseClass(record.release_class)
+        expected_artifacts = {
+            record.packet_artifact_hash: packet_artifact,
+            record.materialization_event_artifact_hash: materialization_event_artifact,
+        }
+        if len(expected_artifacts) != 2 or any(
+            digest != artifact.content_hash
+            for digest, artifact in expected_artifacts.items()
+        ):
+            raise ValueError("packet materialization CAS bindings are inconsistent")
+        if any(artifact.release_class is not release for artifact in expected_artifacts.values()):
+            raise ReleaseViolationError(
+                "packet materialization and both CAS artifacts require the same release class"
+            )
+        fields = {
+            "materialization_event_hash": record.materialization_event_hash,
+            "materialization_event_id": record.materialization_event_id,
+            "execution_id": record.execution_id,
+            "query_access_event_hash": record.query_access_event_hash,
+            "snapshot_hash": record.snapshot_hash,
+            "packet_hash": record.packet_hash,
+            "retrieval_method": record.retrieval_method,
+            "retrieval_config_hash": record.retrieval_config_hash,
+            "packet_artifact_hash": record.packet_artifact_hash,
+            "materialization_event_artifact_hash": (
+                record.materialization_event_artifact_hash
+            ),
+            "started_at": started,
+            "completed_at": completed,
+            "release_class": release.value,
+        }
+        with self._transaction() as cursor:
+            access = cursor.execute(
+                "SELECT * FROM query_access_events WHERE access_event_hash = ?",
+                (record.query_access_event_hash,),
+            ).fetchone()
+            if access is None:
+                raise ValueError("packet materialization requires persisted query access")
+            if (
+                access["execution_id"] != record.execution_id
+                or access["snapshot_hash"] != record.snapshot_hash
+                or _parse_timestamp(started) < _parse_timestamp(access["accessed_at"])
+            ):
+                raise ValueError("packet materialization timing or lineage is invalid")
+            if access["release_class"] != release.value:
+                raise ReleaseViolationError(
+                    "packet materialization and query access require the same release class"
+                )
+            for artifact in expected_artifacts.values():
+                self._register_artifact_with_cursor(cursor, artifact)
+            row = self._insert_immutable_row(
+                cursor,
+                table="packet_materialization_events",
+                key_column="materialization_event_hash",
+                fields=fields,
+            )
+        return self._packet_materialization_from_row(row)
 
     def record_model_call(
         self,
@@ -2227,6 +2757,15 @@ class Ledger:
 
         if not sample_id_prefix:
             raise ValueError("sample_id_prefix must be nonempty")
+        return tuple(
+            sample
+            for sample in self.resource_samples()
+            if sample.sample_id.startswith(sample_id_prefix)
+        )
+
+    def resource_samples(self) -> tuple[ResourceSampleRecord, ...]:
+        """Return every immutable resource sample for cumulative safety gates."""
+
         rows = self._connection.execute(
             "SELECT * FROM resource_samples ORDER BY sampled_at, sample_id"
         ).fetchall()
@@ -2243,7 +2782,6 @@ class Ledger:
                 sampled_at=row["sampled_at"],
             )
             for row in rows
-            if row["sample_id"].startswith(sample_id_prefix)
         )
 
     def create_or_resume_job(
@@ -2589,7 +3127,8 @@ class Ledger:
         ).fetchall()
         return tuple(self._failure_from_row(row) for row in rows)
 
-    def register_artifact(self, record: ArtifactRecord) -> ArtifactRecord:
+    @staticmethod
+    def _validate_artifact_record(record: ArtifactRecord) -> tuple[Compression, ReleaseClass]:
         _normalise_hash("content_hash", record.content_hash)
         compression = Compression(record.compression)
         release = ReleaseClass(record.release_class)
@@ -2600,7 +3139,15 @@ class Ledger:
         relative = PurePosixPath(record.relative_path)
         if relative.is_absolute() or ".." in relative.parts:
             raise ValueError("artifact relative_path must remain inside the blob root")
-        existing = self._connection.execute(
+        return compression, release
+
+    def _register_artifact_with_cursor(
+        self,
+        cursor: sqlite3.Cursor,
+        record: ArtifactRecord,
+    ) -> ArtifactRecord:
+        compression, release = self._validate_artifact_record(record)
+        existing = cursor.execute(
             "SELECT * FROM artifacts WHERE content_hash = ?", (record.content_hash,)
         ).fetchone()
         if existing is not None:
@@ -2629,25 +3176,28 @@ class Ledger:
                 )
             return self._artifact_from_row(existing)
         try:
-            with self._transaction() as cursor:
-                cursor.execute(
-                    "INSERT INTO artifacts VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                    (
-                        record.content_hash,
-                        compression.value,
-                        record.media_type,
-                        record.raw_size_bytes,
-                        record.stored_size_bytes,
-                        record.relative_path,
-                        release.value,
-                        _normalise_timestamp(record.created_at),
-                    ),
-                )
+            cursor.execute(
+                "INSERT INTO artifacts VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    record.content_hash,
+                    compression.value,
+                    record.media_type,
+                    record.raw_size_bytes,
+                    record.stored_size_bytes,
+                    record.relative_path,
+                    release.value,
+                    _normalise_timestamp(record.created_at),
+                ),
+            )
         except sqlite3.IntegrityError as exc:
             raise DuplicateConflictError(
                 "artifact path or hash conflicts with an existing row"
             ) from exc
         return record
+
+    def register_artifact(self, record: ArtifactRecord) -> ArtifactRecord:
+        with self._transaction() as cursor:
+            return self._register_artifact_with_cursor(cursor, record)
 
     @staticmethod
     def _artifact_from_row(row: sqlite3.Row) -> ArtifactRecord:
@@ -3642,6 +4192,19 @@ class Ledger:
             )
         return tuple(records)
 
+    def storage_samples(self) -> tuple[StorageSampleRecord, ...]:
+        """Return all immutable storage preflights without SQL-pattern filtering."""
+
+        rows = self._connection.execute(
+            "SELECT DISTINCT phase FROM storage_samples ORDER BY phase"
+        ).fetchall()
+        return tuple(
+            sample
+            for row in rows
+            for sample in self.storage_samples_with_phase_prefix(row["phase"])
+            if sample.phase == row["phase"]
+        )
+
     def count_rows(self, table: str) -> int:
         """Return a test/verification count for a known append-only table."""
 
@@ -3841,7 +4404,10 @@ __all__ = [
     "ModelBackend",
     "ModelCallRecord",
     "ModelCallRole",
+    "PacketMaterializationRecord",
+    "PrequeryBarrierRecord",
     "ProjectionRecord",
+    "QueryAccessRecord",
     "ReleaseClass",
     "ReleaseViolationError",
     "ResourceSampleRecord",

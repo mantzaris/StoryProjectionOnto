@@ -55,6 +55,10 @@ from story_projection_onto.validate import (
     validate_single_repair_lineage,
 )
 
+
+def digest(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = ROOT / "tests" / "fixtures" / "phase1"
 QUERY_REVEAL = datetime(2026, 9, 3, 12, 0, tzinfo=UTC)
@@ -560,6 +564,13 @@ def test_c2_empty_inventory_and_certificate_bind_all_post_reveal_decisions() -> 
         snapshot_hash=request.snapshot_hash,
         packet_hash=request.packet.packet_hash,
         query_context_hash=request.context.content_hash,
+        query_access_event_hash=digest("phase1-query-access"),
+        stage_manifest_hash=digest("phase1-query-stage"),
+        prequery_barrier_hash=digest("phase1-prequery-barrier"),
+        generation_lineage_hash=digest("phase1-generation-lineage"),
+        raw_output_artifact_hash=digest("phase1-raw-output"),
+        normalized_draft_hash=draft.content_hash,
+        validation_bundle_hash=digest("phase1-validation-bundle"),
         query_revealed_at=QUERY_REVEAL,
         completed_at=datetime(2026, 9, 3, 12, 1, tzinfo=UTC),
         decisions=draft.decisions,

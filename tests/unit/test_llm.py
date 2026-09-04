@@ -128,6 +128,27 @@ def test_decoding_manifest_records_every_registered_decision() -> None:
     assert len(manifest.content_hash) == 64
 
 
+def test_decoding_comparison_family_excludes_only_schema_and_paired_seed() -> None:
+    first = decoding(41)
+    another_seed = decoding(42)
+    another_schema = DecodingManifest.first_pass(
+        seed=41,
+        eos_token_id=1,
+        end_of_turn_token_ids=(2,),
+        chat_template_hash=HASH_A,
+        output_schema_hash=HASH_C,
+        structured_decoder="vllm-json-schema@1",
+        tokenizer_revision=TOKENIZER_REVISION,
+    )
+
+    assert len({first.content_hash, another_seed.content_hash, another_schema.content_hash}) == 3
+    assert first.comparison_family_hash == another_seed.comparison_family_hash
+    assert first.comparison_family_hash == another_schema.comparison_family_hash
+
+    repair = decoding(41, repair=True)
+    assert first.comparison_family_hash != repair.comparison_family_hash
+
+
 def test_repair_decoding_changes_only_declared_pass_and_caps() -> None:
     first = decoding(41)
     repair = decoding(41, repair=True)

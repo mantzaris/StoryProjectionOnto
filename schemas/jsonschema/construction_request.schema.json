@@ -1466,6 +1466,38 @@
       "title": "ModelVisibleEvidenceRecord",
       "type": "object"
     },
+    "ModelVisibleGenericConstructionContext": {
+      "additionalProperties": false,
+      "description": "Query-free request used only by the registered ``A-NoContext`` ablation.\n\nThe output budgets remain visible so the one-switch comparison retains the\ncommon resource envelope.  No query wording, semantic lens, target, story\nscope, spoiler horizon, viewpoint, or abstraction field exists in this type.",
+      "properties": {
+        "budgets": {
+          "$ref": "#/$defs/OutputBudgets"
+        },
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "generic_request": {
+          "const": "Construct a compact evidence-grounded ontology from the complete supplied packet.",
+          "default": "Construct a compact evidence-grounded ontology from the complete supplied packet.",
+          "title": "Generic Request",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "budgets"
+      ],
+      "title": "ModelVisibleGenericConstructionContext",
+      "type": "object"
+    },
     "ModelVisibleQueryContext": {
       "additionalProperties": false,
       "description": "Exact query-time allowlist passed to C2 and A-FixedSelect.",
@@ -2905,7 +2937,15 @@
       "type": "string"
     },
     "context": {
-      "$ref": "#/$defs/ModelVisibleQueryContext"
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ModelVisibleQueryContext"
+        },
+        {
+          "$ref": "#/$defs/ModelVisibleGenericConstructionContext"
+        }
+      ],
+      "title": "Context"
     },
     "fixed_ontology": {
       "anyOf": [

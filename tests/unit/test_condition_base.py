@@ -6,6 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from story_projection_onto.conditions.base import (
+    SCORED_PROJECTION_SCHEMA_HASH,
     ComparisonInputManifest,
     ConditionAttemptRecord,
     ConditionExecutionTrace,
@@ -27,6 +28,9 @@ HASH_C = "c" * 64
 HASH_D = "d" * 64
 HASH_E = "e" * 64
 HASH_F = "f" * 64
+HASH_G = "0" * 64
+HASH_H = "1" * 64
+HASH_I = "2" * 64
 
 
 def budgets() -> OutputBudgets:
@@ -41,10 +45,18 @@ def budgets() -> OutputBudgets:
 def fairness_manifest(condition: ConditionName) -> ComparisonInputManifest:
     is_c0 = condition is ConditionName.C0_CLASSICAL_PRE
     seed_block = None if is_c0 else 1
+    is_fixed = condition is ConditionName.A_FIXED_SELECT
+    capability_hash = {
+        ConditionName.C1_LLM_PRE: HASH_A,
+        ConditionName.C2_LLM_QUERY: HASH_B,
+        ConditionName.A_FIXED_SELECT: HASH_I,
+    }.get(condition)
     return ComparisonInputManifest(
         condition=condition,
         snapshot_hash=HASH_A,
         packet_hash=HASH_B,
+        query_access_event_hash=HASH_C,
+        prequery_barrier_hash=HASH_D,
         ordered_evidence_ids=("evidence-1", "evidence-2"),
         horizon_hash=HASH_C,
         context_semantics_hash=HASH_D,
@@ -56,7 +68,14 @@ def fairness_manifest(condition: ConditionName) -> ComparisonInputManifest:
         seed_block=seed_block,
         source_c1_seed_block=(seed_block if condition is ConditionName.A_FIXED_SELECT else None),
         model_stack_hash=None if is_c0 else HASH_F,
-        decoding_family_hash=None if is_c0 else HASH_A,
+        decoding_manifest_hash=None if is_c0 else (HASH_G if is_fixed else HASH_A),
+        decoding_family_hash=None if is_c0 else HASH_B,
+        seed_manifest_hash=None if is_c0 else HASH_C,
+        resolved_seed=None if is_c0 else 1_234_567,
+        prompt_hash=None if is_c0 else HASH_C,
+        output_schema_hash=None if is_c0 else (HASH_H if is_fixed else HASH_D),
+        scored_schema_hash=SCORED_PROJECTION_SCHEMA_HASH,
+        capability_manifest_hash=capability_hash,
         validator_hash=HASH_B,
     )
 
@@ -136,6 +155,26 @@ def test_fairness_manifest_rejects_budget_or_model_asymmetry() -> None:
     manifests[2] = ComparisonInputManifest(**changed)
     with pytest.raises(ConditionIntegrityError, match="model stacks"):
         assert_comparison_fairness(manifests)
+
+
+def test_fairness_separates_common_scored_schema_from_fixed_constraint_grammar() -> None:
+    manifests = complete_fairness_block()
+    assert manifests[3].output_schema_hash != manifests[2].output_schema_hash
+    assert manifests[3].decoding_manifest_hash != manifests[2].decoding_manifest_hash
+    assert_comparison_fairness(manifests)
+
+    changed = list(manifests)
+    fixed = changed[3].model_dump(exclude={"content_hash"})
+    fixed["scored_schema_hash"] = HASH_F
+    with pytest.raises(ValidationError, match="common scored projection schema"):
+        ComparisonInputManifest(**fixed)
+
+    changed = list(manifests)
+    fixed = changed[3].model_dump(exclude={"content_hash"})
+    fixed["output_schema_hash"] = changed[2].output_schema_hash
+    changed[3] = ComparisonInputManifest(**fixed)
+    with pytest.raises(ConditionIntegrityError, match="narrowed output grammar"):
+        assert_comparison_fairness(changed)
 
 
 @pytest.mark.parametrize(

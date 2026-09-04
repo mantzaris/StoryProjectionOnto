@@ -12,6 +12,7 @@ import hashlib
 from collections.abc import Iterable, Mapping, Sequence
 from datetime import datetime
 from enum import StrEnum
+from pathlib import Path
 from typing import Annotated, Literal, Self
 
 from pydantic import (
@@ -25,12 +26,26 @@ from pydantic import (
 from .contracts import (
     CONSTRUCTIVE_OPERATORS,
     FIXED_SELECT_ALLOWED_OPERATORS,
+    BudgetAccounting,
     ConditionName,
     ConstructionOperator,
+    DiscoursePosition,
+    Entity,
+    Event,
     FixedOntologyInput,
     ImmutableRecord,
+    InstanceGraph,
+    NarrativeCommitment,
+    NoTemporalEpistemicOntologyDraft,
     OntologyDraft,
+    QualifiedAssertion,
+    RevelationPosition,
+    StoryTime,
+    TemporalKind,
+    TemporalScope,
+    ValidityTime,
     canonical_json,
+    canonical_json_schema,
     canonical_sha256,
 )
 
@@ -62,6 +77,157 @@ CONSTRUCTIVE_CAPABILITIES = CONSTRUCTIVE_OPERATORS
 FIXED_SELECT_CAPABILITIES = FIXED_SELECT_ALLOWED_OPERATORS
 _ALL_CAPABILITIES = frozenset(ConstructionOperator)
 
+ABLATION_QUALIFICATION_REASON = (
+    "qualification deliberately absent under A-NoTemporalEpistemic"
+)
+
+_NO_RARE_GUARD_PARAGRAPH = (
+    "8. inspect every low-frequency item in the packet for answer necessity, state change,\n"
+    "   identity consequences, temporal consequences, or causal reach. Preserve a one-off\n"
+    "   fact when it is pivotal; never use frequency alone to prune it;\n"
+)
+_NO_RARE_GUARD_OPERATOR_PHRASE = "rare-evidence\n    preservation, "
+
+
+def condition_output_model(
+    condition: ConditionName,
+) -> type[OntologyDraft] | type[NoTemporalEpistemicOntologyDraft]:
+    """Return the model-authored JSON surface registered for a condition.
+
+    Selection-only ID restrictions are layered onto the ordinary draft schema by the
+    request packer.  The qualification ablation is different: its fields must be
+    absent from the grammar itself, so it has a distinct immutable record type.
+    """
+
+    if condition is ConditionName.A_NO_TEMPORAL_EPISTEMIC:
+        return NoTemporalEpistemicOntologyDraft
+    return OntologyDraft
+
+
+def base_condition_output_schema(condition: ConditionName) -> dict[str, object]:
+    """Generate the condition's base constrained-decoding schema.
+
+    Administrative token counts remain zero sentinels in model output and are
+    replaced only from vLLM usage metadata after generation.
+    """
+
+    schema = canonical_json_schema(condition_output_model(condition))
+    definitions = schema.get("$defs")
+    if not isinstance(definitions, dict):
+        raise ValueError("condition output schema lacks definitions")
+    accounting = definitions.get("BudgetAccounting")
+    if not isinstance(accounting, dict):
+        raise ValueError("condition output schema lacks BudgetAccounting")
+    properties = accounting.get("properties")
+    if not isinstance(properties, dict):
+        raise ValueError("BudgetAccounting schema lacks properties")
+    properties["input_tokens"] = {"const": 0, "type": "integer"}
+    properties["output_tokens"] = {"const": 0, "type": "integer"}
+    return schema
+
+
+def render_condition_system_prompt(root: Path, condition: ConditionName) -> str:
+    """Resolve the frozen first-pass prompt and its registered single-switch overlay."""
+
+    root = Path(root).resolve(strict=True)
+    if condition is ConditionName.C1_LLM_PRE:
+        relative = Path("prompts/c1_pre/prompt_v1.md")
+    elif condition is ConditionName.A_FIXED_SELECT:
+        relative = Path("prompts/fixed_select/prompt_v1.md")
+    elif condition is ConditionName.A_NO_TEMPORAL_EPISTEMIC:
+        relative = Path("prompts/ablations/no_temporal_epistemic_v1.md")
+    else:
+        relative = Path("prompts/c2_query/prompt_v1.md")
+    prompt = (root / relative).read_text(encoding="utf-8")
+    if condition is not ConditionName.A_NO_RARE_GUARD:
+        return prompt
+    if prompt.count(_NO_RARE_GUARD_PARAGRAPH) != 1:
+        raise ValueError("C2 prompt no longer has the registered rare-guard paragraph")
+    if prompt.count(_NO_RARE_GUARD_OPERATOR_PHRASE) != 1:
+        raise ValueError("C2 prompt no longer has the registered rare checklist operator")
+    return prompt.replace(_NO_RARE_GUARD_PARAGRAPH, "").replace(
+        _NO_RARE_GUARD_OPERATOR_PHRASE,
+        "",
+    )
+
+
+def normalize_no_temporal_epistemic_draft(
+    raw_draft: NoTemporalEpistemicOntologyDraft,
+) -> OntologyDraft:
+    """Map the ablated raw surface to the common scorer representation.
+
+    This is a fixed, fact-free adapter.  It never derives a time, holder, attitude,
+    commitment, or proposition.  Instead it writes conspicuous unknown sentinels so
+    the unchanged strict qualified-assertion scorer counts required qualifications as
+    misses.  The exact raw model JSON remains the authoritative generation artifact.
+    """
+
+    def ordinary_fields(value: ImmutableRecord) -> dict[str, object]:
+        return value.model_dump(
+            mode="python",
+            exclude={"schema_version", "content_hash"},
+        )
+
+    unknown_story_time = StoryTime(
+        kind=TemporalKind.UNKNOWN,
+        reason=ABLATION_QUALIFICATION_REASON,
+    )
+    unknown_validity_time = ValidityTime(
+        kind=TemporalKind.UNKNOWN,
+        reason=ABLATION_QUALIFICATION_REASON,
+    )
+    absent_scope = TemporalScope(
+        story_time=unknown_story_time,
+        validity_time=unknown_validity_time,
+        discourse_position=DiscoursePosition(passage_order=0),
+        revelation_position=RevelationPosition(
+            revelation_order=0,
+            label="qualification-ablated",
+        ),
+    )
+    entities = tuple(
+        Entity(
+            **ordinary_fields(entity),
+            temporal_state=unknown_story_time,
+        )
+        for entity in raw_draft.instance_graph.entities
+    )
+    events = tuple(
+        Event(
+            **ordinary_fields(event),
+            occurrence_time=unknown_story_time,
+        )
+        for event in raw_draft.instance_graph.events
+    )
+    assertions = tuple(
+        QualifiedAssertion(
+            **ordinary_fields(assertion),
+            proposition_content_id=None,
+            temporal_scope=absent_scope,
+            epistemic_scope=None,
+            narrative_commitment=NarrativeCommitment.UNKNOWN,
+        )
+        for assertion in raw_draft.instance_graph.assertions
+    )
+    return OntologyDraft(
+        contextual_interpretation=raw_draft.contextual_interpretation,
+        local_schema=raw_draft.local_schema,
+        instance_graph=InstanceGraph(
+            entities=entities,
+            events=events,
+            proposition_contents=(),
+            assertions=assertions,
+        ),
+        decisions=raw_draft.decisions,
+        omissions=raw_draft.omissions,
+        uncertainty_and_abstentions=raw_draft.uncertainty_and_abstentions,
+        budget_accounting=BudgetAccounting.model_validate(
+            raw_draft.budget_accounting.model_dump(
+                mode="python", exclude={"schema_version", "content_hash"}
+            )
+        ),
+    )
+
 
 def _ordered_capabilities(
     values: Iterable[ConstructionOperator],
@@ -76,8 +242,17 @@ def allowed_capabilities_for(condition: ConditionName) -> frozenset[Construction
         # C1 constructs comprehensively before reveal; it does not perform query-time
         # selection or ranking.
         return CONSTRUCTIVE_CAPABILITIES | {ConstructionOperator.SUPPORTED_DESCRIPTION}
-    if condition is ConditionName.C2_LLM_QUERY:
+    if condition in {
+        ConditionName.C2_LLM_QUERY,
+        ConditionName.A_NO_CONTEXT,
+        ConditionName.A_NO_RARE_GUARD,
+    }:
         return _ALL_CAPABILITIES
+    if condition is ConditionName.A_NO_TEMPORAL_EPISTEMIC:
+        return _ALL_CAPABILITIES - {
+            ConstructionOperator.TEMPORAL_QUALIFICATION,
+            ConstructionOperator.EPISTEMIC_QUALIFICATION,
+        }
     if condition is ConditionName.A_FIXED_SELECT:
         return FIXED_SELECT_CAPABILITIES
     raise AssertionError(f"unhandled LLM condition: {condition!r}")
@@ -102,6 +277,9 @@ class CapabilityManifest(RuntimeManifest):
         expected_mode = {
             ConditionName.C1_LLM_PRE: "prequery_construction",
             ConditionName.C2_LLM_QUERY: "query_construction",
+            ConditionName.A_NO_CONTEXT: "query_construction",
+            ConditionName.A_NO_TEMPORAL_EPISTEMIC: "query_construction",
+            ConditionName.A_NO_RARE_GUARD: "query_construction",
             ConditionName.A_FIXED_SELECT: "selection_only",
         }[self.condition]
         if self.grammar_mode != expected_mode:
@@ -116,6 +294,9 @@ class CapabilityManifest(RuntimeManifest):
             grammar_mode={
                 ConditionName.C1_LLM_PRE: "prequery_construction",
                 ConditionName.C2_LLM_QUERY: "query_construction",
+                ConditionName.A_NO_CONTEXT: "query_construction",
+                ConditionName.A_NO_TEMPORAL_EPISTEMIC: "query_construction",
+                ConditionName.A_NO_RARE_GUARD: "query_construction",
                 ConditionName.A_FIXED_SELECT: "selection_only",
             }[condition],
             allowed=_ordered_capabilities(allowed),
@@ -206,6 +387,23 @@ class DecodingManifest(RuntimeManifest):
                 f"{self.decoding_pass.value} output cap exceeds registered {output_ceiling}"
             )
         return self
+
+    @property
+    def comparison_family_hash(self) -> str:
+        """Hash the shared decoding policy without condition grammar or paired seed.
+
+        The exact manifest hash must bind the guided JSON schema and concrete seed for
+        replay.  Those values legitimately differ for ``A-FixedSelect`` (restricted
+        grammar) and across paired seed blocks.  Fairness audits instead compare this
+        schema-independent family hash while checking schema and seed lineage in their
+        own explicit fields.
+        """
+
+        payload = self.model_dump(
+            mode="json",
+            exclude={"content_hash", "output_schema_hash", "seed"},
+        )
+        return canonical_sha256(payload)
 
     @classmethod
     def first_pass(
@@ -412,6 +610,27 @@ class PackingReport(RuntimeManifest):
                 "evidence_snapshot",
             },
             ConditionName.C2_LLM_QUERY: {
+                "system_prompt",
+                "output_schema",
+                "upper_ontology",
+                "query_context",
+                "evidence_packet",
+            },
+            ConditionName.A_NO_CONTEXT: {
+                "system_prompt",
+                "output_schema",
+                "upper_ontology",
+                "query_context",
+                "evidence_packet",
+            },
+            ConditionName.A_NO_TEMPORAL_EPISTEMIC: {
+                "system_prompt",
+                "output_schema",
+                "upper_ontology",
+                "query_context",
+                "evidence_packet",
+            },
+            ConditionName.A_NO_RARE_GUARD: {
                 "system_prompt",
                 "output_schema",
                 "upper_ontology",

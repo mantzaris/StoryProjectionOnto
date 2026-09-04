@@ -644,10 +644,15 @@ def build_acceptance_request(
     call: AcceptanceCall,
     tokenizer: PackingTokenizer,
     tokenizer_manifest: TokenizerManifest,
+    model_name: str = SERVED_MODEL_NAME,
+    model_revision: str = PINNED_MODEL_REVISION,
+    additional_sections: Mapping[str, object] | None = None,
 ) -> GuidedJSONRequest:
     """Pack a fixture without truncation and bind exact tokenizer/decoding metadata."""
 
     root = root.resolve(strict=True)
+    if tokenizer_manifest.tokenizer_revision != model_revision:
+        raise ValueError("request model revision differs from the captured tokenizer")
     fixture = _load_json_object(root / call.request_fixture)
     if call.decoding_pass is DecodingPass.REPAIR:
         fixture["__project_root"] = root
@@ -680,8 +685,8 @@ def build_acceptance_request(
     )
     if call.decoding_pass is DecodingPass.FIRST_PASS:
         fixture["runtime"] = {
-            "model_id": SERVED_MODEL_NAME,
-            "model_revision": PINNED_MODEL_REVISION,
+            "model_id": model_name,
+            "model_revision": model_revision,
             "tokenizer_hash": tokenizer_manifest.manifest_sha256,
             "runtime_version": PINNED_RUNTIME_VERSION,
             "prompt_hash": hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
@@ -689,6 +694,14 @@ def build_acceptance_request(
             "decoding_config_hash": decoding.content_hash,
         }
     sections = _request_sections(call, fixture)
+    if additional_sections:
+        overlap = set(sections).intersection(additional_sections)
+        if overlap:
+            raise ValueError(
+                "additional request sections replace frozen semantic sections: "
+                + ", ".join(sorted(overlap))
+            )
+        sections.update(copy.deepcopy(dict(additional_sections)))
     user_content = canonical_json(sections)
     messages = (
         ChatMessage(role="system", content=prompt),
@@ -738,7 +751,8 @@ def build_acceptance_request(
                 token_count=rendered_count - individually_encoded,
             )
         )
-    required = {
+    required = (
+        *{
         ConditionName.C1_LLM_PRE: (
             "system_prompt",
             "output_schema",
@@ -760,7 +774,9 @@ def build_acceptance_request(
             "evidence_packet",
             "sealed_ontology",
         ),
-    }[call.condition]
+        }[call.condition],
+        *(additional_sections or {}).keys(),
+    )
     packing = PackingReport.build(
         condition=call.condition,
         tokenizer_revision=tokenizer_manifest.tokenizer_revision,
@@ -775,7 +791,7 @@ def build_acceptance_request(
     )
     return GuidedJSONRequest(
         request_id=call.call_id,
-        model_name=SERVED_MODEL_NAME,
+        model_name=model_name,
         condition=call.condition,
         messages=messages,
         output_schema=output_schema,

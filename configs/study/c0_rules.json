@@ -2,6 +2,8 @@
   "schema_version": "1.0.0",
   "config_id": "c0-rules-v1",
   "backend": "spacy-ner-dependency-plus-deterministic-rules-v2",
+  "spacy_model_package": "en_core_web_sm",
+  "spacy_model_version": "3.8.0",
   "query_blind": true,
   "alias_suffix_merge": true,
   "local_pronoun_coreference": true,

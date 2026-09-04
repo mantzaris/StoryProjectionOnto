@@ -8,6 +8,7 @@ from pydantic import ValidationError
 
 import story_projection_onto.contracts as contracts_module
 from story_projection_onto.contracts import (
+    MODEL_VISIBLE_GENERIC_CONTEXT_FIELDS,
     AbstractionLevel,
     ArtifactHashReference,
     BenchmarkSplit,
@@ -37,6 +38,7 @@ from story_projection_onto.contracts import (
     HolderRelativeTime,
     InstanceGraph,
     LocalContextSchema,
+    ModelVisibleGenericConstructionContext,
     ModelVisibleQueryContext,
     NarrativeCommitment,
     NodePosition,
@@ -47,6 +49,7 @@ from story_projection_onto.contracts import (
     PreQueryInventory,
     ProvenanceReference,
     QualifiedAssertion,
+    QueryAccessEvent,
     QueryContext,
     ReleaseClass,
     RetrievalMethod,
@@ -72,6 +75,7 @@ from story_projection_onto.contracts import (
     assert_public_release,
     canonical_json,
     canonical_sha256,
+    to_model_visible_context_for_condition,
     to_model_visible_packet,
     to_model_visible_query,
 )
@@ -268,6 +272,30 @@ def test_query_model_view_strips_runner_identifiers_and_rejects_gold_fields() ->
         ModelVisibleQueryContext.model_validate(payload)
 
 
+def test_no_context_model_view_is_exactly_generic_request_and_budgets() -> None:
+    context = query_context()
+    visible = to_model_visible_context_for_condition(context, ConditionName.A_NO_CONTEXT)
+    assert isinstance(visible, ModelVisibleGenericConstructionContext)
+    payload = visible.model_dump(mode="json", exclude={"schema_version", "content_hash"})
+    assert set(payload) == MODEL_VISIBLE_GENERIC_CONTEXT_FIELDS
+    serialized = canonical_json(payload)
+    for hidden_query_field in (
+        "wording",
+        "lens",
+        "target",
+        "story_scope",
+        "spoiler_horizon",
+        "viewpoint",
+        "abstraction",
+    ):
+        assert hidden_query_field not in serialized
+    assert visible.budgets == context.budgets
+    assert isinstance(
+        to_model_visible_context_for_condition(context, ConditionName.C2_LLM_QUERY),
+        ModelVisibleQueryContext,
+    )
+
+
 def test_story_validity_discourse_revelation_and_spoiler_are_distinct() -> None:
     scope = temporal_scope()
     query = query_context()
@@ -340,6 +368,32 @@ def test_prequery_inventory_mechanically_requires_no_c2_ontology() -> None:
         )
 
 
+def test_query_access_event_separates_registered_and_physical_reveal_time() -> None:
+    event = QueryAccessEvent(
+        access_event_id="access-1",
+        execution_id="execution-1",
+        query_context_hash=digest("context"),
+        model_visible_query_hash=digest("visible-query"),
+        snapshot_hash=digest("snapshot"),
+        stage_manifest_hash=digest("stage-manifest"),
+        query_artifact_hash=digest("query-artifact"),
+        prequery_barrier_hash=digest("prequery-barrier"),
+        packet_hash=digest("packet"),
+        registered_revealed_at=NOW,
+        accessed_at=NOW + timedelta(seconds=1),
+    )
+    assert event.accessed_at > event.registered_revealed_at
+
+    with pytest.raises(ValidationError, match="cannot predate"):
+        QueryAccessEvent(
+            **event.model_dump(
+                mode="python",
+                exclude={"content_hash", "accessed_at"},
+            ),
+            accessed_at=NOW - timedelta(microseconds=1),
+        )
+
+
 def test_c2_certificate_requires_post_reveal_nonselection_decision() -> None:
     inventory = PreQueryInventory(
         inventory_id="inventory-1",
@@ -352,6 +406,13 @@ def test_c2_certificate_requires_post_reveal_nonselection_decision() -> None:
         snapshot_hash=digest("snapshot"),
         packet_hash=digest("packet"),
         query_context_hash=digest("context"),
+        query_access_event_hash=digest("query-access"),
+        stage_manifest_hash=digest("stage-manifest"),
+        prequery_barrier_hash=digest("prequery-barrier"),
+        generation_lineage_hash=digest("generation-lineage"),
+        raw_output_artifact_hash=digest("raw-output"),
+        normalized_draft_hash=digest("normalized-draft"),
+        validation_bundle_hash=digest("validation-bundle"),
         query_revealed_at=NOW,
         completed_at=NOW + timedelta(seconds=2),
         decisions=(decision(),),
@@ -366,6 +427,13 @@ def test_c2_certificate_requires_post_reveal_nonselection_decision() -> None:
             snapshot_hash=digest("snapshot"),
             packet_hash=digest("packet"),
             query_context_hash=digest("context"),
+            query_access_event_hash=digest("query-access"),
+            stage_manifest_hash=digest("stage-manifest"),
+            prequery_barrier_hash=digest("prequery-barrier"),
+            generation_lineage_hash=digest("generation-lineage"),
+            raw_output_artifact_hash=digest("raw-output"),
+            normalized_draft_hash=digest("normalized-draft"),
+            validation_bundle_hash=digest("validation-bundle"),
             query_revealed_at=NOW,
             completed_at=NOW + timedelta(seconds=2),
             decisions=(decision(ConstructionOperator.SELECTION),),
@@ -381,6 +449,13 @@ def test_fixed_select_certificate_rejects_every_constructive_operator() -> None:
             snapshot_hash=digest("snapshot"),
             packet_hash=digest("packet"),
             query_context_hash=digest("context"),
+            query_access_event_hash=digest("query-access"),
+            stage_manifest_hash=digest("stage-manifest"),
+            prequery_barrier_hash=digest("prequery-barrier"),
+            generation_lineage_hash=digest("generation-lineage"),
+            raw_output_artifact_hash=digest("raw-output"),
+            normalized_draft_hash=digest("normalized-draft"),
+            validation_bundle_hash=digest("validation-bundle"),
             query_revealed_at=NOW,
             completed_at=NOW + timedelta(seconds=2),
             decisions=(decision(ConstructionOperator.MERGE),),
@@ -395,17 +470,6 @@ def test_c2_projection_requires_inventory_certificate_and_enforces_budget() -> N
         recorded_at=NOW - timedelta(seconds=1),
     )
     construction_decision = decision()
-    certificate = ConstructionCertificate(
-        certificate_id="certificate-1",
-        condition=ConditionName.C2_LLM_QUERY,
-        snapshot_hash=digest("snapshot"),
-        packet_hash=digest("packet"),
-        query_context_hash=digest("context"),
-        query_revealed_at=NOW,
-        completed_at=NOW + timedelta(seconds=2),
-        decisions=(construction_decision,),
-        pre_query_inventory_hash=inventory.content_hash,
-    )
     validation = ValidationRecord(
         validation_id="validation-1",
         target_id="projection-1",
@@ -415,12 +479,36 @@ def test_c2_projection_requires_inventory_certificate_and_enforces_budget() -> N
         commitment_status=CommitmentCheckStatus.VALID,
         validated_at=NOW + timedelta(seconds=3),
     )
+    validation_bundle_hash = canonical_sha256((validation,))
+    certificate = ConstructionCertificate(
+        certificate_id="certificate-1",
+        condition=ConditionName.C2_LLM_QUERY,
+        snapshot_hash=digest("snapshot"),
+        packet_hash=digest("packet"),
+        query_context_hash=digest("context"),
+        query_access_event_hash=digest("query-access"),
+        stage_manifest_hash=digest("stage-manifest"),
+        prequery_barrier_hash=digest("prequery-barrier"),
+        generation_lineage_hash=digest("generation-lineage"),
+        raw_output_artifact_hash=digest("raw-output"),
+        normalized_draft_hash=digest("normalized-draft"),
+        validation_bundle_hash=validation_bundle_hash,
+        query_revealed_at=NOW,
+        completed_at=NOW + timedelta(seconds=2),
+        decisions=(construction_decision,),
+        pre_query_inventory_hash=inventory.content_hash,
+    )
     projection = OntologyProjection(
         projection_id="projection-1",
         condition=ConditionName.C2_LLM_QUERY,
         snapshot_hash=digest("snapshot"),
         packet_hash=digest("packet"),
         context_hash=digest("context"),
+        query_access_event_hash=digest("query-access"),
+        generation_lineage_hash=digest("generation-lineage"),
+        raw_output_artifact_hash=digest("raw-output"),
+        normalized_draft_hash=digest("normalized-draft"),
+        validation_bundle_hash=validation_bundle_hash,
         upper_ontology=upper_ontology(),
         local_schema=local_schema(),
         instance_graph=InstanceGraph(entities=(), events=(), assertions=()),

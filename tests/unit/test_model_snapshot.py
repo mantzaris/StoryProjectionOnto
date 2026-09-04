@@ -71,3 +71,17 @@ def test_verify_snapshot_rejects_second_revision_and_partial(tmp_path: Path) -> 
             snapshot=snapshot,
             model_configuration_path=configuration,
         )
+
+
+def test_verify_snapshot_rejects_right_revision_under_wrong_repository(tmp_path: Path) -> None:
+    cache, snapshot, configuration = make_snapshot(tmp_path)
+    configured = json.loads(configuration.read_text(encoding="utf-8"))
+    configured["repository"] = "Different/Model"
+    configuration.write_text(json.dumps(configured), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="configured model repository"):
+        MODULE.verify_snapshot(
+            shared_cache=cache,
+            snapshot=snapshot,
+            model_configuration_path=configuration,
+        )

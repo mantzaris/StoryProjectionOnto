@@ -16,15 +16,17 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any, Literal, Self
 
-from pydantic import AwareDatetime, model_validator
+from pydantic import AwareDatetime, Field, model_validator
 
 from story_projection_onto.contracts import (
+    EvidenceRecord,
     EvidenceSnapshot,
     ImmutableRecord,
     ModelVisibleEvidenceRecord,
     ModelVisibleQueryContext,
     Sha256Digest,
     canonical_sha256,
+    to_model_visible_evidence,
 )
 
 
@@ -33,6 +35,7 @@ class GoldFirewallError(PermissionError):
 
 
 class RuntimeStageKind(StrEnum):
+    NEUTRAL_EVIDENCE = "neutral_evidence"
     PREQUERY_EVIDENCE = "prequery_evidence"
     QUERY_REVEALED = "query_revealed"
 
@@ -50,6 +53,38 @@ class ModelEligibleWorldArtifact(ImmutableRecord):
         if evidence_ids != self.snapshot.eligible_evidence_ids:
             raise ValueError("model evidence order must equal the sealed snapshot")
         return self
+
+
+class NeutralEvidenceArtifact(ImmutableRecord):
+    """Query-blind full evidence for CPU conditions and deterministic validators."""
+
+    artifact_id: str
+    snapshot: EvidenceSnapshot
+    evidence: tuple[EvidenceRecord, ...]
+
+    @model_validator(mode="after")
+    def snapshot_and_release_match_evidence(self) -> Self:
+        evidence_ids = tuple(item.evidence_id for item in self.evidence)
+        if evidence_ids != self.snapshot.eligible_evidence_ids:
+            raise ValueError("neutral evidence order must equal the sealed snapshot")
+        if any(item.release_class is not self.snapshot.release_class for item in self.evidence):
+            raise ValueError("neutral evidence and snapshot release classes differ")
+        return self
+
+
+class EvidenceProjectionEquivalenceCertificate(ImmutableRecord):
+    """Hash-bound proof that full evidence projects to one model-visible artifact."""
+
+    certificate_id: str
+    neutral_evidence_artifact_hash: Sha256Digest
+    model_visible_evidence_artifact_hash: Sha256Digest
+    snapshot_hash: Sha256Digest
+    ordered_full_evidence_hash: Sha256Digest
+    ordered_model_visible_evidence_hash: Sha256Digest
+    evidence_count: int = Field(gt=0)
+    projection_rule: Literal["contracts.to_model_visible_evidence/v1"] = (
+        "contracts.to_model_visible_evidence/v1"
+    )
 
 
 class QueryRevealArtifact(ImmutableRecord):
@@ -82,11 +117,12 @@ class RuntimeStagingManifest(ImmutableRecord):
 
     @model_validator(mode="after")
     def exact_stage_shape(self) -> Self:
-        expected_names = (
-            ("evidence.json",)
-            if self.stage_kind is RuntimeStageKind.PREQUERY_EVIDENCE
-            else ("evidence.json", "query.json")
-        )
+        if self.stage_kind is RuntimeStageKind.NEUTRAL_EVIDENCE:
+            expected_names = ("neutral_evidence.json", "equivalence.json")
+        elif self.stage_kind is RuntimeStageKind.PREQUERY_EVIDENCE:
+            expected_names = ("evidence.json",)
+        else:
+            expected_names = ("evidence.json", "query.json")
         if self.file_names != expected_names:
             raise ValueError(
                 f"{self.stage_kind.value} stage must contain exactly {expected_names!r}"
@@ -163,6 +199,64 @@ def preconstruction_request_payload(artifact: ModelEligibleWorldArtifact) -> dic
     }
     scan_model_payload(payload)
     return payload
+
+
+def verify_neutral_evidence_projection(
+    neutral: NeutralEvidenceArtifact,
+    model_visible: ModelEligibleWorldArtifact,
+    certificate: EvidenceProjectionEquivalenceCertificate,
+) -> None:
+    """Recompute the only permitted full-to-model evidence projection."""
+
+    projected_evidence = tuple(to_model_visible_evidence(item) for item in neutral.evidence)
+    expected_model = ModelEligibleWorldArtifact(
+        artifact_id=model_visible.artifact_id,
+        snapshot=neutral.snapshot,
+        evidence=projected_evidence,
+    )
+    expected = (
+        neutral.content_hash,
+        model_visible.content_hash,
+        neutral.snapshot.content_hash,
+        canonical_sha256(neutral.evidence),
+        canonical_sha256(projected_evidence),
+        len(neutral.evidence),
+    )
+    observed = (
+        certificate.neutral_evidence_artifact_hash,
+        certificate.model_visible_evidence_artifact_hash,
+        certificate.snapshot_hash,
+        certificate.ordered_full_evidence_hash,
+        certificate.ordered_model_visible_evidence_hash,
+        certificate.evidence_count,
+    )
+    if expected_model != model_visible or observed != expected:
+        raise GoldFirewallError(
+            "neutral evidence does not project exactly to the staged model-visible artifact"
+        )
+
+
+def build_evidence_projection_equivalence_certificate(
+    neutral: NeutralEvidenceArtifact,
+    model_visible: ModelEligibleWorldArtifact,
+    *,
+    certificate_id: str,
+) -> EvidenceProjectionEquivalenceCertificate:
+    """Construct and immediately verify a deterministic projection certificate."""
+
+    certificate = EvidenceProjectionEquivalenceCertificate(
+        certificate_id=certificate_id,
+        neutral_evidence_artifact_hash=neutral.content_hash,
+        model_visible_evidence_artifact_hash=model_visible.content_hash,
+        snapshot_hash=neutral.snapshot.content_hash,
+        ordered_full_evidence_hash=canonical_sha256(neutral.evidence),
+        ordered_model_visible_evidence_hash=canonical_sha256(
+            tuple(to_model_visible_evidence(item) for item in neutral.evidence)
+        ),
+        evidence_count=len(neutral.evidence),
+    )
+    verify_neutral_evidence_projection(neutral, model_visible, certificate)
+    return certificate
 
 
 def model_request_payload(
@@ -247,6 +341,44 @@ def load_staged_world(
     scan_model_payload(artifact.model_dump(mode="json"))
     preconstruction_request_payload(artifact)
     return artifact
+
+
+def load_staged_neutral_evidence(
+    staging_root: Path,
+    condition_input_root: Path,
+    manifest: RuntimeStagingManifest,
+    model_visible: ModelEligibleWorldArtifact,
+) -> tuple[NeutralEvidenceArtifact, EvidenceProjectionEquivalenceCertificate]:
+    """Load full query-blind evidence without importing compiler or scorer code."""
+
+    if manifest.stage_kind is not RuntimeStageKind.NEUTRAL_EVIDENCE:
+        raise GoldFirewallError("neutral evidence loader requires a neutral evidence stage")
+    if condition_input_root.is_symlink() or staging_root.is_symlink():
+        raise GoldFirewallError("neutral condition-input paths cannot be symlinks")
+    neutral_root = condition_input_root.resolve(strict=True)
+    if neutral_root.name != "neutral_evidence" or neutral_root.parent.name != "condition_inputs":
+        raise GoldFirewallError(
+            "neutral evidence must remain below condition_inputs/neutral_evidence"
+        )
+    resolved_stage = staging_root.resolve(strict=True)
+    try:
+        relative_stage = resolved_stage.relative_to(neutral_root)
+    except ValueError as error:
+        raise GoldFirewallError(
+            "neutral evidence stage escaped its condition-input root"
+        ) from error
+    if len(relative_stage.parts) != 1 or not relative_stage.parts[0].startswith("neutral_"):
+        raise GoldFirewallError("neutral evidence input must be one opaque isolated stage")
+    _assert_exact_stage_directory(staging_root, manifest)
+    neutral = NeutralEvidenceArtifact.model_validate_json(
+        _verified_bytes(staging_root, manifest, "neutral_evidence.json")
+    )
+    certificate = EvidenceProjectionEquivalenceCertificate.model_validate_json(
+        _verified_bytes(staging_root, manifest, "equivalence.json")
+    )
+    scan_model_payload(neutral.model_dump(mode="json"))
+    verify_neutral_evidence_projection(neutral, model_visible, certificate)
+    return neutral, certificate
 
 
 def load_staged_query(

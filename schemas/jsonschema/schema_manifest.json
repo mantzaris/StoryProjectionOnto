@@ -1,13 +1,13 @@
 {
   "generator": "scripts/generate_schemas.py",
-  "manifest_hash": "b7b71e625a5f914cf8b97e911d9105ddfe573c1d127d29761933c9ebab65c45e",
+  "manifest_hash": "6e2e91d574ec3414409083dac0e8923f9e6b991ba34ce9cac7bb249c5a7f3176",
   "schema_version": "1.0.0",
   "schemas": [
     {
-      "bytes": 75558,
+      "bytes": 77016,
       "contract": "ConstructionRequest",
       "file": "construction_request.schema.json",
-      "sha256": "89754b3d0a84d9d6f4b3ce8bdc3e60f65ac0af8eb3c943ea4a3759d881089b97",
+      "sha256": "3157fef8225e667126bcf35cbf626c70c386a206257601059ebfbb68fb0b1486",
       "surface": "model_interaction"
     },
     {
@@ -39,6 +39,13 @@
       "surface": "model_interaction"
     },
     {
+      "bytes": 2534,
+      "contract": "ModelVisibleGenericConstructionContext",
+      "file": "model_visible_generic_construction_context.schema.json",
+      "sha256": "458900287a35fdad9c2aee4acef96581412bb51a57043007262543d44f2fc623",
+      "surface": "model_interaction"
+    },
+    {
       "bytes": 11633,
       "contract": "ModelVisibleQueryContext",
       "file": "model_visible_query_context.schema.json",
@@ -53,6 +60,13 @@
       "surface": "model_interaction"
     },
     {
+      "bytes": 26641,
+      "contract": "NoTemporalEpistemicOntologyDraft",
+      "file": "no_temporal_epistemic_ontology_draft.schema.json",
+      "sha256": "b5a5195f49cd54b0397f9ef7f44cc31dd42f2660bdae8f49abd943f523409aba",
+      "surface": "model_interaction"
+    },
+    {
       "bytes": 43634,
       "contract": "OntologyDraft",
       "file": "ontology_draft.schema.json",
@@ -60,10 +74,17 @@
       "surface": "model_interaction"
     },
     {
-      "bytes": 62081,
+      "bytes": 64637,
       "contract": "OntologyProjection",
       "file": "ontology_projection.schema.json",
-      "sha256": "8771010d1bbb813aa62421bb161d4b63ca8f9cc1c6d2479f54d85bf7dfe8effe",
+      "sha256": "4ffaf5a999f6da654cb27e86993801483396858f66d59aa80c2d8b672bca292d",
+      "surface": "public_contract"
+    },
+    {
+      "bytes": 2104,
+      "contract": "PacketMaterializationEvent",
+      "file": "packet_materialization_event.schema.json",
+      "sha256": "65d41927c4701270ff30d3fee813a4ff4553f6af42ce8f13a28639536d612634",
       "surface": "public_contract"
     },
     {
@@ -74,6 +95,13 @@
       "surface": "model_interaction"
     },
     {
+      "bytes": 3819,
+      "contract": "PrequeryBarrier",
+      "file": "prequery_barrier.schema.json",
+      "sha256": "6f8d7134242d1ee7bc419bc3d9a0a1be726f8aabd680e48c0262cffc7a1a79ca",
+      "surface": "public_contract"
+    },
+    {
       "bytes": 21051,
       "contract": "QualifiedAssertion",
       "file": "qualified_assertion.schema.json",
@@ -81,10 +109,17 @@
       "surface": "public_contract"
     },
     {
-      "bytes": 11961,
+      "bytes": 2632,
+      "contract": "QueryAccessEvent",
+      "file": "query_access_event.schema.json",
+      "sha256": "78040b2f5b2684a128f96086aae0eb7fe6c61746ee6d10b0ab44dc8f446edeca",
+      "surface": "public_contract"
+    },
+    {
+      "bytes": 12305,
       "contract": "QueryContext",
       "file": "query_context.schema.json",
-      "sha256": "025a9a423e7cf663460befe7e3b9edc2cb0b5661048174fd3c088ad44e27eeee",
+      "sha256": "fe32fcb5336f126ad212bf5382505e4b17a91e28774ae0f6d32ebe3868434d0c",
       "surface": "public_contract"
     },
     {
@@ -92,6 +127,13 @@
       "contract": "RunManifest",
       "file": "run_manifest.schema.json",
       "sha256": "8dd2fec48e6c0aa539c9c065d96e44a51f6dd70a1ba8149e2195ead0d8c0f10f",
+      "surface": "public_contract"
+    },
+    {
+      "bytes": 52757,
+      "contract": "ValidatedGeneration",
+      "file": "validated_generation.schema.json",
+      "sha256": "45e83a44a5024a908b2acc5b71859dfd4f603e19deeb369b0aa88bae03e97f4f",
       "surface": "public_contract"
     },
     {

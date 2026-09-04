@@ -172,6 +172,8 @@ def test_launcher_is_pinned_local_concurrency_one_and_no_offload(
     assert public["cpu_offload_gb"] == 0
     assert public["prefix_caching"] is False
     assert public["speculative_decoding"] is False
+    assert public["enforce_eager"] is True
+    assert "--enforce-eager" in launch_configuration.command("python")
     assert public["guided_decoding_backend"] == "xgrammar"
     assert public["guided_decoding_fallback"] is False
     assert public["runtime_environment_policy"] == "explicit_os_cuda_allowlist"
@@ -181,6 +183,12 @@ def test_launcher_is_pinned_local_concurrency_one_and_no_offload(
             snapshot_path=launch_configuration.snapshot_path,
             shared_cache=launch_configuration.shared_cache,
             cpu_offload_gb=1,
+        )
+    with pytest.raises(RuntimeConfigurationError, match="enforce_eager"):
+        VLLMLaunchConfiguration(
+            snapshot_path=launch_configuration.snapshot_path,
+            shared_cache=launch_configuration.shared_cache,
+            enforce_eager=False,
         )
 
 
@@ -1576,6 +1584,84 @@ def test_service_resume_checks_pid_start_and_command_without_duplicate_load(
         latest_journal = ledger.latest_gpu_service_journal("load")
         assert latest_journal is not None
         assert latest_journal.state.value == "closed"
+
+
+def test_explicit_controller_restart_handoff_requires_a_different_pid(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(3460)
+    proc = tmp_path / "proc" / str(process.pid)
+    proc.mkdir(parents=True)
+    fields = ["S", *(["0"] * 18), "98766"]
+    (proc / "stat").write_text(f"{process.pid} (vllm worker) {' '.join(fields)}\n")
+    (proc / "cmdline").write_bytes(
+        b"\0".join(
+            (
+                b"python",
+                b"-m",
+                b"vllm.entrypoints.openai.api_server",
+                b"--model",
+                str(launch_configuration.snapshot_path).encode(),
+                b"",
+            )
+        )
+    )
+    checkpoint = tmp_path / "controller-handoff.json"
+
+    with Ledger(tmp_path / "controller-handoff.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        first = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            popen_factory=lambda *args, **kwargs: process,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_group_signaler=lambda pid, sig: setattr(process, "running", False),
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        monkeypatch.setattr("story_projection_onto.gpu_runtime.os.getpid", lambda: 6001)
+        first.start(session_id="pilot", event_id="load", watchdog_seconds=180)
+        first.detach_for_controller_restart(checkpoint, proc_root=tmp_path / "proc")
+        checkpoint_value = json.loads(checkpoint.read_text(encoding="utf-8"))
+        assert checkpoint_value["controller_restart_handoff"] is True
+        assert process.running is True
+
+        second = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_group_signaler=lambda pid, sig: setattr(process, "running", False),
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        with pytest.raises(RuntimeConfigurationError, match="different controller PID"):
+            second.resume_from_checkpoint(
+                checkpoint,
+                proc_root=tmp_path / "proc",
+                adopted_factory=lambda pid: process,
+            )
+        monkeypatch.setattr("story_projection_onto.gpu_runtime.os.getpid", lambda: 6002)
+        assert second.resume_from_checkpoint(
+            checkpoint,
+            proc_root=tmp_path / "proc",
+            adopted_factory=lambda pid: process,
+        )
+        assert second.pid == process.pid
+        second.shutdown()
+        assert process.running is False
 
 
 def test_service_overhead_is_durable_nonoverlapping_and_carries_hard_budget(

@@ -35,7 +35,6 @@ from story_projection_onto.contracts import (
     EvidenceSupportStatus,
     InstanceGraph,
     OntologyDecision,
-    OntologyDraft,
     OntologyProjection,
     OutputBudgets,
     PreconstructionRequest,
@@ -46,10 +45,13 @@ from story_projection_onto.contracts import (
     TemporalDeterminationStatus,
     TemporalKind,
     UpperOntology,
+    ValidatedGeneration,
     ValidationRecord,
     ValidationStatus,
+    canonical_sha256,
     to_model_visible_evidence,
 )
+from story_projection_onto.validate import validate_draft_structure, validate_projection_lineage
 
 _TOKEN = re.compile(r"[A-Za-z][A-Za-z'-]*")
 
@@ -91,25 +93,46 @@ def build_c1_preconstruction_request(
 def seal_c1_preconstruction(
     *,
     request: PreconstructionRequest,
-    draft: OntologyDraft,
+    generation: ValidatedGeneration,
     seed_block: int,
-    constructed_at: datetime,
     sealed_at: datetime,
 ) -> ConditionPreparation:
     """Seal exactly one complete C1 graph for reuse across its world's contexts."""
 
-    if constructed_at < request.requested_at:
+    if generation.condition is not ConditionName.C1_LLM_PRE:
+        raise ConditionIntegrityError("C1 sealer received another condition's generation")
+    if generation.request_hash != request.content_hash:
+        raise ConditionIntegrityError("C1 validated generation cites a different request")
+    if (
+        generation.prompt_hash != request.runtime.prompt_hash
+        or generation.output_schema_hash != request.runtime.output_schema_hash
+        or generation.decoding_manifest_hash != request.runtime.decoding_config_hash
+    ):
+        raise ConditionIntegrityError("C1 generation differs from the request runtime")
+    if generation.generation_started_at < request.requested_at:
         raise ConditionIntegrityError("C1 completion predates its GPU request")
-    if sealed_at < constructed_at:
+    if sealed_at <= generation.validated_at:
         raise ConditionIntegrityError("C1 seal predates construction completion")
+    draft = generation.draft
     draft.budget_accounting.validate_against(request.budgets)
+    validation = validate_draft_structure(
+        draft=draft,
+        upper_ontology=request.upper_ontology,
+        evidence=request.evidence,
+        budgets=request.budgets,
+        capabilities=request.capabilities,
+    )
+    if not validation.accepted:
+        raise ConditionIntegrityError("C1 draft failed deterministic boundary validation")
+    if validation.content_hash not in generation.validator_report_hashes:
+        raise ConditionIntegrityError("C1 generation does not bind its boundary report")
     ontology_hash = preontology_semantic_hash(request.upper_ontology, draft)
     seal = ConstructionSeal(
         seal_id=_identifier("c1-seal", request.content_hash, ontology_hash, seed_block),
         condition=ConditionName.C1_LLM_PRE,
         snapshot_hash=request.snapshot_hash,
         ontology_hash=ontology_hash,
-        constructed_at=constructed_at,
+        constructed_at=generation.validated_at,
         sealed_at=sealed_at,
         sealed_object_ids=sealed_semantic_ids(draft),
     )
@@ -120,6 +143,7 @@ def seal_c1_preconstruction(
         upper_ontology=request.upper_ontology,
         draft=draft,
         construction_seal=seal,
+        validated_generation=generation,
         seed_block=seed_block,
     )
     return ConditionPreparation(
@@ -171,8 +195,8 @@ def project_sealed_c1(
 
     if preontology.condition is not ConditionName.C1_LLM_PRE:
         raise ConditionIntegrityError("C1 projector requires a C1 sealed preontology")
-    if preontology.construction_seal.sealed_at >= inputs.context.revealed_at:
-        raise ConditionIntegrityError("C1 was not sealed strictly before query reveal")
+    if preontology.construction_seal.sealed_at >= inputs.query_access.accessed_at:
+        raise ConditionIntegrityError("C1 was not sealed before physical query access")
     if preontology.seed_block != inputs.run_config.seed_block:
         raise ConditionIntegrityError("C1 projection and preconstruction seeds differ")
     graph = preontology.draft.instance_graph
@@ -276,7 +300,7 @@ def project_sealed_c1(
         operator=ConstructionOperator.SELECTION,
         evidence_ids=evidence_ids or (inputs.packet.ordered_evidence_ids[0],),
         rationale="Frozen query-time scorer selected only complete-seal C1 semantic objects.",
-        decided_at=inputs.context.revealed_at,
+        decided_at=inputs.query_processing_started_at,
         input_object_ids=tuple(sorted(selected_ids)),
     )
     node_count = len(selected_entities) + len(selected_events)
@@ -301,14 +325,22 @@ def project_sealed_c1(
         evidence_support_status=EvidenceSupportStatus.SUPPORTED,
         temporal_status=TemporalDeterminationStatus.VALID,
         commitment_status=CommitmentCheckStatus.VALID,
-        validated_at=inputs.context.revealed_at,
+        validated_at=inputs.query_processing_started_at,
     )
-    return OntologyProjection(
+    generation = preontology.validated_generation
+    if generation is None:
+        raise ConditionIntegrityError("C1 projection lacks validated preconstruction lineage")
+    projection = OntologyProjection(
         projection_id=projection_id,
         condition=ConditionName.C1_LLM_PRE,
         snapshot_hash=inputs.snapshot.content_hash,
         packet_hash=inputs.packet.content_hash,
         context_hash=inputs.context.content_hash,
+        query_access_event_hash=inputs.query_access.content_hash,
+        generation_lineage_hash=generation.content_hash,
+        raw_output_artifact_hash=generation.raw_output_artifact_hash,
+        normalized_draft_hash=generation.normalized_draft_hash,
+        validation_bundle_hash=canonical_sha256((validation,)),
         upper_ontology=preontology.upper_ontology,
         local_schema=preontology.draft.local_schema,
         instance_graph=InstanceGraph(
@@ -325,6 +357,18 @@ def project_sealed_c1(
         run_id=_identifier("c1-run", inputs.run_config.content_hash, projection_id),
         release_class=inputs.packet.release_class,
     )
+    lineage = validate_projection_lineage(
+        projection,
+        inputs.context,
+        query_access=inputs.query_access,
+        packet_materialization=inputs.packet_materialization,
+        request_created_at=None,
+        seed_block=inputs.run_config.seed_block or 0,
+        sealed_seed_block=preontology.seed_block,
+    )
+    if not lineage.accepted:
+        raise ConditionIntegrityError("C1 projection failed timing/lineage validation")
+    return projection
 
 
 class LLMPreCondition:
@@ -332,10 +376,41 @@ class LLMPreCondition:
 
     condition = ConditionName.C1_LLM_PRE
 
+    def prepare(
+        self,
+        *,
+        request: PreconstructionRequest,
+        generation: ValidatedGeneration,
+        seed_block: int,
+        sealed_at: datetime,
+    ) -> ConditionPreparation:
+        return seal_c1_preconstruction(
+            request=request,
+            generation=generation,
+            seed_block=seed_block,
+            sealed_at=sealed_at,
+        )
+
     def produce(self, inputs: ProduceInputs) -> ConditionAttemptRecord:
         preontology = inputs.preparation.sealed_preontology
         if preontology is None:
             raise ConditionIntegrityError("C1 produce requires its sealed preontology")
+        generation = preontology.validated_generation
+        if generation is None:
+            raise ConditionIntegrityError("C1 produce lacks validated generation lineage")
+        config = inputs.run_config
+        expected_bindings = (
+            (generation.model_stack_hash, config.model_stack_hash),
+            (generation.decoding_manifest_hash, config.decoding_manifest_hash),
+            (generation.seed_manifest_hash, config.seed_manifest_hash),
+            (generation.seed, config.resolved_seed),
+            (generation.prompt_hash, config.prompt_hash),
+            (generation.output_schema_hash, config.output_schema_hash),
+            (generation.capability_manifest_hash, config.capability_manifest_hash),
+            (generation.validator_hash, config.validator_hash),
+        )
+        if any(observed != expected for observed, expected in expected_bindings):
+            raise ConditionIntegrityError("C1 generation differs from its frozen run configuration")
         projection = project_sealed_c1(preontology, inputs)
         return ConditionAttemptRecord(
             attempt_id=_identifier(

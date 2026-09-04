@@ -26,13 +26,18 @@ from story_projection_onto.contracts import (
     OntologyDraft,
     OntologyProjection,
     OutputBudgets,
+    PacketMaterializationEvent,
+    PrequeryBarrier,
     PreQueryInventory,
+    QueryAccessEvent,
     QueryContext,
     ReleaseClass,
     RunOutcome,
     Sha256Digest,
     UpperOntology,
+    ValidatedGeneration,
     canonical_sha256,
+    to_model_visible_query,
 )
 from story_projection_onto.evidence import assert_evidence_packet_equality
 from story_projection_onto.llm import semantic_fingerprints_from_draft
@@ -40,6 +45,11 @@ from story_projection_onto.llm import semantic_fingerprints_from_draft
 
 class ConditionIntegrityError(ValueError):
     """A blocking timing, lineage, evidence, budget, or pairing violation."""
+
+
+SCORED_PROJECTION_SCHEMA_HASH: Sha256Digest = canonical_sha256(
+    OntologyProjection.model_json_schema(mode="validation")
+)
 
 
 class ExecutionStage(StrEnum):
@@ -193,6 +203,7 @@ class SealedPreontology(ImmutableRecord):
     upper_ontology: UpperOntology
     draft: OntologyDraft
     construction_seal: ConstructionSeal
+    validated_generation: ValidatedGeneration | None = None
     seed_block: int | None = Field(default=None, ge=0)
 
     @model_validator(mode="after")
@@ -210,8 +221,19 @@ class SealedPreontology(ImmutableRecord):
             raise ValueError("a preontology decision was made after its seal")
         if self.condition is ConditionName.C1_LLM_PRE and self.seed_block is None:
             raise ValueError("C1 sealed preontology requires its LLM seed block")
+        if self.condition is ConditionName.C1_LLM_PRE:
+            generation = self.validated_generation
+            if generation is None or generation.condition is not self.condition:
+                raise ValueError("C1 sealed preontology requires validated LLM lineage")
+            if generation.draft != self.draft:
+                raise ValueError("C1 seal draft differs from its validated generation")
         if self.condition is ConditionName.C0_CLASSICAL_PRE and self.seed_block is not None:
             raise ValueError("deterministic C0 cannot be duplicated under LLM seed blocks")
+        if (
+            self.condition is ConditionName.C0_CLASSICAL_PRE
+            and self.validated_generation is not None
+        ):
+            raise ValueError("deterministic C0 cannot claim LLM generation lineage")
         return self
 
     def as_fixed_ontology(self) -> FixedOntologyInput:
@@ -312,12 +334,21 @@ class RunConditionConfig(ImmutableRecord):
     seed_block: int | None = Field(default=None, ge=0)
     source_c1_seed_block: int | None = Field(default=None, ge=0)
     model_stack_hash: Sha256Digest | None = None
+    decoding_manifest_hash: Sha256Digest | None = None
     decoding_family_hash: Sha256Digest | None = None
+    seed_manifest_hash: Sha256Digest | None = None
+    resolved_seed: int | None = Field(default=None, ge=0, le=2_147_483_647)
+    prompt_hash: Sha256Digest | None = None
+    output_schema_hash: Sha256Digest | None = None
+    scored_schema_hash: Sha256Digest
+    capability_manifest_hash: Sha256Digest | None = None
     validator_hash: Sha256Digest
     upper_ontology_hash: Sha256Digest
 
     @model_validator(mode="after")
     def seed_and_model_fields_match_condition(self) -> RunConditionConfig:
+        if self.scored_schema_hash != SCORED_PROJECTION_SCHEMA_HASH:
+            raise ValueError("run configuration changed the common scored projection schema")
         llm_conditions = {
             ConditionName.C1_LLM_PRE,
             ConditionName.C2_LLM_QUERY,
@@ -329,13 +360,33 @@ class RunConditionConfig(ImmutableRecord):
         if self.condition in llm_conditions:
             if self.seed_block is None:
                 raise ValueError("LLM conditions require a paired seed block")
-            if self.model_stack_hash is None or self.decoding_family_hash is None:
-                raise ValueError("LLM conditions require model and decoding-family hashes")
+            llm_bindings = (
+                self.model_stack_hash,
+                self.decoding_manifest_hash,
+                self.decoding_family_hash,
+                self.seed_manifest_hash,
+                self.resolved_seed,
+                self.prompt_hash,
+                self.output_schema_hash,
+                self.capability_manifest_hash,
+            )
+            if any(item is None for item in llm_bindings):
+                raise ValueError("LLM conditions require complete runtime/configuration bindings")
         elif self.condition is ConditionName.C0_CLASSICAL_PRE:
             if self.seed_block is not None:
                 raise ValueError("C0 is deterministic and must not be seed-replicated")
-            if self.model_stack_hash is not None or self.decoding_family_hash is not None:
-                raise ValueError("C0 must not claim an LLM model or decoding family")
+            llm_bindings = (
+                self.model_stack_hash,
+                self.decoding_manifest_hash,
+                self.decoding_family_hash,
+                self.seed_manifest_hash,
+                self.resolved_seed,
+                self.prompt_hash,
+                self.output_schema_hash,
+                self.capability_manifest_hash,
+            )
+            if any(item is not None for item in llm_bindings):
+                raise ValueError("C0 must not claim LLM runtime/configuration bindings")
         if self.condition is ConditionName.A_FIXED_SELECT:
             if self.source_c1_seed_block != self.seed_block:
                 raise ValueError("A-FixedSelect must consume the same-seed C1 ontology")
@@ -353,6 +404,10 @@ class ProduceInputs(ImmutableRecord):
     snapshot: EvidenceSnapshot
     packet: EvidencePacket
     context: QueryContext
+    query_access: QueryAccessEvent
+    prequery_barrier: PrequeryBarrier
+    query_processing_started_at: AwareDatetime
+    packet_materialization: PacketMaterializationEvent | None = None
     upper_ontology: UpperOntology
     revisions: tuple[ModelVisibleRevision, ...] = ()
     run_config: RunConditionConfig
@@ -369,8 +424,74 @@ class ProduceInputs(ImmutableRecord):
             raise ValueError("context and snapshot horizons differ")
         if self.packet.created_at < self.context.revealed_at:
             raise ValueError("query-dependent packet must not predate query reveal")
-        if self.preparation.completed_at >= self.context.revealed_at:
-            raise ValueError("pre-query preparation must complete strictly before query reveal")
+        access = self.query_access
+        if access.query_context_hash != self.context.content_hash:
+            raise ValueError("query-access event belongs to a different query context")
+        if access.model_visible_query_hash != to_model_visible_query(self.context).content_hash:
+            raise ValueError("query-access event binds different model-visible query semantics")
+        if access.snapshot_hash != self.snapshot.content_hash:
+            raise ValueError("query-access event belongs to a different evidence snapshot")
+        barrier = self.prequery_barrier
+        if access.execution_id != barrier.execution_id:
+            raise ValueError("query access and prequery barrier use different executions")
+        if access.prequery_barrier_hash != barrier.content_hash:
+            raise ValueError("query-access event does not cite the supplied prequery barrier")
+        if barrier.sealed_at >= access.accessed_at:
+            raise ValueError("prequery barrier must be sealed before physical query access")
+        seed_block = self.run_config.seed_block
+        matching_bindings = tuple(
+            item
+            for item in barrier.preparation_bindings
+            if item.unit_id == self.snapshot.world_or_window_id
+            and item.condition is self.run_config.condition
+            and item.seed_block == seed_block
+        )
+        if len(matching_bindings) != 1:
+            raise ValueError("prequery barrier lacks the exact condition preparation binding")
+        binding = matching_bindings[0]
+        if binding.snapshot_hash != self.snapshot.content_hash:
+            raise ValueError("prequery barrier preparation belongs to another snapshot")
+        if binding.preparation_hash != self.preparation.content_hash:
+            raise ValueError("prequery barrier cites a different preparation")
+        lineage_artifact = (
+            self.preparation.sealed_preontology.construction_seal
+            if self.preparation.sealed_preontology is not None
+            else self.preparation.empty_inventory
+            if self.preparation.empty_inventory is not None
+            else self.preparation.fixed_selection
+        )
+        if (
+            lineage_artifact is None
+            or binding.lineage_artifact_hash != lineage_artifact.content_hash
+        ):
+            raise ValueError("prequery barrier cites a different lineage artifact")
+        if access.registered_revealed_at != self.context.revealed_at:
+            raise ValueError("query-access event and registered reveal timestamp differ")
+        if self.preparation.completed_at >= access.accessed_at:
+            raise ValueError("pre-query preparation must complete before physical query access")
+        if self.query_processing_started_at <= access.accessed_at:
+            raise ValueError("query processing must strictly follow physical query access")
+        materialization = self.packet_materialization
+        if access.packet_hash is not None:
+            if access.packet_hash != self.packet.content_hash:
+                raise ValueError("query-access event belongs to a different evidence packet")
+        elif materialization is None:
+            raise ValueError("post-access evidence packet requires a materialization receipt")
+        if materialization is not None:
+            if materialization.execution_id != access.execution_id:
+                raise ValueError("packet materialization belongs to another execution")
+            if materialization.query_access_event_hash != access.content_hash:
+                raise ValueError("packet materialization cites a different query-access event")
+            if materialization.snapshot_hash != self.snapshot.content_hash:
+                raise ValueError("packet materialization belongs to another snapshot")
+            if materialization.packet_hash != self.packet.content_hash:
+                raise ValueError("packet materialization cites a different evidence packet")
+            if materialization.retrieval_method is not self.packet.retrieval_method:
+                raise ValueError("packet materialization retrieval method differs from packet")
+            if materialization.started_at < access.accessed_at:
+                raise ValueError("query-dependent packet materialization predates query access")
+            if materialization.completed_at > self.query_processing_started_at:
+                raise ValueError("query processing began before packet materialization completed")
         if self.context.budgets != self.run_config.budgets:
             raise ValueError("context and run-config budgets differ")
         if self.upper_ontology.content_hash != self.run_config.upper_ontology_hash:
@@ -401,6 +522,8 @@ class ComparisonInputManifest(ImmutableRecord):
     condition: ConditionName
     snapshot_hash: Sha256Digest
     packet_hash: Sha256Digest
+    query_access_event_hash: Sha256Digest
+    prequery_barrier_hash: Sha256Digest
     ordered_evidence_ids: tuple[str, ...]
     horizon_hash: Sha256Digest
     context_semantics_hash: Sha256Digest
@@ -412,8 +535,21 @@ class ComparisonInputManifest(ImmutableRecord):
     seed_block: int | None = Field(default=None, ge=0)
     source_c1_seed_block: int | None = Field(default=None, ge=0)
     model_stack_hash: Sha256Digest | None = None
+    decoding_manifest_hash: Sha256Digest | None = None
     decoding_family_hash: Sha256Digest | None = None
+    seed_manifest_hash: Sha256Digest | None = None
+    resolved_seed: int | None = Field(default=None, ge=0, le=2_147_483_647)
+    prompt_hash: Sha256Digest | None = None
+    output_schema_hash: Sha256Digest | None = None
+    scored_schema_hash: Sha256Digest
+    capability_manifest_hash: Sha256Digest | None = None
     validator_hash: Sha256Digest
+
+    @model_validator(mode="after")
+    def scored_contract_is_registered(self) -> ComparisonInputManifest:
+        if self.scored_schema_hash != SCORED_PROJECTION_SCHEMA_HASH:
+            raise ValueError("comparison manifest changed the common scored projection schema")
+        return self
 
     @classmethod
     def from_inputs(cls, inputs: ProduceInputs) -> ComparisonInputManifest:
@@ -425,6 +561,8 @@ class ComparisonInputManifest(ImmutableRecord):
             condition=config.condition,
             snapshot_hash=inputs.snapshot.content_hash,
             packet_hash=inputs.packet.content_hash,
+            query_access_event_hash=inputs.query_access.content_hash,
+            prequery_barrier_hash=inputs.prequery_barrier.content_hash,
             ordered_evidence_ids=inputs.packet.ordered_evidence_ids,
             horizon_hash=inputs.context.spoiler_horizon.content_hash,
             context_semantics_hash=canonical_sha256(context_payload),
@@ -436,7 +574,14 @@ class ComparisonInputManifest(ImmutableRecord):
             seed_block=config.seed_block,
             source_c1_seed_block=config.source_c1_seed_block,
             model_stack_hash=config.model_stack_hash,
+            decoding_manifest_hash=config.decoding_manifest_hash,
             decoding_family_hash=config.decoding_family_hash,
+            seed_manifest_hash=config.seed_manifest_hash,
+            resolved_seed=config.resolved_seed,
+            prompt_hash=config.prompt_hash,
+            output_schema_hash=config.output_schema_hash,
+            scored_schema_hash=config.scored_schema_hash,
+            capability_manifest_hash=config.capability_manifest_hash,
             validator_hash=config.validator_hash,
         )
 
@@ -465,6 +610,8 @@ def assert_comparison_fairness(manifests: Sequence[ComparisonInputManifest]) -> 
 
     equal_fields = (
         "snapshot_hash",
+        "query_access_event_hash",
+        "prequery_barrier_hash",
         "horizon_hash",
         "context_semantics_hash",
         "upper_ontology_hash",
@@ -472,6 +619,7 @@ def assert_comparison_fairness(manifests: Sequence[ComparisonInputManifest]) -> 
         "maximum_input_tokens",
         "maximum_output_tokens",
         "repair_attempt_budget",
+        "scored_schema_hash",
         "validator_hash",
     )
     for field_name in equal_fields:
@@ -490,6 +638,23 @@ def assert_comparison_fairness(manifests: Sequence[ComparisonInputManifest]) -> 
         raise ConditionIntegrityError("LLM conditions use different model stacks")
     if len({c1.decoding_family_hash, c2.decoding_family_hash, fixed.decoding_family_hash}) != 1:
         raise ConditionIntegrityError("LLM conditions use different decoding families")
+    if c1.output_schema_hash != c2.output_schema_hash:
+        raise ConditionIntegrityError("C1 and C2 use different constructive output grammars")
+    if c1.decoding_manifest_hash != c2.decoding_manifest_hash:
+        raise ConditionIntegrityError("C1 and C2 use different exact decoding manifests")
+    if fixed.output_schema_hash == c2.output_schema_hash:
+        raise ConditionIntegrityError("Fixed lacks its mechanically narrowed output grammar")
+    if fixed.decoding_manifest_hash == c2.decoding_manifest_hash:
+        raise ConditionIntegrityError("Fixed decoding manifest does not bind its narrowed grammar")
+    if fixed.capability_manifest_hash in {
+        c1.capability_manifest_hash,
+        c2.capability_manifest_hash,
+    }:
+        raise ConditionIntegrityError("Fixed lacks a distinct hashed capability manifest")
+    if len({c1.seed_manifest_hash, c2.seed_manifest_hash, fixed.seed_manifest_hash}) != 1:
+        raise ConditionIntegrityError("LLM conditions use different seed manifests")
+    if len({c1.resolved_seed, c2.resolved_seed, fixed.resolved_seed}) != 1:
+        raise ConditionIntegrityError("LLM conditions do not resolve the paired block identically")
 
 
 class ConditionAttemptRecord(ImmutableRecord):

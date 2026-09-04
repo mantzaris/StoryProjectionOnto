@@ -204,7 +204,11 @@ def atomic_write_public_json(path: Path, value: Mapping[str, object]) -> None:
     temporary = Path(temporary_name)
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
-            json.dump(value, stream, ensure_ascii=False, indent=2, sort_keys=True)
+            # ``model_gate`` deliberately returns immutable ``MappingProxyType``
+            # certificates.  The stdlib JSON encoder only recognizes concrete
+            # dicts as mappings, so materialize the public top-level object while
+            # preserving its already-canonical contents.
+            json.dump(dict(value), stream, ensure_ascii=False, indent=2, sort_keys=True)
             stream.write("\n")
             stream.flush()
             os.fsync(stream.fileno())
@@ -235,6 +239,7 @@ class VLLMLaunchConfiguration:
     dtype: str = "half"
     prefix_caching: bool = False
     speculative_decoding: bool = False
+    enforce_eager: bool = True
     verified_snapshot_manifest_sha256: str | None = None
 
     def __post_init__(self) -> None:
@@ -258,6 +263,7 @@ class VLLMLaunchConfiguration:
             "dtype": "half",
             "prefix_caching": False,
             "speculative_decoding": False,
+            "enforce_eager": True,
         }
         for name, required in expected.items():
             if getattr(self, name) != required:
@@ -323,6 +329,7 @@ class VLLMLaunchConfiguration:
             maximum_sequences=cast(int, raw.get("request_concurrency")),
             prefix_caching=cast(bool, raw.get("prefix_decoding")),
             speculative_decoding=cast(bool, raw.get("speculative_decoding")),
+            enforce_eager=cast(bool, raw.get("enforce_eager")),
             verified_snapshot_manifest_sha256=verified_snapshot_manifest_sha256,
             port=port,
         )
@@ -367,6 +374,7 @@ class VLLMLaunchConfiguration:
             "dtype": "float16",
             "prefix_caching": self.prefix_caching,
             "speculative_decoding": self.speculative_decoding,
+            "enforce_eager": self.enforce_eager,
             "guided_decoding_backend": GUIDED_DECODING_BACKEND,
             "guided_decoding_fallback": False,
             "runtime_environment_policy": "explicit_os_cuda_allowlist",
@@ -409,6 +417,7 @@ class VLLMLaunchConfiguration:
             "--guided-decoding-backend",
             GUIDED_DECODING_BACKEND,
             "--guided-decoding-disable-fallback",
+            "--enforce-eager",
             "--no-enable-prefix-caching",
             "--no-enable-log-requests",
             "--uvicorn-log-level",
@@ -1885,7 +1894,12 @@ class VLLMService:
         )
         self._service_journal_opened = True
 
-    def _validate_resume_lease(self, service_pid: int) -> None:
+    def _validate_resume_lease(
+        self,
+        service_pid: int,
+        *,
+        controller_restart_handoff: bool = False,
+    ) -> None:
         lease = self._prior_service_lease
         if lease is None:
             raise RuntimeConfigurationError(
@@ -1896,7 +1910,11 @@ class VLLMService:
             raise RuntimeConfigurationError("resumed vLLM service lease baseline is invalid")
         expected = {
             "configuration_hash": self.configuration.configuration_hash,
-            "lease_state": "live",
+            "lease_state": (
+                "controller_restart_handoff"
+                if controller_restart_handoff
+                else "live"
+            ),
             "session_id": self._session_id,
             "accounting_session_id": self._accounting_session_id,
             "service_pid": service_pid,
@@ -2230,13 +2248,21 @@ class VLLMService:
                 watchdog_seconds=watchdog_seconds,
             )
 
-    def write_resume_checkpoint(self, path: Path, *, proc_root: Path = PROC_ROOT) -> None:
+    def write_resume_checkpoint(
+        self,
+        path: Path,
+        *,
+        proc_root: Path = PROC_ROOT,
+        controller_restart_handoff: bool = False,
+    ) -> None:
         """Persist a PID-reuse-safe operational checkpoint without a model path."""
 
         self.require_ready()
         payload = {
             "schema_version": SCHEMA_VERSION,
             "configuration_hash": self.configuration.configuration_hash,
+            "controller_pid": os.getpid(),
+            "controller_restart_handoff": controller_restart_handoff,
             "session_id": self._session_id,
             "accounting_session_id": self._accounting_session_id,
             "pid": self.pid,
@@ -2248,12 +2274,61 @@ class VLLMService:
         }
         _atomic_write_private_json(path, payload)
 
+    def detach_for_controller_restart(
+        self,
+        path: Path,
+        *,
+        proc_root: Path = PROC_ROOT,
+    ) -> None:
+        """Leave one verified vLLM process live for a new controller invocation.
+
+        This is intentionally narrower than a model restart: the service PID and
+        loaded weights remain unchanged.  The exact PID/start-ticks/configuration
+        checkpoint lets a later controller adopt it without a second load.  Any
+        exception before ownership is released leaves this controller capable of
+        performing the normal fail-safe shutdown.
+        """
+
+        self.require_ready()
+        self.write_resume_checkpoint(
+            path,
+            proc_root=proc_root,
+            controller_restart_handoff=True,
+        )
+        self._observe_service_journal(
+            details={
+                "controller_restart_handoff": True,
+                "controller_pid": os.getpid(),
+                "service_pid": self.pid,
+            }
+        )
+        self._stop_service_heartbeat()
+        process = self._process
+        assert process is not None
+        self._write_service_lock_metadata(
+            lease_state="controller_restart_handoff",
+            service_pid=process.pid,
+        )
+        self._close_log_stream()
+        self._release_service_lock()
+        self._process = None
+        self._last_service_pid = None
+        self._session_id = None
+        self._accounting_session_id = None
+        self._started_at = None
+        self._started_monotonic = None
+        self._allocated_at_start = None
+        self._carried_service_seconds = 0.0
+        self._service_journal_opened = False
+        self.state = ServiceState.STOPPED
+
     def resume_from_checkpoint(
         self,
         path: Path,
         *,
         proc_root: Path = PROC_ROOT,
         adopted_factory: Callable[[int], ProcessHandle] = _AdoptedProcess,
+        allow_same_controller_cleanup: bool = False,
     ) -> bool:
         """Adopt the exact still-live service; never start or meter a duplicate load."""
 
@@ -2275,6 +2350,11 @@ class VLLMService:
             started_at_text = value.get("session_started_at")
             session_id = value.get("session_id")
             accounting_session_id = value.get("accounting_session_id")
+            checkpoint_controller_pid = value.get("controller_pid")
+            controller_restart_handoff = value.get(
+                "controller_restart_handoff",
+                False,
+            )
             if (
                 isinstance(pid, bool)
                 or not isinstance(pid, int)
@@ -2291,8 +2371,20 @@ class VLLMService:
                 or not isinstance(session_id, str)
                 or not isinstance(accounting_session_id, str)
                 or not accounting_session_id
+                or isinstance(checkpoint_controller_pid, bool)
+                or not isinstance(checkpoint_controller_pid, int)
+                or checkpoint_controller_pid <= 0
+                or not isinstance(controller_restart_handoff, bool)
             ):
                 raise RuntimeConfigurationError("service checkpoint has invalid process identity")
+            if (
+                controller_restart_handoff
+                and checkpoint_controller_pid == os.getpid()
+                and not allow_same_controller_cleanup
+            ):
+                raise RuntimeConfigurationError(
+                    "controller-restart handoff requires a different controller PID"
+                )
             try:
                 started_at = datetime.fromisoformat(started_at_text)
             except ValueError as exc:
@@ -2336,7 +2428,10 @@ class VLLMService:
             # A service that remained live consumed allocation between checkpoint
             # write and controller recovery. Charge the larger persisted/wall gap.
             self._carried_service_seconds = max(float(carried_seconds), wall_service_seconds)
-            self._validate_resume_lease(pid)
+            self._validate_resume_lease(
+                pid,
+                controller_restart_handoff=controller_restart_handoff,
+            )
             self._adopt_service_journal()
             self._write_service_lock_metadata(lease_state="live", service_pid=pid)
             try:
@@ -2496,6 +2591,7 @@ class VLLMService:
         job_id: str | None = None,
         attempt_id: str | None = None,
         remaining_required_seconds: float = 0,
+        accounting_details: Mapping[str, object] | None = None,
     ) -> GenerationResult:
         self.require_ready()
         if request.model_name != self.configuration.served_model_name:
@@ -2509,13 +2605,76 @@ class VLLMService:
         if repair != (request.decoding.decoding_pass is DecodingPass.REPAIR):
             raise RuntimeConfigurationError("repair event kind differs from decoding pass")
         context = self.meter.repair if repair else self.meter.inference
+        details = {"request_id": request.request_id, "request_hash": request.request_hash}
+        for name, value in (accounting_details or {}).items():
+            if name in details:
+                raise RuntimeConfigurationError(
+                    "additional accounting details cannot replace request identity"
+                )
+            details[name] = value
         with context(
             event_id=event_id,
             maximum_seconds=watchdog_seconds,
             remaining_required_seconds=remaining_required_seconds,
             job_id=job_id,
             attempt_id=attempt_id,
-            details={"request_id": request.request_id, "request_hash": request.request_hash},
+            details=details,
+        ):
+            try:
+                return self.client.generate(request, watchdog_seconds=watchdog_seconds)
+            except RuntimeWatchdogTimeout:
+                self.emergency_stop()
+                raise
+
+    def run_fallback_test(
+        self,
+        request: GuidedJSONRequest,
+        *,
+        event_id: str,
+        watchdog_seconds: float,
+        reserve_call_class: str,
+        reserve_reservation_id: str,
+        job_id: str | None = None,
+        attempt_id: str | None = None,
+        remaining_required_seconds: float = 0,
+    ) -> GenerationResult:
+        """Run one first-pass fallback probe charged to its exact reserve tier."""
+
+        expected_watchdog = {
+            "reserve_long": 240,
+            "reserve_standard": 150,
+            "reserve_short": 90,
+        }.get(reserve_call_class)
+        if expected_watchdog is None or watchdog_seconds != expected_watchdog:
+            raise RuntimeConfigurationError(
+                "fallback watchdog must match its registered reserve call class"
+            )
+        _require_plain_identifier("reserve_reservation_id", reserve_reservation_id)
+        if request.decoding.decoding_pass is not DecodingPass.FIRST_PASS:
+            raise RuntimeConfigurationError("fallback base probe must use first-pass decoding")
+        self.require_ready()
+        if request.model_name != self.configuration.served_model_name:
+            raise RuntimeConfigurationError(
+                "request served-model alias differs from the controlled service"
+            )
+        if self.configuration.model_candidate != "fallback":
+            raise RuntimeConfigurationError("fallback probe requires the pinned fallback model")
+        self.require_service_capacity(
+            watchdog_seconds,
+            remaining_required_seconds=remaining_required_seconds,
+        )
+        with self.meter.fallback_test(
+            event_id=event_id,
+            maximum_seconds=watchdog_seconds,
+            remaining_required_seconds=remaining_required_seconds,
+            job_id=job_id,
+            attempt_id=attempt_id,
+            details={
+                "request_id": request.request_id,
+                "request_hash": request.request_hash,
+                "reserve_call_class": reserve_call_class,
+                "reserve_reservation_id": reserve_reservation_id,
+            },
         ):
             try:
                 return self.client.generate(request, watchdog_seconds=watchdog_seconds)

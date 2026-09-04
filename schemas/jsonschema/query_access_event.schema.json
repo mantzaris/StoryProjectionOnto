@@ -1,0 +1,99 @@
+{
+  "additionalProperties": false,
+  "description": "Hash-bound evidence that one controller obtained a registered query.\n\nThe model-visible query contains none of these audit fields.  The event binds the\nfrozen semantic query, evidence boundary, and execution batch to a wall-clock\naccess time.  It must be persisted before any query-time production starts.",
+  "properties": {
+    "access_event_id": {
+      "maxLength": 192,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+      "title": "Access Event Id",
+      "type": "string"
+    },
+    "accessed_at": {
+      "format": "date-time",
+      "title": "Accessed At",
+      "type": "string"
+    },
+    "content_hash": {
+      "default": "",
+      "pattern": "^(?:|[0-9a-f]{64})$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "execution_id": {
+      "maxLength": 192,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+      "title": "Execution Id",
+      "type": "string"
+    },
+    "model_visible_query_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Model Visible Query Hash",
+      "type": "string"
+    },
+    "packet_hash": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Packet Hash"
+    },
+    "prequery_barrier_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Prequery Barrier Hash",
+      "type": "string"
+    },
+    "query_artifact_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Query Artifact Hash",
+      "type": "string"
+    },
+    "query_context_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Query Context Hash",
+      "type": "string"
+    },
+    "registered_revealed_at": {
+      "format": "date-time",
+      "title": "Registered Revealed At",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1.0.0",
+      "default": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "snapshot_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Snapshot Hash",
+      "type": "string"
+    },
+    "stage_manifest_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Stage Manifest Hash",
+      "type": "string"
+    }
+  },
+  "required": [
+    "access_event_id",
+    "execution_id",
+    "query_context_hash",
+    "model_visible_query_hash",
+    "snapshot_hash",
+    "stage_manifest_hash",
+    "query_artifact_hash",
+    "prequery_barrier_hash",
+    "registered_revealed_at",
+    "accessed_at"
+  ],
+  "title": "QueryAccessEvent",
+  "type": "object"
+}

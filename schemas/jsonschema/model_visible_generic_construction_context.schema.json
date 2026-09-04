@@ -1,0 +1,86 @@
+{
+  "$defs": {
+    "OutputBudgets": {
+      "additionalProperties": false,
+      "properties": {
+        "assertion_budget": {
+          "exclusiveMinimum": 0,
+          "title": "Assertion Budget",
+          "type": "integer"
+        },
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "display_assertion_budget": {
+          "exclusiveMinimum": 0,
+          "title": "Display Assertion Budget",
+          "type": "integer"
+        },
+        "display_node_budget": {
+          "exclusiveMinimum": 0,
+          "title": "Display Node Budget",
+          "type": "integer"
+        },
+        "node_budget": {
+          "exclusiveMinimum": 0,
+          "title": "Node Budget",
+          "type": "integer"
+        },
+        "repair_attempt_budget": {
+          "default": 1,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Repair Attempt Budget",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "node_budget",
+        "assertion_budget",
+        "display_node_budget",
+        "display_assertion_budget"
+      ],
+      "title": "OutputBudgets",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Query-free request used only by the registered ``A-NoContext`` ablation.\n\nThe output budgets remain visible so the one-switch comparison retains the\ncommon resource envelope.  No query wording, semantic lens, target, story\nscope, spoiler horizon, viewpoint, or abstraction field exists in this type.",
+  "properties": {
+    "budgets": {
+      "$ref": "#/$defs/OutputBudgets"
+    },
+    "content_hash": {
+      "default": "",
+      "pattern": "^(?:|[0-9a-f]{64})$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "generic_request": {
+      "const": "Construct a compact evidence-grounded ontology from the complete supplied packet.",
+      "default": "Construct a compact evidence-grounded ontology from the complete supplied packet.",
+      "title": "Generic Request",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1.0.0",
+      "default": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "budgets"
+  ],
+  "title": "ModelVisibleGenericConstructionContext",
+  "type": "object"
+}
