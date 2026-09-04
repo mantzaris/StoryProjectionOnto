@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>StoryProjectionOnto — local study view</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <header class="masthead">
+      <div>
+        <p class="eyebrow">Local single-user research demonstration</p>
+        <h1>Contextual temporal ontology</h1>
+      </div>
+      <p id="asset-status" class="status" role="status">Checking renderer…</p>
+    </header>
+
+    <main class="workspace">
+      <section class="toolbar" aria-label="Projection and temporal controls">
+        <label>
+          Projection
+          <select id="projection-select"></select>
+        </label>
+        <label>
+          Compare with
+          <select id="compare-select">
+            <option value="">No comparison</option>
+          </select>
+        </label>
+        <label>
+          Story point
+          <input id="story-point" type="number" inputmode="numeric" placeholder="all" />
+        </label>
+        <label>
+          Max discourse passage
+          <input id="discourse-horizon" type="number" min="0" inputmode="numeric" placeholder="all" />
+        </label>
+        <label>
+          Max revelation
+          <input id="revelation-horizon" type="number" min="0" inputmode="numeric" placeholder="all" />
+        </label>
+        <button id="apply-filter" type="button">Apply view filter</button>
+        <button id="clear-filter" class="secondary" type="button">Clear</button>
+      </section>
+
+      <section class="graph-shell">
+        <div id="graph" aria-label="Ontology graph"></div>
+        <aside id="detail-panel" aria-live="polite">
+          <h2>Details</h2>
+          <p>Select a node, assertion, or evidence badge.</p>
+        </aside>
+      </section>
+
+      <section class="legend" aria-label="Graph legend">
+        <span><i class="swatch entity"></i> entity</span>
+        <span><i class="swatch event"></i> event</span>
+        <span><i class="swatch epistemic"></i> holder-attributed</span>
+        <span><i class="swatch added"></i> added</span>
+        <span><i class="swatch removed"></i> removed</span>
+        <span><i class="swatch requalified"></i> requalified</span>
+      </section>
+
+      <section class="revision-panel">
+        <div>
+          <p class="eyebrow">Typed semantic revision</p>
+          <h2>Request one bounded reconstruction</h2>
+          <p class="caveat">
+            Only REFINE_CONTEXT and REQUEST_MERGE_SPLIT are supported. A submitted
+            request is evidence/mention anchored and is not itself a model result.
+          </p>
+        </div>
+        <form id="revision-form">
+          <label>
+            Action
+            <select id="revision-action">
+              <option value="REFINE_CONTEXT">REFINE_CONTEXT</option>
+              <option value="REQUEST_MERGE_SPLIT">REQUEST_MERGE_SPLIT</option>
+            </select>
+          </label>
+          <label>
+            Evidence IDs (comma-separated)
+            <input id="revision-evidence" required placeholder="ev-01, ev-02" />
+          </label>
+          <label>
+            Mention groups (use | between groups)
+            <input id="revision-mentions" placeholder="m-a | m-b,m-c" />
+          </label>
+          <label>
+            Requested semantic signature
+            <input id="revision-signature" required placeholder="identity: keep witnesses separate" />
+          </label>
+          <label>
+            Refined lens
+            <input id="revision-lens" placeholder="causal responsibility" />
+          </label>
+          <label>
+            Refined story point
+            <input id="revision-story-point" type="number" inputmode="numeric" placeholder="unchanged" />
+          </label>
+          <label>
+            Refined max discourse / revelation
+            <span class="paired-inputs">
+              <input id="revision-discourse" type="number" min="0" inputmode="numeric" placeholder="discourse" />
+              <input id="revision-revelation" type="number" min="0" inputmode="numeric" placeholder="revelation" />
+            </span>
+          </label>
+          <label>
+            Merge/split operation
+            <select id="revision-operation">
+              <option value="merge">merge</option>
+              <option value="split">split</option>
+            </select>
+          </label>
+          <label class="wide">
+            Rationale
+            <textarea id="revision-rationale" required rows="2"></textarea>
+          </label>
+          <button type="submit">Submit metered revision</button>
+          <p id="revision-status" class="status" role="status"></p>
+        </form>
+      </section>
+
+      <footer>
+        This interface demonstrates implementation and replay auditability. It makes no
+        participant, cognition, workload, trust, or usability claim.
+      </footer>
+    </main>
+
+    <script src="/static/cytoscape-loader.js"></script>
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>

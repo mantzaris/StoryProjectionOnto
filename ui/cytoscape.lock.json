@@ -1,0 +1,10 @@
+{
+  "package": "cytoscape",
+  "version": "3.30.4",
+  "source": "https://registry.npmjs.org/cytoscape/-/cytoscape-3.30.4.tgz",
+  "sha256": "1bb5340e549511e111b31e5684872c949ad33d40ea5dba0ad8e7d90c62c7b3b9",
+  "bytes": 373734,
+  "license_file": "CYTOSCAPE_LICENSE",
+  "license_sha256": "a29c0d78a54de204b78357976c3d272a573b8592d0478b9db07af3f1da31a65a",
+  "license_bytes": 1082
+}
