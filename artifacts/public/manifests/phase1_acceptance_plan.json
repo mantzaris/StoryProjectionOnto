@@ -192,7 +192,7 @@
     },
     {
       "path": "src/story_projection_onto/gpu_runtime.py",
-      "sha256": "91839bb287c33db0d4527e2c1a85d7035ce44f1f79e51b32a6ca411f0437a107"
+      "sha256": "8cb578dc649296bb81f694891801b9412c1c4a106d54f336ec07f3fb1b1bb1ed"
     },
     {
       "path": "src/story_projection_onto/llm.py",
@@ -224,7 +224,7 @@
     }
   ],
   "kind": "phase1_gpu_acceptance_plan",
-  "manifest_sha256": "77eb5ed2d50d348b737d463e312955203298d328b8a86914627a911bf8c0e6ab",
+  "manifest_sha256": "10bb70c805f9e39c2e8436a91503d4596f55557a6864cdc7930743cd14f07e60",
   "model_revision": "1a6fe1ecf891437a270cce11ad54d796c4f56ce0",
   "output_schema_file": "schemas/jsonschema/ontology_draft.schema.json",
   "output_schema_sha256": "270d0f9acab96a7ebf1edc0606da9494799633146d293992649836283c0d5210",

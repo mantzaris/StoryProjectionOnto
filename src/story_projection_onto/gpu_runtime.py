@@ -1549,6 +1549,12 @@ def _process_alive(pid: int) -> bool:
     return True
 
 
+def _available_cpu_affinity() -> set[int]:
+    """Return this controller's affinity set using the required current-PID sentinel."""
+
+    return os.sched_getaffinity(0)
+
+
 def _process_start_ticks(pid: int, proc_root: Path = PROC_ROOT) -> int:
     stat = (proc_root / str(pid) / "stat").read_text(encoding="ascii")
     _, separator, suffix = stat.rpartition(")")
@@ -1610,7 +1616,7 @@ class VLLMService:
     process_group_signaler: Callable[[int, int], None] = _signal_controlled_process_group
     process_liveness_check: Callable[[int], bool] = _process_alive
     process_group_liveness_check: Callable[[int], bool] = _process_group_alive
-    available_cpu_sampler: Callable[[], set[int]] = os.sched_getaffinity
+    available_cpu_sampler: Callable[[], set[int]] = _available_cpu_affinity
     affinity_setter: Callable[[int, set[int]], None] = os.sched_setaffinity
     state: ServiceState = field(default=ServiceState.STOPPED, init=False)
     _process: ProcessHandle | None = field(default=None, init=False, repr=False)

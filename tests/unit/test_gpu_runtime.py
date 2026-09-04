@@ -804,6 +804,27 @@ class FakeServiceClient:
         )
 
 
+def test_default_cpu_affinity_sampler_uses_current_process_sentinel(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=AllocatedGPUMeter(
+                ledger,
+                monotonic_clock=clock.monotonic,
+                wall_clock=clock.wall,
+            ),
+        )
+        available = service.available_cpu_sampler()
+
+    assert available
+    assert all(isinstance(cpu, int) and cpu >= 0 for cpu in available)
+
+
 def test_service_meters_mutually_exclusive_lifecycle_and_safe_shutdown(
     tmp_path: Path,
     launch_configuration: VLLMLaunchConfiguration,
