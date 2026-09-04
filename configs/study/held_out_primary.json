@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0.0",
+  "configuration_id": "held-out-primary-control-v1",
+  "benchmark_manifest_path": "data/synthetic/manifests/benchmark_manifest.json",
+  "benchmark_manifest_file_sha256": "b81da310ffe3477b8929aa50330e50db8e9f3152bdba05241256d3cf171fb41f",
+  "seed_manifest_path": "data/synthetic/manifests/seed_manifest.json",
+  "seed_manifest_file_sha256": "02f748f87de0a7d8acb423577840e197370bccac10e8d432570335ac6251d0f4",
+  "gpu_call_inventory_path": "configs/study/gpu_call_inventory.json",
+  "gpu_call_inventory_file_sha256": "b9a63e12c05321969b8c8edee03575ea11f678062d28ce62e34d577ec2603ea0",
+  "development_exclusion_plan_path": "configs/study/development_call_manifest.json",
+  "development_exclusion_plan_file_sha256": "8a552b092f9914e75d8d70ae66d2e3ad867915cfbe1d39c551bac0207d311bb0",
+  "development_execution_result_path": "artifacts/restricted/fallback-development/development_execution_result.json",
+  "development_execution_result_file_sha256": "PENDING",
+  "production_adapter_factory": "PENDING",
+  "prequery_stage_root": "data/synthetic/model_visible/prequery_stages",
+  "query_stage_root": "data/synthetic/model_visible/query_stages",
+  "expected_plan_hash": "13cba15eeeac833271d469282e3dd24e1d3f4f23e719d3688100b8a67f574272",
+  "world_count": 12,
+  "context_count": 36,
+  "c0_preconstruction_count": 12,
+  "c1_call_count": 24,
+  "c2_call_count": 72,
+  "fixed_select_call_count": 72,
+  "seed_blocks": [1, 2],
+  "scheduled_gpu_seconds_limit": 32400,
+  "hard_gpu_seconds_limit": 36000,
+  "complete_inventory_forecast_seconds": 31229,
+  "primary_forecast_seconds": 16344,
+  "call_policies": [
+    {
+      "call_class": "test_c1",
+      "p95_seconds": 180,
+      "watchdog_seconds": 240,
+      "repair_reserve_class": "reserve_long",
+      "repair_attempt_budget": 1
+    },
+    {
+      "call_class": "test_c2",
+      "p95_seconds": 95,
+      "watchdog_seconds": 150,
+      "repair_reserve_class": "reserve_standard",
+      "repair_attempt_budget": 1
+    },
+    {
+      "call_class": "test_fixed_select",
+      "p95_seconds": 72,
+      "watchdog_seconds": 90,
+      "repair_reserve_class": "reserve_short",
+      "repair_attempt_budget": 1
+    }
+  ]
+}
