@@ -1,0 +1,3 @@
+run_id,model_repository,immutable_revision,failure_type,completed_generation_calls,gate_passed,vllm_service_stopped,allocated_gpu_seconds,interpretation
+phase1-qwen3-14b-awq-v1,Qwen/Qwen3-14B-AWQ,1a6fe1ecf891437a270cce11ad54d796c4f56ce0,TypeError,0,false,true,0.096330,Rejected primary-model lifecycle start; not a scientific model output.
+phase1-qwen3-14b-awq-v2,Qwen/Qwen3-14B-AWQ,1a6fe1ecf891437a270cce11ad54d796c4f56ce0,RuntimeWatchdogTimeout,0,false,true,212.185448,Rejected primary-model lifecycle start; not a scientific model output.

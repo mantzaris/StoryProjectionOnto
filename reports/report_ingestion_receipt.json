@@ -1,0 +1,317 @@
+{
+  "schema_version": "1.0.0",
+  "source_manifest_sha256": "866934c29048cf698871550cf11f71bea3c6d75d939b815aed15f9059b86163b",
+  "source_manifest_file_sha256": "3fe605a36d284cc71d569f324a82da78a1cfed7ec9bc30b2424376821c44aecf",
+  "predecessors": [
+    {
+      "family": "fallback",
+      "status": "incomplete",
+      "reason": "The permitted fallback is activated and downloaded, but its acceptance gate has not completed.",
+      "artifact_ids": [
+        "fallback-activation",
+        "fallback-model-snapshot"
+      ]
+    },
+    {
+      "family": "development",
+      "status": "incomplete",
+      "reason": "No accepted fallback development execution and assessment artifact exists yet.",
+      "artifact_ids": []
+    },
+    {
+      "family": "heldout",
+      "status": "incomplete",
+      "reason": "The synthetic benchmark is frozen, but independent review and held-out execution are incomplete.",
+      "artifact_ids": [
+        "synthetic-benchmark-manifest"
+      ]
+    },
+    {
+      "family": "ablations",
+      "status": "incomplete",
+      "reason": "No registered reduced-ablation execution artifact exists yet.",
+      "artifact_ids": []
+    },
+    {
+      "family": "feedback",
+      "status": "incomplete",
+      "reason": "No completed six-script and three-trace Phase 5 execution artifact exists yet.",
+      "artifact_ids": []
+    },
+    {
+      "family": "case_study",
+      "status": "blocked",
+      "reason": "No lawful local novel path or completed case-study execution artifact exists.",
+      "artifact_ids": []
+    },
+    {
+      "family": "runtime",
+      "status": "incomplete",
+      "reason": "The cumulative ledger currently covers rejected primary pilots only; final runtime accounting is absent.",
+      "artifact_ids": [
+        "primary-pilot-v1-failure",
+        "primary-pilot-v2-failure"
+      ]
+    },
+    {
+      "family": "storage",
+      "status": "incomplete",
+      "reason": "Host and initial storage facts are captured, but no final peak/headroom accounting artifact exists.",
+      "artifact_ids": [
+        "phase1-environment"
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "artifact_id": "fallback-activation",
+      "family": "fallback",
+      "file_sha256": "b458b368d4420dd1f8948893e8cdeb684cbf0f52cc558d9a9454b3c58ff17244",
+      "logical_hash": "84cd76f0de47a1ceb9154df150c8ead022aa4e544bd0a1c4e31cfee36aab9eb7",
+      "media_type": "application/json",
+      "measurement_domains": []
+    },
+    {
+      "artifact_id": "fallback-model-snapshot",
+      "family": "fallback",
+      "file_sha256": "b8c2f719d2e48d7190e8d4995bd31bc990ca288f6d0f13563171e9d4c940ca7b",
+      "logical_hash": "ea7a19bebd6cfd02d6f71846e0e46f2672ffff5e0ced607cc29e4ca1ce867f69",
+      "media_type": "application/json",
+      "measurement_domains": []
+    },
+    {
+      "artifact_id": "synthetic-benchmark-manifest",
+      "family": "heldout",
+      "file_sha256": "b81da310ffe3477b8929aa50330e50db8e9f3152bdba05241256d3cf171fb41f",
+      "logical_hash": "6b592b99994c0140be2bd3db3399e8f5deb8ccc72f76de6367b83a6164659de6",
+      "media_type": "application/json",
+      "measurement_domains": []
+    },
+    {
+      "artifact_id": "primary-pilot-v1-failure",
+      "family": "runtime",
+      "file_sha256": "c978e75cef00ba7276055538c69d50b1a5396e628463ec25546b4bc97bd53ab9",
+      "logical_hash": "7bb9584798b519c8a8db0a331e051eb255365117454583d1c77607d35949b5f4",
+      "media_type": "application/json",
+      "measurement_domains": [
+        "gpu_service_time"
+      ]
+    },
+    {
+      "artifact_id": "primary-pilot-v2-failure",
+      "family": "runtime",
+      "file_sha256": "4b870ec47668105badd32528d6fb6997fc0221618097e048ff28d27716f78050",
+      "logical_hash": "a3b64a4f4c4382886c154657d989bee6a25a037e252ccd39a9681cdc59b757ea",
+      "media_type": "application/json",
+      "measurement_domains": [
+        "gpu_service_time",
+        "gpu_memory",
+        "process_memory",
+        "project_storage"
+      ]
+    },
+    {
+      "artifact_id": "phase1-environment",
+      "family": "storage",
+      "file_sha256": "90bbb5279e99bc9fe39d92332e70c2e431c42e2131df3cbb816db6ba43861bef",
+      "logical_hash": null,
+      "media_type": "application/json",
+      "measurement_domains": [
+        "project_storage"
+      ]
+    }
+  ],
+  "tables": [
+    {
+      "table_id": "study_status",
+      "status": "complete",
+      "reason": "Exact current predecessor states; this is not a completed-study outcome.",
+      "scope": "interim",
+      "relative_path": "tables/study_status.csv",
+      "file_sha256": "d1cae85a93158406ed710d39a7b6eb69cb4eee6d69bb91b3a32b7bc16051143d",
+      "row_count": 7,
+      "columns": [
+        "phase_id",
+        "status",
+        "reason"
+      ],
+      "source_artifact_hashes": [
+        "866934c29048cf698871550cf11f71bea3c6d75d939b815aed15f9059b86163b"
+      ]
+    },
+    {
+      "table_id": "resource_accounting",
+      "status": "complete",
+      "reason": "Observed-to-date pilot accounting with missing final fields explicit.",
+      "scope": "interim",
+      "relative_path": "tables/resource_accounting.csv",
+      "file_sha256": "6d655ceb4c91d2875463be129cc766ac4230036f8286215d5cfe3e09d0c03927",
+      "row_count": 8,
+      "columns": [
+        "scope",
+        "metric",
+        "value",
+        "unit",
+        "status",
+        "source_note"
+      ],
+      "source_artifact_hashes": [
+        "c978e75cef00ba7276055538c69d50b1a5396e628463ec25546b4bc97bd53ab9",
+        "4b870ec47668105badd32528d6fb6997fc0221618097e048ff28d27716f78050",
+        "90bbb5279e99bc9fe39d92332e70c2e431c42e2131df3cbb816db6ba43861bef"
+      ]
+    },
+    {
+      "table_id": "failure_accounting",
+      "status": "complete",
+      "reason": "Observed rejected-primary-pilot failures only.",
+      "scope": "interim",
+      "relative_path": "tables/failure_accounting.csv",
+      "file_sha256": "1a9b8a298001a0fb4bb0548bd749a349845b7eaac3331d70ad99196e364cec92",
+      "row_count": 2,
+      "columns": [
+        "run_id",
+        "model_repository",
+        "immutable_revision",
+        "failure_type",
+        "completed_generation_calls",
+        "gate_passed",
+        "vllm_service_stopped",
+        "allocated_gpu_seconds",
+        "interpretation"
+      ],
+      "source_artifact_hashes": [
+        "c978e75cef00ba7276055538c69d50b1a5396e628463ec25546b4bc97bd53ab9",
+        "4b870ec47668105badd32528d6fb6997fc0221618097e048ff28d27716f78050"
+      ]
+    },
+    {
+      "table_id": "primary_c2_vs_c1",
+      "status": "incomplete",
+      "reason": "No frozen held-out primary analysis table exists.",
+      "scope": "final",
+      "relative_path": null,
+      "file_sha256": null,
+      "row_count": null,
+      "columns": [],
+      "source_artifact_hashes": []
+    },
+    {
+      "table_id": "secondary_c2_vs_c0",
+      "status": "incomplete",
+      "reason": "No frozen held-out secondary analysis table exists.",
+      "scope": "final",
+      "relative_path": null,
+      "file_sha256": null,
+      "row_count": null,
+      "columns": [],
+      "source_artifact_hashes": []
+    },
+    {
+      "table_id": "mechanism_c2_vs_fixed",
+      "status": "incomplete",
+      "reason": "No gated mechanism analysis table exists.",
+      "scope": "final",
+      "relative_path": null,
+      "file_sha256": null,
+      "row_count": null,
+      "columns": [],
+      "source_artifact_hashes": []
+    },
+    {
+      "table_id": "rare_pivotal",
+      "status": "incomplete",
+      "reason": "No rare-pivotal safeguard table exists.",
+      "scope": "final",
+      "relative_path": null,
+      "file_sha256": null,
+      "row_count": null,
+      "columns": [],
+      "source_artifact_hashes": []
+    },
+    {
+      "table_id": "entropy_clutter",
+      "status": "incomplete",
+      "reason": "No frozen entropy and clutter table exists.",
+      "scope": "final",
+      "relative_path": null,
+      "file_sha256": null,
+      "row_count": null,
+      "columns": [],
+      "source_artifact_hashes": []
+    },
+    {
+      "table_id": "community",
+      "status": "incomplete",
+      "reason": "No frozen community analysis table exists.",
+      "scope": "final",
+      "relative_path": null,
+      "file_sha256": null,
+      "row_count": null,
+      "columns": [],
+      "source_artifact_hashes": []
+    },
+    {
+      "table_id": "paraphrase_contrastive",
+      "status": "incomplete",
+      "reason": "No frozen paraphrase or contrastive result table exists.",
+      "scope": "final",
+      "relative_path": null,
+      "file_sha256": null,
+      "row_count": null,
+      "columns": [],
+      "source_artifact_hashes": []
+    },
+    {
+      "table_id": "ablations",
+      "status": "incomplete",
+      "reason": "No one-switch reduced-ablation result table exists.",
+      "scope": "final",
+      "relative_path": null,
+      "file_sha256": null,
+      "row_count": null,
+      "columns": [],
+      "source_artifact_hashes": []
+    },
+    {
+      "table_id": "feedback",
+      "status": "incomplete",
+      "reason": "No completed Phase 5 feedback result table exists.",
+      "scope": "final",
+      "relative_path": null,
+      "file_sha256": null,
+      "row_count": null,
+      "columns": [],
+      "source_artifact_hashes": []
+    },
+    {
+      "table_id": "novel_case",
+      "status": "blocked",
+      "reason": "The lawful first-novel study has not executed.",
+      "scope": "final",
+      "relative_path": null,
+      "file_sha256": null,
+      "row_count": null,
+      "columns": [],
+      "source_artifact_hashes": []
+    },
+    {
+      "table_id": "qualitative_examples",
+      "status": "incomplete",
+      "reason": "Registered qualitative selections cannot be materialized before their source runs.",
+      "scope": "final",
+      "relative_path": null,
+      "file_sha256": null,
+      "row_count": null,
+      "columns": [],
+      "source_artifact_hashes": []
+    }
+  ],
+  "compiled_at_utc": "2026-09-04T00:00:00Z",
+  "gpu_service_time_artifact_ids": [
+    "primary-pilot-v1-failure",
+    "primary-pilot-v2-failure"
+  ],
+  "runpod_wall_time_artifact_ids": [],
+  "receipt_sha256": "5d7d86c714e599184206fbe459cb3408b216fdc39980c9ae75d3035fb541cc0e"
+}

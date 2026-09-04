@@ -1,0 +1,9 @@
+scope,metric,value,unit,status,source_note
+primary_14b_pilot_to_date,actual_allocated_gpu_time,212.281778,seconds,observed,Includes both failed service-start allocations recorded in the cumulative ledger.
+primary_14b_pilot_to_date,actual_allocated_gpu_time,0.058967161,hours,observed,Derived exactly from cumulative allocated microseconds for display only.
+primary_14b_pilot_v2,peak_gpu_vram,10638852096,bytes,observed,Maximum persisted resource sample in the rejected v2 run.
+primary_14b_pilot_v2,peak_process_ram,2432729088,bytes,observed,Maximum persisted resource sample in the rejected v2 run.
+primary_14b_pilot_v2,peak_project_storage,13623907840,bytes,observed,Maximum persisted resource sample in the rejected v2 run.
+study,current_vllm_service_stopped,true,boolean,observed,The rejected primary pilot result records that the service stopped.
+study,final_scheduled_gpu_forecast,,hours,incomplete,Requires the accepted fallback micro-pilot plus exact development timing block.
+study,final_total_runpod_wall_time,,hours,incomplete,No final pod-session accounting artifact exists yet.

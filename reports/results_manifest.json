@@ -1,0 +1,62 @@
+{
+  "schema_version": "1.0.0",
+  "study_id": "query-dependent-temporal-ontology-conference-study",
+  "study_status": "incomplete",
+  "status_reason": "The primary 14B pilot was rejected; fallback acceptance, development execution, independent review, held-out runs, and the lawful first-novel study remain incomplete.",
+  "generated_at_utc": "2026-09-04T00:00:00Z",
+  "code_revision": "e09f83eca015c194552c4e53a4138f6fa36befa2",
+  "dirty_worktree": true,
+  "model_repository": null,
+  "model_revision": null,
+  "phases": [
+    {"phase_id": "phase_1", "label": "Contracts, resource controls, and GPU pilot", "status": "incomplete", "reason": "The 14B candidate was rejected and fallback acceptance has not completed.", "source_artifact_hashes": ["b458b368d4420dd1f8948893e8cdeb684cbf0f52cc558d9a9454b3c58ff17244", "b8c2f719d2e48d7190e8d4995bd31bc990ca288f6d0f13563171e9d4c940ca7b", "c978e75cef00ba7276055538c69d50b1a5396e628463ec25546b4bc97bd53ab9", "4b870ec47668105badd32528d6fb6997fc0221618097e048ff28d27716f78050", "90bbb5279e99bc9fe39d92332e70c2e431c42e2131df3cbb816db6ba43861bef"]},
+    {"phase_id": "phase_2", "label": "Synthetic benchmark", "status": "incomplete", "reason": "The mandatory independent condition-blind review has not been supplied or adjudicated.", "source_artifact_hashes": ["b81da310ffe3477b8929aa50330e50db8e9f3152bdba05241256d3cf171fb41f"]},
+    {"phase_id": "phase_3", "label": "Conditions and primary comparisons", "status": "incomplete", "reason": "Development and held-out GPU condition outputs are not complete.", "source_artifact_hashes": []},
+    {"phase_id": "phase_4", "label": "Metrics, statistics, and ablations", "status": "incomplete", "reason": "No registered held-out condition table exists to analyze.", "source_artifact_hashes": []},
+    {"phase_id": "phase_5", "label": "Visualization and feedback", "status": "incomplete", "reason": "GPU-backed scripted feedback and researcher traces have not executed.", "source_artifact_hashes": []},
+    {"phase_id": "phase_6", "label": "First-novel case study", "status": "incomplete", "reason": "No lawful local novel path has been supplied and no case-study output exists.", "source_artifact_hashes": []},
+    {"phase_id": "phase_7", "label": "Results and conference artifacts", "status": "incomplete", "reason": "The reporting substrate exists, but final immutable result inputs do not.", "source_artifact_hashes": []}
+  ],
+  "tables": [
+    {"table_id": "study_status", "relative_path": "tables/study_status.csv", "sha256": "d1cae85a93158406ed710d39a7b6eb69cb4eee6d69bb91b3a32b7bc16051143d", "row_count": 7, "required_columns": ["phase_id", "status", "reason"], "status": "complete", "description": "Machine-readable phase status at this build", "source_artifact_hashes": ["866934c29048cf698871550cf11f71bea3c6d75d939b815aed15f9059b86163b"]},
+    {"table_id": "resource_accounting", "relative_path": "tables/resource_accounting.csv", "sha256": "6d655ceb4c91d2875463be129cc766ac4230036f8286215d5cfe3e09d0c03927", "row_count": 8, "required_columns": ["scope", "metric", "value", "unit", "status", "source_note"], "status": "complete", "description": "Verified resource accounting through the rejected primary pilot (not final)", "source_artifact_hashes": ["c978e75cef00ba7276055538c69d50b1a5396e628463ec25546b4bc97bd53ab9", "4b870ec47668105badd32528d6fb6997fc0221618097e048ff28d27716f78050", "90bbb5279e99bc9fe39d92332e70c2e431c42e2131df3cbb816db6ba43861bef"]},
+    {"table_id": "failure_accounting", "relative_path": "tables/failure_accounting.csv", "sha256": "1a9b8a298001a0fb4bb0548bd749a349845b7eaac3331d70ad99196e364cec92", "row_count": 2, "required_columns": ["run_id", "model_repository", "immutable_revision", "failure_type", "completed_generation_calls", "gate_passed", "vllm_service_stopped", "allocated_gpu_seconds", "interpretation"], "status": "complete", "description": "Observed primary-model pilot failures (not final run accounting)", "source_artifact_hashes": ["c978e75cef00ba7276055538c69d50b1a5396e628463ec25546b4bc97bd53ab9", "4b870ec47668105badd32528d6fb6997fc0221618097e048ff28d27716f78050"]}
+  ],
+  "figures": [
+    {"figure_id": "phase_status", "kind": "phase_status", "title": "Registered study phase status", "relative_path": "figures/study_status.pdf"}
+  ],
+  "sections": [
+    {"section_id": "research_questions", "title": "Research questions and hypotheses", "required_phases": ["phase_1"], "table_ids": [], "fixed_text": ["H1-semantic registers strict qualified-assertion F1 and H1-organization registers ontology-decision macro F1 for C2 versus C1. Rare-pivotal recall is a noncompensable safeguard, not another optimization target."]},
+    {"section_id": "conditions", "title": "Experimental conditions and construction timing", "required_phases": ["phase_3"], "table_ids": [], "fixed_text": ["C0 and C1 construct before query reveal; C2 actively constructs after query reveal; A-FixedSelect uses query-time LLM selection over the complete sealed C1 ontology while construction operations are mechanically forbidden."]},
+    {"section_id": "temporal_representation", "title": "Temporal qualified-assertion representation", "required_phases": ["phase_1"], "table_ids": [], "fixed_text": ["Assertions separate story time, validity time, discourse order, proposition revelation position, spoiler horizon, holder-level epistemic status, confidence, provenance, contextual relevance, and supported why-it-matters text."]},
+    {"section_id": "synthetic_benchmark", "title": "Synthetic benchmark construction and split", "required_phases": ["phase_2"], "table_ids": [], "fixed_text": ["The registered design contains four development worlds and twelve held-out worlds with three same-evidence contexts per held-out world. Held-out execution remains gated on independent condition-blind review."]},
+    {"section_id": "resource_controls", "title": "Resource and reproducibility controls", "required_phases": ["phase_1", "phase_7"], "table_ids": ["study_status", "resource_accounting"], "fixed_text": ["GPU time includes loading, warm-up, failures, repairs, restarts, and inference. Occupied project storage targets at most 25 GB with 5 GB protected headroom."]},
+    {"section_id": "primary_results", "title": "Primary C2 versus C1 results", "required_phases": ["phase_3", "phase_4"], "table_ids": [], "fixed_text": ["This confirmatory section will use twelve worlds as independent units, two one-sided paired t-tests, Holm correction, two-sided paired intervals, all 4096 sign-flip assignments, and the registered bootstrap sensitivity."]},
+    {"section_id": "secondary_results", "title": "Required C2 versus C0 results", "required_phases": ["phase_3", "phase_4"], "table_ids": [], "fixed_text": ["C2 versus the credible deterministic C0 baseline is a required secondary comparison on all retained endpoints."]},
+    {"section_id": "mechanism_results", "title": "Gated C2 versus A-FixedSelect mechanism results", "required_phases": ["phase_3", "phase_4"], "table_ids": [], "fixed_text": ["The mechanism claim is eligible only after the C2-versus-C1 organization gate passes and C2 exceeds mechanically construction-disabled A-FixedSelect on the registered endpoint."]},
+    {"section_id": "rare_pivotal", "title": "Rare-pivotal preservation", "required_phases": ["phase_3", "phase_4"], "table_ids": [], "fixed_text": ["Any favorable claim must accompany rare-pivotal qualified-assertion recall and support-path survival; the registered noninferiority loss margin is 0.05."]},
+    {"section_id": "entropy_clutter", "title": "Entropy and visual-clutter profiles", "required_phases": ["phase_4", "phase_5"], "table_ids": [], "fixed_text": ["No entropy direction, node count, crossing count, or cluster count is inherently better. Structural profiles must remain beside fidelity, grounding, validity, and rare-pivotal preservation."]},
+    {"section_id": "community", "title": "Community and cluster organization", "required_phases": ["phase_4"], "table_ids": [], "fixed_text": ["The registered panel uses Leiden-CPM with AMI, purity, conductance, fragmentation, merging error, descriptive cluster count and modularity, and cross-seed stability."]},
+    {"section_id": "paraphrase_contrastive", "title": "Paraphrase and contrastive behavior", "required_phases": ["phase_3", "phase_4"], "table_ids": [], "fixed_text": ["Contrastive decision-change scoring operates over identical evidence and nonselection ontology changes. Paraphrase stability is interpreted conditional on correctness."]},
+    {"section_id": "ablations", "title": "Reduced ablation results", "required_phases": ["phase_4"], "table_ids": [], "fixed_text": ["Only A-NoContext (12 calls), A-NoTemporalEpistemic (8), and A-NoRareGuard (8) are registered, each with a one-switch-only configuration audit."]},
+    {"section_id": "feedback_interface", "title": "Feedback and interface demonstrations", "required_phases": ["phase_5"], "table_ids": [], "fixed_text": ["Six known-answer scripts and three researcher traces demonstrate REFINE_CONTEXT and REQUEST_MERGE_SPLIT. They do not support participant or usability claims."]},
+    {"section_id": "novel_case", "title": "Bounded first-novel transfer study", "required_phases": ["phase_6"], "table_ids": [], "fixed_text": ["The planned transfer study uses four preregistered windows, eight bounded same-evidence queries, and one separately labeled full-index operational C2 query. Public examples must use paraphrases and opaque evidence IDs."]},
+    {"section_id": "runtime_failures", "title": "Runtime, GPU, storage, invalid-output, repair, and failure accounting", "required_phases": ["phase_1", "phase_7"], "table_ids": ["failure_accounting", "resource_accounting"], "fixed_text": ["Failures and invalid or unrepaired outputs remain visible and intention-to-treat. The table below is cumulative only through the rejected primary pilot."]},
+    {"section_id": "error_limitations", "title": "Error analysis, negative results, and limitations", "required_phases": ["phase_3", "phase_4", "phase_6", "phase_7"], "table_ids": [], "fixed_text": ["The final analysis must retain null and negative findings, all declared error categories, the twelve-world sample limitation, one-model and one-prompt dependence, compute asymmetry, and descriptive-only transfer scope."]},
+    {"section_id": "claim_boundaries", "title": "Exact claim boundaries", "required_phases": ["phase_7"], "table_ids": [], "fixed_text": ["Claims are conditional on registered gates and confined to the benchmark, pinned model, frozen prompt, and bounded narrative transfer study."]},
+    {"section_id": "qualitative_examples", "title": "Easy-to-interpret qualitative illustrations", "required_phases": ["phase_2", "phase_3", "phase_5", "phase_6"], "table_ids": [], "fixed_text": ["The final report reserves distinct slots for the development tutorial, rare-pivotal fact, temporal or epistemic case, fixed held-out illustration, deterministic failure case, and one or two narrative illustrations. These do not substitute for aggregate efficacy evidence."]}
+  ],
+  "source_artifact_hashes": [
+    "b458b368d4420dd1f8948893e8cdeb684cbf0f52cc558d9a9454b3c58ff17244",
+    "b8c2f719d2e48d7190e8d4995bd31bc990ca288f6d0f13563171e9d4c940ca7b",
+    "b81da310ffe3477b8929aa50330e50db8e9f3152bdba05241256d3cf171fb41f",
+    "c978e75cef00ba7276055538c69d50b1a5396e628463ec25546b4bc97bd53ab9",
+    "4b870ec47668105badd32528d6fb6997fc0221618097e048ff28d27716f78050",
+    "90bbb5279e99bc9fe39d92332e70c2e431c42e2131df3cbb816db6ba43861bef"
+  ],
+  "ingestion_receipt_relative_path": "report_ingestion_receipt.json",
+  "ingestion_receipt_file_sha256": "2fa9f24affe276dc0611fd1b3596e080ac99dc7725e5382012eccd2504fd5215",
+  "ingestion_receipt_sha256": "5d7d86c714e599184206fbe459cb3408b216fdc39980c9ae75d3035fb541cc0e",
+  "reporting_policy_sha256": "87f4d4f82e2e257e4f7f9e41f4e53f91375edd808af968bf374de93db8312ccb",
+  "manifest_sha256": "ab5408139af322219e8503d1a0175b6fe48591b1113626183e98331539c7f473"
+}

@@ -1,0 +1,8 @@
+phase_id,status,reason
+phase_1,incomplete,The 14B candidate was rejected and fallback acceptance has not completed.
+phase_2,incomplete,The mandatory independent condition-blind review has not been supplied or adjudicated.
+phase_3,incomplete,Development and held-out GPU condition outputs are not complete.
+phase_4,incomplete,No registered held-out condition table exists to analyze.
+phase_5,incomplete,GPU-backed scripted feedback and researcher traces have not executed.
+phase_6,incomplete,No lawful local novel path has been supplied and no case-study output exists.
+phase_7,incomplete,"The reporting substrate exists, but final immutable result inputs do not."

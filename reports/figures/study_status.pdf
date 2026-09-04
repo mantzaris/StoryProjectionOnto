@@ -1,0 +1,227 @@
+%PDF-1.3
+%“Œ‹ž ReportLab Generated PDF document (opensource)
+1 0 obj
+<<
+/F1 2 0 R /F2 3 0 R
+>>
+endobj
+2 0 obj
+<<
+/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font
+>>
+endobj
+3 0 obj
+<<
+/BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding /Name /F2 /Subtype /Type1 /Type /Font
+>>
+endobj
+4 0 obj
+<<
+/Contents 8 0 R /MediaBox [ 0 0 720 432 ] /Parent 7 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+5 0 obj
+<<
+/PageMode /UseNone /Pages 7 0 R /Type /Catalog
+>>
+endobj
+6 0 obj
+<<
+/Author (StoryProjectionOnto reproducible reporting pipeline) /CreationDate (D:20000101000000+00'00') /Creator (anonymous) /Keywords () /ModDate (D:20000101000000+00'00') /Producer (ReportLab PDF Library - \(opensource\)) 
+  /Subject (source manifest ab5408139af322219e8503d1a0175b6fe48591b1113626183e98331539c7f473) /Title (Registered study phase status) /Trapped /False
+>>
+endobj
+7 0 obj
+<<
+/Count 1 /Kids [ 4 0 R ] /Type /Pages
+>>
+endobj
+8 0 obj
+<<
+/Length 3784
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+BT /F2 16 Tf 19.2 TL ET
+BT 1 0 0 1 42 395 Tm (Registered study phase status) Tj T* ET
+BT /F1 9 Tf 10.8 TL ET
+BT 1 0 0 1 583.941 397 Tm (manifest ab5408139af3) Tj T* ET
+.84 .55 .12 rg
+n
+46 343 m
+158 343 l
+160.2112 343 162 344.7888 162 347 c
+162 363 l
+162 365.2112 160.2112 367 158 367 c
+46 367 l
+43.7888 367 42 365.2112 42 363 c
+42 347 l
+42 344.7888 43.7888 343 46 343 c
+h
+f*
+1 1 1 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 72.498 352 Tm (INCOMPLETE) Tj T* ET
+.1 .15 .2 rg
+BT /F2 10 Tf 12 TL ET
+BT 1 0 0 1 178 357 Tm (Contracts, resource controls, and GPU pilot) Tj T* ET
+BT /F1 8 Tf 9.6 TL ET
+BT 1 0 0 1 178 345 Tm (The 14B candidate was rejected and fallback acceptance has not completed.) Tj T* ET
+.84 .55 .12 rg
+n
+46 300 m
+158 300 l
+160.2112 300 162 301.7888 162 304 c
+162 320 l
+162 322.2112 160.2112 324 158 324 c
+46 324 l
+43.7888 324 42 322.2112 42 320 c
+42 304 l
+42 301.7888 43.7888 300 46 300 c
+h
+f*
+1 1 1 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 72.498 309 Tm (INCOMPLETE) Tj T* ET
+.1 .15 .2 rg
+BT /F2 10 Tf 12 TL ET
+BT 1 0 0 1 178 314 Tm (Synthetic benchmark) Tj T* ET
+BT /F1 8 Tf 9.6 TL ET
+BT 1 0 0 1 178 302 Tm (The mandatory independent condition-blind review has not been supplied or adjudicated.) Tj T* ET
+.84 .55 .12 rg
+n
+46 257 m
+158 257 l
+160.2112 257 162 258.7888 162 261 c
+162 277 l
+162 279.2112 160.2112 281 158 281 c
+46 281 l
+43.7888 281 42 279.2112 42 277 c
+42 261 l
+42 258.7888 43.7888 257 46 257 c
+h
+f*
+1 1 1 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 72.498 266 Tm (INCOMPLETE) Tj T* ET
+.1 .15 .2 rg
+BT /F2 10 Tf 12 TL ET
+BT 1 0 0 1 178 271 Tm (Conditions and primary comparisons) Tj T* ET
+BT /F1 8 Tf 9.6 TL ET
+BT 1 0 0 1 178 259 Tm (Development and held-out GPU condition outputs are not complete.) Tj T* ET
+.84 .55 .12 rg
+n
+46 214 m
+158 214 l
+160.2112 214 162 215.7888 162 218 c
+162 234 l
+162 236.2112 160.2112 238 158 238 c
+46 238 l
+43.7888 238 42 236.2112 42 234 c
+42 218 l
+42 215.7888 43.7888 214 46 214 c
+h
+f*
+1 1 1 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 72.498 223 Tm (INCOMPLETE) Tj T* ET
+.1 .15 .2 rg
+BT /F2 10 Tf 12 TL ET
+BT 1 0 0 1 178 228 Tm (Metrics, statistics, and ablations) Tj T* ET
+BT /F1 8 Tf 9.6 TL ET
+BT 1 0 0 1 178 216 Tm (No registered held-out condition table exists to analyze.) Tj T* ET
+.84 .55 .12 rg
+n
+46 171 m
+158 171 l
+160.2112 171 162 172.7888 162 175 c
+162 191 l
+162 193.2112 160.2112 195 158 195 c
+46 195 l
+43.7888 195 42 193.2112 42 191 c
+42 175 l
+42 172.7888 43.7888 171 46 171 c
+h
+f*
+1 1 1 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 72.498 180 Tm (INCOMPLETE) Tj T* ET
+.1 .15 .2 rg
+BT /F2 10 Tf 12 TL ET
+BT 1 0 0 1 178 185 Tm (Visualization and feedback) Tj T* ET
+BT /F1 8 Tf 9.6 TL ET
+BT 1 0 0 1 178 173 Tm (GPU-backed scripted feedback and researcher traces have not executed.) Tj T* ET
+.84 .55 .12 rg
+n
+46 128 m
+158 128 l
+160.2112 128 162 129.7888 162 132 c
+162 148 l
+162 150.2112 160.2112 152 158 152 c
+46 152 l
+43.7888 152 42 150.2112 42 148 c
+42 132 l
+42 129.7888 43.7888 128 46 128 c
+h
+f*
+1 1 1 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 72.498 137 Tm (INCOMPLETE) Tj T* ET
+.1 .15 .2 rg
+BT /F2 10 Tf 12 TL ET
+BT 1 0 0 1 178 142 Tm (First-novel case study) Tj T* ET
+BT /F1 8 Tf 9.6 TL ET
+BT 1 0 0 1 178 130 Tm (No lawful local novel path has been supplied and no case-study output exists.) Tj T* ET
+.84 .55 .12 rg
+n
+46 85 m
+158 85 l
+160.2112 85 162 86.7888 162 89 c
+162 105 l
+162 107.2112 160.2112 109 158 109 c
+46 109 l
+43.7888 109 42 107.2112 42 105 c
+42 89 l
+42 86.7888 43.7888 85 46 85 c
+h
+f*
+1 1 1 rg
+BT /F2 9 Tf 10.8 TL ET
+BT 1 0 0 1 72.498 94 Tm (INCOMPLETE) Tj T* ET
+.1 .15 .2 rg
+BT /F2 10 Tf 12 TL ET
+BT 1 0 0 1 178 99 Tm (Results and conference artifacts) Tj T* ET
+BT /F1 8 Tf 9.6 TL ET
+BT 1 0 0 1 178 87 Tm (The reporting substrate exists, but final immutable result inputs do not.) Tj T* ET
+ 
+endstream
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000061 00000 n 
+0000000102 00000 n 
+0000000209 00000 n 
+0000000321 00000 n 
+0000000514 00000 n 
+0000000582 00000 n 
+0000000975 00000 n 
+0000001034 00000 n 
+trailer
+<<
+/ID 
+[<c72ea6b3339437affd5f93f6bc0640c3><c72ea6b3339437affd5f93f6bc0640c3>]
+% ReportLab generated PDF document -- digest (opensource)
+
+/Info 6 0 R
+/Root 5 0 R
+/Size 9
+>>
+startxref
+4869
+%%EOF

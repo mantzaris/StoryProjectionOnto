@@ -1,0 +1,67 @@
+{
+  "figures": [
+    {
+      "figure_id": "phase_status",
+      "relative_path": "figures/study_status.pdf",
+      "sha256": "9ff9676c648ad9004b0b2783971e095b5636f4d7f90925aae379272fdd730c6c",
+      "source_table_sha256": null
+    }
+  ],
+  "kind": "result_and_figure_manifest",
+  "manifest_sha256": "818ad44f91c2a72ecff981d1cc65141139235c0d35120234a2782619132db772",
+  "reports": [
+    {
+      "relative_path": "RESULTS_REPORT.md",
+      "sha256": "e529c0623c2801cf5dff1fc9c1c0793157f04e52be43dbd4b47da5183475a4a1"
+    },
+    {
+      "relative_path": "RESULTS_REPORT.pdf",
+      "sha256": "2b82c095eff176b957f4e6555fd6c286f1733a8791141294b1e81bfc9eb96545"
+    }
+  ],
+  "schema_version": "1.0.0",
+  "source_artifact_hashes": [
+    "b458b368d4420dd1f8948893e8cdeb684cbf0f52cc558d9a9454b3c58ff17244",
+    "b8c2f719d2e48d7190e8d4995bd31bc990ca288f6d0f13563171e9d4c940ca7b",
+    "b81da310ffe3477b8929aa50330e50db8e9f3152bdba05241256d3cf171fb41f",
+    "c978e75cef00ba7276055538c69d50b1a5396e628463ec25546b4bc97bd53ab9",
+    "4b870ec47668105badd32528d6fb6997fc0221618097e048ff28d27716f78050",
+    "90bbb5279e99bc9fe39d92332e70c2e431c42e2131df3cbb816db6ba43861bef"
+  ],
+  "source_ingestion_receipt_file_sha256": "2fa9f24affe276dc0611fd1b3596e080ac99dc7725e5382012eccd2504fd5215",
+  "source_ingestion_receipt_sha256": "5d7d86c714e599184206fbe459cb3408b216fdc39980c9ae75d3035fb541cc0e",
+  "source_result_manifest_sha256": "ab5408139af322219e8503d1a0175b6fe48591b1113626183e98331539c7f473",
+  "study_status": "incomplete",
+  "tables": [
+    {
+      "relative_path": "tables/study_status.csv",
+      "row_count": 7,
+      "sha256": "d1cae85a93158406ed710d39a7b6eb69cb4eee6d69bb91b3a32b7bc16051143d",
+      "source_artifact_hashes": [
+        "866934c29048cf698871550cf11f71bea3c6d75d939b815aed15f9059b86163b"
+      ],
+      "table_id": "study_status"
+    },
+    {
+      "relative_path": "tables/resource_accounting.csv",
+      "row_count": 8,
+      "sha256": "6d655ceb4c91d2875463be129cc766ac4230036f8286215d5cfe3e09d0c03927",
+      "source_artifact_hashes": [
+        "c978e75cef00ba7276055538c69d50b1a5396e628463ec25546b4bc97bd53ab9",
+        "4b870ec47668105badd32528d6fb6997fc0221618097e048ff28d27716f78050",
+        "90bbb5279e99bc9fe39d92332e70c2e431c42e2131df3cbb816db6ba43861bef"
+      ],
+      "table_id": "resource_accounting"
+    },
+    {
+      "relative_path": "tables/failure_accounting.csv",
+      "row_count": 2,
+      "sha256": "1a9b8a298001a0fb4bb0548bd749a349845b7eaac3331d70ad99196e364cec92",
+      "source_artifact_hashes": [
+        "c978e75cef00ba7276055538c69d50b1a5396e628463ec25546b4bc97bd53ab9",
+        "4b870ec47668105badd32528d6fb6997fc0221618097e048ff28d27716f78050"
+      ],
+      "table_id": "failure_accounting"
+    }
+  ]
+}

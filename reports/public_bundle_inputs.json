@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0.0",
+  "bundle_status": "incomplete",
+  "status_reason": "This allowlist packages the current reporting substrate and explicitly incomplete report; final scientific outputs must replace it after all gates pass.",
+  "entries": [
+    {"source_relative_path": "LICENSE", "bundle_relative_path": "LICENSE.txt", "sha256": "32390614081f9136aad6cd4d3081b75c3d7feba9c045d59fed81081e440b65dc", "release_class": "public"},
+    {"source_relative_path": "configs/study/reporting.json", "bundle_relative_path": "configs/study/reporting.json", "sha256": "d331a7d9f09e28fdbaabe3ae8d017007c3fab7583791f796f7d52cd31a6dbd2c", "release_class": "public"},
+    {"source_relative_path": "configs/study/report_ingestion.json", "bundle_relative_path": "configs/study/report_ingestion.json", "sha256": "3fe605a36d284cc71d569f324a82da78a1cfed7ec9bc30b2424376821c44aecf", "release_class": "public"},
+    {"source_relative_path": "src/story_projection_onto/reporting.py", "bundle_relative_path": "src/story_projection_onto/reporting.py", "sha256": "9b1f5e93dfdb7b846c2abdecc942b3be8e0d541ce58e04970544bc5c4d381cb9", "release_class": "public"},
+    {"source_relative_path": "src/story_projection_onto/report_ingestion.py", "bundle_relative_path": "src/story_projection_onto/report_ingestion.py", "sha256": "cdd3e9242c22fdb913af992b1f19f9961c9f09d25bc5be0fb4fd4ccc4bed7844", "release_class": "public"},
+    {"source_relative_path": "src/story_projection_onto/public_release.py", "bundle_relative_path": "src/story_projection_onto/public_release.py", "sha256": "0fee5e73c76c391651b2bcf16595f57fe3d06ae0ba383fad2f55a3b8839139b5", "release_class": "public"},
+    {"source_relative_path": "scripts/compile_report_ingestion.py", "bundle_relative_path": "scripts/compile_report_ingestion.py", "sha256": "2536eb59fecbba7b5903c089d89a14611d5bd398239407ab5c7830a6ebfff406", "release_class": "public"},
+    {"source_relative_path": "scripts/build_results_report.py", "bundle_relative_path": "scripts/build_results_report.py", "sha256": "9e27c8eff86a401233551524a1501df75d2d242153ac811188d83619538867d9", "release_class": "public"},
+    {"source_relative_path": "scripts/build_public_bundle.py", "bundle_relative_path": "scripts/build_public_bundle.py", "sha256": "48dbe7186c5454db9baadf12002df90c20831520bcb5a839af8d2055cde118e9", "release_class": "public"},
+    {"source_relative_path": "scripts/build_interim_accounting_tables.py", "bundle_relative_path": "scripts/build_interim_accounting_tables.py", "sha256": "ba9246daab460369552d726faa8a87a88d2834e3cafb97330adcddde2844e164", "release_class": "public"},
+    {"source_relative_path": "reports/results_manifest.json", "bundle_relative_path": "reports/results_manifest.json", "sha256": "777a51e73f2a94a4a78e4144e6dc78b7e1b78af9c8822c4166e7945a2d661453", "release_class": "public"},
+    {"source_relative_path": "reports/report_ingestion_receipt.json", "bundle_relative_path": "reports/report_ingestion_receipt.json", "sha256": "2fa9f24affe276dc0611fd1b3596e080ac99dc7725e5382012eccd2504fd5215", "release_class": "public"},
+    {"source_relative_path": "reports/RESULTS_REPORT.md", "bundle_relative_path": "reports/RESULTS_REPORT.md", "sha256": "e529c0623c2801cf5dff1fc9c1c0793157f04e52be43dbd4b47da5183475a4a1", "release_class": "public"},
+    {"source_relative_path": "reports/RESULTS_REPORT.pdf", "bundle_relative_path": "reports/RESULTS_REPORT.pdf", "sha256": "2b82c095eff176b957f4e6555fd6c286f1733a8791141294b1e81bfc9eb96545", "release_class": "public"},
+    {"source_relative_path": "reports/REPRODUCIBILITY.md", "bundle_relative_path": "reports/REPRODUCIBILITY.md", "sha256": "ef9aa8658f9a2bf12212ff71b1407f09397f6f22f2869071b923f495d161d9d1", "release_class": "public"},
+    {"source_relative_path": "reports/result_figure_manifest.json", "bundle_relative_path": "reports/result_figure_manifest.json", "sha256": "4db0940f9e101702257a817b9694efc3ef96230ca91b6a5c3dd2a9bd89504950", "release_class": "public"},
+    {"source_relative_path": "reports/tables/study_status.csv", "bundle_relative_path": "reports/tables/study_status.csv", "sha256": "d1cae85a93158406ed710d39a7b6eb69cb4eee6d69bb91b3a32b7bc16051143d", "release_class": "public"},
+    {"source_relative_path": "reports/tables/resource_accounting.csv", "bundle_relative_path": "reports/tables/resource_accounting.csv", "sha256": "6d655ceb4c91d2875463be129cc766ac4230036f8286215d5cfe3e09d0c03927", "release_class": "public"},
+    {"source_relative_path": "reports/tables/failure_accounting.csv", "bundle_relative_path": "reports/tables/failure_accounting.csv", "sha256": "1a9b8a298001a0fb4bb0548bd749a349845b7eaac3331d70ad99196e364cec92", "release_class": "public"},
+    {"source_relative_path": "reports/figures/study_status.pdf", "bundle_relative_path": "reports/figures/study_status.pdf", "sha256": "9ff9676c648ad9004b0b2783971e095b5636f4d7f90925aae379272fdd730c6c", "release_class": "public"},
+    {"source_relative_path": "docs/PHASE7_REPORTING.md", "bundle_relative_path": "docs/PHASE7_REPORTING.md", "sha256": "e18dc3c9ea1cc7c61cf17a179ccd88404547b79de58061b94eaa3e1b74434743", "release_class": "public"},
+    {"source_relative_path": "tests/unit/test_report_ingestion.py", "bundle_relative_path": "tests/unit/test_report_ingestion.py", "sha256": "1f909cb44679343fac2b1198db4131cd8b99cd3e9f27e1360575cf9f49ac2d42", "release_class": "public"},
+    {"source_relative_path": "tests/unit/test_reporting.py", "bundle_relative_path": "tests/unit/test_reporting.py", "sha256": "c1448e4814876228feaef842b51b6cf2c46cde1220fe5dd40d2354e50e590c4f", "release_class": "public"},
+    {"source_relative_path": "tests/unit/test_interim_accounting_tables.py", "bundle_relative_path": "tests/unit/test_interim_accounting_tables.py", "sha256": "5dd8356b4022a3833e67878fa33fc0bc5bf1b1a55c38044f2133d8c6febb4110", "release_class": "public"}
+  ],
+  "intentional_exclusions": [
+    "model weights and caches",
+    "restricted/copyrighted novel text and derived FTS indexes",
+    "raw prompts or model outputs containing protected prose",
+    "detailed/reconstructive case-study offsets",
+    "SSH material and machine-specific paths",
+    "the release-scanner canary test module"
+  ],
+  "manifest_sha256": "1c712c26636fda2eb11761c2ebb5e2573337933e8942537ebf4a544a7890a39d"
+}

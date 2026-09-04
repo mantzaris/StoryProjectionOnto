@@ -109,5 +109,6 @@
     "Lower entropy, fewer nodes, fewer crossings, and fewer clusters are never inherently better.",
     "Construction-freedom attribution requires the gated C2 versus A-FixedSelect mechanism result and rare-pivotal safeguards."
   ],
-  "policy_sha256": "f3640e4001f538b0604124cc0dda08181b7f31d148aa47a417f563bc8c893ef0"
+  "section_contract_sha256": "8b55a31c704a7d5d760a955742e16711cc9e4bfb8316d9a1925faf9495f030de",
+  "policy_sha256": "87f4d4f82e2e257e4f7f9e41f4e53f91375edd808af968bf374de93db8312ccb"
 }

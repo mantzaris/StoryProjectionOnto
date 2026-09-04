@@ -183,13 +183,10 @@ class QualitativeSelectionRule(FrozenModel):
     @model_validator(mode="after")
     def counterexample_timing_is_honest(self) -> QualitativeSelectionRule:
         outcome_applied = (
-            self.selection_time
-            == "rule_frozen_before_outputs_applied_after_itt_scoring"
+            self.selection_time == "rule_frozen_before_outputs_applied_after_itt_scoring"
         )
         if outcome_applied != (self.example_id == "counterexample"):
-            raise ValueError(
-                "only the declared ITT counterexample rule is applied after scoring"
-            )
+            raise ValueError("only the declared ITT counterexample rule is applied after scoring")
         return self
 
 
@@ -202,6 +199,7 @@ class ReportingPolicy(FrozenModel):
     required_figure_ids: tuple[str, ...]
     qualitative_selection_rules: tuple[QualitativeSelectionRule, ...]
     claim_boundaries: tuple[Annotated[str, StringConstraints(min_length=1)], ...]
+    section_contract_sha256: Sha256Digest
     policy_sha256: Sha256Digest
 
     @model_validator(mode="after")
@@ -235,6 +233,9 @@ class ResultManifest(FrozenModel):
     figures: tuple[FigureSpec, ...]
     sections: tuple[SectionSpec, ...]
     source_artifact_hashes: tuple[Sha256Digest, ...]
+    ingestion_receipt_relative_path: Literal["report_ingestion_receipt.json"]
+    ingestion_receipt_file_sha256: Sha256Digest
+    ingestion_receipt_sha256: Sha256Digest
     reporting_policy_sha256: Sha256Digest
     manifest_sha256: Sha256Digest
 
@@ -283,6 +284,7 @@ class ReportDocument:
     policy: ReportingPolicy
     sections: tuple[ReportSection, ...]
     tables: Mapping[str, LoadedTable]
+    ingestion_receipt: Any
 
 
 def _file_sha256(path: Path) -> str:
@@ -313,6 +315,32 @@ def canonical_manifest_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
     return result
 
 
+def section_contract_sha256(sections: Iterable[SectionSpec]) -> str:
+    """Hash pre-result prose and gates without freezing future table attachment."""
+
+    return canonical_sha256(
+        [
+            {
+                "section_id": item.section_id,
+                "title": item.title,
+                "required_phases": list(item.required_phases),
+                "fixed_text": list(item.fixed_text),
+            }
+            for item in sections
+        ]
+    )
+
+
+def _assert_no_symlink_chain(path: Path) -> None:
+    current = path.absolute()
+    while True:
+        if current.is_symlink():
+            raise ReportingError(f"symlink is prohibited in immutable inputs: {path}")
+        if current.parent == current:
+            return
+        current = current.parent
+
+
 def _safe_under(root: Path, relative_path: str) -> Path:
     if "\\" in relative_path:
         raise ReportingError(f"backslash is prohibited in report path: {relative_path}")
@@ -320,8 +348,7 @@ def _safe_under(root: Path, relative_path: str) -> Path:
     if relative.is_absolute() or ".." in relative.parts:
         raise ReportingError(f"unsafe report path: {relative_path}")
     candidate = root / relative
-    if candidate.is_symlink():
-        raise ReportingError(f"symlink is prohibited in immutable inputs: {relative_path}")
+    _assert_no_symlink_chain(candidate)
     resolved_root = root.resolve()
     resolved = candidate.resolve(strict=True)
     if not resolved.is_relative_to(resolved_root):
@@ -330,6 +357,7 @@ def _safe_under(root: Path, relative_path: str) -> Path:
 
 
 def load_result_manifest(path: Path) -> ResultManifest:
+    _assert_no_symlink_chain(path)
     raw = path.read_bytes()
     if raw.startswith(b"\xef\xbb\xbf"):
         raise ReportingError("result manifest must be UTF-8 without BOM")
@@ -345,6 +373,7 @@ def load_result_manifest(path: Path) -> ResultManifest:
 
 
 def load_reporting_policy(path: Path) -> ReportingPolicy:
+    _assert_no_symlink_chain(path)
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -359,6 +388,10 @@ def load_reporting_policy(path: Path) -> ReportingPolicy:
 def _validate_complete_gate(manifest: ResultManifest, policy: ReportingPolicy) -> None:
     if manifest.reporting_policy_sha256 != policy.policy_sha256:
         raise ReportingError("result manifest is not bound to the supplied reporting policy")
+    if {item.section_id for item in manifest.sections} == REGISTERED_SECTION_IDS and (
+        section_contract_sha256(manifest.sections) != policy.section_contract_sha256
+    ):
+        raise ReportingError("report section prose differs from the frozen pre-result contract")
     if manifest.study_status is not ReportStatus.COMPLETE:
         return
     if manifest.dirty_worktree:
@@ -408,8 +441,7 @@ def _validate_complete_gate(manifest: ResultManifest, policy: ReportingPolicy) -
     ]
     if tables_without_sources:
         raise ReportingError(
-            "complete table lacks upstream artifact hashes: "
-            + ", ".join(tables_without_sources)
+            "complete table lacks upstream artifact hashes: " + ", ".join(tables_without_sources)
         )
     empty_tables = [
         table_id
@@ -466,7 +498,57 @@ def build_document(manifest_path: Path, policy_path: Path) -> ReportDocument:
     policy = load_reporting_policy(policy_path)
     _validate_complete_gate(manifest, policy)
     root = manifest_path.parent
+    from story_projection_onto.report_ingestion import load_ingestion_receipt
+
+    receipt_path = _safe_under(root, manifest.ingestion_receipt_relative_path)
+    if _file_sha256(receipt_path) != manifest.ingestion_receipt_file_sha256:
+        raise ReportingError("reporting ingestion receipt file hash changed")
+    ingestion_receipt = load_ingestion_receipt(receipt_path)
+    if ingestion_receipt.receipt_sha256 != manifest.ingestion_receipt_sha256:
+        raise ReportingError("result manifest binds another reporting ingestion receipt")
     tables = {item.table_id: load_canonical_table(root, item) for item in manifest.tables}
+    receipt_tables = {item.table_id: item for item in ingestion_receipt.tables}
+    available_receipt_tables = {
+        table_id
+        for table_id, item in receipt_tables.items()
+        if item.status is ReportStatus.COMPLETE
+    }
+    if set(tables) != available_receipt_tables:
+        raise ReportingError("result table inventory differs from the ingestion receipt")
+    for table_id, table in tables.items():
+        ingested = receipt_tables[table_id]
+        if (
+            ingested.relative_path != table.spec.relative_path
+            or ingested.file_sha256 != table.spec.sha256
+            or ingested.row_count != table.spec.row_count
+            or ingested.status is not table.spec.status
+            or not set(table.spec.required_columns).issubset(ingested.columns)
+            or ingested.source_artifact_hashes != table.spec.source_artifact_hashes
+        ):
+            raise ReportingError(f"table {table_id} differs from its ingestion receipt")
+    expected_source_hashes = tuple(item.file_sha256 for item in ingestion_receipt.artifacts)
+    if manifest.source_artifact_hashes != expected_source_hashes:
+        raise ReportingError("result-manifest sources differ from verified ingestion artifacts")
+    verified_source_hashes = set(expected_source_hashes)
+    for phase in manifest.phases:
+        if not set(phase.source_artifact_hashes).issubset(verified_source_hashes):
+            raise ReportingError(f"phase {phase.phase_id} cites an unverified predecessor artifact")
+    if manifest.study_status is ReportStatus.COMPLETE:
+        incomplete_predecessors = [
+            item.family.value
+            for item in ingestion_receipt.predecessors
+            if item.status is not ReportStatus.COMPLETE
+        ]
+        nonfinal_tables = [
+            item.table_id
+            for item in ingestion_receipt.tables
+            if item.status is not ReportStatus.COMPLETE or item.scope != "final"
+        ]
+        if incomplete_predecessors or nonfinal_tables:
+            raise ReportingError(
+                "complete report has incomplete ingestion gates: "
+                + ", ".join(sorted((*incomplete_predecessors, *nonfinal_tables)))
+            )
     status_table = tables.get("study_status")
     if status_table is not None:
         expected_status = {
@@ -516,6 +598,7 @@ def build_document(manifest_path: Path, policy_path: Path) -> ReportDocument:
         policy=policy,
         sections=tuple(sections),
         tables=tables,
+        ingestion_receipt=ingestion_receipt,
     )
 
 
@@ -606,6 +689,8 @@ def render_markdown(document: ReportDocument) -> str:
             "## Machine-readable provenance",
             "",
             f"Document source manifest SHA-256: `{manifest.manifest_sha256}`.",
+            "",
+            f"Verified ingestion receipt SHA-256: `{manifest.ingestion_receipt_sha256}`.",
             "",
             "Every displayed table carries its immutable CSV SHA-256 and row count in an HTML",
             "comment.",
@@ -935,6 +1020,8 @@ def build_results_report(
         "schema_version": REPORT_SCHEMA_VERSION,
         "kind": "result_and_figure_manifest",
         "source_result_manifest_sha256": document.manifest.manifest_sha256,
+        "source_ingestion_receipt_sha256": (document.manifest.ingestion_receipt_sha256),
+        "source_ingestion_receipt_file_sha256": (document.manifest.ingestion_receipt_file_sha256),
         "source_artifact_hashes": list(document.manifest.source_artifact_hashes),
         "study_status": document.manifest.study_status.value,
         "reports": [
@@ -945,6 +1032,11 @@ def build_results_report(
         "figures": figure_records,
     }
     write_json(root / "result_figure_manifest.json", canonical_manifest_payload(payload))
+    (root / "REPRODUCIBILITY.md").write_text(
+        render_reproducibility_report(document),
+        encoding="utf-8",
+        newline="\n",
+    )
     verify_report_build(
         manifest_path,
         policy_path,
@@ -977,6 +1069,12 @@ def verify_report_build(
         raise ReportingError("result/figure manifest self-hash mismatch")
     if payload.get("source_result_manifest_sha256") != document.manifest.manifest_sha256:
         raise ReportingError("result/figure manifest points to another result manifest")
+    if (
+        payload.get("source_ingestion_receipt_sha256") != document.manifest.ingestion_receipt_sha256
+        or payload.get("source_ingestion_receipt_file_sha256")
+        != document.manifest.ingestion_receipt_file_sha256
+    ):
+        raise ReportingError("result/figure manifest ingestion lineage is stale")
     if payload.get("source_artifact_hashes") != list(document.manifest.source_artifact_hashes):
         raise ReportingError("result/figure manifest source-artifact lineage is stale")
     if payload.get("study_status") != document.manifest.study_status.value:
@@ -1002,8 +1100,7 @@ def verify_report_build(
                 item.get("relative_path") != table.spec.relative_path,
                 item.get("sha256") != table.spec.sha256,
                 item.get("row_count") != table.spec.row_count,
-                item.get("source_artifact_hashes")
-                != list(table.spec.source_artifact_hashes),
+                item.get("source_artifact_hashes") != list(table.spec.source_artifact_hashes),
             )
         ):
             raise ReportingError(f"stale table provenance: {item['table_id']}")
@@ -1014,9 +1111,7 @@ def verify_report_build(
         raise ReportingError("result/figure manifest figure inventory is not exact")
     for item in figure_items:
         spec = expected_figures[item["figure_id"]]
-        expected_source = (
-            document.tables[spec.table_id].spec.sha256 if spec.table_id else None
-        )
+        expected_source = document.tables[spec.table_id].spec.sha256 if spec.table_id else None
         if (
             item.get("relative_path") != spec.relative_path
             or item.get("source_table_sha256") != expected_source
@@ -1064,10 +1159,13 @@ def render_reproducibility_report(document: ReportDocument) -> str:
         f"`{str(document.manifest.dirty_worktree).lower()}`.",
         "",
         "The report builder verifies UTF-8/LF CSV bytes, SHA-256 values, row counts, required",
-        "columns, phase gates, PDF presence, figure hashes, and exact Markdown regeneration.",
+        "columns, predecessor ingestion, phase gates, PDF presence, figure hashes, and exact",
+        "Markdown regeneration.",
         "Scientific statistics are computed upstream; this layer never recomputes or imputes them.",
         "",
         "## Inputs",
+        "",
+        f"Ingestion receipt: `{document.manifest.ingestion_receipt_sha256}`.",
         "",
     ]
     for table in document.tables.values():
