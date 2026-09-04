@@ -3057,14 +3057,17 @@ class Ledger:
 
         if not event_id_prefix:
             raise ValueError("event_id_prefix must be nonempty")
+        return tuple(
+            event for event in self.gpu_events() if event.event_id.startswith(event_id_prefix)
+        )
+
+    def gpu_events(self) -> tuple[GpuEvent, ...]:
+        """Return every immutable allocation event in deterministic ledger order."""
+
         rows = self._connection.execute(
             "SELECT * FROM gpu_events ORDER BY started_at, event_id"
         ).fetchall()
-        return tuple(
-            self._gpu_event_from_row(row)
-            for row in rows
-            if row["event_id"].startswith(event_id_prefix)
-        )
+        return tuple(self._gpu_event_from_row(row) for row in rows)
 
     @staticmethod
     def _gpu_service_journal_from_row(

@@ -364,6 +364,11 @@ def test_gpu_accounting_counts_load_failure_and_restart_and_is_monotonic(
     assert summary.seconds_for(GpuEventKind.MODEL_LOAD) == pytest.approx(2.25)
     assert summary.seconds_for(GpuEventKind.FAILURE) == pytest.approx(3.5)
     assert summary.seconds_for(GpuEventKind.RESTART) == pytest.approx(1.5)
+    assert [event.event_id for event in ledger.gpu_events()] == [
+        "load",
+        "failed",
+        "restart",
+    ]
     prefixed = ledger.gpu_events_with_prefix("f")
     assert [event.event_id for event in prefixed] == ["failed"]
     assert ledger.gpu_events_with_prefix("missing-") == ()

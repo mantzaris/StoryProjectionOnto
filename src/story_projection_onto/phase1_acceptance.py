@@ -1715,7 +1715,16 @@ class AcceptanceRunner:
             limits=resource_limits,
         )
         consumed_counts = Counter(call.call_class for call in calls if call.call_id in completed)
-        consumed_counts["gpu_session_start"] = len(lifecycle_events)
+        lifecycle_kinds = {
+            GpuEventKind.GPU_SESSION_START.value,
+            GpuEventKind.RESTART.value,
+        }
+        consumed_lifecycle_slots = sum(
+            event.event_kind in {GpuEventKind.GPU_SESSION_START, GpuEventKind.RESTART}
+            or json.loads(event.details_json).get("intended_event_kind") in lifecycle_kinds
+            for event in self.ledger.gpu_events()
+        )
+        consumed_counts["gpu_session_start"] = consumed_lifecycle_slots
         remaining_forecast_seconds = sum(
             max(0, row.count - consumed_counts[row.call_class]) * row.forecast_p95_seconds
             for row in forecast.rows
@@ -1727,6 +1736,7 @@ class AcceptanceRunner:
             "remaining_forecast_seconds": remaining_forecast_seconds,
             "actual_plus_remaining_seconds": continuation_forecast_seconds,
             "scheduled_limit_seconds": resource_limits.scheduled_gpu_seconds,
+            "consumed_gpu_session_start_slots": consumed_lifecycle_slots,
             "admitted": (continuation_forecast_seconds <= resource_limits.scheduled_gpu_seconds),
         }
         required_operators = {operator.value for operator in CONSTRUCTIVE_OPERATORS}

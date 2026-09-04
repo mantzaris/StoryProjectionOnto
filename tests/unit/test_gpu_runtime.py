@@ -2105,6 +2105,15 @@ def test_acceptance_runner_executes_exact_calls_lifecycle_forecast_and_gates(
 ) -> None:
     clock = FakeClock()
     with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        ledger.record_gpu_event(
+            event_id="prior-pilot-service-start-failure",
+            event_kind=GpuEventKind.FAILURE,
+            allocated_seconds=0.1,
+            started_at=clock.wall(),
+            ended_at=clock.wall() + timedelta(seconds=0.1),
+            succeeded=False,
+            details={"intended_event_kind": GpuEventKind.GPU_SESSION_START.value},
+        )
         meter = AllocatedGPUMeter(
             ledger,
             monotonic_clock=clock.monotonic,
@@ -2164,6 +2173,9 @@ def test_acceptance_runner_executes_exact_calls_lifecycle_forecast_and_gates(
         assert result["timing_gate"]["model_load_sample_count_exact"] is True
         assert result["timing_gate"]["service_overhead_seconds_included"] == 20
         assert result["actual_plus_remaining_forecast"]["admitted"] is True
+        assert (
+            result["actual_plus_remaining_forecast"]["consumed_gpu_session_start_slots"] == 3
+        )
         assert result["calls"][0]["packing_report"]["truncation_applied"] is False
         assert result["calls"][0]["decoding_manifest"]["thinking_mode"] is False
         kinds = {kind for kind, _ in ledger.gpu_summary().by_kind_microseconds}

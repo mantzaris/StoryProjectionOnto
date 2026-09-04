@@ -192,7 +192,7 @@
     },
     {
       "path": "src/story_projection_onto/gpu_runtime.py",
-      "sha256": "8cb578dc649296bb81f694891801b9412c1c4a106d54f336ec07f3fb1b1bb1ed"
+      "sha256": "91839bb287c33db0d4527e2c1a85d7035ce44f1f79e51b32a6ca411f0437a107"
     },
     {
       "path": "src/story_projection_onto/llm.py",
@@ -204,7 +204,7 @@
     },
     {
       "path": "src/story_projection_onto/phase1_acceptance.py",
-      "sha256": "e0dda6d0d84a572c46e634cc7f25ab79832ca5acb8dd7e577602529fcb3ce68b"
+      "sha256": "12296a0cd7b5a6e50a27803795229723324e2ff015ee93008d6fe188139a9d33"
     },
     {
       "path": "src/story_projection_onto/scorer_only/acceptance_grounding.py",
@@ -212,7 +212,7 @@
     },
     {
       "path": "src/story_projection_onto/store.py",
-      "sha256": "1d89adc725d08c530ebdb8a3752d8e9869866f5526d0e2f82f7e57b872885b23"
+      "sha256": "91778e74f10b88e664d56cd37f78218021118d734d7f843d75769de73ea15196"
     },
     {
       "path": "src/story_projection_onto/validate.py",
@@ -224,7 +224,7 @@
     }
   ],
   "kind": "phase1_gpu_acceptance_plan",
-  "manifest_sha256": "e9039835cadf28f33220c5590e01e529b63b777c8e8c1bad27f36f9a39822a8a",
+  "manifest_sha256": "77eb5ed2d50d348b737d463e312955203298d328b8a86914627a911bf8c0e6ab",
   "model_revision": "1a6fe1ecf891437a270cce11ad54d796c4f56ce0",
   "output_schema_file": "schemas/jsonschema/ontology_draft.schema.json",
   "output_schema_sha256": "270d0f9acab96a7ebf1edc0606da9494799633146d293992649836283c0d5210",
