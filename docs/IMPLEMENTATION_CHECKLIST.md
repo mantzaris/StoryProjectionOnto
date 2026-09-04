@@ -6,45 +6,45 @@ hash-addressed artifact or a passing test; prose-only completion does not count.
 
 ## Global invariants
 
-- [ ] Keep `C0 ClassicalPre`, `C1 LLMPre`, `C2 LLMQuery`, and
+- [x] Keep `C0 ClassicalPre`, `C1 LLMPre`, `C2 LLMQuery`, and
   `A-FixedSelect` as separate implementations behind one interface.
-- [ ] Keep the pre-query `EvidenceIndex` free of finalized entities, events,
+- [x] Keep the pre-query `EvidenceIndex` free of finalized entities, events,
   predicates, qualified truth assertions, query relevance, and scorer gold.
-- [ ] Require C0/C1 construction seals and a C2 empty pre-query inventory plus
+- [x] Require C0/C1 construction seals and a C2 empty pre-query inventory plus
   post-query construction certificate.
-- [ ] Mechanically forbid new identity, schema, predicates, events,
+- [x] Mechanically forbid new identity, schema, predicates, events,
   abstraction, and qualifications in `A-FixedSelect`.
-- [ ] Preserve distinct story time, validity time, discourse order,
+- [x] Preserve distinct story time, validity time, discourse order,
   proposition-revelation position, spoiler horizon, and holder epistemic scope.
-- [ ] Apply identical evidence packets, horizons, upper ontology, final object
+- [x] Apply identical evidence packets, horizons, upper ontology, final object
   budgets, display budgets, repair policy, and paired LLM seeds.
-- [ ] Keep scorer gold physically and logically outside model-visible paths.
-- [ ] Retain invalid, refused, timed-out, and unrepaired attempts in
+- [x] Keep scorer gold physically and logically outside model-visible paths.
+- [x] Retain invalid, refused, timed-out, and unrepaired attempts in
   intention-to-treat results.
 - [ ] Never publish model weights, private paths, novel prose, reconstructive
   offsets, or restricted indexes.
 
 ## Phase 1 — contracts, resources, and GPU pilot
 
-- [ ] Define immutable versioned records, JSON Schemas, canonical JSON, and
+- [x] Define immutable versioned records, JSON Schemas, canonical JSON, and
   SHA-256 hashing for evidence, context, ontology, validation, revisions,
   visualization, run manifests, and all certificates.
-- [ ] Implement explicit model-visible allowlists and boundary/capability tests.
-- [ ] Implement storage preflight: at most 25 GB occupied, at least 5 GB
+- [x] Implement explicit model-visible allowlists and boundary/capability tests.
+- [x] Implement storage preflight: at most 25 GB occupied, at least 5 GB
   headroom, at most 30 GB allocation, all project-controlled paths counted.
-- [ ] Implement monotonic GPU-service accounting, eight allocation-event
+- [x] Implement monotonic GPU-service accounting, eight allocation-event
   inventory, 278 attempt slots, reserve tiers, 9-hour admission, and hard stop
   before 10 actual hours.
-- [ ] Implement append-only SQLite ledger, content-addressed compressed blobs,
+- [x] Implement append-only SQLite ledger, content-addressed compressed blobs,
   atomic writes, resume, DAG verification, release classes, decoding/seed
   manifests, packing reports, and repair lineage.
-- [ ] Add hand-authored C1/C2/FixedSelect fixtures and unit/property/integration
+- [x] Add hand-authored C1/C2/FixedSelect fixtures and unit/property/integration
   tests before model contact.
-- [ ] Freeze the smallest practical Python environment; cap study execution at
+- [x] Freeze the smallest practical Python environment; cap study execution at
   8 CPU workers and project process RAM below 25 GB.
-- [ ] Inventory immutable container CUDA/Python/PyTorch/vLLM separately from
+- [x] Inventory immutable container CUDA/Python/PyTorch/vLLM separately from
   project-controlled writable files.
-- [ ] Preflight storage, configure one shared model cache, fetch and hash only
+- [x] Preflight storage, configure one shared model cache, fetch and hash only
   Qwen3-14B-AWQ revision `1a6fe1ecf891437a270cce11ad54d796c4f56ce0`,
   verify Apache-2.0, and retain no second model snapshot.
 - [ ] Meter and run the normal eight-call acceptance block; validate packing,
@@ -56,16 +56,16 @@ hash-addressed artifact or a passing test; prose-only completion does not count.
 
 ## Phase 2 — synthetic benchmark and blinded review
 
-- [ ] Generate four development and twelve sealed held-out `WorldSpec`s with
+- [x] Generate four development and twelve sealed held-out `WorldSpec`s with
   three contexts each and approximately 10–20 gold entity/event nodes.
-- [ ] Satisfy the exact lens, story-scope, abstraction, viewpoint, horizon,
+- [x] Satisfy the exact lens, story-scope, abstraction, viewpoint, horizon,
   node-budget, difficulty, factor, rare-pivotal, temporal, and community quotas.
-- [ ] Include identical-evidence nonselection contrasts, pregraph-friendly/null
+- [x] Include identical-evidence nonselection contrasts, pregraph-friendly/null
   cases, conflict/uncertainty, beliefs/reports, distractors, and permissible
   alternatives.
-- [ ] Record deterministic root-seed derivations, renderer choices, candidate
+- [x] Record deterministic root-seed derivations, renderer choices, candidate
   sets, rejections, paraphrases, contrast proofs, and mutation-test deltas.
-- [ ] Generate the condition-blind independent-review package for the seeded
+- [x] Generate the condition-blind independent-review package for the seeded
   easy/medium/hard worlds and all nine projections.
 - [ ] Freeze reviewer decisions/adjudication before any held-out condition run.
 
@@ -73,11 +73,11 @@ hash-addressed artifact or a passing test; prose-only completion does not count.
 
 - [ ] Implement and development-calibrate a credible CPU C0 with spaCy NER,
   dependencies, alias/coreference, events, relations, and temporal rules.
-- [ ] Implement query-blind GPU C1 preconstruction reused across three contexts.
-- [ ] Implement active post-query GPU C2 construction with merge/split, event
+- [x] Implement query-blind GPU C1 preconstruction reused across three contexts.
+- [x] Implement active post-query GPU C2 construction with merge/split, event
   reification, local schema/relation, abstraction, temporal/epistemic, rare
   guard, evidence-grounded descriptions, and certificates.
-- [ ] Implement query-time GPU `A-FixedSelect` over the complete matching-seed
+- [x] Implement query-time GPU `A-FixedSelect` over the complete matching-seed
   C1 graph with construction operations rejected by grammar and validator.
 - [ ] Pass evidence equality, gold firewall, seals, certificates, packing,
   capability, horizon, budget, and development competence gates.
@@ -88,17 +88,17 @@ hash-addressed artifact or a passing test; prose-only completion does not count.
 
 ## Phase 4 — metrics, statistics, and ablations
 
-- [ ] Implement contextual-node and strict qualified-assertion P/R/F1;
+- [x] Implement contextual-node and strict qualified-assertion P/R/F1;
   six-family ontology-decision macro F1; contrastive change/collapse;
   temporal, grounding, citation, unsupported, rare-pivotal, and support-path
   measures.
-- [ ] Implement declared degree, relation-neighborhood, native-schema, and
+- [x] Implement declared degree, relation-neighborhood, native-schema, and
   canonical-mapped entropy with denominators/undefined cases visible.
-- [ ] Implement node/edge/density/isolate/component, label overlap, irrelevant
+- [x] Implement node/edge/density/isolate/component, label overlap, irrelevant
   load, discoverability, and two-part crossing-opportunity measures.
-- [ ] Implement Leiden-CPM, AMI, purity, conductance, fragmentation/merging,
+- [x] Implement Leiden-CPM, AMI, purity, conductance, fragmentation/merging,
   cluster/modularity descriptions, and cross-seed AMI/VI.
-- [ ] Implement 12-world aggregation, two one-sided paired t-tests, Holm,
+- [x] Implement 12-world aggregation, two one-sided paired t-tests, Holm,
   two-sided paired intervals, all 4,096 sign flips, 10,000 world bootstraps,
   corrected paired effects, C2–C0, gated C2–FixedSelect, and rare noninferiority.
 - [ ] Run only the frozen 12 `A-NoContext`, 8 `A-NoTemporalEpistemic`, and
@@ -106,9 +106,9 @@ hash-addressed artifact or a passing test; prose-only completion does not count.
 
 ## Phase 5 — visualization and feedback
 
-- [ ] Build the thin local Cytoscape.js page with rich grounded node/assertion
+- [x] Build the thin local Cytoscape.js page with rich grounded node/assertion
   labels, time/epistemic/confidence/evidence detail, filtering, and stable layout.
-- [ ] Implement only `REFINE_CONTEXT` and `REQUEST_MERGE_SPLIT`, with
+- [x] Implement only `REFINE_CONTEXT` and `REQUEST_MERGE_SPLIT`, with
   condition-independent anchors and per-condition resolutions.
 - [ ] Run six preregistered known-answer scripts and three researcher traces;
   report replay, latency, graph diff, capability limits, and only applicable
