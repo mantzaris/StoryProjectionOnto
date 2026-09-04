@@ -42,6 +42,22 @@ def test_manifest_excludes_private_and_cache_paths(tmp_path: Path) -> None:
     assert paths == {"src/module.py"}
 
 
+def test_manifest_includes_authoritative_plans_and_execution_documentation(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "plan_notes").mkdir()
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "plan_notes" / "method.md").write_text("method\n", encoding="utf-8")
+    (tmp_path / "docs" / "run.md").write_text("run\n", encoding="utf-8")
+
+    manifest = build_source_manifest(tmp_path, "revision")
+
+    assert {item.path for item in manifest.files} == {
+        "docs/run.md",
+        "plan_notes/method.md",
+    }
+
+
 def test_atomic_manifest_writer_round_trips(tmp_path: Path) -> None:
     (tmp_path / "README.md").write_text("research\n", encoding="utf-8")
     manifest = build_source_manifest(tmp_path, "abc123")
@@ -74,9 +90,7 @@ def test_source_association_requires_independent_byte_identical_manifests(
 
     assert association["local_tree_sha256"] == manifest.tree_sha256
     assert association["remote_tree_sha256"] == manifest.tree_sha256
-    assert association["local_manifest_file_sha256"] == association[
-        "remote_manifest_file_sha256"
-    ]
+    assert association["local_manifest_file_sha256"] == association["remote_manifest_file_sha256"]
     assert association["recorded_at"] == "2026-09-04T00:00:00Z"
 
     remote.write_text(remote.read_text(encoding="utf-8") + " ", encoding="utf-8")

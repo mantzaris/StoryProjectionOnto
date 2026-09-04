@@ -16,6 +16,8 @@ from typing import cast
 SCHEMA_VERSION = "1.0.0"
 DEFAULT_SOURCE_ROOTS = (
     "configs",
+    "docs",
+    "plan_notes",
     "prompts",
     "schemas",
     "scripts",
@@ -180,9 +182,8 @@ def build_source_association(
 
     if branch != "implementation/query-dependent-temporal-ontology":
         raise ValueError("source association requires the registered implementation branch")
-    if (
-        len(git_commit) != 40
-        or any(character not in "0123456789abcdef" for character in git_commit)
+    if len(git_commit) != 40 or any(
+        character not in "0123456789abcdef" for character in git_commit
     ):
         raise ValueError("source association git commit must be lowercase full SHA-1")
     if not revision_label or revision_label.strip() != revision_label:
