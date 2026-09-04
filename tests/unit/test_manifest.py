@@ -1,9 +1,17 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
-from story_projection_onto.manifest import build_source_manifest, write_manifest_atomic
+import pytest
+
+from story_projection_onto.manifest import (
+    build_source_association,
+    build_source_manifest,
+    load_source_manifest,
+    write_manifest_atomic,
+)
 
 
 def test_manifest_is_order_independent_and_changes_with_content(tmp_path: Path) -> None:
@@ -43,3 +51,65 @@ def test_atomic_manifest_writer_round_trips(tmp_path: Path) -> None:
 
     assert json.loads(destination.read_text(encoding="utf-8")) == manifest.to_dict()
     assert not list(destination.parent.glob("*.tmp"))
+
+
+def test_source_association_requires_independent_byte_identical_manifests(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "README.md").write_text("research\n", encoding="utf-8")
+    manifest = build_source_manifest(tmp_path, "abc123+freeze")
+    local = tmp_path / "source.local.json"
+    remote = tmp_path / "source.remote.json"
+    write_manifest_atomic(manifest, local)
+    write_manifest_atomic(manifest, remote)
+
+    association = build_source_association(
+        local_manifest_path=local,
+        remote_manifest_path=remote,
+        branch="implementation/query-dependent-temporal-ontology",
+        git_commit="a" * 40,
+        revision_label="abc123+freeze",
+        recorded_at=datetime(2026, 9, 4, tzinfo=UTC),
+    )
+
+    assert association["local_tree_sha256"] == manifest.tree_sha256
+    assert association["remote_tree_sha256"] == manifest.tree_sha256
+    assert association["local_manifest_file_sha256"] == association[
+        "remote_manifest_file_sha256"
+    ]
+    assert association["recorded_at"] == "2026-09-04T00:00:00Z"
+
+    remote.write_text(remote.read_text(encoding="utf-8") + " ", encoding="utf-8")
+    with pytest.raises(ValueError, match="byte-identical"):
+        build_source_association(
+            local_manifest_path=local,
+            remote_manifest_path=remote,
+            branch="implementation/query-dependent-temporal-ontology",
+            git_commit="a" * 40,
+            revision_label="abc123+freeze",
+            recorded_at=datetime(2026, 9, 4, tzinfo=UTC),
+        )
+
+    remote.unlink()
+    remote.symlink_to(local)
+    with pytest.raises(ValueError, match="symlinked"):
+        build_source_association(
+            local_manifest_path=local,
+            remote_manifest_path=remote,
+            branch="implementation/query-dependent-temporal-ontology",
+            git_commit="a" * 40,
+            revision_label="abc123+freeze",
+            recorded_at=datetime(2026, 9, 4, tzinfo=UTC),
+        )
+
+
+def test_source_manifest_loader_rejects_forged_tree_digest(tmp_path: Path) -> None:
+    (tmp_path / "README.md").write_text("research\n", encoding="utf-8")
+    path = tmp_path / "source.json"
+    write_manifest_atomic(build_source_manifest(tmp_path, "revision"), path)
+    value = json.loads(path.read_text(encoding="utf-8"))
+    value["tree_sha256"] = "0" * 64
+    path.write_text(json.dumps(value), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="tree hash"):
+        load_source_manifest(path)
