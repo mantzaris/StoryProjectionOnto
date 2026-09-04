@@ -1,13 +1,20 @@
 # Run status
 
-Updated: 2026-09-04 (reconciled recovery checkpoint ready)
+Updated: 2026-09-04 (reconciled recovery checkpoint source-bound)
 
 ## Verified durable state
 
 - Branch: `implementation/query-dependent-temporal-ontology`
 - Last pre-recovery commit: `568c61af0b29fe99f1c8dca513d88b4d0b724263`
-- Recovery checkpoint commit: this checkpoint (record the resulting hash in the
-  follow-up source-association commit)
+- Recovery checkpoint commit:
+  `8a77a3aafa0acc834a6563b0015b5fdff29151f8`.
+- The independently generated local and RunPod 288-file manifests are
+  byte-identical (file SHA-256
+  `47d249905194deca92eae9372e0392ee74d209323179be45dee825092f4fed0c`)
+  and bind source-tree SHA-256
+  `81edb1ba173458970e93b903efa27981a96fb3008a8b4ec221f5810f4c515b20`.
+  Source-association manifest SHA-256:
+  `1ce70d1c0796e5cc085d55ec535594b5b1e4d913eff3314b200562c5c095d4b4`.
 - Remote source snapshot at commit `6acf3077f2a33ebc1dc28cbc431034b9aafdfced`
   was independently hashed and is byte-identical to the corresponding local Git
   tree. Unique later remote manifests, ledgers, CAS blobs, checkpoints, failure
@@ -22,6 +29,9 @@ Updated: 2026-09-04 (reconciled recovery checkpoint ready)
   1 MiB/0%, no vLLM or study runner, no `tmux`/`screen` session, and no listener
   on port 8000. The live project directory occupied 9,959,306,622 bytes; vLLM
   remains stopped.
+- One stale Python 2.7 bytecode file found outside the reconciled source
+  inventory was moved, without deletion, into the restricted recovery
+  quarantine before the final RunPod manifest was generated.
 - Current project-controlled remote occupancy at recovery was 15,135,812,608
   bytes. The maximum persisted ledger sample was 13,623,907,840 bytes; the
   difference is retained recovery/source material rather than a larger study.
@@ -71,9 +81,10 @@ Updated: 2026-09-04 (reconciled recovery checkpoint ready)
 
 ## Gates and blockers
 
-- Do not start the fallback retry until the reconciled source tree has passed
-  the complete validation matrix, has a recovery checkpoint commit, and has a
-  fresh byte-identical local/remote source association.
+- The reconciled source tree has passed the complete validation matrix, has the
+  recovery checkpoint above, and has a fresh byte-identical local/RunPod source
+  association. The fallback controller must still pass its validation-only
+  preflight before the retry may start.
 - Do not open held-out query payloads or start held-out inference until the
   independent review completion reproduces.
 - Do not start the case-study phase until all synthetic pre-case gates pass and
@@ -83,8 +94,10 @@ Updated: 2026-09-04 (reconciled recovery checkpoint ready)
 
 ## Exact resume command
 
-After this recovery checkpoint is committed, generate matching local and remote
-source manifests for that exact commit and associate them as
-`source_tree_fallback_development_v5.association.json`. GPU execution remains
-gated until that association independently validates and the fallback controller
-preflight reports the registered reserves.
+From `/workspace/StoryProjectionOnto`, run
+`scripts/run_fallback_gpu_acceptance.py --validate-only --controller-stage orchestrate`
+with run ID `fallback-qwen3-8b-awq-development-v3`, the v5 source association,
+the registered fallback activation/retry artifacts, and the recovered
+ledger/CAS paths. Do not replace `--validate-only` with `--execute` unless that
+fresh preflight independently validates the source tree, reports exactly
+422.961986 prior allocated GPU seconds, and preserves both registered reserves.
