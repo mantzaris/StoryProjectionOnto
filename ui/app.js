@@ -10,7 +10,9 @@
   let cytoscapeAvailable = false;
   let cy = null;
   let currentBundle = null;
+  let comparisonBundle = null;
   let currentDiff = null;
+  let revisionSeedDecimal = null;
   let sequence = 1;
 
   const escapeHtml = (value) =>
@@ -40,6 +42,11 @@
       return time.label || `${time.start ?? "…"}–${time.end ?? "…"}`;
     }
     if (time.kind === "relative") return `${time.relation} ${time.anchor_id}`;
+    if (time.kind === "partial_order") {
+      return time.partial_order
+        .map((item) => `${item.left_id} ${item.relation} ${item.right_id}`)
+        .join("; ");
+    }
     return time.label || time.reason || time.kind;
   };
 
@@ -77,8 +84,9 @@
             <dl>
               <dt>Locator</dt><dd>${escapeHtml(item.locator)}</dd>
               <dt>Discourse</dt><dd>passage ${item.discourse_position.passage_order}, sentence ${item.discourse_position.sentence_order}</dd>
-              <dt>Method</dt><dd>${escapeHtml(item.extraction_method)}</dd>
-              <dt>Confidence</dt><dd>${Number(item.confidence).toFixed(2)}</dd>
+        <dt>Method</dt><dd>${escapeHtml(item.extraction_method)}</dd>
+        <dt>Confidence</dt><dd>${Number(item.confidence).toFixed(2)}</dd>
+        <dt>Release class</dt><dd>${escapeHtml(item.release_class)}</dd>
             </dl>
             ${item.public_text ? `<p class="evidence-text">${escapeHtml(item.public_text)}</p>` : ""}
           `);
@@ -89,9 +97,9 @@
     });
   };
 
-  const nodeDetail = (id) => {
-    const node = currentBundle.state.nodes.find((item) => item.visualization_node_id === id);
-    const detail = currentBundle.node_details.find((item) => item.visualization_node_id === id);
+  const nodeDetail = (id, bundle = currentBundle) => {
+    const node = bundle.state.nodes.find((item) => item.visualization_node_id === id);
+    const detail = bundle.node_details.find((item) => item.visualization_node_id === id);
     if (!node || !detail) return;
     renderDetails(`
       <h3>${escapeHtml(node.contextual_label)}</h3>
@@ -112,29 +120,53 @@
     bindEvidenceButtons();
   };
 
-  const assertionDetail = (id) => {
-    const assertion = currentBundle.state.assertions.find(
+  const assertionDetail = (id, bundle = currentBundle) => {
+    const assertion = bundle.state.assertions.find(
       (item) => item.visualization_assertion_id === id,
     );
-    const detail = currentBundle.assertion_details.find(
+    const detail = bundle.assertion_details.find(
       (item) => item.visualization_assertion_id === id,
     );
     if (!assertion || !detail) return;
+    const evidenceById = new Map(bundle.evidence_metadata.map((item) => [item.evidence_id, item]));
+    const provenance = assertion.provenance
+      .map((item) => {
+        const metadata = evidenceById.get(item.evidence_id);
+        const locator = metadata ? metadata.locator : item.locator;
+        return `${item.evidence_id}: ${item.extraction_method} @ ${locator}`;
+      })
+      .join("; ");
+    const roles = assertion.roles
+      .map((item) => `${item.role} → ${item.object_id}`)
+      .join("; ");
+    const holderNode = bundle.state.nodes.find(
+      (item) => item.visualization_node_id === assertion.epistemic_holder_id,
+    );
+    const holderLabel = holderNode
+      ? `${holderNode.contextual_label} (${assertion.epistemic_holder_id})`
+      : assertion.epistemic_holder_id || "none";
     renderDetails(`
       <h3>${escapeHtml(assertion.contextual_label)}</h3>
       <dl>
         <dt>Relation definition</dt><dd>${escapeHtml(detail.predicate_definition)}</dd>
+        <dt>Normalized relation</dt><dd><code>${escapeHtml(assertion.predicate_id)}</code></dd>
         <dt>Direction</dt><dd>${escapeHtml(assertion.direction)}</dd>
+        <dt>Event roles</dt><dd>${escapeHtml(roles || "binary assertion")}</dd>
         <dt>Story time</dt><dd>${escapeHtml(temporalLabel(assertion.temporal_scope.story_time))}</dd>
         <dt>Validity</dt><dd>${escapeHtml(temporalLabel(assertion.temporal_scope.validity_time))}</dd>
         <dt>Discourse</dt><dd>${assertion.temporal_scope.discourse_position.passage_order}</dd>
         <dt>Revelation</dt><dd>${assertion.temporal_scope.revelation_position.revelation_order}</dd>
         <dt>Commitment</dt><dd>${escapeHtml(detail.narrative_commitment)}</dd>
-        <dt>Holder / attitude</dt><dd>${escapeHtml(assertion.epistemic_holder_id || "none")} / ${escapeHtml(assertion.epistemic_attitude || "none")}</dd>
+        <dt>Holder / attitude</dt><dd>${escapeHtml(holderLabel)} / ${escapeHtml(assertion.epistemic_attitude || "none")}</dd>
+        <dt>Holder-relative time</dt><dd>${escapeHtml(temporalLabel(detail.holder_relative_time))}</dd>
+        <dt>Proposition content</dt><dd>${escapeHtml(detail.proposition_content_id || "none")}</dd>
         <dt>Uncertainty</dt><dd>${escapeHtml(assertion.uncertainty)}</dd>
         <dt>Confidence</dt><dd>${Number(assertion.confidence).toFixed(2)}</dd>
+        <dt>Contextual relevance</dt><dd>${Number(detail.contextual_relevance).toFixed(2)}</dd>
+        <dt>Provenance</dt><dd>${escapeHtml(provenance)}</dd>
       </dl>
       <p><strong>Why it matters:</strong> ${escapeHtml(assertion.why_matters)}</p>
+      <p><strong>Why support:</strong><br />${evidenceButtons(detail.why_matters_evidence_ids)}</p>
       <p><strong>Evidence (${assertion.evidence_badge.count})</strong><br />${evidenceButtons(assertion.evidence_badge.evidence_ids)}</p>
     `);
     bindEvidenceButtons();
@@ -158,7 +190,7 @@
         group: "nodes",
         data: {
           id: node.visualization_node_id,
-          label: `${node.contextual_label}\n${detail.contextual_type_label} · ${node.contextual_role}\nt=${temporalLabel(node.temporal_state)} · c=${Number(node.confidence).toFixed(2)} · E${node.evidence_badge.count}`,
+          label: `${node.contextual_label}\n${detail.contextual_type_label} · ${node.contextual_role}\nt=${temporalLabel(node.temporal_state)} · u=${node.uncertainty} · c=${Number(node.confidence).toFixed(2)} · E${node.evidence_badge.count}`,
           subtitle: `${detail.contextual_type_label} · ${node.contextual_role}`,
           confidence: node.confidence,
           evidenceCount: node.evidence_badge.count,
@@ -170,6 +202,9 @@
     for (const assertion of bundle.state.assertions) {
       if (!visibleAssertions.has(assertion.visualization_assertion_id)) continue;
       const edgeClass = `${assertion.epistemic_holder_id ? "epistemic" : ""} ${classes.get(assertion.visualization_assertion_id) || ""}`;
+      const epistemicStatus = assertion.epistemic_holder_id
+        ? `${assertion.epistemic_attitude}@${assertion.epistemic_holder_id}`
+        : `${assertion.uncertainty} · c=${Number(assertion.confidence).toFixed(2)}`;
       if (assertion.source_visualization_node_id) {
         elements.push({
           group: "edges",
@@ -177,7 +212,7 @@
             id: assertion.visualization_assertion_id,
             source: assertion.source_visualization_node_id,
             target: assertion.target_visualization_node_id,
-            label: `${assertion.contextual_label} · ${temporalLabel(assertion.temporal_scope.validity_time)} · ${assertion.epistemic_attitude || `c=${Number(assertion.confidence).toFixed(2)}`} · E${assertion.evidence_badge.count}`,
+            label: `${assertion.contextual_label} · ${temporalLabel(assertion.temporal_scope.validity_time)} · ${epistemicStatus} · E${assertion.evidence_badge.count}`,
             confidence: assertion.confidence,
             evidenceCount: assertion.evidence_badge.count,
           },
@@ -203,6 +238,99 @@
             classes: `role-edge ${edgeClass}`,
           });
         });
+      }
+    }
+    if (comparisonBundle && currentDiff) {
+      const ghostNodeIds = new Map();
+      const ghostAssertionIds = new Map();
+      for (const change of currentDiff.changes) {
+        if (!["removed", "merged", "split"].includes(change.kind)) continue;
+        const target = change.object_kind === "node" ? ghostNodeIds : ghostAssertionIds;
+        for (const id of change.before_visualization_ids) target.set(id, change.kind);
+      }
+      const currentNodeIds = new Set(
+        elements.filter((item) => item.group === "nodes").map((item) => item.data.id),
+      );
+      const comparisonPositions = new Map(
+        comparisonBundle.state.positions.map((item) => [
+          item.visualization_node_id,
+          { x: item.x, y: item.y },
+        ]),
+      );
+      const comparisonDetails = new Map(
+        comparisonBundle.node_details.map((item) => [item.visualization_node_id, item]),
+      );
+      for (const node of comparisonBundle.state.nodes) {
+        if (!ghostNodeIds.has(node.visualization_node_id)) continue;
+        const ghostId = `before:${node.visualization_node_id}`;
+        const detail = comparisonDetails.get(node.visualization_node_id);
+        elements.push({
+          group: "nodes",
+          data: {
+            id: ghostId,
+            semanticId: node.visualization_node_id,
+            sourceBundle: "comparison",
+            label: `Before: ${node.contextual_label}\n${detail.contextual_type_label} · ${node.contextual_role}`,
+          },
+          position: comparisonPositions.get(node.visualization_node_id),
+          classes: `${detail.object_kind} before-state ${ghostNodeIds.get(node.visualization_node_id)}`,
+        });
+        currentNodeIds.add(ghostId);
+      }
+      const comparisonEndpoint = (id) => {
+        if (ghostNodeIds.has(id)) return `before:${id}`;
+        return currentNodeIds.has(id) ? id : null;
+      };
+      for (const assertion of comparisonBundle.state.assertions) {
+        if (!ghostAssertionIds.has(assertion.visualization_assertion_id)) continue;
+        const ghostId = `before:${assertion.visualization_assertion_id}`;
+        const classes = `before-state ${ghostAssertionIds.get(assertion.visualization_assertion_id)}`;
+        if (assertion.source_visualization_node_id) {
+          const source = comparisonEndpoint(assertion.source_visualization_node_id);
+          const target = comparisonEndpoint(assertion.target_visualization_node_id);
+          if (!source || !target) continue;
+          elements.push({
+            group: "edges",
+            data: {
+              id: ghostId,
+              semanticId: assertion.visualization_assertion_id,
+              sourceBundle: "comparison",
+              source,
+              target,
+              label: `Before: ${assertion.contextual_label}`,
+            },
+            classes,
+          });
+        } else {
+          const endpoints = assertion.roles.map((role) => comparisonEndpoint(role.object_id));
+          if (endpoints.some((item) => !item)) continue;
+          const hubId = `before:render-hub:${assertion.visualization_assertion_id}`;
+          elements.push({
+            group: "nodes",
+            data: {
+              id: hubId,
+              semanticId: assertion.visualization_assertion_id,
+              sourceBundle: "comparison",
+              label: `Before: ${assertion.contextual_label}`,
+              rendererOnly: true,
+            },
+            classes: `assertion-hub ${classes}`,
+          });
+          assertion.roles.forEach((role, index) => {
+            elements.push({
+              group: "edges",
+              data: {
+                id: `${ghostId}:role:${index}`,
+                semanticId: assertion.visualization_assertion_id,
+                sourceBundle: "comparison",
+                source: hubId,
+                target: endpoints[index],
+                label: role.role,
+              },
+              classes: `role-edge ${classes}`,
+            });
+          });
+        }
       }
     }
     return elements;
@@ -261,24 +389,33 @@
         { selector: ".requalified", style: { "border-color": "#f2d36b", "line-color": "#f2d36b", "border-width": 5 } },
         { selector: ".merged", style: { "border-color": "#67d391", "border-style": "double", "border-width": 6 } },
         { selector: ".split", style: { "border-color": "#69aef2", "border-style": "dashed", "border-width": 5 } },
+        { selector: ".before-state", style: { opacity: 0.38, "line-style": "dotted", "border-style": "dotted" } },
         { selector: ":selected", style: { "overlay-color": "#ffffff", "overlay-opacity": 0.12 } },
       ],
     });
     cy.on("tap", "node", (event) => {
       const id = event.target.id();
-      if (!id.startsWith("render-hub:")) nodeDetail(id);
-      else assertionDetail(id.slice("render-hub:".length));
+      const bundle = event.target.data("sourceBundle") === "comparison" ? comparisonBundle : currentBundle;
+      const semanticId = event.target.data("semanticId") || id;
+      if (!event.target.data("rendererOnly")) nodeDetail(semanticId, bundle);
+      else assertionDetail(semanticId, bundle);
     });
     cy.on("tap", "edge", (event) => {
-      assertionDetail(event.target.data("assertionId") || event.target.id());
+      const bundle = event.target.data("sourceBundle") === "comparison" ? comparisonBundle : currentBundle;
+      assertionDetail(
+        event.target.data("semanticId") || event.target.data("assertionId") || event.target.id(),
+        bundle,
+      );
     });
   };
 
   const loadProjection = async (projectionId) => {
     currentBundle = await api(`/api/projections/${encodeURIComponent(projectionId)}`);
+    comparisonBundle = null;
     currentDiff = null;
     const compareId = compareSelect.value;
     if (compareId && compareId !== projectionId) {
+      comparisonBundle = await api(`/api/projections/${encodeURIComponent(compareId)}`);
       currentDiff = await api(
         `/api/diffs/${encodeURIComponent(compareId)}/${encodeURIComponent(projectionId)}`,
       );
@@ -314,8 +451,8 @@
               horizon_id: `ui-horizon-${discourse}-${revelation || "none"}`,
               max_discourse_position: {
                 passage_order: Number(discourse),
-                sentence_order: 0,
-                token_order: 0,
+                sentence_order: 2147483647,
+                token_order: 2147483647,
               },
               max_revelation_position:
                 revelation === "" ? null : { revelation_order: Number(revelation) },
@@ -339,6 +476,12 @@
   const submitRevision = async (event) => {
     event.preventDefault();
     if (!currentBundle) return;
+    if (revisionSeedDecimal === null) {
+      revisionStatus.textContent =
+        "No frozen feedback seed is configured; no regeneration was started.";
+      return;
+    }
+    const beforeProjectionId = currentBundle.projection_id;
     const action = byId("revision-action").value;
     const groups = byId("revision-mentions")
       .value.split("|")
@@ -360,7 +503,8 @@
       anchors: [anchor],
       rationale: byId("revision-rationale").value,
       sequence,
-      seed: 0,
+      // Keep the 63-bit registered seed as decimal text to avoid IEEE-754 rounding.
+      seed: revisionSeedDecimal,
       lens: action === "REFINE_CONTEXT" ? byId("revision-lens").value || null : null,
       story_scope:
         action === "REFINE_CONTEXT" && revisedStoryPoint !== ""
@@ -372,8 +516,8 @@
               horizon_id: `revision-horizon-${sequence}`,
               max_discourse_position: {
                 passage_order: Number(revisedDiscourse),
-                sentence_order: 0,
-                token_order: 0,
+                sentence_order: 2147483647,
+                token_order: 2147483647,
               },
               max_revelation_position:
                 revisedRevelation === ""
@@ -394,14 +538,23 @@
         body: JSON.stringify(payload),
       });
       sequence += 1;
-      revisionStatus.textContent = `Resolved in ${result.latency_seconds.toFixed(2)} s; replay ${result.replay.replay_hash_success ? "verified" : "failed"}.`;
-      await initializeProjectionMenus(result.after_bundle.projection_id);
+      if (result.resolution.status === "capability_limited") {
+        revisionStatus.textContent = `Capability limited for ${currentBundle.condition}; no semantic output was claimed.`;
+      } else if (!result.after_bundle) {
+        revisionStatus.textContent = `Revision ${result.resolution.status}; no valid output was retained.`;
+      } else {
+        revisionStatus.textContent = `Resolved in ${result.latency_seconds.toFixed(2)} s; replay ${result.replay.replay_hash_success ? "verified" : "failed"}.`;
+        await initializeProjectionMenus(
+          result.after_bundle.projection_id,
+          beforeProjectionId,
+        );
+      }
     } catch (error) {
       revisionStatus.textContent = error.message;
     }
   };
 
-  const initializeProjectionMenus = async (selectedId = null) => {
+  const initializeProjectionMenus = async (selectedId = null, compareId = null) => {
     const projections = await api("/api/projections");
     projectionSelect.innerHTML = projections
       .map(
@@ -411,12 +564,14 @@
       .join("");
     compareSelect.innerHTML = `<option value="">No comparison</option>${projectionSelect.innerHTML}`;
     if (selectedId) projectionSelect.value = selectedId;
+    if (compareId) compareSelect.value = compareId;
     if (projectionSelect.value) await loadProjection(projectionSelect.value);
   };
 
   const initialize = async () => {
     try {
       const health = await api("/api/health");
+      revisionSeedDecimal = health.revision_seed_decimal;
       cytoscapeAvailable = await window.storyProjectionCytoscapeReady;
       const verified = health.cytoscape.verified && cytoscapeAvailable;
       assetStatus.textContent = verified

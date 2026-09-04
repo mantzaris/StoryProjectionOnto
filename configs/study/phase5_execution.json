@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0.0",
+  "configuration_id": "phase5-feedback-execution-v1",
+  "feedback_protocol_hash": "639d8512ec9f8c13a4bcdbcacff4fc7216bbb37edde450d900bf8627355f0a9b",
+  "required_upstream_state": "held_out_primary_results_frozen",
+  "output_root": "artifacts/restricted/phase5_feedback",
+  "append_only": true,
+  "scripted_episode_count": 6,
+  "researcher_trace_count": 3,
+  "cpu_reprojection_call_count": 12,
+  "c2_regeneration_slot_count": 9,
+  "maximum_repair_gpu_request_count": 9,
+  "authoritative_materialization_receipt_required": true,
+  "permit_gpu_execution_without_adapter": false,
+  "controller_owns_model_service_lifecycle": false,
+  "usability_claims": false
+}

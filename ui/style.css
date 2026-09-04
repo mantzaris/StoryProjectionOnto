@@ -123,6 +123,8 @@ button:hover { filter: brightness(1.12); }
 .swatch.epistemic { background: var(--purple); }
 .swatch.added { background: var(--green); }
 .swatch.removed { opacity: 0.35; }
+.swatch.merged { background: var(--green); border: 2px double #fff; }
+.swatch.split { background: #69aef2; border: 2px dashed #fff; }
 .swatch.requalified { background: var(--yellow); }
 
 .revision-panel {

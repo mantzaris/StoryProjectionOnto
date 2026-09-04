@@ -33,6 +33,7 @@ from story_projection_onto.contracts import (
     FeedbackAnchor,
     FeedbackResolution,
     FeedbackResolutionStatus,
+    HolderRelativeTime,
     Identifier,
     ImmutableRecord,
     ModelVisibleRevision,
@@ -71,6 +72,43 @@ class VisualizationObjectKind(StrEnum):
     EVENT = "event"
 
 
+DEFAULT_VISUALIZATION_CONFIG_PATH = (
+    Path(__file__).resolve().parents[2] / "configs" / "study" / "visualization.json"
+)
+
+
+class VisualizationConfiguration(ImmutableRecord):
+    """Frozen renderer configuration shared by every study condition.
+
+    The layout is deliberately deterministic and downstream of ontology construction.
+    Its seed is bound to the synthetic benchmark's root-derived layout seed so geometry
+    cannot be selected separately for a condition or after inspecting results.
+    """
+
+    configuration_id: Identifier
+    layout_name: Literal["preset-anchor-hash-v2"] = "preset-anchor-hash-v2"
+    coordinate_rule: Literal["sha256-layout-seed-anchor-grid-v2"] = (
+        "sha256-layout-seed-anchor-grid-v2"
+    )
+    layout_seed: int = Field(ge=0)
+    seed_manifest_hash: Sha256Digest
+    layout_seed_entry_hash: Sha256Digest
+    viewport: Viewport
+    style_name: Literal["phase5-study-v2"] = "phase5-study-v2"
+    progressive_disclosure: Literal[True] = True
+    font_family: str = Field(min_length=1)
+    font_base_px: int = Field(gt=0)
+    max_retained_screenshots: Literal[12] = 12
+
+
+def load_visualization_configuration(
+    path: Path = DEFAULT_VISUALIZATION_CONFIG_PATH,
+) -> VisualizationConfiguration:
+    """Load and hash the one tracked visualization configuration."""
+
+    return VisualizationConfiguration.model_validate_json(path.read_text(encoding="utf-8"))
+
+
 class VisualizationNodeDetail(ImmutableRecord):
     """Progressively disclosed metadata for one semantic projection object."""
 
@@ -100,9 +138,25 @@ class VisualizationAssertionDetail(ImmutableRecord):
     projection_assertion_id: Identifier
     predicate_label: str = Field(min_length=1)
     predicate_definition: str = Field(min_length=1)
+    contextual_relevance: float = Field(ge=0.0, le=1.0)
     narrative_commitment: NarrativeCommitment
     role_labels: tuple[Identifier, ...] = ()
     evidence_ids: tuple[Identifier, ...]
+    why_matters_evidence_ids: tuple[Identifier, ...]
+    proposition_content_id: Identifier | None = None
+    holder_relative_time: HolderRelativeTime | None = None
+
+    @model_validator(mode="after")
+    def epistemic_detail_is_complete(self) -> Self:
+        if (self.proposition_content_id is None) != (self.holder_relative_time is None):
+            raise ValueError(
+                "holder-relative time and proposition content must be present or absent together"
+            )
+        if not self.evidence_ids or not self.why_matters_evidence_ids:
+            raise ValueError("visual assertion details require evidence and why support")
+        if not set(self.why_matters_evidence_ids).issubset(self.evidence_ids):
+            raise ValueError("visual why support must be assertion evidence")
+        return self
 
 
 class EvidenceMetadata(ImmutableRecord):
@@ -162,6 +216,35 @@ class VisualizationBundle(ImmutableRecord):
         badges.extend(item.evidence_badge for item in self.state.assertions)
         if any(not set(item.evidence_ids).issubset(available) for item in badges):
             raise ValueError("every visual evidence badge must resolve in bundle metadata")
+        nodes = {item.visualization_node_id: item for item in self.state.nodes}
+        for detail in self.node_details:
+            node = nodes[detail.visualization_node_id]
+            if detail.stable_anchor_id != detail.visualization_node_id:
+                raise ValueError("visual node stable anchors must equal their renderer IDs")
+            if detail.projection_object_id != node.projection_object_id:
+                raise ValueError("visual node detail refers to another projection object")
+            if detail.contextual_role != node.contextual_role:
+                raise ValueError("visual node detail and overview roles differ")
+            if detail.evidence_ids != node.evidence_badge.evidence_ids:
+                raise ValueError("visual node detail and overview evidence differ")
+        assertions = {item.visualization_assertion_id: item for item in self.state.assertions}
+        for detail in self.assertion_details:
+            assertion = assertions[detail.visualization_assertion_id]
+            if detail.stable_anchor_id != detail.visualization_assertion_id:
+                raise ValueError("visual assertion stable anchors must equal renderer IDs")
+            if detail.projection_assertion_id != assertion.projection_assertion_id:
+                raise ValueError("visual assertion detail refers to another projection assertion")
+            if detail.evidence_ids != assertion.evidence_badge.evidence_ids:
+                raise ValueError("visual assertion detail and overview evidence differ")
+            if detail.predicate_label != assertion.contextual_label:
+                raise ValueError("visual assertion detail and overview labels differ")
+            if detail.why_matters_evidence_ids and not set(
+                detail.why_matters_evidence_ids
+            ).issubset(assertion.evidence_badge.evidence_ids):
+                raise ValueError("visual why support is absent from the evidence badge")
+            has_epistemic_overview = assertion.epistemic_holder_id is not None
+            if has_epistemic_overview != (detail.holder_relative_time is not None):
+                raise ValueError("visual overview and detail epistemic status differ")
         if self.release_class is ReleaseClass.PUBLIC and any(
             item.release_class is ReleaseClass.RESTRICTED for item in self.evidence_metadata
         ):
@@ -213,10 +296,10 @@ def _deduplicate_anchor_ids(
     return result
 
 
-def _position_for_anchor(anchor_id: str) -> tuple[float, float]:
+def _position_for_anchor(anchor_id: str, layout_seed: int) -> tuple[float, float]:
     """Frozen anchor-hash geometry keeps matching nodes fixed across conditions."""
 
-    digest = hashlib.sha256(anchor_id.encode("utf-8")).digest()
+    digest = hashlib.sha256(f"{layout_seed}:{anchor_id}".encode()).digest()
     x = float(int.from_bytes(digest[:4], "big") % 961 - 480)
     y = float(int.from_bytes(digest[4:8], "big") % 641 - 320)
     return x, y
@@ -286,6 +369,7 @@ def build_visualization_bundle(
     packet: EvidencePacket,
     *,
     include_public_evidence_text: bool = False,
+    visualization_config: VisualizationConfiguration | None = None,
 ) -> VisualizationBundle:
     """Compile a validated projection into a renderer-only DTO.
 
@@ -294,6 +378,7 @@ def build_visualization_bundle(
     support is accepted and supported.  These are visibility decisions, not repairs.
     """
 
+    config = visualization_config or load_visualization_configuration()
     if projection.context_hash != context.content_hash:
         raise VisualizationCompilationError("projection and visualization context differ")
     if projection.packet_hash != packet.content_hash:
@@ -411,7 +496,7 @@ def build_visualization_bundle(
                 contextual_role=contextual_role,
             )
         )
-        x, y = _position_for_anchor(visual_id)
+        x, y = _position_for_anchor(visual_id, config.layout_seed)
         positions.append(NodePosition(visualization_node_id=visual_id, x=x, y=y))
 
     visual_assertions: list[VisualizationAssertion] = []
@@ -513,9 +598,17 @@ def build_visualization_bundle(
                 projection_assertion_id=assertion.assertion_id,
                 predicate_label=predicate.label,
                 predicate_definition=predicate.definition,
+                contextual_relevance=assertion.contextual_relevance,
                 narrative_commitment=assertion.narrative_commitment,
                 role_labels=tuple(role.role for role in visual_roles),
                 evidence_ids=assertion.evidence_ids,
+                why_matters_evidence_ids=assertion.why_matters_evidence_ids,
+                proposition_content_id=assertion.proposition_content_id,
+                holder_relative_time=(
+                    None
+                    if assertion.epistemic_scope is None
+                    else assertion.epistemic_scope.holder_relative_time
+                ),
             )
         )
 
@@ -527,29 +620,28 @@ def build_visualization_bundle(
     projection_hash = projection.content_hash
     layout_payload = {
         "algorithm": "preset",
-        "coordinate_rule": "sha256-anchor-grid-v1",
-        "seed": 17,
+        "coordinate_rule": config.coordinate_rule,
+        "seed": config.layout_seed,
+        "seed_manifest_hash": config.seed_manifest_hash,
+        "layout_seed_entry_hash": config.layout_seed_entry_hash,
     }
-    style_payload = {"style": "phase5-study-v1", "progressive_disclosure": True}
-    font_payload = {"family": "system-ui,sans-serif", "base_px": 14}
+    style_payload = {
+        "style": config.style_name,
+        "progressive_disclosure": config.progressive_disclosure,
+    }
+    font_payload = {"family": config.font_family, "base_px": config.font_base_px}
     state = VisualizationState(
         visualization_state_id=_identifier_digest(
             "view", {"projection_hash": projection_hash, "filter": "none"}
         ),
         projection_hash=projection_hash,
         semantic_hash=projection_hash,
-        layout_name="preset-anchor-hash-v1",
+        layout_name=config.layout_name,
         layout_config_hash=canonical_sha256(layout_payload),
         style_config_hash=canonical_sha256(style_payload),
         font_config_hash=canonical_sha256(font_payload),
-        layout_seed=17,
-        viewport=Viewport(
-            center_x=0.0,
-            center_y=0.0,
-            zoom=1.0,
-            width=1200,
-            height=800,
-        ),
+        layout_seed=config.layout_seed,
+        viewport=config.viewport,
         nodes=tuple(nodes),
         assertions=tuple(visual_assertions),
         positions=tuple(positions),
@@ -611,6 +703,46 @@ def _passes_story_filter(value: StoryTime, requested: StoryTime | None) -> bool:
     return value_bounds[0] <= requested_bounds[1] and requested_bounds[0] <= value_bounds[1]
 
 
+def _assertion_passes_temporal_filter(
+    assertion: VisualizationAssertion,
+    temporal_filter: VisualizationTemporalFilter,
+) -> bool:
+    if not _passes_story_filter(
+        assertion.temporal_scope.story_time,
+        temporal_filter.story_scope,
+    ):
+        return False
+    horizon = temporal_filter.spoiler_horizon
+    if horizon is not None and (
+        not discourse_is_within_horizon(
+            assertion.temporal_scope.discourse_position,
+            horizon,
+        )
+        or not revelation_is_within_horizon(
+            assertion.temporal_scope.revelation_position,
+            horizon,
+        )
+    ):
+        return False
+    return not (
+        temporal_filter.epistemic_holder_id is not None
+        and assertion.epistemic_holder_id != temporal_filter.epistemic_holder_id
+    )
+
+
+def _visual_assertion_endpoint_ids(assertion: VisualizationAssertion) -> frozenset[str]:
+    endpoint_ids = {
+        item
+        for item in (
+            assertion.source_visualization_node_id,
+            assertion.target_visualization_node_id,
+        )
+        if item is not None
+    }
+    endpoint_ids.update(role.object_id for role in assertion.roles)
+    return frozenset(endpoint_ids)
+
+
 def filter_visualization_bundle(
     bundle: VisualizationBundle,
     temporal_filter: VisualizationTemporalFilter,
@@ -618,6 +750,9 @@ def filter_visualization_bundle(
     """Apply story/spoiler/holder visibility without mutating semantic content."""
 
     evidence_by_id = {item.evidence_id: item for item in bundle.evidence_metadata}
+    assertions_by_projection_id = {
+        item.projection_assertion_id: item for item in bundle.state.assertions
+    }
     visible_nodes: set[str] = set()
     for node in bundle.state.nodes:
         if not _passes_story_filter(node.temporal_state, temporal_filter.story_scope):
@@ -628,7 +763,10 @@ def filter_visualization_bundle(
                 for evidence_id in node.evidence_badge.evidence_ids
                 if evidence_id in evidence_by_id
             ]
-            if eligible and not any(
+            # A lower temporary horizon must not reveal a label, alias, or entity merge
+            # that depends partly on later evidence.  Requiring every cited item to be in
+            # scope is conservative and keeps rendering downstream of evidence access.
+            if eligible and not all(
                 discourse_is_within_horizon(
                     item.discourse_position,
                     temporal_filter.spoiler_horizon,
@@ -636,44 +774,32 @@ def filter_visualization_bundle(
                 for item in eligible
             ):
                 continue
+            supporting_assertions = [
+                assertions_by_projection_id[assertion_id]
+                for assertion_id in node.description_assertion_ids
+                if assertion_id in assertions_by_projection_id
+            ]
+            # Node labels/descriptions can leak a later revelation even when the node's
+            # direct evidence badge itself is early. Hide the node if any assertion on
+            # which its supported description depends is beyond either horizon axis.
+            if supporting_assertions and not all(
+                _assertion_passes_temporal_filter(item, temporal_filter)
+                for item in supporting_assertions
+            ):
+                continue
         visible_nodes.add(node.visualization_node_id)
 
-    visible_assertions: list[str] = []
-    for assertion in bundle.state.assertions:
-        if not _passes_story_filter(
-            assertion.temporal_scope.story_time,
-            temporal_filter.story_scope,
-        ):
-            continue
-        horizon = temporal_filter.spoiler_horizon
-        if horizon is not None and (
-            not discourse_is_within_horizon(
-                assertion.temporal_scope.discourse_position,
-                horizon,
-            )
-            or not revelation_is_within_horizon(
-                assertion.temporal_scope.revelation_position,
-                horizon,
-            )
-        ):
-            continue
-        if (
-            temporal_filter.epistemic_holder_id is not None
-            and assertion.epistemic_holder_id != temporal_filter.epistemic_holder_id
-        ):
-            continue
-        endpoint_ids = {
-            item
-            for item in (
-                assertion.source_visualization_node_id,
-                assertion.target_visualization_node_id,
-            )
-            if item is not None
-        }
-        endpoint_ids.update(role.object_id for role in assertion.roles)
-        if not endpoint_ids.issubset(visible_nodes):
-            continue
-        visible_assertions.append(assertion.visualization_assertion_id)
+    assertions_by_id = {item.visualization_assertion_id: item for item in bundle.state.assertions}
+    temporally_eligible = {
+        item.visualization_assertion_id
+        for item in bundle.state.assertions
+        if _assertion_passes_temporal_filter(item, temporal_filter)
+    }
+    visible_assertions = sorted(
+        assertion_id
+        for assertion_id in temporally_eligible
+        if _visual_assertion_endpoint_ids(assertions_by_id[assertion_id]).issubset(visible_nodes)
+    )
 
     payload = bundle.state.model_dump(mode="python", exclude={"content_hash"})
     payload.update(
@@ -779,19 +905,35 @@ def compare_visualizations(
     after_nodes = {item.visualization_node_id: item for item in after.state.nodes}
     before_anchors = _detail_anchor_sets(before.node_details)
     after_anchors = _detail_anchor_sets(after.node_details)
+    before_kinds = {item.visualization_node_id: item.object_kind for item in before.node_details}
+    after_kinds = {item.visualization_node_id: item.object_kind for item in after.node_details}
     changes: list[VisualizationChange] = []
     consumed_before: set[str] = set()
     consumed_after: set[str] = set()
 
     for after_id, after_set in sorted(after_anchors.items()):
+        if after_kinds[after_id] is not VisualizationObjectKind.ENTITY:
+            continue
         overlapping = tuple(
             sorted(
                 before_id
                 for before_id, before_set in before_anchors.items()
-                if before_set.intersection(after_set)
+                if before_kinds[before_id] is VisualizationObjectKind.ENTITY
+                and before_set.intersection(after_set)
             )
         )
-        if len(overlapping) >= 2:
+        overlapping_union = frozenset().union(*(before_anchors[item] for item in overlapping))
+        overlaps_another_after_entity = any(
+            other_id != after_id
+            and after_kinds[other_id] is VisualizationObjectKind.ENTITY
+            and bool(other_set.intersection(after_set))
+            for other_id, other_set in after_anchors.items()
+        )
+        if (
+            len(overlapping) >= 2
+            and overlapping_union == after_set
+            and not overlaps_another_after_entity
+        ):
             anchors = tuple(
                 sorted(after_set.union(*(before_anchors[item] for item in overlapping)))
             )
@@ -811,14 +953,29 @@ def compare_visualizations(
             consumed_after.add(after_id)
 
     for before_id, before_set in sorted(before_anchors.items()):
+        if before_kinds[before_id] is not VisualizationObjectKind.ENTITY:
+            continue
         overlapping = tuple(
             sorted(
                 after_id
                 for after_id, after_set in after_anchors.items()
-                if before_set.intersection(after_set)
+                if after_kinds[after_id] is VisualizationObjectKind.ENTITY
+                and before_set.intersection(after_set)
             )
         )
-        if len(overlapping) >= 2 and before_id not in consumed_before:
+        overlapping_union = frozenset().union(*(after_anchors[item] for item in overlapping))
+        overlaps_another_before_entity = any(
+            other_id != before_id
+            and before_kinds[other_id] is VisualizationObjectKind.ENTITY
+            and bool(other_set.intersection(before_set))
+            for other_id, other_set in before_anchors.items()
+        )
+        if (
+            len(overlapping) >= 2
+            and before_id not in consumed_before
+            and overlapping_union == before_set
+            and not overlaps_another_before_entity
+        ):
             anchors = tuple(
                 sorted(before_set.union(*(after_anchors[item] for item in overlapping)))
             )
@@ -838,6 +995,8 @@ def compare_visualizations(
             consumed_after.update(overlapping)
 
     common_nodes = set(before_nodes).intersection(after_nodes)
+    before_node_details = {item.visualization_node_id: item for item in before.node_details}
+    after_node_details = {item.visualization_node_id: item for item in after.node_details}
     for visual_id in sorted(common_nodes):
         if visual_id in consumed_before or visual_id in consumed_after:
             continue
@@ -847,6 +1006,12 @@ def compare_visualizations(
         ) != _semantic_view_hash(
             after_nodes[visual_id],
             excluded=frozenset({"projection_object_id", "projection_object_hash"}),
+        ) or _semantic_view_hash(
+            before_node_details[visual_id],
+            excluded=frozenset({"projection_object_id"}),
+        ) != _semantic_view_hash(
+            after_node_details[visual_id],
+            excluded=frozenset({"projection_object_id"}),
         ):
             changes.append(
                 VisualizationChange(
@@ -898,6 +1063,12 @@ def compare_visualizations(
         ) != _semantic_view_hash(
             after_assertions[visual_id],
             excluded=frozenset({"projection_assertion_id", "projection_assertion_hash"}),
+        ) or _semantic_view_hash(
+            before_assertion_details[visual_id],
+            excluded=frozenset({"projection_assertion_id"}),
+        ) != _semantic_view_hash(
+            after_assertion_details[visual_id],
+            excluded=frozenset({"projection_assertion_id"}),
         ):
             anchor_ids = tuple(
                 sorted(
@@ -1265,8 +1436,15 @@ def _merge_split_result_satisfies(
     else:
         valid = len(set(before_ids)) == 1 and len(set(after_ids)) >= 2
         required_operator = ConstructionOperator.SPLIT
+    before_targets = set(before_ids)
+    after_targets = set(after_ids)
     certificate_records_operation = any(
-        decision.operator is required_operator for decision in after.decisions
+        decision.operator is required_operator
+        and before_targets.issubset(
+            set(decision.input_object_ids) | set(decision.removed_object_ids)
+        )
+        and after_targets.issubset(decision.created_object_ids)
+        for decision in after.decisions
     )
     return valid and certificate_records_operation, tuple(sorted(set(before_ids)))
 
@@ -1295,6 +1473,15 @@ def resolve_feedback_for_condition(
         raise ValueError("feedback before projection belongs to a different context")
     if before_projection.packet_hash != packet.content_hash:
         raise ValueError("feedback resolution packet differs from before projection")
+    if resolved_at < instruction.revision.created_at:
+        raise ValueError("feedback resolution cannot predate the recorded revision")
+    if (
+        receiving_condition in ACTIVE_QUERY_CONSTRUCTION_CONDITIONS
+        and before_projection.construction_certificate is not None
+        and before_projection.construction_certificate.completed_at
+        > instruction.revision.created_at
+    ):
+        raise ValueError("feedback revision cannot predate its C2 parent projection")
     assert_revision_anchors_resolve_in_packet(instruction, packet)
     projections = (
         (before_projection,) if after_projection is None else (before_projection, after_projection)
@@ -1373,6 +1560,19 @@ def resolve_feedback_for_condition(
             != after_projection.construction_seal.content_hash
         ):
             raise ValueError("preconstructed feedback may only reproject the same seal")
+        if receiving_condition in ACTIVE_QUERY_CONSTRUCTION_CONDITIONS:
+            certificate = after_projection.construction_certificate
+            if certificate is None:  # guarded by OntologyProjection; explicit for clarity
+                raise ValueError("C2 feedback requires a construction certificate")
+            if certificate.completed_at <= instruction.revision.created_at:
+                raise ValueError("C2 feedback output was not reconstructed after the revision")
+            if certificate.completed_at > resolved_at:
+                raise ValueError("feedback cannot resolve before C2 reconstruction completes")
+            if any(
+                decision.decided_at <= instruction.revision.created_at
+                for decision in after_projection.decisions
+            ):
+                raise ValueError("C2 feedback decisions must be made after the revision")
 
     return FeedbackResolution(
         resolution_id=_identifier_digest(
@@ -1519,37 +1719,122 @@ class FeedbackStudyPlan(ImmutableRecord):
         return self
 
 
+class RevisionCallKind(StrEnum):
+    CPU_REPROJECT = "cpu_reproject"
+    GPU_RECONSTRUCT = "gpu_reconstruct"
+
+
+class RevisionCallRecord(ImmutableRecord):
+    """Auditable call lineage returned by the injected local revision runner."""
+
+    call_artifact_hash: Sha256Digest
+    call_id: Identifier
+    condition: ConditionName
+    kind: RevisionCallKind
+    instruction_hash: Sha256Digest
+    before_projection_hash: Sha256Digest
+    after_projection_hash: Sha256Digest | None = None
+    seed: int = Field(ge=0)
+    allocated_gpu_seconds: float = Field(ge=0.0)
+    started_at: AwareDatetime
+    completed_at: AwareDatetime
+
+    @model_validator(mode="after")
+    def call_kind_matches_condition(self) -> Self:
+        if self.completed_at < self.started_at:
+            raise ValueError("revision call completion predates its start")
+        if self.condition in ACTIVE_QUERY_CONSTRUCTION_CONDITIONS:
+            if (
+                self.kind is not RevisionCallKind.GPU_RECONSTRUCT
+                or self.allocated_gpu_seconds <= 0.0
+            ):
+                raise ValueError("C2 revision calls require metered GPU reconstruction")
+        elif self.condition in {
+            ConditionName.C0_CLASSICAL_PRE,
+            ConditionName.C1_LLM_PRE,
+        }:
+            if self.kind is not RevisionCallKind.CPU_REPROJECT or self.allocated_gpu_seconds != 0.0:
+                raise ValueError("C0/C1 revision calls are CPU sealed-ontology reprojections")
+        else:
+            raise ValueError("the Phase 5 interface supports C0, C1, and C2 feedback only")
+        return self
+
+
 class RevisionExecutionResult(ImmutableRecord):
     instruction: RevisionInstruction
     resolution: FeedbackResolution
     before_bundle_hash: Sha256Digest
-    after_bundle: VisualizationBundle
-    diff: VisualizationDiff
+    call: RevisionCallRecord | None = None
+    after_bundle: VisualizationBundle | None = None
+    diff: VisualizationDiff | None = None
     latency_seconds: float = Field(ge=0.0)
-    replay: FeedbackReplayResult
+    replay: FeedbackReplayResult | None = None
 
     @model_validator(mode="after")
     def execution_lineage_is_complete(self) -> Self:
         if self.resolution.revision_hash != self.instruction.revision.content_hash:
             raise ValueError("execution resolution does not reference its instruction")
-        if self.resolution.status is not FeedbackResolutionStatus.RESOLVED:
-            raise ValueError("execution results require a resolved revision")
-        if self.resolution.after_projection_hash != self.after_bundle.projection_hash:
-            raise ValueError("execution resolution and after bundle differ")
-        if self.diff.after_projection_hash != self.after_bundle.projection_hash:
-            raise ValueError("execution diff and after bundle differ")
-        if self.diff.before_projection_hash != self.resolution.before_projection_hash:
-            raise ValueError("execution diff and resolution before projections differ")
-        if self.replay.observed_instruction_hash != self.instruction.content_hash:
-            raise ValueError("execution replay and instruction differ")
-        if self.replay.observed_resolution_hash != self.resolution.content_hash:
-            raise ValueError("execution replay and resolution differ")
-        if self.replay.observed_before_bundle_hash != self.before_bundle_hash:
-            raise ValueError("execution replay and before bundle differ")
-        if self.replay.observed_after_bundle_hash != self.after_bundle.content_hash:
-            raise ValueError("execution replay and after bundle differ")
-        if self.replay.observed_diff_hash != self.diff.content_hash:
-            raise ValueError("execution replay and diff differ")
+        after_fields = (self.after_bundle, self.diff, self.replay)
+        if any(item is None for item in after_fields) and any(
+            item is not None for item in after_fields
+        ):
+            raise ValueError("after bundle, diff, and replay must be present or absent together")
+        if (
+            self.resolution.status is FeedbackResolutionStatus.RESOLVED
+            and self.after_bundle is None
+        ):
+            raise ValueError("resolved revision execution requires its output and diff")
+        if (
+            self.resolution.status is FeedbackResolutionStatus.CAPABILITY_LIMITED
+            and self.after_bundle is not None
+        ):
+            raise ValueError("capability-limited revision cannot claim an output")
+        if self.after_bundle is not None:
+            assert self.diff is not None
+            assert self.replay is not None
+            if self.after_bundle.condition is not self.resolution.receiving_condition:
+                raise ValueError("execution output belongs to another condition")
+            if self.resolution.after_projection_hash != self.after_bundle.projection_hash:
+                raise ValueError("execution resolution and after bundle differ")
+            if self.diff.after_projection_hash != self.after_bundle.projection_hash:
+                raise ValueError("execution diff and after bundle differ")
+            if self.diff.before_projection_hash != self.resolution.before_projection_hash:
+                raise ValueError("execution diff and resolution before projections differ")
+            if self.replay.observed_instruction_hash != self.instruction.content_hash:
+                raise ValueError("execution replay and instruction differ")
+            if self.replay.observed_resolution_hash != self.resolution.content_hash:
+                raise ValueError("execution replay and resolution differ")
+            if self.replay.observed_before_bundle_hash != self.before_bundle_hash:
+                raise ValueError("execution replay and before bundle differ")
+            if self.replay.observed_after_bundle_hash != self.after_bundle.content_hash:
+                raise ValueError("execution replay and after bundle differ")
+            if self.replay.observed_diff_hash != self.diff.content_hash:
+                raise ValueError("execution replay and diff differ")
+        condition = self.resolution.receiving_condition
+        requires_call = self.resolution.status is not FeedbackResolutionStatus.CAPABILITY_LIMITED
+        if requires_call and self.call is None:
+            raise ValueError("executed revision requires an auditable condition call")
+        if self.call is not None:
+            if self.call.condition is not condition:
+                raise ValueError("execution call belongs to another condition")
+            if self.call.instruction_hash != self.instruction.content_hash:
+                raise ValueError("execution call does not bind the instruction")
+            if self.call.before_projection_hash != self.resolution.before_projection_hash:
+                raise ValueError("execution call does not bind the before projection")
+            observed_after_hash = (
+                None if self.after_bundle is None else self.after_bundle.projection_hash
+            )
+            if self.call.after_projection_hash != observed_after_hash:
+                raise ValueError("execution call does not bind the retained output")
+            if self.call.seed != self.resolution.seed:
+                raise ValueError("execution call and resolution seeds differ")
+            if self.call.started_at <= self.instruction.revision.created_at:
+                raise ValueError("revision execution must start after the request is recorded")
+            if self.call.completed_at > self.resolution.resolved_at:
+                raise ValueError("revision cannot resolve before its condition call completes")
+            call_wall_seconds = (self.call.completed_at - self.call.started_at).total_seconds()
+            if self.latency_seconds + 1e-9 < call_wall_seconds:
+                raise ValueError("reported revision latency is shorter than its condition call")
         return self
 
 
@@ -1700,11 +1985,7 @@ def _asset_status(static_directory: Path) -> dict[str, object]:
         "vendored": False,
         "verified": False,
     }
-    if (
-        not asset_path.is_file()
-        or not lock_path.is_file()
-        or not license_path.is_file()
-    ):
+    if not asset_path.is_file() or not lock_path.is_file() or not license_path.is_file():
         return status
     lock = json.loads(lock_path.read_text(encoding="utf-8"))
     asset = asset_path.read_bytes()
@@ -1736,6 +2017,7 @@ def create_app(
     repository: LocalUiRepository,
     *,
     revision_runner: RevisionRunner | None = None,
+    revision_seed: int | None = None,
     static_directory: Path | None = None,
     allow_restricted_evidence_metadata: bool = False,
     clock: Callable[[], datetime] | None = None,
@@ -1753,6 +2035,8 @@ def create_app(
     except ImportError as error:  # pragma: no cover - exercised only in minimal installs
         raise RuntimeError("the optional 'study' dependencies are required for the UI") from error
 
+    if revision_seed is not None and revision_seed < 0:
+        raise ValueError("the configured revision seed must be nonnegative")
     ui_directory = static_directory or Path(__file__).resolve().parents[2] / "ui"
     now = clock or (lambda: datetime.now(UTC))
     app = FastAPI(
@@ -1773,6 +2057,8 @@ def create_app(
             "scope": "local_single_user_study_demonstration",
             "usability_claims": False,
             "revision_actions": [item.value for item in FeedbackAction],
+            # Decimal text avoids losing the registered 63-bit seed in JavaScript.
+            "revision_seed_decimal": (None if revision_seed is None else str(revision_seed)),
             "cytoscape": _asset_status(ui_directory),
         }
 
@@ -1786,6 +2072,8 @@ def create_app(
                 "projection_hash": item.projection_hash,
             }
             for item in repository.projections()
+            if allow_restricted_evidence_metadata
+            or item.release_class is not ReleaseClass.RESTRICTED
         ]
 
     @app.get("/api/projections/{projection_id}")
@@ -1868,8 +2156,61 @@ def create_app(
                 status_code=503,
                 detail="no metered condition runner is configured; no regeneration was claimed",
             )
+        if revision_seed is None:
+            raise HTTPException(
+                status_code=503,
+                detail="no frozen feedback seed is configured; no regeneration was started",
+            )
+        if submission.seed != revision_seed:
+            raise HTTPException(
+                status_code=422,
+                detail="submitted seed differs from the frozen feedback seed",
+            )
         result = revision_runner(instruction, before, submission.seed)
-        repository.add_bundle(result.after_bundle)
+        if result.instruction.content_hash != instruction.content_hash:
+            raise HTTPException(
+                status_code=500,
+                detail="revision runner returned a different instruction",
+            )
+        if result.before_bundle_hash != before.content_hash:
+            raise HTTPException(
+                status_code=500,
+                detail="revision runner returned lineage for a different before projection",
+            )
+        if result.resolution.receiving_condition is not before.condition:
+            raise HTTPException(
+                status_code=500,
+                detail="revision runner returned another condition's resolution",
+            )
+        if result.resolution.before_projection_hash != before.projection_hash:
+            raise HTTPException(
+                status_code=500,
+                detail="revision runner resolved a different before projection",
+            )
+        if (
+            result.after_bundle is not None
+            and result.after_bundle.condition is not before.condition
+        ):
+            raise HTTPException(
+                status_code=500,
+                detail="revision runner returned another condition's projection",
+            )
+        if result.resolution.seed != submission.seed:
+            raise HTTPException(
+                status_code=500,
+                detail="revision runner changed the submitted seed",
+            )
+        if (
+            result.after_bundle is not None
+            and result.after_bundle.release_class is ReleaseClass.RESTRICTED
+            and not allow_restricted_evidence_metadata
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail="revision runner returned restricted metadata without authorization",
+            )
+        if result.after_bundle is not None:
+            repository.add_bundle(result.after_bundle)
         return result
 
     return app
@@ -1887,6 +2228,8 @@ __all__ = [
     "MergeSplitIntent",
     "MergeSplitOperation",
     "RefineContextIntent",
+    "RevisionCallKind",
+    "RevisionCallRecord",
     "RevisionDraftSubmission",
     "RevisionExecutionResult",
     "RevisionInstruction",
@@ -1895,6 +2238,7 @@ __all__ = [
     "VisualizationChange",
     "VisualizationChangeKind",
     "VisualizationCompilationError",
+    "VisualizationConfiguration",
     "VisualizationNodeDetail",
     "VisualizationObjectKind",
     "apply_context_refinement",
@@ -1906,6 +2250,7 @@ __all__ = [
     "compare_visualizations",
     "create_app",
     "filter_visualization_bundle",
+    "load_visualization_configuration",
     "resolve_feedback_for_condition",
     "verify_feedback_replay",
 ]

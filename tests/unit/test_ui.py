@@ -49,6 +49,7 @@ from story_projection_onto.contracts import (
     ValidationStatus,
     ValidityTime,
     VisualizationTemporalFilter,
+    canonical_sha256,
 )
 from story_projection_onto.ui import (
     FeedbackEpisodeKind,
@@ -58,6 +59,7 @@ from story_projection_onto.ui import (
     MergeSplitIntent,
     MergeSplitOperation,
     RefineContextIntent,
+    RevisionExecutionResult,
     VisualizationChangeKind,
     apply_context_refinement,
     assert_revision_anchors_resolve_in_packet,
@@ -360,6 +362,7 @@ def projection(
     *,
     merged: bool = False,
     split_decision: bool = False,
+    decision_offset_seconds: int = 1,
 ) -> OntologyProjection:
     instance_graph = graph(merged=merged)
     assertion_ids = tuple(item.assertion_id for item in instance_graph.assertions)
@@ -380,6 +383,7 @@ def projection(
         "snapshot_hash": evidence_packet.snapshot_hash,
         "packet_hash": evidence_packet.content_hash,
         "context_hash": query_context.content_hash,
+        "query_access_event_hash": digest("ui-query-access"),
         "upper_ontology": upper(),
         "local_schema": schema(),
         "instance_graph": instance_graph,
@@ -424,7 +428,7 @@ def projection(
         operator=operator,
         evidence_ids=("ev-a", "ev-b"),
         rationale="Fixture construction decision made only after query reveal.",
-        decided_at=NOW + timedelta(seconds=1),
+        decided_at=NOW + timedelta(seconds=decision_offset_seconds),
         input_object_ids=(
             ("entity-a", "entity-b") if merged else (("entity-ab",) if split_decision else ("m-a",))
         ),
@@ -433,19 +437,30 @@ def projection(
             ("entity-a", "entity-b") if merged else (("entity-ab",) if split_decision else ())
         ),
     )
+    generation_fields = {
+        "generation_lineage_hash": digest("ui-generation-lineage"),
+        "raw_output_artifact_hash": digest("ui-raw-output"),
+        "normalized_draft_hash": digest("ui-normalized-draft"),
+        "validation_bundle_hash": canonical_sha256(common["validation_records"]),
+    }
     certificate = ConstructionCertificate(
         certificate_id=f"certificate-{'merge' if merged else 'base'}",
         condition=condition,
         snapshot_hash=evidence_packet.snapshot_hash,
         packet_hash=evidence_packet.content_hash,
         query_context_hash=query_context.content_hash,
+        query_access_event_hash=digest("ui-query-access"),
+        stage_manifest_hash=digest("ui-query-stage"),
+        prequery_barrier_hash=digest("ui-prequery-barrier"),
+        **generation_fields,
         query_revealed_at=query_context.revealed_at,
-        completed_at=NOW + timedelta(seconds=2),
+        completed_at=NOW + timedelta(seconds=decision_offset_seconds + 1),
         decisions=(decision,),
         pre_query_inventory_hash=inventory.content_hash,
     )
     return OntologyProjection(
         **common,
+        **generation_fields,
         decisions=(decision,),
         pre_query_inventory=inventory,
         construction_certificate=certificate,
@@ -476,6 +491,10 @@ def test_compiler_exposes_rich_grounded_details_and_fixed_anchors() -> None:
     assert bundle.state.semantic_hash == c0.content_hash
     assert all(item.evidence_badge.available for item in bundle.state.assertions)
     assert all(item.why_matters for item in bundle.state.assertions)
+    assert all(
+        item.contextual_relevance == pytest.approx(0.95) for item in bundle.assertion_details
+    )
+    assert all(item.why_matters_evidence_ids for item in bundle.assertion_details)
     assert {item.contextual_type_label for item in bundle.node_details} == {"Signal participant"}
     assert all(item.public_text for item in bundle.evidence_metadata)
 
@@ -552,6 +571,41 @@ def test_diff_identifies_merge_and_preserves_unmoved_anchors() -> None:
     assert len(merge[0].after_visualization_ids) == 1
     assert result.fixed_anchor_positions_preserved is True
     assert result.shared_fixed_anchor_ids
+
+
+def test_diff_marks_contextual_relevance_only_change_as_requalified() -> None:
+    query_context = context()
+    evidence_packet = packet()
+    before_projection = projection(
+        ConditionName.C0_CLASSICAL_PRE,
+        query_context,
+        evidence_packet,
+    )
+    graph_payload = before_projection.instance_graph.model_dump(
+        mode="python",
+        exclude={
+            "content_hash": True,
+            "assertions": {"__all__": {"content_hash"}},
+        },
+    )
+    graph_payload["assertions"][0]["contextual_relevance"] = 0.35
+    changed_graph = InstanceGraph(**graph_payload)
+    projection_payload = before_projection.model_dump(
+        mode="python",
+        exclude={"content_hash", "instance_graph"},
+    )
+    after_projection = OntologyProjection(
+        **projection_payload,
+        instance_graph=changed_graph,
+    )
+    result = compare_visualizations(
+        build_visualization_bundle(before_projection, query_context, evidence_packet),
+        build_visualization_bundle(after_projection, query_context, evidence_packet),
+    )
+    assert any(
+        item.kind is VisualizationChangeKind.REQUALIFIED and item.object_kind == "assertion"
+        for item in result.changes
+    )
 
 
 def test_refine_context_instruction_replays_exact_context_hash() -> None:
@@ -653,6 +707,7 @@ def test_per_condition_resolution_records_capability_and_c2_result() -> None:
         query_context,
         evidence_packet,
         merged=True,
+        decision_offset_seconds=65,
     )
     resolved = resolve_feedback_for_condition(
         instruction=instruction,
@@ -666,6 +721,87 @@ def test_per_condition_resolution_records_capability_and_c2_result() -> None:
     )
     assert resolved.status is FeedbackResolutionStatus.RESOLVED
     assert set(resolved.resolved_object_ids) == {"entity-a", "entity-b"}
+
+
+def test_c2_feedback_rejects_an_output_constructed_before_the_revision() -> None:
+    query_context = context()
+    evidence_packet = packet()
+    instruction = build_merge_split_instruction(
+        revision_id="revision-no-stale-output",
+        context=query_context,
+        intent=MergeSplitIntent(
+            operation=MergeSplitOperation.MERGE,
+            grouped_mention_candidate_ids=(("m-a",), ("m-b",)),
+        ),
+        anchors=(feedback_anchor("ev-a", "m-a"), feedback_anchor("ev-b", "m-b")),
+        rationale="Require a genuine post-revision reconstruction.",
+        sequence=1,
+        created_at=NOW + timedelta(minutes=1),
+    )
+    before = projection(ConditionName.C2_LLM_QUERY, query_context, evidence_packet)
+    stale_after = projection(
+        ConditionName.C2_LLM_QUERY,
+        query_context,
+        evidence_packet,
+        merged=True,
+    )
+    with pytest.raises(ValueError, match="not reconstructed after the revision"):
+        resolve_feedback_for_condition(
+            instruction=instruction,
+            packet=evidence_packet,
+            receiving_condition=ConditionName.C2_LLM_QUERY,
+            before_projection=before,
+            after_projection=stale_after,
+            resolver_hash=digest("resolver-v1"),
+            seed=0,
+            resolved_at=NOW + timedelta(minutes=2),
+        )
+
+
+def test_capability_limited_revision_execution_has_no_fabricated_output() -> None:
+    query_context = context()
+    evidence_packet = packet()
+    before_projection = projection(
+        ConditionName.C0_CLASSICAL_PRE,
+        query_context,
+        evidence_packet,
+    )
+    before_bundle = build_visualization_bundle(
+        before_projection,
+        query_context,
+        evidence_packet,
+    )
+    instruction = build_merge_split_instruction(
+        revision_id="revision-c0-limited",
+        context=query_context,
+        intent=MergeSplitIntent(
+            operation=MergeSplitOperation.MERGE,
+            grouped_mention_candidate_ids=(("m-a",), ("m-b",)),
+        ),
+        anchors=(feedback_anchor("ev-a", "m-a"), feedback_anchor("ev-b", "m-b")),
+        rationale="Ask the sealed condition for an unsupported identity change.",
+        sequence=1,
+        created_at=NOW + timedelta(minutes=1),
+    )
+    resolution = resolve_feedback_for_condition(
+        instruction=instruction,
+        packet=evidence_packet,
+        receiving_condition=ConditionName.C0_CLASSICAL_PRE,
+        before_projection=before_projection,
+        after_projection=None,
+        resolver_hash=digest("resolver-v1"),
+        seed=0,
+        resolved_at=NOW + timedelta(minutes=1, seconds=1),
+    )
+    result = RevisionExecutionResult(
+        instruction=instruction,
+        resolution=resolution,
+        before_bundle_hash=before_bundle.content_hash,
+        latency_seconds=0.01,
+    )
+    assert result.resolution.status is FeedbackResolutionStatus.CAPABILITY_LIMITED
+    assert result.after_bundle is None
+    assert result.call is None
 
 
 def test_split_resolution_requires_split_certificate_and_separate_groups() -> None:
@@ -694,6 +830,7 @@ def test_split_resolution_requires_split_certificate_and_separate_groups() -> No
         ConditionName.C2_LLM_QUERY,
         query_context,
         evidence_packet,
+        decision_offset_seconds=65,
     )
     invalid = resolve_feedback_for_condition(
         instruction=instruction,
@@ -712,6 +849,7 @@ def test_split_resolution_requires_split_certificate_and_separate_groups() -> No
         query_context,
         evidence_packet,
         split_decision=True,
+        decision_offset_seconds=65,
     )
     resolved = resolve_feedback_for_condition(
         instruction=instruction,
@@ -786,6 +924,7 @@ def test_replay_recomputes_diff_and_reports_hash_mismatch() -> None:
         query_context,
         evidence_packet,
         merged=True,
+        decision_offset_seconds=65,
     )
     anchors = (feedback_anchor("ev-a", "m-a"), feedback_anchor("ev-b", "m-b"))
     instruction = build_merge_split_instruction(

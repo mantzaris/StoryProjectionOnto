@@ -15,6 +15,8 @@ from story_projection_onto.contracts import (
 from story_projection_onto.ui import (
     FeedbackReplayExpectation,
     LocalUiRepository,
+    RevisionCallKind,
+    RevisionCallRecord,
     RevisionExecutionResult,
     build_visualization_bundle,
     compare_visualizations,
@@ -58,6 +60,7 @@ def test_local_api_projection_evidence_filter_and_honest_revision_gate() -> None
         "REFINE_CONTEXT",
         "REQUEST_MERGE_SPLIT",
     ]
+    assert health.json()["revision_seed_decimal"] is None
     assert health.json()["cytoscape"]["verified"] is True
     assert (
         health.json()["cytoscape"]["sha256"]
@@ -140,6 +143,7 @@ def test_injected_fixture_runner_exercises_typed_c2_rebuild_diff_and_replay() ->
         query_context,
         evidence_packet,
         merged=True,
+        decision_offset_seconds=65,
     )
     before_bundle = build_visualization_bundle(
         before_projection,
@@ -186,6 +190,19 @@ def test_injected_fixture_runner_exercises_typed_c2_rebuild_diff_and_replay() ->
             instruction=instruction,
             resolution=resolution,
             before_bundle_hash=before_bundle.content_hash,
+            call=RevisionCallRecord(
+                call_artifact_hash=digest("fixture-ui-model-call"),
+                call_id="fixture-ui-model-call",
+                condition=ConditionName.C2_LLM_QUERY,
+                kind=RevisionCallKind.GPU_RECONSTRUCT,
+                instruction_hash=instruction.content_hash,
+                before_projection_hash=before_projection.content_hash,
+                after_projection_hash=after_projection.content_hash,
+                seed=seed,
+                allocated_gpu_seconds=0.005,
+                started_at=NOW + timedelta(minutes=1, milliseconds=1),
+                completed_at=NOW + timedelta(minutes=1, milliseconds=6),
+            ),
             after_bundle=after_bundle,
             diff=diff,
             latency_seconds=0.01,
@@ -196,6 +213,7 @@ def test_injected_fixture_runner_exercises_typed_c2_rebuild_diff_and_replay() ->
     app = create_app(
         LocalUiRepository((before_bundle,)),
         revision_runner=fixture_runner,
+        revision_seed=0,
         static_directory=root,
         clock=lambda: NOW + timedelta(minutes=1),
     )
@@ -230,6 +248,77 @@ def test_injected_fixture_runner_exercises_typed_c2_rebuild_diff_and_replay() ->
     )
     assert diff.status_code == 200
     assert any(item["kind"] == "merged" for item in diff.json()["changes"])
+
+    health = client.get("/api/health")
+    assert health.json()["revision_seed_decimal"] == "0"
+
+
+def test_local_api_returns_explicit_c0_capability_limit_without_output() -> None:
+    testclient = pytest.importorskip("fastapi.testclient")
+    query_context = context()
+    evidence_packet = packet()
+    before_projection = projection(
+        ConditionName.C0_CLASSICAL_PRE,
+        query_context,
+        evidence_packet,
+    )
+    before_bundle = build_visualization_bundle(
+        before_projection,
+        query_context,
+        evidence_packet,
+    )
+
+    def limited_runner(instruction, supplied_before_bundle, seed):
+        resolution = resolve_feedback_for_condition(
+            instruction=instruction,
+            packet=evidence_packet,
+            receiving_condition=ConditionName.C0_CLASSICAL_PRE,
+            before_projection=before_projection,
+            after_projection=None,
+            resolver_hash=digest("fixture-resolver-v1"),
+            seed=seed,
+            resolved_at=NOW + timedelta(minutes=2),
+        )
+        return RevisionExecutionResult(
+            instruction=instruction,
+            resolution=resolution,
+            before_bundle_hash=supplied_before_bundle.content_hash,
+            latency_seconds=0.001,
+        )
+
+    root = Path(__file__).resolve().parents[2] / "ui"
+    client = testclient.TestClient(
+        create_app(
+            LocalUiRepository((before_bundle,)),
+            revision_runner=limited_runner,
+            revision_seed=0,
+            static_directory=root,
+            clock=lambda: NOW + timedelta(minutes=1),
+        )
+    )
+    response = client.post(
+        "/api/revisions",
+        json={
+            "before_projection_id": before_projection.projection_id,
+            "action": "REQUEST_MERGE_SPLIT",
+            "anchors": [
+                {
+                    "evidence_ids": ["ev-a", "ev-b"],
+                    "mention_candidate_ids": ["m-a", "m-b"],
+                    "requested_semantic_signature": "merge m-a and m-b",
+                }
+            ],
+            "rationale": "Exercise the explicit sealed-condition capability result.",
+            "sequence": 1,
+            "seed": 0,
+            "merge_split_operation": "merge",
+            "grouped_mention_candidate_ids": [["m-a"], ["m-b"]],
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["resolution"]["status"] == "capability_limited"
+    assert response.json()["after_bundle"] is None
+    assert response.json()["call"] is None
 
 
 def test_restricted_bundle_requires_explicit_local_authorization() -> None:
@@ -269,6 +358,7 @@ def test_restricted_bundle_requires_explicit_local_authorization() -> None:
     root = Path(__file__).resolve().parents[2] / "ui"
 
     denied = testclient.TestClient(create_app(LocalUiRepository((bundle,)), static_directory=root))
+    assert denied.get("/api/projections").json() == []
     assert denied.get(f"/api/projections/{ontology_projection.projection_id}").status_code == 403
     assert denied.get("/api/evidence/ev-a").status_code == 403
 

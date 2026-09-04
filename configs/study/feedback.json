@@ -1,0 +1,119 @@
+{
+  "schema_version": "1.0.0",
+  "protocol_id": "phase5-feedback-v1",
+  "benchmark_draft_seal_hash": "1a0d9099c3e7501a526f267c21c1204842de9e60805b2755ceb96c787408034f",
+  "selection_rule": "Before condition output inspection, select two scripted contexts per difficulty and one trace context per difficulty from distinct held-out worlds; scripts are balanced three REFINE_CONTEXT and three REQUEST_MERGE_SPLIT actions.",
+  "seed_manifest_hash": "686e53aba40973b053bd6acee64367afeeffa6c829eb6ae752b695b11bdfc1ca",
+  "llm_seed_entry_hash": "67cc826bab3eb3f69428ca58ca65b1a5c98d16e32dfbd7a83664167617f22a9f",
+  "llm_seed": 3864250958737859446,
+  "selected_before_condition_outputs": true,
+  "allowed_actions": [
+    "REFINE_CONTEXT",
+    "REQUEST_MERGE_SPLIT"
+  ],
+  "scripted_episodes": [
+    {
+      "episode_id": "feedback-script-refine-easy",
+      "context_id": "ctx_f5cf1ced1112e1ee7cd2",
+      "difficulty": "easy",
+      "action": "REFINE_CONTEXT",
+      "revision_template": "lens_or_story_time",
+      "scorer_binding_key": "feedback-binding-refine-easy",
+      "condition_output_inspected": false
+    },
+    {
+      "episode_id": "feedback-script-refine-medium",
+      "context_id": "ctx_f3c36e5f518b6013a525",
+      "difficulty": "medium",
+      "action": "REFINE_CONTEXT",
+      "revision_template": "lens_or_story_time",
+      "scorer_binding_key": "feedback-binding-refine-medium",
+      "condition_output_inspected": false
+    },
+    {
+      "episode_id": "feedback-script-refine-hard",
+      "context_id": "ctx_2af2f9976920840d5f45",
+      "difficulty": "hard",
+      "action": "REFINE_CONTEXT",
+      "revision_template": "lens_or_story_time",
+      "scorer_binding_key": "feedback-binding-refine-hard",
+      "condition_output_inspected": false
+    },
+    {
+      "episode_id": "feedback-script-identity-easy",
+      "context_id": "ctx_5d66f424db8c3f631880",
+      "difficulty": "easy",
+      "action": "REQUEST_MERGE_SPLIT",
+      "revision_template": "identity_merge_or_split",
+      "scorer_binding_key": "feedback-binding-identity-easy",
+      "condition_output_inspected": false
+    },
+    {
+      "episode_id": "feedback-script-identity-medium",
+      "context_id": "ctx_f629ab4c0ba7811e1a11",
+      "difficulty": "medium",
+      "action": "REQUEST_MERGE_SPLIT",
+      "revision_template": "identity_merge_or_split",
+      "scorer_binding_key": "feedback-binding-identity-medium",
+      "condition_output_inspected": false
+    },
+    {
+      "episode_id": "feedback-script-identity-hard",
+      "context_id": "ctx_63fccc2ce7686358443c",
+      "difficulty": "hard",
+      "action": "REQUEST_MERGE_SPLIT",
+      "revision_template": "identity_merge_or_split",
+      "scorer_binding_key": "feedback-binding-identity-hard",
+      "condition_output_inspected": false
+    }
+  ],
+  "researcher_trace_slots": [
+    {
+      "episode_id": "researcher-trace-easy",
+      "context_id": "ctx_556b0577875afcad7419",
+      "difficulty": "easy",
+      "allowed_actions": [
+        "REFINE_CONTEXT",
+        "REQUEST_MERGE_SPLIT"
+      ],
+      "gold_dependent_fields": "NA",
+      "condition": "C2"
+    },
+    {
+      "episode_id": "researcher-trace-medium",
+      "context_id": "ctx_4275d56f4d23cb98c9c6",
+      "difficulty": "medium",
+      "allowed_actions": [
+        "REFINE_CONTEXT",
+        "REQUEST_MERGE_SPLIT"
+      ],
+      "gold_dependent_fields": "NA",
+      "condition": "C2"
+    },
+    {
+      "episode_id": "researcher-trace-hard",
+      "context_id": "ctx_9888aac6c97e6ca8f30b",
+      "difficulty": "hard",
+      "allowed_actions": [
+        "REFINE_CONTEXT",
+        "REQUEST_MERGE_SPLIT"
+      ],
+      "gold_dependent_fields": "NA",
+      "condition": "C2"
+    }
+  ],
+  "scripted_conditions": [
+    "C0",
+    "C1",
+    "C2"
+  ],
+  "llm_seed_block": "llm_block_1",
+  "scripted_c2_regeneration_calls": 6,
+  "researcher_trace_c2_regeneration_calls": 3,
+  "total_c2_regeneration_calls": 9,
+  "revisions_per_episode": 1,
+  "c0_c1_policy": "reproject_same_seal_or_capability_limited",
+  "researcher_trace_gold_policy": "not_applicable",
+  "scripted_revision_freeze_required": true,
+  "usability_claims": false
+}
