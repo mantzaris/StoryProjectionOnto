@@ -1,0 +1,213 @@
+{
+  "completed_call_count": 0,
+  "failure_type": "RuntimeWatchdogTimeout",
+  "gate_passed": false,
+  "kind": "phase1_gpu_acceptance_result",
+  "manifest_sha256": "a3b64a4f4c4382886c154657d989bee6a25a037e252ccd39a9681cdc59b757ea",
+  "run_id": "phase1-qwen3-14b-awq-v2",
+  "runtime": {
+    "gpu_accounting": {
+      "by_kind_microseconds": {
+        "failure": 96330,
+        "timeout": 212185448
+      },
+      "event_count": 2,
+      "service_session_count": 2,
+      "total_allocated_microseconds": 212281778
+    },
+    "gpu_hardware": {
+      "count": 1,
+      "driver_version": "580.173.02",
+      "environment_manifest_sha256": "90bbb5279e99bc9fe39d92332e70c2e431c42e2131df3cbb816db6ba43861bef",
+      "manifest_sha256": "ac2f28ba23e17a2233241d9cddc82bcfb6709533b64456aa57d71e45436f28b1",
+      "memory_mib": 24564,
+      "name": "NVIDIA GeForce RTX 4090",
+      "pci_bus_id": "00000000:01:00.0",
+      "schema_version": "1.0.0"
+    },
+    "launcher": {
+      "cpu_offload_gb": 0,
+      "cpu_workers": 8,
+      "dtype": "float16",
+      "gpu_memory_utilization": 0.88,
+      "guided_decoding_backend": "xgrammar",
+      "guided_decoding_fallback": false,
+      "host_scope": "loopback",
+      "local_snapshot_only": true,
+      "manifest_sha256": "a5899cc3328d6a39327a57008f487072d2ccf5af34272666e27068f46bdffedc",
+      "maximum_model_length": 12288,
+      "maximum_sequences": 1,
+      "model_candidate": "primary",
+      "prefix_caching": false,
+      "repository": "Qwen/Qwen3-14B-AWQ",
+      "revision": "1a6fe1ecf891437a270cce11ad54d796c4f56ce0",
+      "runtime": "vllm",
+      "runtime_environment_passthrough": [
+        "PATH",
+        "LD_LIBRARY_PATH",
+        "CUDA_HOME",
+        "CUDA_PATH",
+        "CUDA_VISIBLE_DEVICES",
+        "NVIDIA_VISIBLE_DEVICES",
+        "NVIDIA_DRIVER_CAPABILITIES"
+      ],
+      "runtime_environment_policy": "explicit_os_cuda_allowlist",
+      "runtime_version": "0.10.2",
+      "schema_version": "1.0.0",
+      "served_model_name": "qwen3-14b-awq-pinned",
+      "shared_cache_location_sha256": "06b4e055e4531c94a4078cb42637d9935b9868dabe4dd88609de808108fd2f86",
+      "snapshot_location_sha256": "c5e4cdef238cfc261e17f5d09e3500d11ccbea0a35e6980cbb9342d28add9336",
+      "speculative_decoding": false,
+      "tensor_parallel_size": 1,
+      "verified_snapshot_manifest_sha256": "7b2bfb59175c5d5906c8ddb99a19adb8c652198f1cee210258b0f02a1b621064"
+    },
+    "manifest_sha256": "77fac37f678a836e8acb06b2b58b0832217d18e6cf70ab2d831a42b665a56ee9",
+    "resource_samples": [
+      {
+        "cpu_worker_count": 8,
+        "filesystem_free_bytes": 645287420100608,
+        "gpu_vram_bytes": 0,
+        "process_count": 1,
+        "process_ram_bytes": 9461760,
+        "project_storage_bytes": 13593489920,
+        "sample_id": "phase1-qwen3-14b-awq-v2-service-start-001-startup-000001",
+        "sampled_at": "2026-09-04T02:17:14.882628+00:00",
+        "schema_version": "1.0.0",
+        "system_available_ram_bytes": 117597384704,
+        "violations": []
+      },
+      {
+        "cpu_worker_count": 8,
+        "filesystem_free_bytes": 645285174116352,
+        "gpu_vram_bytes": 0,
+        "process_count": 1,
+        "process_ram_bytes": 723791872,
+        "project_storage_bytes": 13593648640,
+        "sample_id": "phase1-qwen3-14b-awq-v2-service-start-001-startup-000002",
+        "sampled_at": "2026-09-04T02:17:45.147763+00:00",
+        "schema_version": "1.0.0",
+        "system_available_ram_bytes": 117166403584,
+        "violations": []
+      },
+      {
+        "cpu_worker_count": 8,
+        "filesystem_free_bytes": 645256469807104,
+        "gpu_vram_bytes": 0,
+        "process_count": 2,
+        "process_ram_bytes": 1471549440,
+        "project_storage_bytes": 13597195776,
+        "sample_id": "phase1-qwen3-14b-awq-v2-service-start-001-startup-000003",
+        "sampled_at": "2026-09-04T02:18:16.549401+00:00",
+        "schema_version": "1.0.0",
+        "system_available_ram_bytes": 117050773504,
+        "violations": []
+      },
+      {
+        "cpu_worker_count": 8,
+        "filesystem_free_bytes": 645231700279296,
+        "gpu_vram_bytes": 0,
+        "process_count": 2,
+        "process_ram_bytes": 1641766912,
+        "project_storage_bytes": 13603255808,
+        "sample_id": "phase1-qwen3-14b-awq-v2-service-start-001-startup-000004",
+        "sampled_at": "2026-09-04T02:18:43.975279+00:00",
+        "schema_version": "1.0.0",
+        "system_available_ram_bytes": 116998856704,
+        "violations": []
+      },
+      {
+        "cpu_worker_count": 8,
+        "filesystem_free_bytes": 645184150700032,
+        "gpu_vram_bytes": 0,
+        "process_count": 3,
+        "process_ram_bytes": 1627856896,
+        "project_storage_bytes": 13608317440,
+        "sample_id": "phase1-qwen3-14b-awq-v2-service-start-001-startup-000005",
+        "sampled_at": "2026-09-04T02:19:09.942688+00:00",
+        "schema_version": "1.0.0",
+        "system_available_ram_bytes": 116857647104,
+        "violations": []
+      },
+      {
+        "cpu_worker_count": 8,
+        "filesystem_free_bytes": 645168039329792,
+        "gpu_vram_bytes": 10638852096,
+        "process_count": 3,
+        "process_ram_bytes": 1896181760,
+        "project_storage_bytes": 13611343360,
+        "sample_id": "phase1-qwen3-14b-awq-v2-service-start-001-startup-000006",
+        "sampled_at": "2026-09-04T02:19:35.459235+00:00",
+        "schema_version": "1.0.0",
+        "system_available_ram_bytes": 115713495040,
+        "violations": []
+      },
+      {
+        "cpu_worker_count": 8,
+        "filesystem_free_bytes": 645155886137344,
+        "gpu_vram_bytes": 0,
+        "process_count": 3,
+        "process_ram_bytes": 2432729088,
+        "project_storage_bytes": 13623907840,
+        "sample_id": "phase1-qwen3-14b-awq-v2-service-start-001-startup-000007",
+        "sampled_at": "2026-09-04T02:20:00.749429+00:00",
+        "schema_version": "1.0.0",
+        "system_available_ram_bytes": 117286273024,
+        "violations": []
+      }
+    ],
+    "runtime_stack": {
+      "manifest_sha256": "e43fa0c114ef63edebf617ab573f1e12b5562c11eb95572a0685a92388791bb1",
+      "python_version": "3.12.3",
+      "schema_version": "1.0.0",
+      "torch_cuda_version": "12.8",
+      "torch_version": "2.8.0+cu128",
+      "transformers_version": "4.55.2",
+      "vllm_version": "0.10.2"
+    },
+    "schema_version": "1.0.0",
+    "service_uptime": {
+      "allocated_event_seconds": 212.185448,
+      "allocated_service_seconds": 212.185448,
+      "ended_at": "2026-09-04T02:20:19.627161+00:00",
+      "schema_version": "1.0.0",
+      "service_seconds": 212.14419825561345,
+      "session_id": "phase1-qwen3-14b-awq-v2",
+      "started_at": "2026-09-04T02:16:47.482969+00:00",
+      "unclassified_service_seconds": 0.0,
+      "unclassified_time_persisted_as_service_overhead": true
+    },
+    "tokenizer": {
+      "chat_template_sha256": "a55ee1b1660128b7098723e0abcd92caa0788061051c62d51cbe87d9cf1974d8",
+      "enable_thinking": false,
+      "end_of_turn_token_ids": [
+        151645
+      ],
+      "eos_token_id": 151645,
+      "local_files_only": true,
+      "manifest_sha256": "90b60e3b52c33d4767ef71218745b804d35bc6d2c5ba49cac442b25cfba0f98f",
+      "nonthinking_probe_sha256": "bfb15667fb5cc52e39d1e4658bcc5681c5f6fd5a42f1e895982c428609c64f1b",
+      "nonthinking_probe_token_count": 26,
+      "repository": "Qwen/Qwen3-14B-AWQ",
+      "revision": "1a6fe1ecf891437a270cce11ad54d796c4f56ce0",
+      "schema_version": "1.0.0",
+      "stop_token_ids": [
+        151645
+      ],
+      "tokenizer_class": "transformers.models.qwen2.tokenization_qwen2_fast.Qwen2TokenizerFast",
+      "tokenizer_file_sha256": [
+        [
+          "tokenizer.json",
+          "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4"
+        ],
+        [
+          "tokenizer_config.json",
+          "d5d09f07b48c3086c508b30d1c9114bd1189145b74e982a265350c923acd8101"
+        ]
+      ],
+      "tokenizer_revision": "1a6fe1ecf891437a270cce11ad54d796c4f56ce0",
+      "trust_remote_code": false
+    }
+  },
+  "schema_version": "1.0.0",
+  "vllm_service_stopped": true
+}

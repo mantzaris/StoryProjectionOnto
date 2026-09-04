@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0.0",
+  "kind": "local_remote_source_tree_association",
+  "recorded_at": "2026-09-04T01:46:04Z",
+  "git_commit": "034e1488dac94a05ef38f15084920bb409573fdb",
+  "revision_label": "034e148+prepilot-working-tree",
+  "working_tree_note": "Uncommitted Phase-4 metric modules are included in the content hash but are not imported by the Phase-1 runner.",
+  "local_manifest": "source_tree_phase1_pilot.local.json",
+  "remote_manifest": "source_tree_phase1_pilot.remote.json",
+  "local_tree_sha256": "b2fd2ba2979656821780465d8185b59eb516e4f67706cd52ee2925003a6c9485",
+  "remote_tree_sha256": "b2fd2ba2979656821780465d8185b59eb516e4f67706cd52ee2925003a6c9485",
+  "byte_identity_check": "rsync checksum dry run over the source-manifest allowlist produced no changes",
+  "phase1_acceptance_plan_sha256": "77eb5ed2d50d348b737d463e312955203298d328b8a86914627a911bf8c0e6ab",
+  "synthetic_benchmark_manifest_sha256": "bcee17afb0b8011f95bdeb455880cc7343161462bcb4b4cf5629942f2eab6e0c"
+}

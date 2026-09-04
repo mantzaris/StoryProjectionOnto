@@ -1,0 +1,86 @@
+{
+  "accounting": {
+    "allocated_microseconds_all_attempts": 212281778,
+    "allocated_microseconds_v1": 96330,
+    "allocated_microseconds_v2": 212185448,
+    "event_id": "phase1-qwen3-14b-awq-v2-service-start-001",
+    "event_kind": "timeout",
+    "intended_event_kind": "gpu_session_start",
+    "registered_gpu_session_start_slots": 8,
+    "remaining_gpu_session_start_slots_after_fallback_load": 5,
+    "service_session_id": "phase1-qwen3-14b-awq-v2-service-start-001",
+    "used_gpu_session_start_slots_before_fallback": 2
+  },
+  "diagnosis": {
+    "admitted_startup_watchdog_seconds": 180,
+    "charged_seconds_including_verified_shutdown": 212.185448,
+    "classification": "primary_model_phase1_latency_rejection",
+    "completed_call_count": 0,
+    "exception_type": "RuntimeWatchdogTimeout",
+    "inference_call_count": 0,
+    "model_weights_loaded": true,
+    "readiness_reached": false,
+    "registered_response": "activate_the_single_pinned_fallback_procedure",
+    "restart_reached": false
+  },
+  "kind": "phase1_gpu_acceptance_incident_association",
+  "manifest_sha256": "f2321410b72c4b63e1c4ba8c26a992b23565e3e810effa7c19ff4105c792bc55",
+  "provenance": {
+    "acceptance_checkpoint_plan_sha256": "06d1354facf79786aa11f3c84dfd1b6e136f2322c7efc7f48dc5903170a51cff",
+    "acceptance_plan": {
+      "file": "phase1_acceptance_plan.json",
+      "file_sha256": "2ff4aabc1b1a4c0e10af4c3ddeeda604afbf8d6067934371455ad77885d03839",
+      "manifest_sha256": "e9039835cadf28f33220c5590e01e529b63b777c8e8c1bad27f36f9a39822a8a"
+    },
+    "failed_result": {
+      "file": "../results/phase1_gpu_acceptance_v2_failed.json",
+      "file_sha256": "4b870ec47668105badd32528d6fb6997fc0221618097e048ff28d27716f78050",
+      "manifest_sha256": "a3b64a4f4c4382886c154657d989bee6a25a037e252ccd39a9681cdc59b757ea"
+    },
+    "source_tree": {
+      "association_file": "source_tree_phase1_pilot_v2.association.json",
+      "association_file_sha256": "8f88a8d4cc470db8770e654a5240231768417dc382a7ebff5cfd72bd22a98e37",
+      "tree_sha256": "fc0b0743a003c20ab3b39f6344541dcd6464323ec06d86548b0c727ee70c5f8e"
+    }
+  },
+  "recorded_at": "2026-09-04T02:23:25Z",
+  "resource_peaks": {
+    "gpu_vram_bytes": 10638852096,
+    "process_ram_bytes": 2432729088,
+    "project_storage_bytes": 13623907840,
+    "resource_limit_violation_count": 0
+  },
+  "restricted_evidence": {
+    "checkpoint": {
+      "sha256": "8161fd12fd224704791eadd631f8f6b1eaaa0531bba91836351cf88460781104",
+      "snapshot_name": "phase1-qwen3-14b-awq-v2.json"
+    },
+    "ledger": {
+      "integrity_check": "ok",
+      "sha256": "40592cd5e6b41e2916ce0b2394d896ffc55c76377ffb4189ded69a88343c8031",
+      "snapshot_name": "phase1_acceptance.sqlite"
+    },
+    "service_lease": {
+      "lease_state": "stopped_verified",
+      "sha256": "93690a0175cb5574d590615a97332bf7508a556fa9ca8be65b15335db575fc53",
+      "snapshot_name": ".story-projection-onto-vllm.lock"
+    },
+    "vllm_log": {
+      "byte_count": 7666,
+      "sha256": "a2247b17b9e8f31649b97c61891cbbad8e287fac3583a7c92241ad90a9ec4a01",
+      "snapshot_name": "phase1-qwen3-14b-awq-v2.vllm.log"
+    }
+  },
+  "run_id": "phase1-qwen3-14b-awq-v2",
+  "schema_version": "1.0.0",
+  "terminal_state": {
+    "allocation_journal_final_state": "closed",
+    "failure_row_count": 0,
+    "model_call_count": 0,
+    "service_journal_final_state": "closed",
+    "service_lease_state": "stopped_verified",
+    "unresolved_allocation_count": 0,
+    "unresolved_service_journal_count": 0,
+    "vllm_service_stopped": true
+  }
+}
