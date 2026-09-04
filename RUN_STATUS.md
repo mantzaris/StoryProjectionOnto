@@ -1,6 +1,6 @@
 # Run status
 
-Updated: 2026-09-04 (reconciled recovery checkpoint source-bound)
+Updated: 2026-09-04 (fallback retry preflight passed)
 
 ## Verified durable state
 
@@ -32,6 +32,11 @@ Updated: 2026-09-04 (reconciled recovery checkpoint source-bound)
 - One stale Python 2.7 bytecode file found outside the reconciled source
   inventory was moved, without deletion, into the restricted recovery
   quarantine before the final RunPod manifest was generated.
+- The validation-only v3 fallback controller preflight passed without loading
+  the model or allocating the GPU. Its manifest SHA-256 is
+  `121d042d0dc6647011454b6e4bb8a5f7d1526290c7cefff03dbb2cca9d996e6b`
+  (file SHA-256
+  `cf55e1ef833381cdc2d39d8f970ebe6ec42eae5f362b9a967109c909437c5eb4`).
 - Current project-controlled remote occupancy at recovery was 15,135,812,608
   bytes. The maximum persisted ledger sample was 13,623,907,840 bytes; the
   difference is retained recovery/source material rather than a larger study.
@@ -78,6 +83,9 @@ Updated: 2026-09-04 (reconciled recovery checkpoint source-bound)
   mandatory remaining work: 30,421.961986 seconds.
 - Scheduled reserve at that gate: 1,978.038014 seconds; protected hard-stop
   margin after two 30-second shutdown allowances: 5,518.038014 seconds.
+- The preflight counted 287 effective accounting events and no more than 278
+  inference attempts. It projected 11,058,371,456 occupied bytes and
+  18,941,628,544 bytes of effective storage headroom.
 
 ## Gates and blockers
 
@@ -94,10 +102,10 @@ Updated: 2026-09-04 (reconciled recovery checkpoint source-bound)
 
 ## Exact resume command
 
-From `/workspace/StoryProjectionOnto`, run
-`scripts/run_fallback_gpu_acceptance.py --validate-only --controller-stage orchestrate`
-with run ID `fallback-qwen3-8b-awq-development-v3`, the v5 source association,
-the registered fallback activation/retry artifacts, and the recovered
-ledger/CAS paths. Do not replace `--validate-only` with `--execute` unless that
-fresh preflight independently validates the source tree, reports exactly
-422.961986 prior allocated GPU seconds, and preserves both registered reserves.
+From `/workspace/StoryProjectionOnto`, launch the already validated
+`scripts/run_fallback_gpu_acceptance.py --execute --controller-stage orchestrate`
+command for run ID `fallback-qwen3-8b-awq-development-v3` inside the named
+`storyprojection-study` tmux session. Use the v5 source association, the v3
+preflight identity, the registered activation/retry artifacts, and the existing
+ledger/CAS paths. Do not launch a second controller if that session, its exact
+PID identity, or any v3 checkpoint already exists.

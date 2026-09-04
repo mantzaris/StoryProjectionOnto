@@ -1,0 +1,48 @@
+{
+  "activation_certificate_sha256": "224181b0929fd3f7800d9ad99e31e39ed6ed3ace42f2afdd81106efae989f657",
+  "actual_plus_next_and_remaining_seconds": 30421.961986,
+  "cache_replacement_receipt_sha256": "6965fd3f9e2f557ec3360093748a8e7a093e98cdca9b37b753123dac94643558",
+  "checkpoint_absent": true,
+  "effective_accounting_events": 287,
+  "gpu_accounting_before_start": {
+    "by_kind_microseconds": {
+      "failure": 96330,
+      "timeout": 422865656
+    },
+    "event_count": 3,
+    "service_session_count": 3,
+    "total_allocated_microseconds": 422961986
+  },
+  "gpu_allocation_performed": false,
+  "hard_contingency_after_next_and_shutdown_seconds": 5518.038014000002,
+  "hard_limit_seconds": 36000.0,
+  "kind": "phase1_fallback_execution_preflight",
+  "launcher_configuration_sha256": "7c2c97c7fd579653c72bf44cf45d11f9aa7d1fc602a8937338b7635894008576",
+  "manifest_sha256": "121d042d0dc6647011454b6e4bb8a5f7d1526290c7cefff03dbb2cca9d996e6b",
+  "maximum_inference_attempts": 278,
+  "model": {
+    "repository": "Qwen/Qwen3-8B-AWQ",
+    "revision": "4da05a8edb55c6046cce958586c33b61da07bb79",
+    "served_model_name": "qwen3-8b-awq-fallback"
+  },
+  "model_process_started": false,
+  "next_watchdog_seconds": 300.0,
+  "passed": true,
+  "prior_fallback_failure_sha256": "d08ce5ba02e866768a715eee9758be7ef13e5ed3c8e9844457e8d38b20240c7c",
+  "protected_shutdown_seconds": 60.0,
+  "remaining_mandatory_forecast_seconds": 29699.0,
+  "retry_amendment_sha256": "9ef82782c03d9915c081e89cf554a531ef3d1fba42836c522d6ebf97cdce0f28",
+  "run_id": "fallback-qwen3-8b-awq-development-v3",
+  "scheduled_limit_seconds": 32400.0,
+  "scheduled_reserve_seconds": 1978.0380140000016,
+  "schema_version": "1.0.0",
+  "snapshot_manifest_sha256": "ea7a19bebd6cfd02d6f71846e0e46f2672ffff5e0ced607cc29e4ca1ce867f69",
+  "source_association_sha256": "1ce70d1c0796e5cc085d55ec535594b5b1e4d913eff3314b200562c5c095d4b4",
+  "source_tree_sha256": "81edb1ba173458970e93b903efa27981a96fb3008a8b4ec221f5810f4c515b20",
+  "storage": {
+    "allowed": true,
+    "current_occupied_bytes": 9972827136,
+    "effective_projected_headroom_bytes": 18941628544,
+    "projected_occupied_bytes": 11058371456
+  }
+}
