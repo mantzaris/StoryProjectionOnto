@@ -35,8 +35,8 @@ from story_projection_onto.conditions.base import (
 from story_projection_onto.contracts import (
     AbstractionLevel,
     BudgetAccounting,
-    CommitmentCheckStatus,
     ConditionName,
+    ConstructionCapabilities,
     ConstructionOperator,
     ConstructionSeal,
     Entity,
@@ -45,7 +45,6 @@ from story_projection_onto.contracts import (
     Event,
     EvidenceRecord,
     EvidenceSnapshot,
-    EvidenceSupportStatus,
     ExplicitValueState,
     HolderRelativeTime,
     ImmutableRecord,
@@ -65,13 +64,17 @@ from story_projection_onto.contracts import (
     RoleBinding,
     RunOutcome,
     StoryTime,
-    TemporalDeterminationStatus,
     TemporalKind,
     TemporalScope,
     UpperOntology,
-    ValidationRecord,
-    ValidationStatus,
     ValidityTime,
+    projection_validation_target_hash,
+    runtime_structural_acceptance_record,
+    to_model_visible_evidence,
+)
+from story_projection_onto.validate import (
+    close_projection_dependencies,
+    validate_draft_structure,
 )
 
 _WORD_PATTERN = re.compile(r"[A-Za-z][A-Za-z'-]*")
@@ -84,6 +87,14 @@ _DAY_RANGE_PATTERN = re.compile(
     re.IGNORECASE,
 )
 _DAY_POINT_PATTERN = re.compile(r"\b(?:on\s+)?day\s+(\d+)\b", re.IGNORECASE)
+_STORY_STEP_POINT_PATTERN = re.compile(
+    r"\bstory(?:[\s-]+)step(?:[\s-]+)(\d+)\b",
+    re.IGNORECASE,
+)
+_THROUGH_STEP_PATTERN = re.compile(
+    r"\b(?:to|through|until)\s+(?:story\s+)?step\s+(\d+)\b",
+    re.IGNORECASE,
+)
 _PRONOUNS = frozenset({"he", "her", "hers", "him", "his", "she", "they", "them", "their"})
 _DEPENDENCY_SUBJECTS = frozenset({"csubj", "nsubj"})
 _DEPENDENCY_PASSIVE_SUBJECTS = frozenset({"csubjpass", "csubj:pass", "nsubjpass", "nsubj:pass"})
@@ -1071,14 +1082,31 @@ def _story_and_validity(
         )
         return story, validity
     point_match = _DAY_POINT_PATTERN.search(joined)
+    point_label = "day"
+    if point_match is None:
+        point_match = _STORY_STEP_POINT_PATTERN.search(joined)
+        point_label = "story step"
     if point_match:
         point = int(point_match.group(1))
-        story = StoryTime(kind=TemporalKind.POINT, point=point, label=f"day {point}")
+        story = StoryTime(
+            kind=TemporalKind.POINT,
+            point=point,
+            label=f"{point_label} {point}",
+        )
         if state_like:
+            explicit_end = _THROUGH_STEP_PATTERN.search(evidence.text)
+            end = int(explicit_end.group(1)) if explicit_end is not None else None
+            if end is not None and end < point:
+                end = None
             validity = ValidityTime(
                 kind=TemporalKind.INTERVAL,
                 start=point,
-                label=f"valid from day {point}; end unknown",
+                end=end,
+                label=(
+                    f"valid from {point_label} {point} through step {end}"
+                    if end is not None
+                    else f"valid from {point_label} {point}; end unknown"
+                ),
             )
         else:
             validity = ValidityTime(kind=TemporalKind.NOT_APPLICABLE)
@@ -1321,6 +1349,7 @@ class ClassicalPreBuilder:
                 "knows",
                 "member_of",
                 "opposed",
+                "served_as",
                 "supported",
                 "trusted",
             }
@@ -1784,11 +1813,9 @@ def project_sealed_c0(
     source_graph = preontology.draft.instance_graph
     entity_by_id = {item.entity_id: item for item in source_graph.entities}
     event_by_id = {item.event_id: item for item in source_graph.events}
-    assertion_by_id = {item.assertion_id: item for item in source_graph.assertions}
     proposition_by_id = {
         item.proposition_content_id: item for item in source_graph.proposition_contents
     }
-    node_ids = set(entity_by_id) | set(event_by_id)
     query_terms = _words(
         " ".join((inputs.context.wording, inputs.context.lens, inputs.context.target))
     )
@@ -1829,24 +1856,11 @@ def project_sealed_c0(
     selected_node_ids: set[str] = set()
 
     def support_closure(assertion_id: str) -> tuple[set[str], set[str]]:
-        closure_assertions = {assertion_id}
-        closure_nodes: set[str] = set()
-        changed = True
-        while changed:
-            changed = False
-            for current_id in tuple(closure_assertions):
-                current = assertion_by_id[current_id]
-                for endpoint in _assertion_endpoints(current) & node_ids:
-                    if endpoint not in closure_nodes:
-                        closure_nodes.add(endpoint)
-                        changed = True
-                    node = entity_by_id.get(endpoint) or event_by_id.get(endpoint)
-                    if node is not None:
-                        for support_id in node.description_assertion_ids:
-                            if support_id not in closure_assertions:
-                                closure_assertions.add(support_id)
-                                changed = True
-        return closure_assertions, closure_nodes
+        closure = close_projection_dependencies(
+            source_graph,
+            seed_assertion_ids=(assertion_id,),
+        )
+        return set(closure.assertion_ids), set(closure.node_ids)
 
     remaining = list(ranked)
     while remaining:
@@ -1879,6 +1893,15 @@ def project_sealed_c0(
         ):
             break
 
+    final_closure = close_projection_dependencies(
+        source_graph,
+        seed_assertion_ids=selected_assertion_ids,
+    )
+    if (
+        final_closure.assertion_ids != frozenset(selected_assertion_ids)
+        or final_closure.node_ids != frozenset(selected_node_ids)
+    ):
+        raise ConditionIntegrityError("C0 dependency closure changed after selection")
     selected_assertions = tuple(
         item for item in source_graph.assertions if item.assertion_id in selected_assertion_ids
     )
@@ -1888,14 +1911,9 @@ def project_sealed_c0(
     selected_events = tuple(
         item for item in source_graph.events if item.event_id in selected_node_ids
     )
-    selected_proposition_ids = {
-        item.proposition_content_id
-        for item in selected_assertions
-        if item.proposition_content_id is not None
-    }
     selected_propositions = tuple(
         proposition_by_id[item]
-        for item in sorted(selected_proposition_ids)
+        for item in sorted(final_closure.proposition_content_ids)
         if item in proposition_by_id
     )
     selected_semantic_ids = {
@@ -1936,20 +1954,57 @@ def project_sealed_c0(
         input_tokens=0,
         output_tokens=0,
     )
-    validation = ValidationRecord(
-        validation_id=_identifier(
-            "c0-validation", preontology.content_hash, inputs.context.content_hash
-        ),
-        target_id=_identifier(
-            "c0-projection", preontology.content_hash, inputs.context.content_hash
-        ),
-        validation_status=ValidationStatus.ACCEPTED,
-        evidence_support_status=EvidenceSupportStatus.SUPPORTED,
-        temporal_status=TemporalDeterminationStatus.VALID,
-        commitment_status=CommitmentCheckStatus.VALID,
-        validated_at=inputs.query_processing_started_at,
+    instance_graph = InstanceGraph(
+        entities=selected_entities,
+        events=selected_events,
+        proposition_contents=selected_propositions,
+        assertions=selected_assertions,
     )
-    projection_id = validation.target_id
+    final_draft = OntologyDraft(
+        contextual_interpretation=(
+            "Deterministic selection from the sealed query-blind C0 ontology."
+        ),
+        local_schema=preontology.draft.local_schema,
+        instance_graph=instance_graph,
+        decisions=decisions,
+        budget_accounting=accounting,
+    )
+    structural_report = validate_draft_structure(
+        draft=final_draft,
+        upper_ontology=preontology.upper_ontology,
+        evidence=tuple(to_model_visible_evidence(item) for item in inputs.packet.evidence),
+        horizon=inputs.snapshot.horizon,
+        budgets=inputs.context.budgets,
+        capabilities=ConstructionCapabilities.fixed_selection(),
+    )
+    if not structural_report.accepted:
+        raise ConditionIntegrityError(
+            "C0 selected projection failed deterministic structural validation"
+        )
+    projection_id = _identifier(
+        "c0-projection", preontology.content_hash, inputs.context.content_hash
+    )
+    validation_target = projection_validation_target_hash(
+        condition=ConditionName.C0_CLASSICAL_PRE,
+        snapshot_hash=inputs.snapshot.content_hash,
+        packet_hash=inputs.packet.content_hash,
+        context_hash=inputs.context.content_hash,
+        upper_ontology=preontology.upper_ontology,
+        local_schema=preontology.draft.local_schema,
+        instance_graph=instance_graph,
+        decisions=decisions,
+        omissions=(),
+        budget_accounting=accounting,
+        budgets=inputs.context.budgets,
+    )
+    validation = runtime_structural_acceptance_record(
+        validation_id=_identifier(
+            "c0-validation", preontology.content_hash, validation_target
+        ),
+        target_id=validation_target,
+        validated_at=inputs.query_processing_started_at,
+        diagnostics=(f"structural_report_sha256:{structural_report.content_hash}",),
+    )
     return OntologyProjection(
         projection_id=projection_id,
         condition=ConditionName.C0_CLASSICAL_PRE,
@@ -1959,12 +2014,7 @@ def project_sealed_c0(
         query_access_event_hash=inputs.query_access.content_hash,
         upper_ontology=preontology.upper_ontology,
         local_schema=preontology.draft.local_schema,
-        instance_graph=InstanceGraph(
-            entities=selected_entities,
-            events=selected_events,
-            proposition_contents=selected_propositions,
-            assertions=selected_assertions,
-        ),
+        instance_graph=instance_graph,
         decisions=decisions,
         validation_records=(validation,),
         budget_accounting=accounting,

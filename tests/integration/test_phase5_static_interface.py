@@ -15,7 +15,10 @@ def test_page_exposes_full_diff_and_progressive_detail_contract() -> None:
     assert "Event roles" in javascript
     assert "Contextual relevance" in javascript
     assert "Holder-relative time" in javascript
-    assert "Why support" in javascript
+    assert "Assertion support" in javascript
+    assert "Description support" in javascript
+    assert "Verified description evidence" in javascript
+    assert "Projection-claimed description evidence (not verified)" in javascript
     assert "rendererOnly" in javascript
     assert "revisionSeedDecimal" in javascript
     assert "seed: 0" not in javascript

@@ -2,9 +2,9 @@
 
 Study status: `incomplete`.
 
-Result manifest: `16a65d4bb31bd34c4c0f5564062f348388b4d7d841b1ae80e648e6e0577bc071`.
+Result manifest: `016232981064343020e0335a399d43744ba64f4f5c723978dc931f4326f2f255`.
 
-Code revision: `e09f83eca015c194552c4e53a4138f6fa36befa2`; dirty: `true`.
+Code revision: `cadfb25c39e4f0b1998ab15ad89dcc5e97d1fbf1`; dirty: `true`.
 
 The report builder verifies UTF-8/LF CSV bytes, SHA-256 values, row counts, required
 columns, predecessor ingestion, phase gates, PDF presence, figure hashes, and exact
@@ -13,11 +13,11 @@ Scientific statistics are computed upstream; this layer never recomputes or impu
 
 ## Inputs
 
-Ingestion receipt: `138ace45558305eed38fc12929be67b158031abd097d11da7ad953ad3637b13a`.
+Ingestion receipt: `004b2e7ace7c75d1fcabd3f59a7f5686e1f088c4038db1f07ef6a5fc6a25bfef`.
 
 - `study_status`: `d1cae85a93158406ed710d39a7b6eb69cb4eee6d69bb91b3a32b7bc16051143d`, 7 rows, status `complete`.
-- `resource_accounting`: `6d655ceb4c91d2875463be129cc766ac4230036f8286215d5cfe3e09d0c03927`, 8 rows, status `complete`.
-- `failure_accounting`: `1a9b8a298001a0fb4bb0548bd749a349845b7eaac3331d70ad99196e364cec92`, 2 rows, status `complete`.
+- `resource_accounting`: `228538ad967640a7d4919d95b3c86e4a43ca6ae167b4fcfb5eb1dc72eb004e7b`, 8 rows, status `complete`.
+- `failure_accounting`: `339b205aa3ea22d6bca593b76fb0bd9ecf4a2641961b902d9b1ccee4452ef75a`, 4 rows, status `complete`.
 
 ## Regeneration
 

@@ -11,6 +11,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import html
+import io
 import json
 import math
 import re
@@ -71,6 +72,12 @@ REGISTERED_SECTION_IDS = frozenset(
     }
 )
 REGISTERED_FIGURE_IDS = frozenset({"phase_status", "primary_effects"})
+REGISTERED_SUPPLEMENTAL_METRIC_TABLE_IDS = frozenset(
+    {"primary_c2_vs_c1", "rare_pivotal", "entropy_clutter", "community"}
+)
+REGISTERED_REVIEW_SUPPLEMENT_IDS = frozenset(
+    {"community_blind_review", "held_out_error_review"}
+)
 
 
 class ReportingError(RuntimeError):
@@ -96,6 +103,40 @@ class PhaseStatus(FrozenModel):
     source_artifact_hashes: tuple[Sha256Digest, ...] = ()
 
 
+class SupplementalMetricCount(FrozenModel):
+    metric_name: Annotated[str, StringConstraints(min_length=1, max_length=160)]
+    row_count: int = Field(ge=1)
+
+
+class SupplementalMetricSourceSpec(FrozenModel):
+    """Public, immutable numeric rows that accompany a compact result table."""
+
+    source_role: Annotated[str, StringConstraints(min_length=1, max_length=128)]
+    source_relative_path: Annotated[str, StringConstraints(min_length=1, max_length=500)]
+    source_file_sha256: Sha256Digest
+    table_manifest_relative_path: Annotated[
+        str, StringConstraints(min_length=1, max_length=500)
+    ]
+    table_manifest_file_sha256: Sha256Digest
+    source_row_count: int = Field(ge=1)
+    selected_row_count: int = Field(ge=1)
+    metric_row_counts: tuple[SupplementalMetricCount, ...]
+    description: Annotated[str, StringConstraints(min_length=1, max_length=500)]
+
+    @model_validator(mode="after")
+    def inventory_is_canonical(self) -> SupplementalMetricSourceSpec:
+        for value in (self.source_relative_path, self.table_manifest_relative_path):
+            path = Path(value)
+            if path.is_absolute() or ".." in path.parts or "\\" in value:
+                raise ValueError("supplemental metric paths must be bounded and portable")
+        names = tuple(item.metric_name for item in self.metric_row_counts)
+        if names != tuple(sorted(set(names))):
+            raise ValueError("supplemental metric counts must be sorted and unique")
+        if sum(item.row_count for item in self.metric_row_counts) > self.selected_row_count:
+            raise ValueError("supplemental metric counts exceed selected source rows")
+        return self
+
+
 class TableSpec(FrozenModel):
     table_id: Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{1,63}$")]
     relative_path: Annotated[
@@ -105,9 +146,11 @@ class TableSpec(FrozenModel):
     sha256: Sha256Digest
     row_count: int = Field(ge=0)
     required_columns: tuple[Annotated[str, StringConstraints(min_length=1)], ...]
+    display_columns: tuple[Annotated[str, StringConstraints(min_length=1)], ...] = ()
     status: ReportStatus
     description: Annotated[str, StringConstraints(min_length=1, max_length=500)]
     source_artifact_hashes: tuple[Sha256Digest, ...] = ()
+    supplemental_metric_sources: tuple[SupplementalMetricSourceSpec, ...] = ()
 
     @model_validator(mode="after")
     def columns_are_unique(self) -> TableSpec:
@@ -115,6 +158,73 @@ class TableSpec(FrozenModel):
             raise ValueError("required_columns must not be empty")
         if len(set(self.required_columns)) != len(self.required_columns):
             raise ValueError("required_columns must be unique")
+        if len(set(self.display_columns)) != len(self.display_columns):
+            raise ValueError("display_columns must be unique")
+        if self.display_columns and not set(self.display_columns).issubset(
+            self.required_columns
+        ):
+            raise ValueError("display_columns must be required canonical-table columns")
+        if len(self.display_columns) > 8:
+            raise ValueError("PDF display tables are limited to eight readable columns")
+        roles = tuple(item.source_role for item in self.supplemental_metric_sources)
+        if roles != tuple(sorted(set(roles))):
+            raise ValueError("supplemental metric source roles must be sorted and unique")
+        expected = self.table_id in REGISTERED_SUPPLEMENTAL_METRIC_TABLE_IDS
+        if self.status is ReportStatus.COMPLETE and expected != bool(
+            self.supplemental_metric_sources
+        ):
+            raise ValueError(
+                "complete table does not carry its registered supplemental metric sources"
+            )
+        hashes = {
+            digest
+            for source in self.supplemental_metric_sources
+            for digest in (
+                source.source_file_sha256,
+                source.table_manifest_file_sha256,
+            )
+        }
+        if not hashes.issubset(self.source_artifact_hashes):
+            raise ValueError("supplemental metric sources are absent from table lineage")
+        return self
+
+
+class ReviewSupplementSpec(FrozenModel):
+    """Sanitized, mechanically derived table from a restricted blinded review."""
+
+    supplement_id: Literal["community_blind_review", "held_out_error_review"]
+    section_id: Literal["community", "error_limitations"]
+    relative_path: Annotated[
+        str,
+        StringConstraints(pattern=r"^tables/[A-Za-z0-9_.-]+\.csv$"),
+    ]
+    sha256: Sha256Digest
+    row_count: int = Field(gt=0)
+    required_columns: tuple[Annotated[str, StringConstraints(min_length=1)], ...]
+    display_columns: tuple[Annotated[str, StringConstraints(min_length=1)], ...]
+    description: Annotated[str, StringConstraints(min_length=1, max_length=500)]
+    source_artifact_hashes: tuple[Sha256Digest, ...]
+
+    @model_validator(mode="after")
+    def exact_public_shape(self) -> ReviewSupplementSpec:
+        expected_section = {
+            "community_blind_review": "community",
+            "held_out_error_review": "error_limitations",
+        }[self.supplement_id]
+        if self.section_id != expected_section:
+            raise ValueError("review supplement is attached to the wrong report section")
+        if (
+            not self.required_columns
+            or len(self.required_columns) != len(set(self.required_columns))
+            or not self.display_columns
+            or len(self.display_columns) != len(set(self.display_columns))
+            or not set(self.display_columns).issubset(self.required_columns)
+        ):
+            raise ValueError("review supplement columns are empty, duplicated, or inconsistent")
+        if len(self.display_columns) > 8:
+            raise ValueError("PDF display tables are limited to eight readable columns")
+        if not self.source_artifact_hashes:
+            raise ValueError("review supplement requires immutable source hashes")
         return self
 
 
@@ -249,6 +359,7 @@ class ResultManifest(FrozenModel):
     model_revision: Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{40}$")] | None
     phases: tuple[PhaseStatus, ...]
     tables: tuple[TableSpec, ...]
+    review_supplements: tuple[ReviewSupplementSpec, ...] = ()
     figures: tuple[FigureSpec, ...]
     sections: tuple[SectionSpec, ...]
     source_artifact_hashes: tuple[Sha256Digest, ...]
@@ -268,6 +379,7 @@ class ResultManifest(FrozenModel):
         for values, label in (
             (self.phases, "phase_id"),
             (self.tables, "table_id"),
+            (self.review_supplements, "supplement_id"),
             (self.figures, "figure_id"),
             (self.sections, "section_id"),
         ):
@@ -295,11 +407,19 @@ class LoadedTable:
 
 
 @dataclass(frozen=True, slots=True)
+class LoadedReviewSupplement:
+    spec: ReviewSupplementSpec
+    columns: tuple[str, ...]
+    rows: tuple[Mapping[str, str], ...]
+
+
+@dataclass(frozen=True, slots=True)
 class ReportSection:
     spec: SectionSpec
     status: ReportStatus
     reason: str
     tables: tuple[LoadedTable, ...]
+    review_supplements: tuple[LoadedReviewSupplement, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -308,6 +428,7 @@ class ReportDocument:
     policy: ReportingPolicy
     sections: tuple[ReportSection, ...]
     tables: Mapping[str, LoadedTable]
+    review_supplements: Mapping[str, LoadedReviewSupplement]
     ingestion_receipt: Any
 
 
@@ -478,6 +599,12 @@ def _validate_complete_gate(manifest: ResultManifest, policy: ReportingPolicy) -
         )
     if set(policy.required_section_ids) - {item.section_id for item in manifest.sections}:
         raise ReportingError("complete report omits one or more registered sections")
+    supplement_ids = {item.supplement_id for item in manifest.review_supplements}
+    if supplement_ids != REGISTERED_REVIEW_SUPPLEMENT_IDS:
+        raise ReportingError(
+            "complete report omits a blinded-review supplement: "
+            + ", ".join(sorted(REGISTERED_REVIEW_SUPPLEMENT_IDS - supplement_ids))
+        )
     referenced_tables = set(chain.from_iterable(item.table_ids for item in manifest.sections))
     unreported_tables = set(policy.required_complete_table_ids) - referenced_tables
     if unreported_tables:
@@ -517,6 +644,41 @@ def load_canonical_table(root: Path, spec: TableSpec) -> LoadedTable:
     return LoadedTable(spec=spec, columns=columns, rows=rows)
 
 
+def load_review_supplement(
+    root: Path, spec: ReviewSupplementSpec
+) -> LoadedReviewSupplement:
+    path = _safe_under(root, spec.relative_path)
+    raw = path.read_bytes()
+    if hashlib.sha256(raw).hexdigest() != spec.sha256:
+        raise ReportingError(f"review supplement hash mismatch: {spec.supplement_id}")
+    if raw.startswith(b"\xef\xbb\xbf") or b"\r" in raw:
+        raise ReportingError(
+            f"review supplement is not canonical UTF-8/LF CSV: {spec.supplement_id}"
+        )
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ReportingError(f"review supplement is not UTF-8: {spec.supplement_id}") from exc
+    reader = csv.DictReader(text.splitlines())
+    columns = tuple(reader.fieldnames or ())
+    if not columns or len(columns) != len(set(columns)):
+        raise ReportingError(f"review supplement has invalid columns: {spec.supplement_id}")
+    if not set(spec.required_columns).issubset(columns):
+        raise ReportingError(f"review supplement lacks columns: {spec.supplement_id}")
+    rows = tuple(dict(row) for row in reader)
+    if len(rows) != spec.row_count:
+        raise ReportingError(f"review supplement row count changed: {spec.supplement_id}")
+    regenerated = io.StringIO(newline="")
+    writer = csv.DictWriter(regenerated, fieldnames=list(columns), lineterminator="\n")
+    writer.writeheader()
+    writer.writerows(rows)
+    if regenerated.getvalue().encode("utf-8") != raw:
+        raise ReportingError(
+            f"review supplement CSV serialization is not canonical: {spec.supplement_id}"
+        )
+    return LoadedReviewSupplement(spec=spec, columns=columns, rows=rows)
+
+
 def build_document(manifest_path: Path, policy_path: Path) -> ReportDocument:
     manifest = load_result_manifest(manifest_path)
     policy = load_reporting_policy(policy_path)
@@ -531,6 +693,10 @@ def build_document(manifest_path: Path, policy_path: Path) -> ReportDocument:
     if ingestion_receipt.receipt_sha256 != manifest.ingestion_receipt_sha256:
         raise ReportingError("result manifest binds another reporting ingestion receipt")
     tables = {item.table_id: load_canonical_table(root, item) for item in manifest.tables}
+    review_supplements = {
+        item.supplement_id: load_review_supplement(root, item)
+        for item in manifest.review_supplements
+    }
     receipt_tables = {item.table_id: item for item in ingestion_receipt.tables}
     available_receipt_tables = {
         table_id
@@ -554,6 +720,14 @@ def build_document(manifest_path: Path, policy_path: Path) -> ReportDocument:
     if manifest.source_artifact_hashes != expected_source_hashes:
         raise ReportingError("result-manifest sources differ from verified ingestion artifacts")
     verified_source_hashes = set(expected_source_hashes)
+    for supplement in review_supplements.values():
+        if not set(supplement.spec.source_artifact_hashes).issubset(
+            verified_source_hashes
+        ):
+            raise ReportingError(
+                f"review supplement {supplement.spec.supplement_id} cites an "
+                "unverified predecessor artifact"
+            )
     for phase in manifest.phases:
         if not set(phase.source_artifact_hashes).issubset(verified_source_hashes):
             raise ReportingError(f"phase {phase.phase_id} cites an unverified predecessor artifact")
@@ -628,6 +802,11 @@ def build_document(manifest_path: Path, policy_path: Path) -> ReportDocument:
                 status=status,
                 reason=reason,
                 tables=tuple(tables[table_id] for table_id in spec.table_ids),
+                review_supplements=tuple(
+                    supplement
+                    for supplement in review_supplements.values()
+                    if supplement.spec.section_id == spec.section_id
+                ),
             )
         )
     return ReportDocument(
@@ -635,6 +814,7 @@ def build_document(manifest_path: Path, policy_path: Path) -> ReportDocument:
         policy=policy,
         sections=tuple(sections),
         tables=tables,
+        review_supplements=review_supplements,
         ingestion_receipt=ingestion_receipt,
     )
 
@@ -643,10 +823,18 @@ def _markdown_cell(value: str) -> str:
     return value.replace("|", "\\|").replace("\n", " ")
 
 
-def _markdown_table(table: LoadedTable) -> str:
+def _report_table_id(table: LoadedTable | LoadedReviewSupplement) -> str:
+    return (
+        table.spec.table_id
+        if isinstance(table, LoadedTable)
+        else table.spec.supplement_id
+    )
+
+
+def _markdown_table(table: LoadedTable | LoadedReviewSupplement) -> str:
     lines = [
         (
-            f"<!-- table:{table.spec.table_id} sha256:{table.spec.sha256} "
+            f"<!-- table:{_report_table_id(table)} sha256:{table.spec.sha256} "
             f"rows:{table.spec.row_count} -->"
         ),
         "| " + " | ".join(_markdown_cell(item) for item in table.columns) + " |",
@@ -655,6 +843,68 @@ def _markdown_table(table: LoadedTable) -> str:
     for row in table.rows:
         lines.append("| " + " | ".join(_markdown_cell(row[item]) for item in table.columns) + " |")
     return "\n".join(lines)
+
+
+def _markdown_supplemental_metric_sources(table: LoadedTable) -> str:
+    if not table.spec.supplemental_metric_sources:
+        return ""
+    lines = [
+        "#### Complete registered metric rows",
+        "",
+        (
+            "The compact comparison above is accompanied by the following immutable public "
+            "Phase 4 CSV rows. Values, metric statuses, numerators, and denominators are copied "
+            "from these sources; Phase 7 does not recompute them."
+        ),
+        "",
+    ]
+    for source in table.spec.supplemental_metric_sources:
+        counts = ", ".join(
+            f"`{item.metric_name}` ({item.row_count})" for item in source.metric_row_counts
+        )
+        lines.extend(
+            (
+                f"- **{source.source_role}:** {source.description}",
+                (
+                    f"  Source: `{source.source_relative_path}`; SHA-256 "
+                    f"`{source.source_file_sha256}`; {source.source_row_count} total rows, "
+                    f"{source.selected_row_count} rows after the frozen source filter."
+                ),
+                f"  Registered metrics: {counts}.",
+                (
+                    f"  Producer manifest: `{source.table_manifest_relative_path}`; SHA-256 "
+                    f"`{source.table_manifest_file_sha256}`."
+                ),
+                "",
+            )
+        )
+    return "\n".join(lines)
+
+
+def _figure_section_id(spec: FigureSpec) -> str | None:
+    """Return the frozen report section that presents a figure.
+
+    Generated figures predate the external-artifact ``section_id`` field, so their
+    placement is fixed here rather than inferred from result values.  Artifact PNGs
+    continue to carry an explicit section binding in the immutable result manifest.
+    """
+
+    if spec.kind == "phase_status":
+        return "resource_controls"
+    if spec.kind == "forest":
+        return "primary_results"
+    return spec.section_id
+
+
+def _pdf_columns(table: LoadedTable | LoadedReviewSupplement) -> tuple[str, ...]:
+    """Columns selected before outcomes for the compact PDF presentation.
+
+    The Markdown source and canonical CSV retain every column.  The PDF uses the
+    explicit presentation subset from the result manifest so dense provenance fields
+    do not collapse into unreadable sub-centimetre columns.
+    """
+
+    return table.spec.display_columns or table.columns
 
 
 def render_markdown(document: ReportDocument) -> str:
@@ -750,16 +1000,39 @@ def render_markdown(document: ReportDocument) -> str:
                         )
                     )
                 lines.extend((f"### {table.spec.description}", "", _markdown_table(table), ""))
+                supplemental = _markdown_supplemental_metric_sources(table)
+                if supplemental:
+                    lines.extend((supplemental, ""))
+        for supplement in section.review_supplements:
+            lines.extend(
+                (
+                    f"### {supplement.spec.description}",
+                    "",
+                    _markdown_table(supplement),
+                    "",
+                )
+            )
         for figure in document.manifest.figures:
-            if figure.kind == "artifact_png" and figure.section_id == section.spec.section_id:
+            if _figure_section_id(figure) == section.spec.section_id:
+                if figure.kind == "artifact_png":
+                    rendered = (
+                        f"![{_markdown_cell(figure.caption or figure.title)}]"
+                        f"({figure.relative_path})"
+                    )
+                else:
+                    rendered = (
+                        f"[{_markdown_cell(figure.title)}]({figure.relative_path})"
+                    )
                 lines.extend(
                     (
-                        f"### {figure.caption}",
+                        f"### {figure.caption or figure.title}",
                         "",
-                        f"![{_markdown_cell(figure.caption or figure.title)}]"
-                        f"({figure.relative_path})",
+                        rendered,
                         "",
-                        f"<!-- figure:{figure.figure_id} sha256:{figure.sha256} -->",
+                        (
+                            f"<!-- figure:{figure.figure_id} "
+                            f"sha256:{figure.sha256 or 'generated-from-canonical-table'} -->"
+                        ),
                         "",
                     )
                 )
@@ -817,6 +1090,174 @@ def _reportlab() -> tuple[Any, ...]:
     )
 
 
+def _generated_figure_flowable(document: ReportDocument, spec: FigureSpec) -> Any:
+    """Create the vector figure that is embedded in the report PDF.
+
+    Standalone figure PDFs are still emitted for publication reuse.  This flowable
+    uses the same immutable phase/table values, closing the prior gap where generated
+    figures were manifested but absent from the actual report.
+    """
+
+    try:
+        from reportlab.graphics.shapes import Circle, Drawing, Line, Rect, String
+        from reportlab.lib import colors
+    except ImportError as exc:  # pragma: no cover - production dependency gate
+        raise ReportingError("embedded figure generation requires reportlab") from exc
+
+    width = 520.0
+    if spec.kind == "phase_status":
+        height = 42.0 + 38.0 * len(document.manifest.phases)
+        drawing = Drawing(width, height)
+        for index, phase in enumerate(document.manifest.phases):
+            y = height - 34.0 - index * 38.0
+            red, green, blue = _status_color(phase.status)
+            drawing.add(
+                Rect(
+                    4,
+                    y - 8,
+                    92,
+                    20,
+                    rx=3,
+                    ry=3,
+                    fillColor=colors.Color(red, green, blue),
+                    strokeColor=None,
+                )
+            )
+            drawing.add(
+                String(
+                    50,
+                    y - 2,
+                    phase.status.value.upper(),
+                    fontName="Helvetica-Bold",
+                    fontSize=7.5,
+                    textAnchor="middle",
+                    fillColor=colors.white,
+                )
+            )
+            drawing.add(
+                String(
+                    108,
+                    y + 3,
+                    phase.label[:70],
+                    fontName="Helvetica-Bold",
+                    fontSize=8.5,
+                    fillColor=colors.HexColor("#102A43"),
+                )
+            )
+            reason = phase.reason if len(phase.reason) <= 92 else phase.reason[:89] + "..."
+            drawing.add(
+                String(
+                    108,
+                    y - 8,
+                    reason,
+                    fontName="Helvetica",
+                    fontSize=6.5,
+                    fillColor=colors.HexColor("#486581"),
+                )
+            )
+        return drawing
+
+    if spec.kind != "forest":
+        raise ReportingError(f"unsupported generated figure kind: {spec.kind}")
+    table = document.tables[spec.table_id or ""]
+    label = spec.label_column or ""
+    estimate = spec.estimate_column or ""
+    lower = spec.lower_column or ""
+    upper = spec.upper_column or ""
+    required = {label, estimate, lower, upper}
+    if not required.issubset(table.columns):
+        raise ReportingError(f"forest figure {spec.figure_id} columns absent from table")
+    values: list[tuple[str, float, float, float]] = []
+    for row in table.rows:
+        try:
+            triple = (float(row[estimate]), float(row[lower]), float(row[upper]))
+        except ValueError as exc:
+            raise ReportingError(
+                f"forest figure {spec.figure_id} contains nonnumeric values"
+            ) from exc
+        if not all(math.isfinite(item) for item in triple):
+            raise ReportingError(f"forest figure {spec.figure_id} contains nonfinite values")
+        if not triple[1] <= triple[0] <= triple[2]:
+            raise ReportingError(f"forest figure {spec.figure_id} has unordered interval")
+        values.append((row[label], *triple))
+    if not values:
+        raise ReportingError(f"forest figure {spec.figure_id} has no rows")
+    height = max(120.0, 58.0 + 28.0 * len(values))
+    drawing = Drawing(width, height)
+    domain_low = min(0.0, *(item[2] for item in values))
+    domain_high = max(0.0, *(item[3] for item in values))
+    span = domain_high - domain_low or 1.0
+    x0, x1 = 190.0, width - 16.0
+
+    def position(value: float) -> float:
+        return x0 + (value - domain_low) / span * (x1 - x0)
+
+    drawing.add(
+        Line(
+            position(0.0),
+            30,
+            position(0.0),
+            height - 20,
+            strokeColor=colors.HexColor("#9FB3C8"),
+            strokeWidth=0.8,
+        )
+    )
+    for index, (row_label, point, low, high) in enumerate(values):
+        y = height - 30.0 - index * 28.0
+        drawing.add(
+            String(
+                x0 - 10,
+                y - 3,
+                row_label[:44],
+                fontName="Helvetica",
+                fontSize=8,
+                textAnchor="end",
+                fillColor=colors.HexColor("#102A43"),
+            )
+        )
+        drawing.add(
+            Line(
+                position(low),
+                y,
+                position(high),
+                y,
+                strokeColor=colors.HexColor("#26547C"),
+                strokeWidth=2,
+            )
+        )
+        drawing.add(
+            Circle(
+                position(point),
+                y,
+                3.5,
+                fillColor=colors.HexColor("#B22D43"),
+                strokeColor=None,
+            )
+        )
+    drawing.add(
+        String(
+            x0,
+            12,
+            f"{domain_low:.3g}",
+            fontName="Helvetica",
+            fontSize=7,
+            fillColor=colors.HexColor("#102A43"),
+        )
+    )
+    drawing.add(
+        String(
+            x1,
+            12,
+            f"{domain_high:.3g}",
+            fontName="Helvetica",
+            fontSize=7,
+            textAnchor="end",
+            fillColor=colors.HexColor("#102A43"),
+        )
+    )
+    return drawing
+
+
 def render_pdf(document: ReportDocument, output_path: Path) -> None:
     (
         colors,
@@ -835,7 +1276,26 @@ def render_pdf(document: ReportDocument, output_path: Path) -> None:
     ) = _reportlab()
     output_path.parent.mkdir(parents=True, exist_ok=True)
     styles = get_styles()
+    styles["Heading1"].keepWithNext = True
+    styles["Heading2"].keepWithNext = True
     styles.add(paragraph_style(name="ReportTitle", parent=styles["Title"], alignment=center))
+    styles.add(
+        paragraph_style(
+            name="ReportTable",
+            parent=styles["BodyText"],
+            fontSize=6.7,
+            leading=8.0,
+            wordWrap="CJK",
+        )
+    )
+    styles.add(
+        paragraph_style(
+            name="ReportTableHeader",
+            parent=styles["ReportTable"],
+            textColor=colors.white,
+            fontName="Helvetica-Bold",
+        )
+    )
     styles.add(
         paragraph_style(
             name="Status",
@@ -947,14 +1407,28 @@ def render_pdf(document: ReportDocument, output_path: Path) -> None:
                         )
                     )
                 story.append(paragraph(html.escape(table.spec.description), styles["Heading2"]))
+                display_columns = _pdf_columns(table)
                 matrix = [
-                    [paragraph(html.escape(col), styles["BodyText"]) for col in table.columns]
+                    [
+                        paragraph(html.escape(col), styles["ReportTableHeader"])
+                        for col in display_columns
+                    ]
                 ]
                 matrix.extend(
-                    [paragraph(html.escape(row[col]), styles["BodyText"]) for col in table.columns]
+                    [
+                        paragraph(html.escape(row[col]), styles["ReportTable"])
+                        for col in display_columns
+                    ]
                     for row in table.rows
                 )
-                widths = [7.3 * inch / max(1, len(table.columns))] * len(table.columns)
+                weights = []
+                for column in display_columns:
+                    longest = max(
+                        (len(column), *(min(len(row[column]), 48) for row in table.rows)),
+                    )
+                    weights.append(max(6, min(longest, 32)))
+                total_weight = sum(weights) or 1
+                widths = [7.3 * inch * weight / total_weight for weight in weights]
                 rendered = long_table(matrix, colWidths=widths, repeatRows=1, splitByRow=True)
                 rendered.setStyle(
                     table_style(
@@ -969,22 +1443,113 @@ def render_pdf(document: ReportDocument, output_path: Path) -> None:
                     )
                 )
                 story.extend((rendered, spacer(1, 8)))
-        for figure in document.manifest.figures:
-            if figure.kind != "artifact_png" or figure.section_id != section.spec.section_id:
-                continue
-            figure_path = _safe_under(output_path.parent, figure.relative_path)
-            story.append(paragraph(html.escape(figure.caption or figure.title), styles["Heading2"]))
-            rendered_image = image(str(figure_path))
-            available_width = 7.3 * inch
-            available_height = 6.0 * inch
-            scale = min(
-                available_width / rendered_image.imageWidth,
-                available_height / rendered_image.imageHeight,
-                1.0,
+                if table.spec.supplemental_metric_sources:
+                    story.append(
+                        paragraph("Complete registered metric rows", styles["Heading2"])
+                    )
+                    story.append(
+                        paragraph(
+                            "The compact table is accompanied by immutable public Phase 4 CSV "
+                            "rows. Phase 7 verifies and reports their lineage without recomputing "
+                            "the scientific values.",
+                            styles["BodyText"],
+                        )
+                    )
+                    for source in table.spec.supplemental_metric_sources:
+                        metrics = ", ".join(
+                            f"{item.metric_name} ({item.row_count})"
+                            for item in source.metric_row_counts
+                        )
+                        story.append(
+                            paragraph(
+                                f"<b>{html.escape(source.source_role)}:</b> "
+                                f"{html.escape(source.description)} Source "
+                                f"<font name='Courier'>{html.escape(source.source_relative_path)}"
+                                "</font>; SHA-256 "
+                                f"<font name='Courier'>{source.source_file_sha256}</font>; "
+                                f"{source.source_row_count} total and "
+                                f"{source.selected_row_count} filter-selected rows.",
+                                styles["BodyText"],
+                            )
+                        )
+                        story.append(
+                            paragraph(
+                                "Registered metrics: " + html.escape(metrics) + ".",
+                                styles["BodyText"],
+                            )
+                        )
+                        story.append(spacer(1, 5))
+        for supplement in section.review_supplements:
+            story.append(
+                paragraph(html.escape(supplement.spec.description), styles["Heading2"])
             )
-            rendered_image.drawWidth = rendered_image.imageWidth * scale
-            rendered_image.drawHeight = rendered_image.imageHeight * scale
-            story.extend((rendered_image, spacer(1, 8)))
+            display_columns = _pdf_columns(supplement)
+            matrix = [
+                [
+                    paragraph(html.escape(column), styles["ReportTableHeader"])
+                    for column in display_columns
+                ]
+            ]
+            matrix.extend(
+                [
+                    paragraph(html.escape(row[column]), styles["ReportTable"])
+                    for column in display_columns
+                ]
+                for row in supplement.rows
+            )
+            weights = [
+                max(
+                    6,
+                    min(
+                        max(
+                            len(column),
+                            *(min(len(row[column]), 48) for row in supplement.rows),
+                        ),
+                        32,
+                    ),
+                )
+                for column in display_columns
+            ]
+            total_weight = sum(weights) or 1
+            widths = [7.3 * inch * weight / total_weight for weight in weights]
+            rendered = long_table(
+                matrix,
+                colWidths=widths,
+                repeatRows=1,
+                splitByRow=True,
+            )
+            rendered.setStyle(
+                table_style(
+                    [
+                        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#243B53")),
+                        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                        ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#9FB3C8")),
+                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                        ("LEFTPADDING", (0, 0), (-1, -1), 3),
+                        ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+                    ]
+                )
+            )
+            story.extend((rendered, spacer(1, 8)))
+        for figure in document.manifest.figures:
+            if _figure_section_id(figure) != section.spec.section_id:
+                continue
+            story.append(paragraph(html.escape(figure.caption or figure.title), styles["Heading2"]))
+            if figure.kind == "artifact_png":
+                figure_path = _safe_under(output_path.parent, figure.relative_path)
+                rendered_image = image(str(figure_path))
+                available_width = 7.3 * inch
+                available_height = 6.0 * inch
+                scale = min(
+                    available_width / rendered_image.imageWidth,
+                    available_height / rendered_image.imageHeight,
+                    1.0,
+                )
+                rendered_image.drawWidth = rendered_image.imageWidth * scale
+                rendered_image.drawHeight = rendered_image.imageHeight * scale
+                story.extend((rendered_image, spacer(1, 8)))
+            else:
+                story.extend((_generated_figure_flowable(document, figure), spacer(1, 8)))
         if index in {5, 10, 15}:
             story.append(page_break())
     story.extend(
@@ -1130,8 +1695,11 @@ def build_results_report(
         figure_records.append(
             {
                 "figure_id": spec.figure_id,
+                "kind": spec.kind,
                 "relative_path": spec.relative_path,
                 "sha256": _file_sha256(figure_path),
+                "report_section_id": _figure_section_id(spec),
+                "embedded_in_report": True,
                 "source_table_sha256": (
                     document.tables[spec.table_id].spec.sha256 if spec.table_id else None
                 ),
@@ -1144,9 +1712,24 @@ def build_results_report(
             "relative_path": table.spec.relative_path,
             "sha256": table.spec.sha256,
             "row_count": table.spec.row_count,
+            "display_columns": list(_pdf_columns(table)),
             "source_artifact_hashes": list(table.spec.source_artifact_hashes),
         }
         for table in document.tables.values()
+    ]
+    review_supplement_records = [
+        {
+            "supplement_id": supplement.spec.supplement_id,
+            "section_id": supplement.spec.section_id,
+            "relative_path": supplement.spec.relative_path,
+            "sha256": supplement.spec.sha256,
+            "row_count": supplement.spec.row_count,
+            "display_columns": list(_pdf_columns(supplement)),
+            "source_artifact_hashes": list(
+                supplement.spec.source_artifact_hashes
+            ),
+        }
+        for supplement in document.review_supplements.values()
     ]
     payload: dict[str, Any] = {
         "schema_version": REPORT_SCHEMA_VERSION,
@@ -1161,6 +1744,7 @@ def build_results_report(
             {"relative_path": "RESULTS_REPORT.pdf", "sha256": _file_sha256(pdf_path)},
         ],
         "tables": table_records,
+        "review_supplements": review_supplement_records,
         "figures": figure_records,
     }
     write_json(root / "result_figure_manifest.json", canonical_manifest_payload(payload))
@@ -1232,10 +1816,34 @@ def verify_report_build(
                 item.get("relative_path") != table.spec.relative_path,
                 item.get("sha256") != table.spec.sha256,
                 item.get("row_count") != table.spec.row_count,
+                item.get("display_columns") != list(_pdf_columns(table)),
                 item.get("source_artifact_hashes") != list(table.spec.source_artifact_hashes),
             )
         ):
             raise ReportingError(f"stale table provenance: {item['table_id']}")
+    supplement_items = payload.get("review_supplements", [])
+    supplement_ids = [item["supplement_id"] for item in supplement_items]
+    if (
+        len(supplement_ids) != len(set(supplement_ids))
+        or set(supplement_ids) != set(document.review_supplements)
+    ):
+        raise ReportingError("result/figure manifest review-supplement inventory is not exact")
+    for item in supplement_items:
+        supplement = document.review_supplements.get(item["supplement_id"])
+        if supplement is None or any(
+            (
+                item.get("section_id") != supplement.spec.section_id,
+                item.get("relative_path") != supplement.spec.relative_path,
+                item.get("sha256") != supplement.spec.sha256,
+                item.get("row_count") != supplement.spec.row_count,
+                item.get("display_columns") != list(_pdf_columns(supplement)),
+                item.get("source_artifact_hashes")
+                != list(supplement.spec.source_artifact_hashes),
+            )
+        ):
+            raise ReportingError(
+                f"stale review-supplement provenance: {item['supplement_id']}"
+            )
     figure_items = payload.get("figures", [])
     figure_ids = [item["figure_id"] for item in figure_items]
     expected_figures = {item.figure_id: item for item in document.manifest.figures}
@@ -1245,7 +1853,10 @@ def verify_report_build(
         spec = expected_figures[item["figure_id"]]
         expected_source = document.tables[spec.table_id].spec.sha256 if spec.table_id else None
         if (
-            item.get("relative_path") != spec.relative_path
+            item.get("kind") != spec.kind
+            or item.get("relative_path") != spec.relative_path
+            or item.get("report_section_id") != _figure_section_id(spec)
+            or item.get("embedded_in_report") is not True
             or item.get("source_table_sha256") != expected_source
             or item.get("source_artifact_hashes", []) != list(spec.source_artifact_hashes)
         ):
@@ -1308,6 +1919,17 @@ def render_reproducibility_report(document: ReportDocument) -> str:
             f"- `{table.spec.table_id}`: `{table.spec.sha256}`, {table.spec.row_count} rows, "
             f"status `{table.spec.status.value}`."
         )
+        for source in table.spec.supplemental_metric_sources:
+            lines.append(
+                f"  - supplemental `{source.source_role}`: `{source.source_file_sha256}`, "
+                f"{source.selected_row_count} selected rows in "
+                f"`{source.source_relative_path}`."
+            )
+    for supplement in document.review_supplements.values():
+        lines.append(
+            f"- blinded-review supplement `{supplement.spec.supplement_id}`: "
+            f"`{supplement.spec.sha256}`, {supplement.spec.row_count} sanitized rows."
+        )
     lines.extend(
         (
             "",
@@ -1351,3 +1973,19 @@ def iter_report_values(document: ReportDocument) -> Iterable[str]:
                 yield from table.columns
                 for row in table.rows:
                     yield from (row[column] for column in table.columns)
+                for source in table.spec.supplemental_metric_sources:
+                    yield source.source_role
+                    yield source.description
+                    yield source.source_relative_path
+                    yield source.source_file_sha256
+                    yield source.table_manifest_relative_path
+                    yield source.table_manifest_file_sha256
+                    yield str(source.source_row_count)
+                    yield str(source.selected_row_count)
+                    for metric in source.metric_row_counts:
+                        yield metric.metric_name
+                        yield str(metric.row_count)
+            for supplement in section.review_supplements:
+                yield from supplement.columns
+                for row in supplement.rows:
+                    yield from (row[column] for column in supplement.columns)

@@ -42,14 +42,12 @@ from story_projection_onto.conditions.fixed_select import (
     prepare_fixed_selection,
 )
 from story_projection_onto.contracts import (
-    CommitmentCheckStatus,
     ConditionName,
     ConstructionCapabilities,
     ConstructionOperator,
     ConstructionRequest,
     EvidencePacket,
     EvidenceSnapshot,
-    EvidenceSupportStatus,
     ImmutableRecord,
     ModelVisibleRevision,
     OntologyDraft,
@@ -60,14 +58,12 @@ from story_projection_onto.contracts import (
     QueryAccessEvent,
     QueryContext,
     RunOutcome,
-    TemporalDeterminationStatus,
     UpperOntology,
     ValidatedGeneration,
-    ValidationRecord,
-    ValidationStatus,
     canonical_json,
     canonical_sha256,
     normalize_generation_metadata,
+    runtime_structural_acceptance_record,
     to_model_visible_packet,
     to_model_visible_query,
 )
@@ -115,10 +111,27 @@ from story_projection_onto.store import (
     ArtifactStore,
     AttemptKind,
     FailureKind,
+    InputKind,
+    JobState,
     ModelBackend,
     ModelCallRole,
     ReleaseClass,
     RetryClass,
+)
+from story_projection_onto.store import (
+    CommitmentCheckStatus as LedgerCommitmentCheckStatus,
+)
+from story_projection_onto.store import (
+    EvidenceSupportStatus as LedgerEvidenceSupportStatus,
+)
+from story_projection_onto.store import (
+    SemanticAssessmentScope as LedgerSemanticAssessmentScope,
+)
+from story_projection_onto.store import (
+    TemporalValidationStatus as LedgerTemporalValidationStatus,
+)
+from story_projection_onto.store import (
+    ValidationStatus as LedgerValidationStatus,
 )
 from story_projection_onto.validate import validate_draft_structure, validate_repair_preservation
 
@@ -279,6 +292,8 @@ class HeldOutProduceInputs(ImmutableRecord):
 
 @dataclass(frozen=True, slots=True)
 class _AttemptArtifacts:
+    job_id: str
+    attempt_id: str
     semantic: PreconstructionRequest | ConstructionRequest
     guided: GuidedJSONRequest
     semantic_reference: HeldOutCASReference
@@ -606,6 +621,7 @@ class FrozenHeldOutSemanticExecutor:
                 build_c1_preconstruction_request(
                     snapshot_hash=neutral.snapshot.content_hash,
                     snapshot_sealed_at=neutral.snapshot.sealed_at,
+                    sealed_horizon=neutral.snapshot.horizon,
                     ordered_snapshot_evidence_ids=neutral.snapshot.eligible_evidence_ids,
                     evidence=neutral.evidence,
                     upper_ontology=self.construction.upper_ontology,
@@ -820,6 +836,223 @@ class FrozenHeldOutSemanticExecutor:
             raise HeldOutSemanticExecutionError("GPU request lacks exactly one ledger event")
         return matches[0]
 
+    def _job_identity(self, call: HeldOutCallSpec) -> dict[str, object]:
+        query_blind = call.condition is ConditionName.C1_LLM_PRE
+        return {
+            "execution_id": self.call_manifest.manifest_id,
+            "call_id": call.call_id,
+            "manifest_hash": self.call_manifest.content_hash,
+            "condition": call.condition.value,
+            "lifecycle_kind": (
+                "query_blind_prebuild" if query_blind else "query_time_generation"
+            ),
+        }
+
+    def _advance_state(self, job_id: str, state: JobState, occurred_at: datetime) -> None:
+        """Append one lifecycle state while making terminal replay idempotent."""
+
+        observed = tuple(item.to_state for item in self.artifacts.ledger.transitions(job_id))
+        if state in observed:
+            return
+        self.artifacts.ledger.transition_job(job_id, state, occurred_at=occurred_at)
+
+    def _register_projection_inputs(
+        self,
+        *,
+        inputs: HeldOutProduceInputs,
+    ) -> tuple[str, str]:
+        """Register study-local aliases for an exact snapshot and evidence packet."""
+
+        study_id = self.call_manifest.manifest_id
+        snapshot = inputs.snapshot
+        snapshot_release = ReleaseClass(snapshot.release_class.value)
+        snapshot_reference = self.resolver.persist_record(
+            snapshot,
+            object_kind="evidence_snapshot",
+            release_class=snapshot_release,
+            created_at=snapshot.created_at,
+        )
+        snapshot_key = canonical_sha256((study_id, snapshot.content_hash))[:32]
+        snapshot_input_id = f"projection-snapshot-input-{snapshot_key}"
+        snapshot_record_id = f"projection-snapshot-{snapshot_key}"
+        self.artifacts.ledger.register_input(
+            input_id=snapshot_input_id,
+            study_id=study_id,
+            input_kind=InputKind.EVIDENCE_SNAPSHOT,
+            content_hash=snapshot.content_hash,
+            artifact_hash=snapshot_reference.artifact_hash,
+            release_class=snapshot_release,
+            created_at=snapshot.created_at,
+        )
+        self.artifacts.ledger.register_evidence_snapshot(
+            snapshot_id=snapshot_record_id,
+            input_id=snapshot_input_id,
+            horizon_hash=snapshot.horizon.content_hash,
+            evidence_manifest_hash=canonical_sha256(
+                tuple(item.content_hash for item in inputs.packet.evidence)
+            ),
+            index_configuration_hash=snapshot.index_config_hash,
+            prequery_seal_hash=snapshot.content_hash,
+            eligible_evidence_count=len(snapshot.eligible_evidence_ids),
+            created_at=snapshot.sealed_at,
+        )
+
+        materialization = self.artifacts.ledger.get_packet_materialization(
+            inputs.packet_materialization.content_hash
+        )
+        packet_artifact = self.artifacts.ledger.get_artifact(
+            materialization.packet_artifact_hash
+        )
+        packet_release = ReleaseClass(inputs.packet.release_class.value)
+        if packet_artifact.release_class is not packet_release:
+            raise HeldOutSemanticExecutionError(
+                "projection packet artifact release class changed"
+            )
+        packet_key = canonical_sha256((study_id, inputs.packet.content_hash))[:32]
+        packet_input_id = f"projection-packet-input-{packet_key}"
+        self.artifacts.ledger.register_input(
+            input_id=packet_input_id,
+            study_id=study_id,
+            input_kind=InputKind.EVIDENCE_PACKET,
+            content_hash=inputs.packet.content_hash,
+            artifact_hash=packet_artifact.content_hash,
+            release_class=packet_release,
+            created_at=inputs.packet.created_at,
+        )
+        return snapshot_record_id, packet_input_id
+
+    def _record_attempt_validation(
+        self,
+        *,
+        call: HeldOutCallSpec,
+        attempt: _AttemptArtifacts,
+        accepted: bool,
+        checked_at: datetime,
+        error: BaseException | None = None,
+        generation: ValidatedGeneration | None = None,
+        parent_validation_id: str | None = None,
+        repair: bool,
+        terminal: bool,
+    ) -> str:
+        """Persist one structural verdict and every unsuccessful attempt."""
+
+        if accepted != (generation is not None) or accepted == (error is not None):
+            raise HeldOutSemanticExecutionError(
+                "ledger validation requires exactly one accepted generation or error"
+            )
+        diagnostic_payload: dict[str, object] = {
+            "accepted": accepted,
+            "assessment_scope": "runtime_structural_only",
+            "call_id": call.call_id,
+            "attempt_id": attempt.attempt_id,
+            "raw_output_artifact_hash": (
+                None if attempt.raw_reference is None else attempt.raw_reference.artifact_hash
+            ),
+        }
+        if generation is not None:
+            diagnostic_payload.update(
+                validated_generation_hash=generation.content_hash,
+                validator_report_hashes=list(generation.validator_report_hashes),
+            )
+        else:
+            assert error is not None
+            diagnostic_payload.update(
+                exception_type=type(error).__name__,
+                failure_kind=_failure_kind(error).value,
+            )
+        diagnostic = self.artifacts.put_bytes(
+            (canonical_json(diagnostic_payload) + "\n").encode("utf-8"),
+            media_type=_media_type("structural_validation_diagnostic"),
+            release_class=ReleaseClass.RESTRICTED,
+            created_at=checked_at,
+        )
+        input_hash = (
+            diagnostic.content_hash
+            if attempt.raw_reference is None
+            else attempt.raw_reference.artifact_hash
+        )
+        validation_id = f"{attempt.attempt_id}-validation"
+        self.artifacts.ledger.record_validation(
+            validation_id=validation_id,
+            job_id=attempt.job_id,
+            attempt_id=attempt.attempt_id,
+            input_artifact_hash=input_hash,
+            validator_manifest_hash=self.validator_hash,
+            validation_status=(
+                LedgerValidationStatus.ACCEPTED
+                if accepted
+                else LedgerValidationStatus.REJECTED
+            ),
+            evidence_support_status=LedgerEvidenceSupportStatus.NOT_APPLICABLE,
+            temporal_status=LedgerTemporalValidationStatus.NOT_APPLICABLE,
+            commitment_status=LedgerCommitmentCheckStatus.NOT_APPLICABLE,
+            semantic_assessment_scope=(
+                LedgerSemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED
+            ),
+            diagnostics_artifact_hash=diagnostic.content_hash,
+            parent_validation_id=parent_validation_id,
+            repair_attempt_id=attempt.attempt_id if repair else None,
+            created_at=checked_at,
+        )
+        if error is not None:
+            self.artifacts.ledger.record_failure(
+                attempt_id=attempt.attempt_id,
+                failure_kind=_failure_kind(error),
+                message=(
+                    "Model attempt failed structural acceptance; "
+                    "inspect restricted diagnostics"
+                ),
+                details={
+                    "call_id": call.call_id,
+                    "exception_type": type(error).__name__,
+                    "repair": repair,
+                },
+                artifact_hash=diagnostic.content_hash,
+                occurred_at=checked_at,
+            )
+        if terminal:
+            self._advance_state(attempt.job_id, JobState.VALIDATED, checked_at)
+        return validation_id
+
+    def _record_projection(
+        self,
+        *,
+        call: HeldOutCallSpec,
+        attempt: _AttemptArtifacts,
+        inputs: HeldOutProduceInputs,
+        projection: Any,
+        validation_id: str,
+        finalized_at: datetime,
+    ) -> HeldOutCASReference:
+        reference = self.resolver.persist_record(
+            projection,
+            object_kind="ontology_projection",
+            release_class=ReleaseClass.RESTRICTED,
+            created_at=finalized_at,
+        )
+        snapshot_id, packet_input_id = self._register_projection_inputs(inputs=inputs)
+        certificate = projection.construction_certificate or projection.construction_seal
+        if certificate is None:
+            raise HeldOutSemanticExecutionError(
+                "successful projection lacks a construction certificate or seal"
+            )
+        self.artifacts.ledger.record_projection(
+            projection_id=f"{attempt.attempt_id}-projection",
+            job_id=attempt.job_id,
+            validation_id=validation_id,
+            snapshot_id=snapshot_id,
+            packet_input_id=packet_input_id,
+            condition_id=call.condition.value,
+            context_hash=inputs.context.content_hash,
+            upper_ontology_hash=inputs.upper_ontology.content_hash,
+            construction_certificate_hash=certificate.content_hash,
+            projection_artifact_hash=reference.artifact_hash,
+            projection_semantic_hash=projection.content_hash,
+            release_class=ReleaseClass.RESTRICTED,
+            finalized_at=finalized_at,
+        )
+        return reference
+
     def _persist_attempt(
         self,
         *,
@@ -832,6 +1065,8 @@ class FrozenHeldOutSemanticExecutor:
         remaining_required_seconds: float,
         parent_attempt_id: str | None,
         created_at: datetime | None = None,
+        prequery_sealed_at: datetime | None = None,
+        query_revealed_at: datetime | None = None,
     ) -> _AttemptArtifacts:
         created_at = self._now() if created_at is None else created_at
         semantic_reference = self.resolver.persist_record(
@@ -850,20 +1085,38 @@ class FrozenHeldOutSemanticExecutor:
             release_class=ReleaseClass.RESTRICTED,
             created_at=created_at,
         )
+        sealed_at = (
+            self.neutral_by_unit[call.unit_id].snapshot.sealed_at
+            if isinstance(semantic, PreconstructionRequest)
+            else prequery_sealed_at
+        )
+        if sealed_at is None:
+            raise HeldOutSemanticExecutionError("generation job lacks its prequery seal time")
+        if isinstance(semantic, PreconstructionRequest):
+            if query_revealed_at is not None:
+                raise HeldOutSemanticExecutionError(
+                    "query-blind preconstruction cannot receive a query reveal time"
+                )
+        elif query_revealed_at is None:
+            raise HeldOutSemanticExecutionError(
+                "query-time generation lacks its query-access timestamp"
+            )
         job = self.artifacts.ledger.create_or_resume_job(
-            {
-                "execution_id": self.call_manifest.manifest_id,
-                "call_id": call.call_id,
-                "manifest_hash": self.call_manifest.content_hash,
-            },
+            self._job_identity(call),
             release_class=ReleaseClass.RESTRICTED,
-            created_at=created_at,
+            created_at=sealed_at,
         )
         self.artifacts.ledger.link_job_to_study(
             study_id=self.call_manifest.manifest_id,
             job_id=job.job_id,
             created_at=created_at,
         )
+        milestones: list[tuple[JobState, datetime]] = [
+            (JobState.PREQUERY_SEALED, sealed_at)
+        ]
+        if query_revealed_at is not None:
+            milestones.append((JobState.QUERY_REVEALED, query_revealed_at))
+        self.artifacts.ledger.advance_job_lifecycle(job.job_id, milestones)
         attempt_suffix = "repair" if repair else "base"
         attempt_id = f"{self.call_manifest.manifest_id}-{call.call_id}-{attempt_suffix}"
         self.artifacts.ledger.record_attempt(
@@ -941,8 +1194,15 @@ class FrozenHeldOutSemanticExecutor:
             successful=generated is not None and failure is None,
             created_at=self._now(),
         )
+        self._advance_state(
+            job.job_id,
+            JobState.REPAIRED if repair else JobState.GENERATED,
+            _parse_utc(event.ended_at),
+        )
         model_call = self.artifacts.ledger.get_model_call(model_call_id)
         return _AttemptArtifacts(
+            job_id=job.job_id,
+            attempt_id=attempt_id,
             semantic=semantic,
             guided=guided,
             semantic_reference=semantic_reference,
@@ -968,6 +1228,7 @@ class FrozenHeldOutSemanticExecutor:
         repair_parent_raw_hash: str | None,
         base_invalid: Mapping[str, object] | None = None,
         diagnosed_paths: tuple[str, ...] = (),
+        validated_at_override: datetime | None = None,
     ) -> ValidatedGeneration:
         generated = attempt.generated
         raw = attempt.raw_reference
@@ -1028,6 +1289,7 @@ class FrozenHeldOutSemanticExecutor:
             draft=normalized,
             upper_ontology=semantic.upper_ontology,
             evidence=evidence,
+            horizon=self.neutral_by_unit[call.unit_id].snapshot.horizon,
             budgets=semantic.budgets,
             capabilities=semantic.capabilities,
         )
@@ -1043,17 +1305,20 @@ class FrozenHeldOutSemanticExecutor:
             )
             preservation.raise_for_errors()
             report_hashes.append(preservation.content_hash)
-        validated_at = self._after(completed_at)
-        validation = ValidationRecord(
+        validated_at = (
+            self._after(completed_at)
+            if validated_at_override is None
+            else validated_at_override.astimezone(UTC)
+        )
+        if validated_at <= completed_at:
+            raise HeldOutSemanticExecutionError(
+                "validation timestamp must follow generation completion"
+            )
+        validation = runtime_structural_acceptance_record(
             validation_id=f"validation-{canonical_sha256((call.call_id, raw.artifact_hash))[:20]}",
             target_id=normalized.content_hash,
-            validation_status=ValidationStatus.ACCEPTED,
-            evidence_support_status=EvidenceSupportStatus.SUPPORTED,
-            temporal_status=TemporalDeterminationStatus.VALID,
-            commitment_status=CommitmentCheckStatus.VALID,
-            diagnostics=(
-                "deterministic boundary, citation, temporal, and commitment checks accepted",
-            ),
+            repair_parent_hash=repair_parent_raw_hash,
+            repair_attempt=repair_attempt,
             validated_at=validated_at,
         )
         return ValidatedGeneration(
@@ -1254,6 +1519,16 @@ class FrozenHeldOutSemanticExecutor:
                 remaining_required_seconds=remaining_required_seconds,
                 parent_attempt_id=None,
                 created_at=intent.started_at,
+                prequery_sealed_at=(
+                    self.neutral_by_unit[call.unit_id].snapshot.sealed_at
+                    if isinstance(semantic, PreconstructionRequest)
+                    else cast(HeldOutProduceInputs, inputs).prequery_barrier.sealed_at
+                ),
+                query_revealed_at=(
+                    None
+                    if isinstance(semantic, PreconstructionRequest)
+                    else cast(HeldOutProduceInputs, inputs).query_access.accessed_at
+                ),
             )
         except BaseException:
             # No terminal GPU ledger event means the intent remains non-reissuable.
@@ -1262,6 +1537,7 @@ class FrozenHeldOutSemanticExecutor:
         final_attempt = base
         validation_failure: BaseException | None = base.failure
         diagnosed_paths: tuple[str, ...] = ()
+        base_validation_id: str | None = None
         invalid = cast(Mapping[str, object], base.generated.parsed_object) if base.generated else {}
         if validation_failure is None:
             try:
@@ -1282,6 +1558,27 @@ class FrozenHeldOutSemanticExecutor:
                     )
                 if not diagnosed_paths:
                     diagnosed_paths = ("/draft",)
+        base_checked_at = self._after(_parse_utc(self._event(base.event_id).ended_at))
+        if validation_failure is not None:
+            base_validation_id = self._record_attempt_validation(
+                call=call,
+                attempt=base,
+                accepted=False,
+                checked_at=base_checked_at,
+                error=validation_failure,
+                repair=False,
+                terminal=not (repair_allowed and base.generated is not None),
+            )
+        elif generation is not None:
+            base_validation_id = self._record_attempt_validation(
+                call=call,
+                attempt=base,
+                accepted=True,
+                checked_at=generation.validated_at,
+                generation=generation,
+                repair=False,
+                terminal=True,
+            )
         repair = None
         if validation_failure is not None and repair_allowed and base.generated is not None:
             repair_semantic, repair_config = self._repair_request(call=call, base=semantic)
@@ -1336,6 +1633,16 @@ class FrozenHeldOutSemanticExecutor:
                 ),
                 parent_attempt_id=(f"{self.call_manifest.manifest_id}-{call.call_id}-base"),
                 created_at=repair_started_at,
+                prequery_sealed_at=(
+                    self.neutral_by_unit[call.unit_id].snapshot.sealed_at
+                    if isinstance(repair_semantic, PreconstructionRequest)
+                    else cast(HeldOutProduceInputs, inputs).prequery_barrier.sealed_at
+                ),
+                query_revealed_at=(
+                    None
+                    if isinstance(repair_semantic, PreconstructionRequest)
+                    else cast(HeldOutProduceInputs, inputs).query_access.accessed_at
+                ),
             )
             final_attempt = repair
             validation_failure = repair.failure
@@ -1355,6 +1662,31 @@ class FrozenHeldOutSemanticExecutor:
                     )
                 except BaseException as error:
                     validation_failure = error
+            repair_checked_at = self._after(
+                _parse_utc(self._event(repair.event_id).ended_at)
+            )
+            if validation_failure is not None:
+                self._record_attempt_validation(
+                    call=call,
+                    attempt=repair,
+                    accepted=False,
+                    checked_at=repair_checked_at,
+                    error=validation_failure,
+                    parent_validation_id=base_validation_id,
+                    repair=True,
+                    terminal=True,
+                )
+            elif generation is not None:
+                base_validation_id = self._record_attempt_validation(
+                    call=call,
+                    attempt=repair,
+                    accepted=True,
+                    checked_at=generation.validated_at,
+                    generation=generation,
+                    parent_validation_id=base_validation_id,
+                    repair=True,
+                    terminal=True,
+                )
         result_object = None
         bindings: tuple[PrequeryPreparationBinding, ...] = ()
         if generation is not None and validation_failure is None:
@@ -1388,26 +1720,49 @@ class FrozenHeldOutSemanticExecutor:
                 release_class=ReleaseClass.RESTRICTED,
                 created_at=completed_at,
             )
+            if isinstance(result_object, ConditionAttemptRecord):
+                projection = result_object.projection
+                if projection is None or inputs is None or base_validation_id is None:
+                    raise HeldOutSemanticExecutionError(
+                        "successful condition attempt lacks ledger projection lineage"
+                    )
+                self._record_projection(
+                    call=call,
+                    attempt=final_attempt,
+                    inputs=inputs,
+                    projection=projection,
+                    validation_id=base_validation_id,
+                    finalized_at=completed_at,
+                )
         if validation_failure is not None:
             failure_kind = _failure_kind(validation_failure)
-            self.artifacts.ledger.record_failure(
-                attempt_id=(
-                    f"{self.call_manifest.manifest_id}-{call.call_id}-"
-                    f"{'repair' if repair is not None else 'base'}"
-                ),
-                failure_kind=failure_kind,
-                message="Held-out model output failed; inspect restricted call lineage",
-                details={
-                    "call_id": call.call_id,
-                    "exception_type": type(validation_failure).__name__,
-                },
-                artifact_hash=(
-                    None
-                    if final_attempt.raw_reference is None
-                    else final_attempt.raw_reference.artifact_hash
-                ),
-                occurred_at=completed_at,
-            )
+            try:
+                self.artifacts.ledger.failures_for_lineage(final_attempt.attempt_id)
+                has_terminal_failure = any(
+                    item.attempt_id == final_attempt.attempt_id
+                    for item in self.artifacts.ledger.failures_for_lineage(
+                        final_attempt.attempt_id
+                    )
+                )
+            except KeyError:
+                has_terminal_failure = False
+            if not has_terminal_failure:
+                self.artifacts.ledger.record_failure(
+                    attempt_id=final_attempt.attempt_id,
+                    failure_kind=failure_kind,
+                    message="Held-out output finalization failed; inspect restricted call lineage",
+                    details={
+                        "call_id": call.call_id,
+                        "exception_type": type(validation_failure).__name__,
+                    },
+                    artifact_hash=(
+                        None
+                        if final_attempt.raw_reference is None
+                        else final_attempt.raw_reference.artifact_hash
+                    ),
+                    occurred_at=completed_at,
+                )
+        self._advance_state(final_attempt.job_id, JobState.FINALIZED, completed_at)
         chain_hash = gpu_ledger_chain_hash(self.artifacts)
         receipt = HeldOutCallArtifactReceipt(
             call_id=call.call_id,
@@ -1623,6 +1978,8 @@ class FrozenHeldOutSemanticExecutor:
         repair: bool,
         started_at: datetime,
         job: Any,
+        prequery_sealed_at: datetime,
+        query_revealed_at: datetime | None,
     ) -> _AttemptArtifacts:
         """Rebuild exact terminal attempt lineage without invoking the model."""
 
@@ -1665,6 +2022,12 @@ class FrozenHeldOutSemanticExecutor:
             ),
             created_at=started_at,
         )
+        milestones: list[tuple[JobState, datetime]] = [
+            (JobState.PREQUERY_SEALED, prequery_sealed_at)
+        ]
+        if query_revealed_at is not None:
+            milestones.append((JobState.QUERY_REVEALED, query_revealed_at))
+        self.artifacts.ledger.advance_job_lifecycle(job.job_id, milestones)
         construction_unit_hash = canonical_sha256(
             {
                 "manifest": self.call_manifest.content_hash,
@@ -1717,6 +2080,11 @@ class FrozenHeldOutSemanticExecutor:
             raise HeldOutSemanticExecutionError(
                 "interrupted model-call ledger lineage changed"
             )
+        self._advance_state(
+            job.job_id,
+            JobState.REPAIRED if repair else JobState.GENERATED,
+            _parse_utc(event.ended_at),
+        )
         raw_reference = None
         generated = None
         if model_call.response_artifact_hash is not None:
@@ -1786,6 +2154,8 @@ class FrozenHeldOutSemanticExecutor:
                 service_request_id=service_request_id,
             )
         return _AttemptArtifacts(
+            job_id=job.job_id,
+            attempt_id=attempt_id,
             semantic=semantic,
             guided=guided,
             semantic_reference=semantic_reference,
@@ -1837,13 +2207,13 @@ class FrozenHeldOutSemanticExecutor:
                 "repair GPU event lacks its prior durable semantic intent"
             )
         job = self.artifacts.ledger.create_or_resume_job(
-            {
-                "execution_id": self.call_manifest.manifest_id,
-                "call_id": call.call_id,
-                "manifest_hash": self.call_manifest.content_hash,
-            },
+            self._job_identity(call),
             release_class=ReleaseClass.RESTRICTED,
-            created_at=intent.started_at,
+            created_at=(
+                self.neutral_by_unit[call.unit_id].snapshot.sealed_at
+                if isinstance(semantic, PreconstructionRequest)
+                else cast(Any, envelope.prequery_barrier).sealed_at
+            ),
         )
         self.artifacts.ledger.link_job_to_study(
             study_id=self.call_manifest.manifest_id,
@@ -1859,8 +2229,21 @@ class FrozenHeldOutSemanticExecutor:
             repair=False,
             started_at=intent.started_at,
             job=job,
+            prequery_sealed_at=(
+                self.neutral_by_unit[call.unit_id].snapshot.sealed_at
+                if isinstance(semantic, PreconstructionRequest)
+                else cast(Any, envelope.prequery_barrier).sealed_at
+            ),
+            query_revealed_at=(
+                None
+                if isinstance(semantic, PreconstructionRequest)
+                else cast(Any, envelope.query_opening).query_access_event.accessed_at
+            ),
         )
         repair = None
+        base_validation_error: BaseException | None = base.failure
+        base_generation: ValidatedGeneration | None = None
+        diagnosed_paths: tuple[str, ...] = ()
         if intent.repair_gpu_event_id is not None:
             if (
                 intent.repair_gpu_event_id != expected_repair_event_id
@@ -1894,17 +2277,20 @@ class FrozenHeldOutSemanticExecutor:
             )
             expected_payload["requested_at"] = persisted_repair_semantic.requested_at
             expected_repair_semantic = repaired_type.model_validate(expected_payload)
-            diagnosed_paths: tuple[str, ...] = ()
             try:
-                self._validate_generation(
+                base_generation = self._validate_generation(
                     call=call,
                     envelope=envelope,
                     attempt=base,
                     config=config,
                     repair_attempt=0,
                     repair_parent_raw_hash=None,
+                    validated_at_override=(
+                        _parse_utc(event.ended_at) + timedelta(microseconds=1)
+                    ),
                 )
             except BaseException as error:
+                base_validation_error = error
                 if isinstance(error, ValidationError):
                     diagnosed_paths = tuple(
                         "/" + "/".join(str(part) for part in item["loc"])
@@ -1954,6 +2340,16 @@ class FrozenHeldOutSemanticExecutor:
                     repair=True,
                     started_at=intent.repair_started_at,
                     job=job,
+                    prequery_sealed_at=(
+                        self.neutral_by_unit[call.unit_id].snapshot.sealed_at
+                        if isinstance(persisted_repair_semantic, PreconstructionRequest)
+                        else cast(Any, envelope.prequery_barrier).sealed_at
+                    ),
+                    query_revealed_at=(
+                        None
+                        if isinstance(persisted_repair_semantic, PreconstructionRequest)
+                        else cast(Any, envelope.query_opening).query_access_event.accessed_at
+                    ),
                 )
             else:
                 unresolved = {
@@ -1963,7 +2359,95 @@ class FrozenHeldOutSemanticExecutor:
                 if intent.repair_gpu_event_id in unresolved:
                     return None
         final_event = event if repair is None else repair_events[0]
-        completed_at = self._after(_parse_utc(final_event.ended_at))
+        base_event_end = _parse_utc(event.ended_at)
+        final_event_end = _parse_utc(final_event.ended_at)
+        completed_at = final_event_end + timedelta(microseconds=2)
+        if intent.repair_gpu_event_id is None and base.failure is None:
+            try:
+                base_generation = self._validate_generation(
+                    call=call,
+                    envelope=envelope,
+                    attempt=base,
+                    config=config,
+                    repair_attempt=0,
+                    repair_parent_raw_hash=None,
+                    validated_at_override=(
+                        _parse_utc(event.ended_at) + timedelta(microseconds=1)
+                    ),
+                )
+                base_validation_error = None
+            except BaseException as error:
+                base_validation_error = error
+        base_validation_id = self._record_attempt_validation(
+            call=call,
+            attempt=base,
+            accepted=base_generation is not None and base_validation_error is None,
+            checked_at=base_event_end + timedelta(microseconds=1),
+            error=base_validation_error,
+            generation=base_generation,
+            repair=False,
+            terminal=repair is None,
+        )
+        final_attempt = base
+        final_validation_error = base_validation_error
+        if repair is not None:
+            repair_generation: ValidatedGeneration | None = None
+            repair_validation_error = repair.failure
+            if repair_validation_error is None:
+                try:
+                    repair_generation = self._validate_generation(
+                        call=call,
+                        envelope=envelope,
+                        attempt=repair,
+                        config=repair_config,
+                        repair_attempt=1,
+                        repair_parent_raw_hash=(
+                            None
+                            if base.raw_reference is None
+                            else base.raw_reference.artifact_hash
+                        ),
+                        base_invalid=cast(
+                            Mapping[str, object], base.generated.parsed_object
+                        ),
+                        diagnosed_paths=diagnosed_paths,
+                        validated_at_override=(
+                            _parse_utc(final_event.ended_at)
+                            + timedelta(microseconds=1)
+                        ),
+                    )
+                except BaseException as error:
+                    repair_validation_error = error
+            self._record_attempt_validation(
+                call=call,
+                attempt=repair,
+                accepted=(
+                    repair_generation is not None and repair_validation_error is None
+                ),
+                checked_at=final_event_end + timedelta(microseconds=1),
+                error=repair_validation_error,
+                generation=repair_generation,
+                parent_validation_id=base_validation_id,
+                repair=True,
+                terminal=True,
+            )
+            final_attempt = repair
+            final_validation_error = repair_validation_error
+        if final_validation_error is None:
+            # A structurally accepted response can still be an ITT failure when
+            # power was lost before the durable scientific result pointer.
+            self.artifacts.ledger.record_failure(
+                attempt_id=final_attempt.attempt_id,
+                failure_kind=FailureKind.INTERRUPTED,
+                message="Terminal model response was interrupted before result commit",
+                details={"call_id": call.call_id, "repair": repair is not None},
+                artifact_hash=(
+                    None
+                    if final_attempt.raw_reference is None
+                    else final_attempt.raw_reference.artifact_hash
+                ),
+                occurred_at=completed_at,
+            )
+        self._advance_state(final_attempt.job_id, JobState.FINALIZED, completed_at)
         chain_hash = gpu_ledger_chain_hash(self.artifacts)
         receipt = HeldOutCallArtifactReceipt(
             call_id=call.call_id,
@@ -2189,6 +2673,102 @@ class FrozenHeldOutSemanticExecutor:
             release_class=ReleaseClass.RESTRICTED,
             created_at=completed_at,
         )
+        projection_job = self.artifacts.ledger.create_or_resume_job(
+            {
+                "execution_id": self.call_manifest.manifest_id,
+                "call_id": f"{call.call_id}-projection-{query_stage_hash[:16]}",
+                "manifest_hash": self.call_manifest.content_hash,
+                "condition": ConditionName.C1_LLM_PRE.value,
+                "lifecycle_kind": "query_time_projection",
+                "source_prebuild_call_id": call.call_id,
+                "query_stage_hash": query_stage_hash,
+            },
+            release_class=ReleaseClass.RESTRICTED,
+            created_at=barrier.sealed_at,
+        )
+        self.artifacts.ledger.link_job_to_study(
+            study_id=self.call_manifest.manifest_id,
+            job_id=projection_job.job_id,
+            created_at=barrier.sealed_at,
+        )
+        self.artifacts.ledger.advance_job_lifecycle(
+            projection_job.job_id,
+            (
+                (JobState.PREQUERY_SEALED, barrier.sealed_at),
+                (JobState.QUERY_REVEALED, opening.query_access_event.accessed_at),
+                (JobState.GENERATED, completed_at),
+            ),
+        )
+        cpu_attempt_id = (
+            f"{self.call_manifest.manifest_id}-{call.call_id}-"
+            f"projection-{query_stage_hash[:16]}"
+        )
+        self.artifacts.ledger.record_attempt(
+            attempt_id=cpu_attempt_id,
+            job_id=projection_job.job_id,
+            attempt_kind=AttemptKind.BASE,
+            input_hash=canonical_sha256(
+                {
+                    "sealed_preontology": preontology.content_hash,
+                    "packet": packet.content_hash,
+                    "context": opening.query_context.content_hash,
+                }
+            ),
+            config_hash=config.content_hash,
+            seed=call.vllm_seed,
+            created_at=started_at,
+        )
+        diagnostic = self.artifacts.put_bytes(
+            (
+                canonical_json(
+                    {
+                        "accepted": True,
+                        "assessment_scope": "runtime_structural_only",
+                        "projection_hash": projection.content_hash,
+                        "source_prebuild_call_id": call.call_id,
+                    }
+                )
+                + "\n"
+            ).encode("utf-8"),
+            media_type=_media_type("structural_validation_diagnostic"),
+            release_class=ReleaseClass.RESTRICTED,
+            created_at=completed_at,
+        )
+        validation_id = f"{cpu_attempt_id}-validation"
+        self.artifacts.ledger.record_validation(
+            validation_id=validation_id,
+            job_id=projection_job.job_id,
+            attempt_id=cpu_attempt_id,
+            input_artifact_hash=artifact.content_hash,
+            validator_manifest_hash=self.validator_hash,
+            validation_status=LedgerValidationStatus.ACCEPTED,
+            evidence_support_status=LedgerEvidenceSupportStatus.NOT_APPLICABLE,
+            temporal_status=LedgerTemporalValidationStatus.NOT_APPLICABLE,
+            commitment_status=LedgerCommitmentCheckStatus.NOT_APPLICABLE,
+            semantic_assessment_scope=(
+                LedgerSemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED
+            ),
+            diagnostics_artifact_hash=diagnostic.content_hash,
+            created_at=completed_at,
+        )
+        snapshot_id, packet_input_id = self._register_projection_inputs(inputs=inputs)
+        self.artifacts.ledger.record_projection(
+            projection_id=f"{cpu_attempt_id}-projection",
+            job_id=projection_job.job_id,
+            validation_id=validation_id,
+            snapshot_id=snapshot_id,
+            packet_input_id=packet_input_id,
+            condition_id=ConditionName.C1_LLM_PRE.value,
+            context_hash=inputs.context.content_hash,
+            upper_ontology_hash=inputs.upper_ontology.content_hash,
+            construction_certificate_hash=construction_seal_hash,
+            projection_artifact_hash=artifact.content_hash,
+            projection_semantic_hash=projection.content_hash,
+            release_class=ReleaseClass.RESTRICTED,
+            finalized_at=completed_at,
+        )
+        self._advance_state(projection_job.job_id, JobState.VALIDATED, completed_at)
+        self._advance_state(projection_job.job_id, JobState.FINALIZED, completed_at)
         return PreconstructedProjectionReceipt(
             unit_id=unit.unit_id,
             query_stage_hash=query_stage_hash,

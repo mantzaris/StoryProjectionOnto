@@ -82,6 +82,20 @@ def projection_is_structurally_valid(projection: OntologyProjection) -> bool:
     )
 
 
+def projection_is_content_bearing(projection: OntologyProjection) -> bool:
+    """Return whether the projection contains at least one entity/event graph node.
+
+    The registered analysis treats node-empty output as semantic failure even when its
+    serialization and structural-validation envelope are well formed.  Keeping this
+    predicate separate from structural validity prevents an empty response from earning
+    favorable entropy, community, or clutter values.
+    """
+
+    return bool(
+        projection.instance_graph.entities or projection.instance_graph.events
+    )
+
+
 def _object_payloads_and_anchors(
     projection: OntologyProjection,
 ) -> tuple[dict[str, object], dict[str, tuple[str, ...]]]:
@@ -495,6 +509,7 @@ __all__ = [
     "ProjectionMetricAdapter",
     "adapt_projection_for_metrics",
     "normalize_projection_decisions",
+    "projection_is_content_bearing",
     "projection_is_structurally_valid",
     "verify_normalized_decisions",
     "verify_projection_decisions",

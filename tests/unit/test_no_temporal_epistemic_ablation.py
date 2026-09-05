@@ -159,6 +159,7 @@ def test_ablation_normalization_adds_only_explicit_missing_sentinels() -> None:
         draft=normalized,
         upper_ontology=request.upper_ontology,
         evidence=request.packet.evidence,
+        horizon=request.context.spoiler_horizon,
         budgets=request.budgets,
         capabilities=ConstructionCapabilities.active_without_temporal_epistemic(),
     )
@@ -180,6 +181,7 @@ def test_ablation_validator_rejects_a_supplied_temporal_value_after_normalizatio
         draft=tampered,
         upper_ontology=request.upper_ontology,
         evidence=request.packet.evidence,
+        horizon=request.context.spoiler_horizon,
         budgets=request.budgets,
         capabilities=ConstructionCapabilities.active_without_temporal_epistemic(),
     )

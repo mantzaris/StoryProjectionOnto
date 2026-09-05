@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -9,6 +10,7 @@ from pydantic import ValidationError
 import story_projection_onto.contracts as contracts_module
 from story_projection_onto.contracts import (
     MODEL_VISIBLE_GENERIC_CONTEXT_FIELDS,
+    RUNTIME_STRUCTURAL_ONLY_DIAGNOSTIC,
     AbstractionLevel,
     ArtifactHashReference,
     BenchmarkSplit,
@@ -43,6 +45,7 @@ from story_projection_onto.contracts import (
     NarrativeCommitment,
     NodePosition,
     OntologyDecision,
+    OntologyDraft,
     OntologyProjection,
     OutputBudgets,
     ParentProjectionRef,
@@ -58,12 +61,14 @@ from story_projection_onto.contracts import (
     RunOutcome,
     RunResourceUsage,
     RunTiming,
+    SemanticAssessmentScope,
     SpoilerHorizon,
     StoryTime,
     TemporalDeterminationStatus,
     TemporalKind,
     TemporalScope,
     UpperOntology,
+    ValidatedGeneration,
     ValidationRecord,
     ValidationStatus,
     ValidityTime,
@@ -75,6 +80,8 @@ from story_projection_onto.contracts import (
     assert_public_release,
     canonical_json,
     canonical_sha256,
+    normalize_generation_metadata,
+    runtime_structural_acceptance_record,
     to_model_visible_context_for_condition,
     to_model_visible_packet,
     to_model_visible_query,
@@ -251,9 +258,10 @@ def test_model_visible_packet_is_an_allowlist() -> None:
     visible = to_model_visible_packet(packet).model_dump(mode="json")
     visible_evidence = visible["evidence"][0]
     assert "release_class" not in visible_evidence
-    assert "provenance" not in visible_evidence
-    assert "passage_id" not in visible_evidence
-    assert "text_hash" not in visible_evidence
+    assert visible_evidence["passage_id"] == evidence.passage_id
+    assert visible_evidence["text_hash"] == evidence.text_hash
+    assert visible_evidence["provenance"] == evidence.provenance.model_dump(mode="json")
+    assert visible_evidence["confidence"] == evidence.confidence
     assert visible["packet_hash"] == packet.content_hash
 
 
@@ -440,6 +448,33 @@ def test_c2_certificate_requires_post_reveal_nonselection_decision() -> None:
             pre_query_inventory_hash=inventory.content_hash,
         )
 
+    for audit_only_operator in (
+        ConstructionOperator.INCLUDE_EXCLUDE,
+        ConstructionOperator.RARE_PRESERVATION,
+    ):
+        with pytest.raises(
+            ValidationError,
+            match="decisions alone do not establish ontology construction",
+        ):
+            ConstructionCertificate(
+                certificate_id=f"certificate-{audit_only_operator.value}-only",
+                condition=ConditionName.C2_LLM_QUERY,
+                snapshot_hash=digest("snapshot"),
+                packet_hash=digest("packet"),
+                query_context_hash=digest("context"),
+                query_access_event_hash=digest("query-access"),
+                stage_manifest_hash=digest("stage-manifest"),
+                prequery_barrier_hash=digest("prequery-barrier"),
+                generation_lineage_hash=digest("generation-lineage"),
+                raw_output_artifact_hash=digest("raw-output"),
+                normalized_draft_hash=digest("normalized-draft"),
+                validation_bundle_hash=digest("validation-bundle"),
+                query_revealed_at=NOW,
+                completed_at=NOW + timedelta(seconds=2),
+                decisions=(decision(audit_only_operator),),
+                pre_query_inventory_hash=inventory.content_hash,
+            )
+
 
 def test_fixed_select_certificate_rejects_every_constructive_operator() -> None:
     with pytest.raises(ValidationError, match="forbidden construction operators"):
@@ -470,15 +505,21 @@ def test_c2_projection_requires_inventory_certificate_and_enforces_budget() -> N
         recorded_at=NOW - timedelta(seconds=1),
     )
     construction_decision = decision()
-    validation = ValidationRecord(
+    validation = runtime_structural_acceptance_record(
         validation_id="validation-1",
-        target_id="projection-1",
-        validation_status=ValidationStatus.ACCEPTED,
-        evidence_support_status=EvidenceSupportStatus.SUPPORTED,
-        temporal_status=TemporalDeterminationStatus.VALID,
-        commitment_status=CommitmentCheckStatus.VALID,
+        target_id=digest("normalized-draft"),
         validated_at=NOW + timedelta(seconds=3),
     )
+    assert validation.diagnostics == (RUNTIME_STRUCTURAL_ONLY_DIAGNOSTIC,)
+    assert validation.semantic_assessment_scope is (
+        SemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED
+    )
+    unassessed_posthoc = validation.model_dump(mode="python", exclude={"content_hash"})
+    unassessed_posthoc["semantic_assessment_scope"] = (
+        SemanticAssessmentScope.POSTHOC_SCORER_OR_REVIEWER
+    )
+    with pytest.raises(ValidationError, match="at least one assessed semantic status"):
+        ValidationRecord.model_validate(unassessed_posthoc)
     validation_bundle_hash = canonical_sha256((validation,))
     certificate = ConstructionCertificate(
         certificate_id="certificate-1",
@@ -530,11 +571,195 @@ def test_c2_projection_requires_inventory_certificate_and_enforces_budget() -> N
     )
     assert projection.pre_query_inventory is not None
 
+    semantic_claim_payload = validation.model_dump(mode="python", exclude={"content_hash"})
+    semantic_claim_payload["evidence_support_status"] = EvidenceSupportStatus.SUPPORTED
+    with pytest.raises(ValidationError, match="unassessed semantic statuses"):
+        ValidationRecord.model_validate(semantic_claim_payload)
+    semantic_claim_payload["semantic_assessment_scope"] = (
+        SemanticAssessmentScope.POSTHOC_SCORER_OR_REVIEWER
+    )
+    semantic_claim = ValidationRecord.model_validate(semantic_claim_payload)
+    semantic_claim_hash = canonical_sha256((semantic_claim,))
+    projection_payload = projection.model_dump(
+        mode="python",
+        exclude={"content_hash", "construction_certificate"},
+    )
+    projection_payload["validation_records"] = (semantic_claim,)
+    projection_payload["validation_bundle_hash"] = semantic_claim_hash
+    certificate_payload = certificate.model_dump(mode="python", exclude={"content_hash"})
+    certificate_payload["validation_bundle_hash"] = semantic_claim_hash
+    projection_payload["construction_certificate"] = ConstructionCertificate.model_validate(
+        certificate_payload
+    )
+    with pytest.raises(ValidationError, match="cannot claim post-hoc semantic status"):
+        OntologyProjection.model_validate(projection_payload)
+
     payload = projection.model_dump(mode="python")
     payload["pre_query_inventory"] = None
     payload["content_hash"] = ""
     with pytest.raises(ValidationError, match="requires empty inventory"):
         OntologyProjection.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("validation_status", ValidationStatus.REJECTED),
+        ("evidence_support_status", EvidenceSupportStatus.SUPPORTED),
+        ("temporal_status", TemporalDeterminationStatus.VALID),
+        ("commitment_status", CommitmentCheckStatus.VALID),
+    ),
+)
+def test_validated_generation_requires_exact_structural_only_runtime_statuses(
+    field: str,
+    value: object,
+) -> None:
+    raw_draft = OntologyDraft.model_validate_json(
+        (
+            Path(__file__).resolve().parents[1]
+            / "fixtures"
+            / "phase1"
+            / "c1_pre_output.json"
+        ).read_text(encoding="utf-8")
+    )
+    decision_at = NOW + timedelta(seconds=1)
+    completed_at = NOW + timedelta(seconds=2)
+    validated_at = NOW + timedelta(seconds=3)
+    normalized = normalize_generation_metadata(
+        raw_draft,
+        decision_recorded_at=decision_at,
+        input_tokens=11,
+        output_tokens=22,
+    )
+    validation = runtime_structural_acceptance_record(
+        validation_id="validation-c1-structural",
+        target_id=normalized.content_hash,
+        validated_at=validated_at,
+    )
+    generation = ValidatedGeneration(
+        generation_id="generation-c1-structural",
+        condition=ConditionName.C1_LLM_PRE,
+        request_hash=digest("request"),
+        raw_output_artifact_hash=digest("raw-output"),
+        raw_parsed_draft=raw_draft,
+        draft=normalized,
+        normalized_draft_hash=normalized.content_hash,
+        stage_manifest_hash=digest("stage"),
+        packing_report_hash=digest("packing"),
+        capability_manifest_hash=digest("capability"),
+        seed_manifest_hash=digest("seed-manifest"),
+        prompt_hash=digest("prompt"),
+        output_schema_hash=digest("schema"),
+        decoding_manifest_hash=digest("decoding"),
+        validator_hash=digest("validator"),
+        model_stack_hash=digest("model-stack"),
+        seed=17,
+        input_tokens=11,
+        output_tokens=22,
+        generation_started_at=NOW,
+        generation_completed_at=completed_at,
+        decision_recorded_at=decision_at,
+        validation_records=(validation,),
+        validator_report_hashes=(digest("validator-report"),),
+        validated_at=validated_at,
+    )
+    assert generation.validation_records == (validation,)
+
+    status_payload = validation.model_dump(mode="python", exclude={"content_hash"})
+    status_payload[field] = value
+    if field != "validation_status":
+        with pytest.raises(ValidationError, match="unassessed semantic statuses"):
+            ValidationRecord.model_validate(status_payload)
+        return
+    status_record = ValidationRecord.model_validate(status_payload)
+    generation_payload = generation.model_dump(mode="python", exclude={"content_hash"})
+    generation_payload["validation_records"] = (status_record,)
+    with pytest.raises(
+        ValidationError,
+        match="accepted structural validation with semantic statuses not_applicable",
+    ):
+        ValidatedGeneration.model_validate(generation_payload)
+
+
+@pytest.mark.parametrize(
+    ("repair_attempt", "repair_parent_hash"),
+    (
+        (0, digest("unexpected-repair-parent")),
+        (1, None),
+    ),
+)
+def test_validation_record_requires_paired_repair_lineage(
+    repair_attempt: int,
+    repair_parent_hash: str | None,
+) -> None:
+    with pytest.raises(
+        ValidationError,
+        match="validation repair attempt and repair-parent hash disagree",
+    ):
+        runtime_structural_acceptance_record(
+            validation_id="validation-invalid-repair-lineage",
+            target_id=digest("normalized-draft"),
+            repair_attempt=repair_attempt,
+            repair_parent_hash=repair_parent_hash,
+            validated_at=NOW,
+        )
+
+
+def test_validated_generation_rejects_validation_record_repair_lineage_mismatch() -> None:
+    raw_draft = OntologyDraft.model_validate_json(
+        (
+            Path(__file__).resolve().parents[1]
+            / "fixtures"
+            / "phase1"
+            / "c1_pre_output.json"
+        ).read_text(encoding="utf-8")
+    )
+    decision_at = NOW + timedelta(seconds=1)
+    normalized = normalize_generation_metadata(
+        raw_draft,
+        decision_recorded_at=decision_at,
+        input_tokens=11,
+        output_tokens=22,
+    )
+    parent_hash = digest("first-raw-output")
+    repair_validation = runtime_structural_acceptance_record(
+        validation_id="validation-repair",
+        target_id=normalized.content_hash,
+        repair_parent_hash=parent_hash,
+        repair_attempt=1,
+        validated_at=NOW + timedelta(seconds=3),
+    )
+    with pytest.raises(
+        ValidationError,
+        match="validation record repair lineage differs from generation lineage",
+    ):
+        ValidatedGeneration(
+            generation_id="generation-mismatched-repair",
+            condition=ConditionName.C1_LLM_PRE,
+            request_hash=digest("request"),
+            raw_output_artifact_hash=digest("repair-raw-output"),
+            raw_parsed_draft=raw_draft,
+            draft=normalized,
+            normalized_draft_hash=normalized.content_hash,
+            stage_manifest_hash=digest("stage"),
+            packing_report_hash=digest("packing"),
+            capability_manifest_hash=digest("capability"),
+            seed_manifest_hash=digest("seed-manifest"),
+            prompt_hash=digest("prompt"),
+            output_schema_hash=digest("schema"),
+            decoding_manifest_hash=digest("decoding"),
+            validator_hash=digest("validator"),
+            model_stack_hash=digest("model-stack"),
+            seed=17,
+            input_tokens=11,
+            output_tokens=22,
+            generation_started_at=NOW,
+            generation_completed_at=NOW + timedelta(seconds=2),
+            decision_recorded_at=decision_at,
+            validation_records=(repair_validation,),
+            validator_report_hashes=(digest("validator-report"),),
+            validated_at=NOW + timedelta(seconds=3),
+        )
 
 
 def test_capability_sets_are_symmetric_or_mechanically_selection_only() -> None:

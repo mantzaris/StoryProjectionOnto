@@ -27,3 +27,6 @@ artifacts/quarantine/
 .env
 .runpod/
 
+# Recovered convenience aliases; canonical failed-attempt records are tracked.
+artifacts/public/results/phase1_gpu_acceptance.json
+artifacts/public/results/phase1_gpu_acceptance_v2.json

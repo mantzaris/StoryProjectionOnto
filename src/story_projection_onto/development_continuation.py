@@ -69,6 +69,7 @@ from story_projection_onto.development_adapter import (
     persist_opaque_json,
 )
 from story_projection_onto.development_artifacts import (
+    SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
     DevelopmentAssessmentBundle,
     DevelopmentCPUProjectionReceipt,
     DevelopmentForecastInventoryRow,
@@ -123,7 +124,9 @@ from story_projection_onto.store import (
     EvidenceSupportStatus,
     GpuEventKind,
     InputKind,
+    JobState,
     Ledger,
+    SemanticAssessmentScope,
     TemporalValidationStatus,
     ValidationStatus,
 )
@@ -151,6 +154,42 @@ _DEVELOPMENT_CLASSES = frozenset(
 
 class DevelopmentContinuationError(RuntimeError):
     """A frozen continuation input or durable artifact was inconsistent."""
+
+
+def _validate_recovery_service_start_binding(
+    *,
+    retry_amendment_sha256: str | None,
+    second_recovery_overlay_sha256: str | None,
+    recovery_service_start_event_ids: Sequence[str],
+) -> None:
+    """Keep ordinary and second-recovery lifecycle overlays disjoint."""
+
+    identifiers = tuple(recovery_service_start_event_ids)
+    hashes = (retry_amendment_sha256, second_recovery_overlay_sha256)
+    if any(
+        value is not None
+        and (
+            len(value) != 64
+            or any(character not in "0123456789abcdef" for character in value)
+        )
+        for value in hashes
+    ):
+        raise DevelopmentContinuationError("GPU recovery overlay hash is invalid")
+    if len(set(identifiers)) != len(identifiers):
+        raise DevelopmentContinuationError("GPU recovery service IDs must be unique")
+    if second_recovery_overlay_sha256 is not None:
+        if (
+            retry_amendment_sha256 is None
+            or identifiers != SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS
+        ):
+            raise DevelopmentContinuationError(
+                "second recovery requires the exact ordered v3+v4 service IDs"
+            )
+        return
+    if len(identifiers) > 1 or bool(identifiers) != bool(retry_amendment_sha256):
+        raise DevelopmentContinuationError(
+            "ordinary recovery permits at most one amendment-bound service ID"
+        )
 
 
 class PostRunAssessmentFactory(Protocol):
@@ -437,6 +476,7 @@ def build_development_forecast_receipt(
     manifest: DevelopmentCallManifest,
     clock: Callable[[], datetime],
     retry_amendment_sha256: str | None = None,
+    second_recovery_overlay_sha256: str | None = None,
     recovery_service_start_event_ids: Sequence[str] = (),
     scheduled_limit_seconds: float = 9 * 3600,
     hard_limit_seconds: float = 10 * 3600,
@@ -450,13 +490,13 @@ def build_development_forecast_receipt(
     rows = parsed.get("classes") if isinstance(parsed, dict) else None
     if not isinstance(rows, list):
         raise DevelopmentContinuationError("GPU call inventory is invalid")
-    recovery_ids = frozenset(recovery_service_start_event_ids)
-    if (
-        len(recovery_ids) != len(recovery_service_start_event_ids)
-        or len(recovery_ids) > 1
-        or bool(recovery_ids) != bool(retry_amendment_sha256)
-    ):
-        raise DevelopmentContinuationError("GPU recovery overlay is invalid")
+    ordered_recovery_ids = tuple(recovery_service_start_event_ids)
+    recovery_ids = frozenset(ordered_recovery_ids)
+    _validate_recovery_service_start_binding(
+        retry_amendment_sha256=retry_amendment_sha256,
+        second_recovery_overlay_sha256=second_recovery_overlay_sha256,
+        recovery_service_start_event_ids=ordered_recovery_ids,
+    )
     event_counts: Counter[str] = Counter()
     reserve_ids: set[str] = set()
     observed_recovery_ids: set[str] = set()
@@ -546,7 +586,8 @@ def build_development_forecast_receipt(
         hard_limit_seconds=hard_limit_seconds,
         inventory_rows=tuple(forecast_rows),
         retry_amendment_sha256=retry_amendment_sha256,
-        recovery_service_start_event_ids=tuple(sorted(recovery_ids)),
+        second_recovery_overlay_sha256=second_recovery_overlay_sha256,
+        recovery_service_start_event_ids=ordered_recovery_ids,
         authorized_additional_service_start_events=len(recovery_ids),
         effective_accounting_events=sum(item.registered_count for item in forecast_rows)
         + len(recovery_ids),
@@ -584,6 +625,7 @@ def build_c1_packing_preflight(
         semantic = build_c1_preconstruction_request(
             snapshot_hash=neutral.snapshot.content_hash,
             snapshot_sealed_at=neutral.snapshot.sealed_at,
+            sealed_horizon=neutral.snapshot.horizon,
             ordered_snapshot_evidence_ids=neutral.snapshot.eligible_evidence_ids,
             evidence=neutral.evidence,
             upper_ontology=construction.upper_ontology,
@@ -704,6 +746,7 @@ class ProductionDevelopmentContinuationAdopter:
     assessment_manifest_path: Path
     assessment_factory: PostRunAssessmentFactory
     retry_amendment_sha256: str | None = None
+    second_recovery_overlay_sha256: str | None = None
     recovery_service_start_event_ids: tuple[str, ...] = ()
     construction_path: Path | None = None
     classical_builder_loader: Callable[[Path], tuple[ClassicalPreBuilder, object]] = (
@@ -740,14 +783,11 @@ class ProductionDevelopmentContinuationAdopter:
             self.construction_path = self.root / DEFAULT_DEVELOPMENT_CONSTRUCTION_CONFIG
         else:
             self.construction_path = self.construction_path.resolve(strict=True)
-        if (
-            len(set(self.recovery_service_start_event_ids))
-            != len(self.recovery_service_start_event_ids)
-            or len(self.recovery_service_start_event_ids) > 1
-            or bool(self.recovery_service_start_event_ids)
-            != bool(self.retry_amendment_sha256)
-        ):
-            raise DevelopmentContinuationError("development GPU recovery overlay is invalid")
+        _validate_recovery_service_start_binding(
+            retry_amendment_sha256=self.retry_amendment_sha256,
+            second_recovery_overlay_sha256=self.second_recovery_overlay_sha256,
+            recovery_service_start_event_ids=self.recovery_service_start_event_ids,
+        )
 
     def registration(self) -> DevelopmentAdopterRegistration:
         manifest = load_development_call_manifest(self.root)
@@ -769,6 +809,9 @@ class ProductionDevelopmentContinuationAdopter:
                 ),
                 "gpu_inventory": manifest.gpu_call_inventory_file_sha256,
                 "retry_amendment_sha256": self.retry_amendment_sha256,
+                "second_recovery_overlay_sha256": (
+                    self.second_recovery_overlay_sha256
+                ),
                 "recovery_service_start_event_ids": list(
                     self.recovery_service_start_event_ids
                 ),
@@ -1402,6 +1445,7 @@ class ProductionDevelopmentContinuationAdopter:
             manifest=manifest,
             clock=self.clock,
             retry_amendment_sha256=self.retry_amendment_sha256,
+            second_recovery_overlay_sha256=self.second_recovery_overlay_sha256,
             recovery_service_start_event_ids=self.recovery_service_start_event_ids,
         )
         if not forecast_receipt.admitted:
@@ -1600,7 +1644,9 @@ class ProductionDevelopmentContinuationAdopter:
                         context=opening.context,
                         query_access=opening.access_event,
                         prequery_barrier=barrier,
-                        query_processing_started_at=opening.access_event.accessed_at,
+                        query_processing_started_at=_strictly_after(
+                            self.clock, opening.access_event.accessed_at
+                        ),
                         packet_materialization=materialized.event,
                         upper_ontology=repository.construction.upper_ontology,
                         run_config=config,
@@ -1660,14 +1706,24 @@ class ProductionDevelopmentContinuationAdopter:
                             "unit_id": unit_id,
                             "query_ordinal": query_ordinal,
                             "kind": "cpu_projection",
+                            "lifecycle_kind": "query_time_projection",
+                            "query_access_event_hash": opening.access_event.content_hash,
                         },
                         release_class=ReleaseClass.PUBLIC,
-                        created_at=created_at,
+                        created_at=barrier.sealed_at,
                     )
                     self.artifacts.ledger.link_job_to_study(
                         study_id=repository.execution_id,
                         job_id=job.job_id,
                         created_at=created_at,
+                    )
+                    self.artifacts.ledger.advance_job_lifecycle(
+                        job.job_id,
+                        (
+                            (JobState.PREQUERY_SEALED, barrier.sealed_at),
+                            (JobState.QUERY_REVEALED, opening.access_event.accessed_at),
+                            (JobState.GENERATED, created_at),
+                        ),
                     )
                     attempt_id = (
                         f"{repository.execution_id}-cpu-{condition.value}-"
@@ -1690,9 +1746,12 @@ class ProductionDevelopmentContinuationAdopter:
                         input_artifact_hash=projection_ref.artifact_hash,
                         validator_manifest_hash=config.validator_hash,
                         validation_status=ValidationStatus.ACCEPTED,
-                        evidence_support_status=EvidenceSupportStatus.SUPPORTED,
-                        temporal_status=TemporalValidationStatus.VALID,
-                        commitment_status=CommitmentCheckStatus.VALID,
+                        evidence_support_status=EvidenceSupportStatus.NOT_APPLICABLE,
+                        temporal_status=TemporalValidationStatus.NOT_APPLICABLE,
+                        commitment_status=CommitmentCheckStatus.NOT_APPLICABLE,
+                        semantic_assessment_scope=(
+                            SemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED
+                        ),
                         created_at=created_at,
                     )
                     ledger_projection_id = f"{attempt_id}-projection"
@@ -1712,8 +1771,19 @@ class ProductionDevelopmentContinuationAdopter:
                         upper_ontology_hash=inputs.upper_ontology.content_hash,
                         construction_certificate_hash=seal.content_hash,
                         projection_artifact_hash=projection_ref.artifact_hash,
+                        projection_semantic_hash=projection.content_hash,
                         release_class=ReleaseClass.PUBLIC,
                         finalized_at=created_at,
+                    )
+                    self.artifacts.ledger.advance_job_lifecycle(
+                        job.job_id,
+                        (
+                            (JobState.PREQUERY_SEALED, barrier.sealed_at),
+                            (JobState.QUERY_REVEALED, opening.access_event.accessed_at),
+                            (JobState.GENERATED, created_at),
+                            (JobState.VALIDATED, created_at),
+                            (JobState.FINALIZED, created_at),
+                        ),
                     )
                     receipt = DevelopmentCPUProjectionReceipt(
                         receipt_id=f"{attempt_id}-receipt",
@@ -1902,6 +1972,7 @@ def create_production_development_adopter(
     checkpoint_path: Path,
     assessment_factory: PostRunAssessmentFactory,
     retry_amendment_sha256: str | None = None,
+    second_recovery_overlay_sha256: str | None = None,
     recovery_service_start_event_ids: tuple[str, ...] = (),
 ) -> ProductionDevelopmentContinuationAdopter:
     """Create the registered adopter without starting or touching the model."""
@@ -1928,6 +1999,7 @@ def create_production_development_adopter(
         assessment_manifest_path=run_root / "development.assessment-input.json",
         assessment_factory=assessment_factory,
         retry_amendment_sha256=retry_amendment_sha256,
+        second_recovery_overlay_sha256=second_recovery_overlay_sha256,
         recovery_service_start_event_ids=recovery_service_start_event_ids,
     )
 

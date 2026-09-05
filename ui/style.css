@@ -52,6 +52,7 @@ h3 { color: #fff; }
 .status { margin: 0; color: var(--muted); font-size: 0.85rem; }
 .warning { color: var(--yellow); }
 .error { color: #ff9797; }
+.header-statuses { display: grid; gap: 0.35rem; text-align: right; }
 
 .toolbar,
 .revision-panel,
@@ -104,6 +105,8 @@ button:hover { filter: brightness(1.12); }
 #detail-panel dt { color: var(--muted); }
 #detail-panel dd { margin: 0; overflow-wrap: anywhere; }
 #detail-panel code { font-size: 0.7rem; }
+.semantic-unsupported { opacity: 0.58; }
+.semantic-insufficient { opacity: 0.72; }
 
 .evidence-link {
   min-height: 1.8rem;
@@ -151,6 +154,7 @@ footer { padding: 1.3rem 0 2.5rem; text-align: center; }
 
 @media (max-width: 650px) {
   .masthead { align-items: start; flex-direction: column; gap: 0.6rem; }
+  .header-statuses { text-align: left; }
   .toolbar, #revision-form { grid-template-columns: 1fr; }
   .graph-shell, #graph { min-height: 460px; }
 }

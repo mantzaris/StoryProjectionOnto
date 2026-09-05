@@ -31,6 +31,7 @@ from story_projection_onto.metrics.alignment import (
     PredictedNode,
     QualifiedAssertionSignature,
     TemporalExtentSignature,
+    audit_qualified_assertion_grounding,
     build_alignment_plan,
     score_alignment,
     score_ontology_decisions,
@@ -287,6 +288,55 @@ def test_strict_assertion_requires_essential_time_epistemic_and_valid_support() 
             valid_evidence_ids=(),
             grounding=GroundingStatus.SUPPORTED,
         )
+
+
+def test_grounding_audit_requires_exact_qualification_and_only_reviewed_support() -> None:
+    attributed = QualifiedAssertionSignature(
+        predicate="supports",
+        direction="forward",
+        subject_target_id="gold-node-alice",
+        object_target_id="gold-node-bob",
+        story_time=time_point(2),
+        validity_time=validity(2, 4),
+        epistemic=EpistemicSignature(
+            holder_target_id="gold-node-alice",
+            attitude="reported",
+            holder_relative_time=time_point(2),
+            narrative_commitment=NarrativeCommitment.HOLDER_ATTRIBUTED,
+        ),
+    )
+    assertions = (
+        predicted_assertion().model_copy(update={"prediction_id": "exact"}),
+        predicted_assertion(signature=world_signature(story_point=3)).model_copy(
+            update={"prediction_id": "wrong-time"}
+        ),
+        predicted_assertion(signature=attributed).model_copy(
+            update={"prediction_id": "wrong-holder-scope"}
+        ),
+        predicted_assertion(
+            evidence_ids=("evidence-1", "irrelevant-in-packet"),
+            valid_evidence_ids=("evidence-1", "irrelevant-in-packet"),
+        ).model_copy(update={"prediction_id": "extra-citation"}),
+        predicted_assertion(
+            evidence_ids=("evidence-1", "outside-packet"),
+            valid_evidence_ids=("evidence-1",),
+        ).model_copy(update={"prediction_id": "invalid-citation"}),
+    )
+
+    statuses = dict(
+        audit_qualified_assertion_grounding(
+            plan=plan(),
+            predicted_assertions=assertions,
+        )
+    )
+
+    assert statuses == {
+        "exact": GroundingStatus.SUPPORTED,
+        "extra-citation": GroundingStatus.UNSUPPORTED,
+        "invalid-citation": GroundingStatus.UNSUPPORTED,
+        "wrong-holder-scope": GroundingStatus.UNSUPPORTED,
+        "wrong-time": GroundingStatus.UNSUPPORTED,
+    }
 
 
 def test_explicit_permissible_alternative_can_match_without_relaxing_other_targets() -> None:

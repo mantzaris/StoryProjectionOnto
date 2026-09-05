@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0.0",
+  "taxonomy_id": "held-out-error-taxonomy-v1",
+  "codes": [
+    "evidence_retrieval_omission",
+    "over_merge",
+    "under_merge",
+    "wrong_schema_relation",
+    "event_boundary_role_error",
+    "story_discourse_revelation_confusion",
+    "epistemic_holder_commitment_error",
+    "causal_overclaim",
+    "unsupported_description",
+    "wrong_abstraction",
+    "rare_pivotal_loss",
+    "contrastive_collapse",
+    "paraphrase_instability",
+    "invalid_structure",
+    "renderer_hiding"
+  ]
+}

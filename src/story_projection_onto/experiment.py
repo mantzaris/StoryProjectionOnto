@@ -1164,6 +1164,38 @@ class AllocatedGPUMeter:
             self._last_observed_seconds = max(self._last_observed_seconds, observed)
             return observed
 
+    def recover_unclosed_allocations(
+        self,
+        *,
+        recovered_at: datetime,
+    ) -> tuple[GpuEvent, ...]:
+        """Terminalize controller-lost allocation intervals at one stop time.
+
+        A persistent guardian is intentionally constructed before the scientific
+        controller starts.  Its meter therefore cannot rely on ``__init__``'s
+        startup recovery to see journals opened later by that controller.  The
+        service owner calls this method only after physical process absence has
+        been established and before reconciling the encompassing service
+        interval.  Recovering the classified intervals first lets service
+        accounting store only their non-overlapping complement.
+        """
+
+        if recovered_at.tzinfo is None or recovered_at.utcoffset() is None:
+            raise ValueError("GPU allocation recovery time must be timezone-aware")
+        with self._accounting_lock:
+            recovered = self.ledger.recover_unclosed_gpu_allocations(recovered_at=recovered_at)
+            current = self.ledger.gpu_summary().total_allocated_seconds
+            if current + 1e-9 < self._last_observed_seconds:
+                raise GpuAccountingRegression(
+                    "GPU ledger total decreased after allocation-journal recovery"
+                )
+            self._last_observed_seconds = max(self._last_observed_seconds, current)
+        if current >= self.hard_limit_seconds:
+            raise GpuBudgetExceeded(
+                "recovered GPU allocation reached/crossed the strict hard-stop boundary"
+            )
+        return recovered
+
     def require_capacity(
         self,
         next_maximum_seconds: float,

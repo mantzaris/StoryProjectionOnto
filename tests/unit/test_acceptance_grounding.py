@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import sys
 from collections.abc import Mapping, Sequence
@@ -16,6 +17,9 @@ from story_projection_onto.contracts import (  # noqa: E402
     ConstructionRequest,
     OntologyDraft,
     PreconstructionRequest,
+)
+from story_projection_onto.llm import (  # noqa: E402
+    VLLM_XGRAMMAR_IGNORED_STRING_KEYWORDS,
 )
 from story_projection_onto.phase1_acceptance import (  # noqa: E402
     _condition_output_schema,
@@ -115,6 +119,51 @@ def _empty_enums(value: object) -> list[str]:
 
     visit(value, "")
     return paths
+
+
+def _ignored_string_keywords(value: object) -> list[str]:
+    paths: list[str] = []
+
+    def visit(item: object, path: str) -> None:
+        if isinstance(item, Mapping):
+            for key, child in item.items():
+                child_path = f"{path}.{key}" if path else str(key)
+                if key in VLLM_XGRAMMAR_IGNORED_STRING_KEYWORDS:
+                    paths.append(child_path)
+                visit(child, child_path)
+        elif isinstance(item, Sequence) and not isinstance(item, (str, bytes, bytearray)):
+            for index, child in enumerate(item):
+                visit(child, f"{path}[{index}]")
+
+    visit(value, "")
+    return paths
+
+
+def test_exact_phase1_c1_schema_gets_decoder_only_xgrammar_compatibility() -> None:
+    c1_call = next(call for call in phase1_acceptance_calls() if call.call_id == "c1-01")
+    base_schema = json.loads(
+        (REPOSITORY_ROOT / "schemas/jsonschema/ontology_draft.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    unchanged = copy.deepcopy(base_schema)
+    assert _ignored_string_keywords(base_schema)
+
+    constrained = _condition_output_schema(
+        base_schema,
+        call=c1_call,
+        fixture=load("c1_pre_request.json"),
+    )
+
+    assert base_schema == unchanged
+    assert _ignored_string_keywords(constrained) == []
+    assert constrained["$defs"]["BudgetAccounting"]["properties"]["input_tokens"] == {
+        "const": 0,
+        "type": "integer",
+    }
+    assert constrained["$defs"]["ConstructionOperator"]["enum"] == (
+        base_schema["$defs"]["ConstructionOperator"]["enum"]
+    )
 
 
 def test_fixed_select_schema_forbids_invention_when_sealed_category_is_empty() -> None:

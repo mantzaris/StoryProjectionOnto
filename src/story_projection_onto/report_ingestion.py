@@ -21,6 +21,9 @@ from typing import Annotated, Any, Literal, Self
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
+from story_projection_onto.contracts import (
+    canonical_sha256 as canonical_record_sha256,
+)
 from story_projection_onto.reporting import (
     REGISTERED_COMPLETE_TABLE_IDS,
     ReportingError,
@@ -82,7 +85,9 @@ class SourceArtifactSpec(FrozenModel):
         "manifest_sha256",
         "policy_sha256",
     ] = "none"
-    logical_hash_mode: Literal["none", "declared", "canonical_without_field"] = "none"
+    logical_hash_mode: Literal[
+        "none", "declared", "canonical_without_field", "immutable_record"
+    ] = "none"
     required_json_fields: tuple[Identifier, ...] = ()
     measurement_domains: tuple[MeasurementDomain, ...] = ()
 
@@ -93,6 +98,11 @@ class SourceArtifactSpec(FrozenModel):
             raise ValueError("logical hash field/value must either both be absent or both present")
         if no_logical_hash != (self.logical_hash_mode == "none"):
             raise ValueError("logical hash mode must agree with the logical hash field")
+        if (
+            self.logical_hash_mode == "immutable_record"
+            and self.logical_hash_field != "content_hash"
+        ):
+            raise ValueError("immutable-record hashing requires a content_hash field")
         if self.media_type != "application/json" and (
             self.logical_hash is not None or self.required_json_fields
         ):
@@ -400,6 +410,13 @@ def _verify_artifact(root: Path, spec: SourceArtifactSpec) -> VerifiedArtifact:
                     raise ReportingIngestionError(
                         f"predecessor canonical hash is invalid: {spec.artifact_id}"
                     )
+            elif (
+                spec.logical_hash_mode == "immutable_record"
+                and canonical_record_sha256(payload) != supplied
+            ):
+                raise ReportingIngestionError(
+                    f"predecessor immutable-record hash is invalid: {spec.artifact_id}"
+                )
     return VerifiedArtifact(
         artifact_id=spec.artifact_id,
         family=spec.family,

@@ -8,6 +8,7 @@ request can be admitted to the GPU runner.
 
 from __future__ import annotations
 
+import copy
 import hashlib
 from collections.abc import Iterable, Mapping, Sequence
 from datetime import datetime
@@ -77,6 +78,37 @@ CONSTRUCTIVE_CAPABILITIES = CONSTRUCTIVE_OPERATORS
 FIXED_SELECT_CAPABILITIES = FIXED_SELECT_ALLOWED_OPERATORS
 _ALL_CAPABILITIES = frozenset(ConstructionOperator)
 
+# vLLM 0.10.2's pinned XGrammar backend warns that these JSON Schema string
+# validation keywords are unsupported and ignores them while compiling a guided
+# grammar.  In xgrammar 0.1.23, sufficiently large schemas containing those
+# keywords can instead fail during the intermediate EBNF conversion.  They are
+# therefore removed only from the decoder-facing copy.  The canonical Pydantic
+# validation schema and post-generation validation remain unchanged.
+VLLM_XGRAMMAR_IGNORED_STRING_KEYWORDS = frozenset(
+    {"format", "maxLength", "minLength", "pattern"}
+)
+_JSON_SCHEMA_MAP_OF_SCHEMAS = frozenset(
+    {"$defs", "definitions", "dependentSchemas", "patternProperties", "properties"}
+)
+_JSON_SCHEMA_ARRAY_OF_SCHEMAS = frozenset(
+    {"allOf", "anyOf", "oneOf", "prefixItems"}
+)
+_JSON_SCHEMA_SINGLE_SCHEMA = frozenset(
+    {
+        "additionalProperties",
+        "contains",
+        "contentSchema",
+        "else",
+        "if",
+        "items",
+        "not",
+        "propertyNames",
+        "then",
+        "unevaluatedItems",
+        "unevaluatedProperties",
+    }
+)
+
 ABLATION_QUALIFICATION_REASON = (
     "qualification deliberately absent under A-NoTemporalEpistemic"
 )
@@ -104,6 +136,44 @@ def condition_output_model(
     return OntologyDraft
 
 
+def vllm_xgrammar_decoder_schema(
+    schema: Mapping[str, object],
+) -> dict[str, object]:
+    """Return a vLLM-0.10.2/XGrammar-compatible decoder-only schema copy.
+
+    The transform is deliberately narrow and recursive.  It removes only the
+    four string-validation keywords that the pinned backend documents at run
+    time as ignored.  Structural constraints, enums, constants, array bounds,
+    numeric bounds, and required/additional-property rules are preserved.  A
+    deep copy prevents the compatibility surface from weakening the canonical
+    schema used for deterministic validation after generation.
+    """
+
+    compatible = copy.deepcopy(dict(schema))
+
+    def strip_ignored_keywords(value: object) -> None:
+        if not isinstance(value, dict):
+            return
+        for keyword in VLLM_XGRAMMAR_IGNORED_STRING_KEYWORDS:
+            value.pop(keyword, None)
+        for keyword, child in value.items():
+            if keyword in _JSON_SCHEMA_MAP_OF_SCHEMAS and isinstance(child, dict):
+                for nested_schema in child.values():
+                    strip_ignored_keywords(nested_schema)
+            elif keyword in _JSON_SCHEMA_ARRAY_OF_SCHEMAS and isinstance(child, list):
+                for nested_schema in child:
+                    strip_ignored_keywords(nested_schema)
+            elif keyword in _JSON_SCHEMA_SINGLE_SCHEMA:
+                if isinstance(child, list):
+                    for nested_schema in child:
+                        strip_ignored_keywords(nested_schema)
+                else:
+                    strip_ignored_keywords(child)
+
+    strip_ignored_keywords(compatible)
+    return compatible
+
+
 def base_condition_output_schema(condition: ConditionName) -> dict[str, object]:
     """Generate the condition's base constrained-decoding schema.
 
@@ -123,7 +193,7 @@ def base_condition_output_schema(condition: ConditionName) -> dict[str, object]:
         raise ValueError("BudgetAccounting schema lacks properties")
     properties["input_tokens"] = {"const": 0, "type": "integer"}
     properties["output_tokens"] = {"const": 0, "type": "integer"}
-    return schema
+    return vllm_xgrammar_decoder_schema(schema)
 
 
 def render_condition_system_prompt(root: Path, condition: ConditionName) -> str:

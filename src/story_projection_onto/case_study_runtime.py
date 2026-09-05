@@ -98,13 +98,25 @@ def _safe_relative_path(value: str, *, label: str) -> None:
         raise ValueError(f"{label} must be a normalized bounded relative path")
 
 
+def _reject_symlink_ancestry(path: Path, *, label: str) -> Path:
+    """Return the absolute lexical path only when no existing ancestor is a link."""
+
+    lexical = Path(os.path.abspath(path))
+    probe = Path(lexical.anchor)
+    for component in lexical.parts[1:]:
+        probe /= component
+        if probe.is_symlink():
+            raise CaseStudyInputError(f"{label} cannot traverse a symbolic-link ancestor")
+    return lexical
+
+
 def _resolve_exact_restricted_file(path: Path, root: Path, *, label: str) -> Path:
     if not path.is_absolute() or not root.is_absolute():
         raise CaseStudyInputError(f"{label} and restricted root must be explicit")
     if ".." in path.parts:
         raise CaseStudyInputError(f"{label} cannot contain parent traversal")
-    if root.is_symlink() or path.is_symlink():
-        raise CaseStudyInputError(f"{label} cannot be reached through a symbolic-link endpoint")
+    lexical_root = _reject_symlink_ancestry(root, label="restricted root")
+    lexical_path = _reject_symlink_ancestry(path, label=label)
     try:
         resolved_root = root.resolve(strict=True)
         resolved = path.resolve(strict=True)
@@ -112,8 +124,6 @@ def _resolve_exact_restricted_file(path: Path, root: Path, *, label: str) -> Pat
         raise CaseStudyInputError(f"{label} is unavailable") from error
     if not resolved.is_file() or not resolved.is_relative_to(resolved_root):
         raise CaseStudyInputError(f"{label} must be a file inside the restricted root")
-    lexical_root = Path(os.path.abspath(root))
-    lexical_path = Path(os.path.abspath(path))
     try:
         relative = lexical_path.relative_to(lexical_root)
     except ValueError as error:
@@ -203,7 +213,7 @@ class CaseStudyInputAttestation(ImmutableRecord):
 
 
 class CaseStudyAdmissionAttestation(ImmutableRecord):
-    """Hash-only evidence that every authoritative pre-case gate passed."""
+    """Researcher signature over the typed, cross-linked pre-case gate bundle."""
 
     admission_id: Identifier
     synthetic_run_closure_hash: Sha256Digest
@@ -214,6 +224,10 @@ class CaseStudyAdmissionAttestation(ImmutableRecord):
     storage_preflight_hash: Sha256Digest
     gpu_schedule_admission_hash: Sha256Digest
     public_release_scan_hash: Sha256Digest
+    semantic_gate_bundle_hash: Sha256Digest
+    held_out_results_closure_hash: Sha256Digest
+    cumulative_ledger_sha256: Sha256Digest
+    gpu_event_inventory_hash: Sha256Digest
     selected_model_freeze_file_sha256: Sha256Digest
     selected_model_freeze_hash: Sha256Digest
     upper_ontology_hash: Sha256Digest
@@ -232,6 +246,392 @@ class CaseStudyAdmissionAttestation(ImmutableRecord):
     attested_by: str = Field(min_length=1)
     attested_at: AwareDatetime
     release_class: Literal[ReleaseClass.RESTRICTED] = ReleaseClass.RESTRICTED
+
+
+class CaseSyntheticClosureGate(ImmutableRecord):
+    """Semantic proof that the registered synthetic execution is terminal."""
+
+    gate_kind: Literal["synthetic_run_closure"] = "synthetic_run_closure"
+    study_id: Identifier
+    source_tree_sha256: Sha256Digest
+    selected_model_freeze_hash: Sha256Digest
+    held_out_execution_plan_hash: Sha256Digest
+    held_out_results_closure_hash: Sha256Digest
+    synthetic_benchmark_hash: Sha256Digest
+    output_receipt_inventory_hash: Sha256Digest
+    held_out_world_count: Literal[12] = 12
+    held_out_context_count: Literal[36] = 36
+    primary_conditions: tuple[
+        Literal[ConditionName.C0_CLASSICAL_PRE],
+        Literal[ConditionName.C1_LLM_PRE],
+        Literal[ConditionName.C2_LLM_QUERY],
+        Literal[ConditionName.A_FIXED_SELECT],
+    ] = (
+        ConditionName.C0_CLASSICAL_PRE,
+        ConditionName.C1_LLM_PRE,
+        ConditionName.C2_LLM_QUERY,
+        ConditionName.A_FIXED_SELECT,
+    )
+    llm_seed_count: Literal[2] = 2
+    all_registered_outputs_terminal: Literal[True] = True
+    intention_to_treat_complete: Literal[True] = True
+    completed_at: AwareDatetime
+    release_class: Literal[ReleaseClass.RESTRICTED] = ReleaseClass.RESTRICTED
+
+
+class CaseTimingLineageGate(ImmutableRecord):
+    """Semantic proof that recovered GPU allocation has one closed lineage."""
+
+    gate_kind: Literal["timing_lineage_audit"] = "timing_lineage_audit"
+    study_id: Identifier
+    source_tree_sha256: Sha256Digest
+    selected_model_freeze_hash: Sha256Digest
+    held_out_results_closure_hash: Sha256Digest
+    cumulative_ledger_sha256: Sha256Digest
+    gpu_event_inventory_hash: Sha256Digest
+    actual_allocated_gpu_seconds: float = Field(ge=0.0, lt=36_000.0)
+    unresolved_allocation_count: Literal[0] = 0
+    service_intervals_reconciled: Literal[True] = True
+    failures_and_repairs_included: Literal[True] = True
+    completed_at: AwareDatetime
+    release_class: Literal[ReleaseClass.RESTRICTED] = ReleaseClass.RESTRICTED
+
+
+class CaseGoldFirewallGate(ImmutableRecord):
+    """Semantic proof that scoring truth stayed outside every model-visible input."""
+
+    gate_kind: Literal["gold_firewall_audit"] = "gold_firewall_audit"
+    study_id: Identifier
+    source_tree_sha256: Sha256Digest
+    selected_model_freeze_hash: Sha256Digest
+    held_out_execution_plan_hash: Sha256Digest
+    held_out_results_closure_hash: Sha256Digest
+    synthetic_benchmark_hash: Sha256Digest
+    model_visible_payload_inventory_hash: Sha256Digest
+    scorer_only_inventory_hash: Sha256Digest
+    gold_firewall_passed: Literal[True] = True
+    equal_evidence_passed: Literal[True] = True
+    construction_timing_passed: Literal[True] = True
+    horizon_equality_passed: Literal[True] = True
+    completed_at: AwareDatetime
+    release_class: Literal[ReleaseClass.RESTRICTED] = ReleaseClass.RESTRICTED
+
+
+class CaseMetricRegenerationGate(ImmutableRecord):
+    """Semantic proof that all registered synthetic metrics were regenerated."""
+
+    gate_kind: Literal["registered_metric_regeneration"] = (
+        "registered_metric_regeneration"
+    )
+    study_id: Identifier
+    source_tree_sha256: Sha256Digest
+    selected_model_freeze_hash: Sha256Digest
+    held_out_results_closure_hash: Sha256Digest
+    synthetic_benchmark_hash: Sha256Digest
+    registered_analysis_manifest_hash: Sha256Digest
+    canonical_table_manifest_hash: Sha256Digest
+    independent_world_count: Literal[12] = 12
+    endpoint_families: tuple[
+        Literal["fidelity"],
+        Literal["rare_pivotal"],
+        Literal["entropy_clutter"],
+        Literal["community"],
+        Literal["paraphrase_contrastive"],
+        Literal["ablations"],
+        Literal["feedback"],
+    ] = (
+        "fidelity",
+        "rare_pivotal",
+        "entropy_clutter",
+        "community",
+        "paraphrase_contrastive",
+        "ablations",
+        "feedback",
+    )
+    all_registered_metrics_regenerated: Literal[True] = True
+    contexts_or_seeds_used_as_independent_units: Literal[False] = False
+    completed_at: AwareDatetime
+    release_class: Literal[ReleaseClass.RESTRICTED] = ReleaseClass.RESTRICTED
+
+
+class CaseBlindedErrorReviewGate(ImmutableRecord):
+    """Semantic proof that the post-run condition-blind error review closed."""
+
+    gate_kind: Literal["blinded_error_review"] = "blinded_error_review"
+    study_id: Identifier
+    source_tree_sha256: Sha256Digest
+    selected_model_freeze_hash: Sha256Digest
+    held_out_results_closure_hash: Sha256Digest
+    output_receipt_inventory_hash: Sha256Digest
+    frozen_selection_manifest_hash: Sha256Digest
+    condition_alias_manifest_hash: Sha256Digest
+    completed_response_hash: Sha256Digest
+    adjudication_hash: Sha256Digest
+    reviewed_unit_count: int = Field(gt=0)
+    condition_labels_concealed: Literal[True] = True
+    review_complete: Literal[True] = True
+    completed_at: AwareDatetime
+    release_class: Literal[ReleaseClass.RESTRICTED] = ReleaseClass.RESTRICTED
+
+
+class CaseStoragePreflightGate(ImmutableRecord):
+    """Semantic proof that the registered writable-storage envelope remains safe."""
+
+    gate_kind: Literal["storage_preflight"] = "storage_preflight"
+    study_id: Identifier
+    source_tree_sha256: Sha256Digest
+    selected_model_freeze_hash: Sha256Digest
+    cumulative_ledger_sha256: Sha256Digest
+    gpu_event_inventory_hash: Sha256Digest
+    occupied_bytes: int = Field(ge=0, le=25_000_000_000)
+    projected_occupied_bytes_after_case: int = Field(ge=0, le=25_000_000_000)
+    filesystem_free_bytes: int = Field(ge=5_000_000_000)
+    controlled_allocation_bytes: Literal[30_000_000_000] = 30_000_000_000
+    headroom_passed: Literal[True] = True
+    completed_at: AwareDatetime
+    release_class: Literal[ReleaseClass.RESTRICTED] = ReleaseClass.RESTRICTED
+
+
+class CaseGpuScheduleGate(ImmutableRecord):
+    """Semantic proof that the still-mandatory case block fits both GPU caps."""
+
+    gate_kind: Literal["gpu_schedule_admission"] = "gpu_schedule_admission"
+    study_id: Identifier
+    source_tree_sha256: Sha256Digest
+    selected_model_freeze_hash: Sha256Digest
+    cumulative_ledger_sha256: Sha256Digest
+    gpu_event_inventory_hash: Sha256Digest
+    actual_allocated_gpu_seconds: float = Field(ge=0.0, lt=36_000.0)
+    case_service_start_watchdog_seconds: Literal[300] = 300
+    case_base_watchdog_seconds: Literal[2310] = 2310
+    required_next_repair_seconds: Literal[240] = 240
+    projected_scheduled_gpu_seconds: float = Field(ge=0.0, le=32_400.0)
+    projected_hard_gpu_seconds: float = Field(ge=0.0, lt=36_000.0)
+    scheduled_limit_seconds: Literal[32400] = 32_400
+    hard_limit_seconds: Literal[36000] = 36_000
+    admitted: Literal[True] = True
+    completed_at: AwareDatetime
+    release_class: Literal[ReleaseClass.RESTRICTED] = ReleaseClass.RESTRICTED
+
+    @model_validator(mode="after")
+    def forecast_contains_the_exact_case_envelope(self) -> Self:
+        minimum = (
+            self.actual_allocated_gpu_seconds
+            + self.case_service_start_watchdog_seconds
+            + self.case_base_watchdog_seconds
+            + self.required_next_repair_seconds
+        )
+        if self.projected_scheduled_gpu_seconds + 1e-6 < minimum:
+            raise ValueError("GPU admission forecast omits part of the case envelope")
+        if abs(self.projected_hard_gpu_seconds - self.projected_scheduled_gpu_seconds) > 1e-6:
+            raise ValueError("scheduled and hard case forecasts must use the same inventory")
+        return self
+
+
+class CasePublicReleaseScanGate(ImmutableRecord):
+    """Semantic proof that the pre-case public candidate is non-reconstructive."""
+
+    gate_kind: Literal["public_release_scan"] = "public_release_scan"
+    study_id: Identifier
+    source_tree_sha256: Sha256Digest
+    selected_model_freeze_hash: Sha256Digest
+    canonical_table_manifest_hash: Sha256Digest
+    public_candidate_manifest_hash: Sha256Digest
+    release_scan_receipt_hash: Sha256Digest
+    protected_prose_hit_count: Literal[0] = 0
+    reconstructive_offset_hit_count: Literal[0] = 0
+    private_path_hit_count: Literal[0] = 0
+    restricted_artifact_hit_count: Literal[0] = 0
+    scan_passed: Literal[True] = True
+    completed_at: AwareDatetime
+    release_class: Literal[ReleaseClass.RESTRICTED] = ReleaseClass.RESTRICTED
+
+
+CASE_SEMANTIC_NATIVE_ARTIFACT_ROLES = frozenset(
+    {
+        "source_association",
+        "selected_model_freeze",
+        "synthetic_benchmark_manifest",
+        "synthetic_benchmark_config",
+        "held_out_results_gate",
+        "held_out_call_manifest",
+        "held_out_execution_manifest",
+        "held_out_scorer_bridge",
+        "phase4_analysis_index",
+        "phase4_table_manifest",
+        "combined_execution_index",
+        "combined_call_manifest",
+        "independent_review_completion",
+        "phase5_journal_index",
+        "phase5_source_manifest",
+        "phase5_known_answer_source",
+        "phase5_feedback_scoring_session",
+        "phase5_feedback_metrics",
+        "phase5_feedback_scoring_receipt",
+        "blinded_error_taxonomy",
+        "blinded_error_source_manifest",
+        "blinded_error_package",
+        "blinded_error_rejoin",
+        "blinded_error_completion",
+        "blinded_error_adjudication",
+        "blinded_error_finalization",
+        "blinded_error_table",
+        "blinded_community_rubric_template",
+        "blinded_community_source_manifest",
+        "blinded_community_package",
+        "blinded_community_rejoin",
+        "blinded_community_completion",
+        "blinded_community_finalization",
+        "blinded_community_table",
+        "gold_original_labels",
+        "gold_mutated_labels",
+        "gold_original_artifacts",
+        "gold_mutated_artifacts",
+        "gold_firewall_audit",
+        "public_release_allowlist",
+        "gpu_call_inventory",
+        "resource_limits",
+        "storage_allocation_plan",
+        "cumulative_ledger",
+    }
+)
+
+
+class CaseNativeGateArtifactReference(ImmutableRecord):
+    """Resolvable, byte-bound input consumed by semantic gate replay."""
+
+    role: Identifier
+    relative_path: str = Field(min_length=1, max_length=500)
+    file_sha256: Sha256Digest
+    logical_content_hash: Sha256Digest
+    release_class: Literal[ReleaseClass.RESTRICTED] = ReleaseClass.RESTRICTED
+
+    @model_validator(mode="after")
+    def path_is_bounded_and_portable(self) -> Self:
+        _safe_relative_path(self.relative_path, label="native gate artifact path")
+        return self
+
+
+class CaseStudySemanticAdmissionBundle(ImmutableRecord):
+    """Eight typed gates with exact shared scientific and accounting lineage."""
+
+    bundle_id: Identifier
+    synthetic_run_closure: CaseSyntheticClosureGate
+    timing_lineage_audit: CaseTimingLineageGate
+    gold_firewall_audit: CaseGoldFirewallGate
+    registered_metric_regeneration: CaseMetricRegenerationGate
+    blinded_error_review: CaseBlindedErrorReviewGate
+    storage_preflight: CaseStoragePreflightGate
+    gpu_schedule_admission: CaseGpuScheduleGate
+    public_release_scan: CasePublicReleaseScanGate
+    native_artifacts: tuple[CaseNativeGateArtifactReference, ...]
+    frozen_at: AwareDatetime
+    release_class: Literal[ReleaseClass.RESTRICTED] = ReleaseClass.RESTRICTED
+
+    @model_validator(mode="after")
+    def semantic_lineage_is_closed(self) -> Self:
+        gates = (
+            self.synthetic_run_closure,
+            self.timing_lineage_audit,
+            self.gold_firewall_audit,
+            self.registered_metric_regeneration,
+            self.blinded_error_review,
+            self.storage_preflight,
+            self.gpu_schedule_admission,
+            self.public_release_scan,
+        )
+        roles = tuple(item.role for item in self.native_artifacts)
+        if (
+            set(roles) != CASE_SEMANTIC_NATIVE_ARTIFACT_ROLES
+            or len(roles) != len(CASE_SEMANTIC_NATIVE_ARTIFACT_ROLES)
+        ):
+            raise ValueError("semantic admission lacks the exact native replay inventory")
+        if len({item.study_id for item in gates}) != 1:
+            raise ValueError("case admission gates name different studies")
+        if len({item.selected_model_freeze_hash for item in gates}) != 1:
+            raise ValueError("case admission gates name different selected models")
+        closure = self.synthetic_run_closure
+        if {
+            self.timing_lineage_audit.held_out_results_closure_hash,
+            self.gold_firewall_audit.held_out_results_closure_hash,
+            self.registered_metric_regeneration.held_out_results_closure_hash,
+            self.blinded_error_review.held_out_results_closure_hash,
+        } != {closure.held_out_results_closure_hash}:
+            raise ValueError("case admission gates do not share the held-out closure")
+        if self.blinded_error_review.output_receipt_inventory_hash != (
+            closure.output_receipt_inventory_hash
+        ):
+            raise ValueError("blinded review covers another output inventory")
+        if {
+            self.gold_firewall_audit.held_out_execution_plan_hash,
+            closure.held_out_execution_plan_hash,
+        } != {closure.held_out_execution_plan_hash}:
+            raise ValueError("gold audit covers another held-out execution plan")
+        if {
+            self.gold_firewall_audit.synthetic_benchmark_hash,
+            self.registered_metric_regeneration.synthetic_benchmark_hash,
+            closure.synthetic_benchmark_hash,
+        } != {closure.synthetic_benchmark_hash}:
+            raise ValueError("case admission gates do not share the benchmark")
+        timing = self.timing_lineage_audit
+        accounting = (self.storage_preflight, self.gpu_schedule_admission)
+        if any(
+            item.cumulative_ledger_sha256 != timing.cumulative_ledger_sha256
+            or item.gpu_event_inventory_hash != timing.gpu_event_inventory_hash
+            for item in accounting
+        ):
+            raise ValueError("case admission resource gates use different ledger snapshots")
+        if abs(
+            self.gpu_schedule_admission.actual_allocated_gpu_seconds
+            - timing.actual_allocated_gpu_seconds
+        ) > 1e-6:
+            raise ValueError("case GPU admission uses a different allocated-time total")
+        if self.public_release_scan.canonical_table_manifest_hash != (
+            self.registered_metric_regeneration.canonical_table_manifest_hash
+        ):
+            raise ValueError("release scan does not cover the regenerated table lineage")
+        if any(item.completed_at > self.frozen_at for item in gates):
+            raise ValueError("semantic admission bundle predates a constituent gate")
+        return self
+
+
+def validate_case_study_semantic_admission(
+    admission: CaseStudyAdmissionAttestation,
+    bundle: CaseStudySemanticAdmissionBundle,
+) -> None:
+    """Bind the signed attestation to each typed gate and shared lineage."""
+
+    expected_hashes = {
+        "synthetic_run_closure_hash": bundle.synthetic_run_closure.content_hash,
+        "timing_lineage_audit_hash": bundle.timing_lineage_audit.content_hash,
+        "gold_firewall_audit_hash": bundle.gold_firewall_audit.content_hash,
+        "registered_metric_regeneration_hash": (
+            bundle.registered_metric_regeneration.content_hash
+        ),
+        "blinded_error_review_hash": bundle.blinded_error_review.content_hash,
+        "storage_preflight_hash": bundle.storage_preflight.content_hash,
+        "gpu_schedule_admission_hash": bundle.gpu_schedule_admission.content_hash,
+        "public_release_scan_hash": bundle.public_release_scan.content_hash,
+    }
+    mismatches = tuple(
+        name for name, expected in expected_hashes.items() if getattr(admission, name) != expected
+    )
+    if mismatches:
+        raise CaseStudyInputError(
+            "semantic gate hashes differ from admission: " + ", ".join(mismatches)
+        )
+    closure = bundle.synthetic_run_closure
+    timing = bundle.timing_lineage_audit
+    if (
+        admission.semantic_gate_bundle_hash != bundle.content_hash
+        or admission.held_out_results_closure_hash != closure.held_out_results_closure_hash
+        or admission.cumulative_ledger_sha256 != timing.cumulative_ledger_sha256
+        or admission.gpu_event_inventory_hash != timing.gpu_event_inventory_hash
+        or admission.selected_model_freeze_hash != closure.selected_model_freeze_hash
+    ):
+        raise CaseStudyInputError("semantic admission cross-lineage differs from attestation")
+    if admission.attested_at < bundle.frozen_at:
+        raise CaseStudyInputError("case admission attestation predates its semantic gates")
 
 
 @dataclass(frozen=True, slots=True)
@@ -654,6 +1054,7 @@ class CaseStudyExecutionPlan(ImmutableRecord):
     input_attestation_hash: Sha256Digest
     input_attestation_file_sha256: Sha256Digest
     admission_attestation_hash: Sha256Digest
+    semantic_gate_bundle_hash: Sha256Digest
     restricted_index_manifest_hash: Sha256Digest
     restricted_index_manifest_file_sha256: Sha256Digest
     preregistration_hash: Sha256Digest
@@ -1174,6 +1575,7 @@ def compile_case_study_execution_plan(
         input_attestation_hash=loaded.attestation.content_hash,
         input_attestation_file_sha256=loaded.attestation_file_sha256,
         admission_attestation_hash=admission.content_hash,
+        semantic_gate_bundle_hash=admission.semantic_gate_bundle_hash,
         restricted_index_manifest_hash=loaded.manifest.content_hash,
         restricted_index_manifest_file_sha256=loaded.index_manifest_file_sha256,
         preregistration_hash=loaded.preregistration.content_hash,
@@ -2122,6 +2524,246 @@ class CaseStudyReviewInputTemplate(ImmutableRecord):
         return self
 
 
+class CaseReviewVerdict(StrEnum):
+    MEETS = "meets"
+    PARTIALLY_MEETS = "partially_meets"
+    DOES_NOT_MEET = "does_not_meet"
+    NOT_ASSESSABLE = "not_assessable"
+
+
+class CaseReviewRole(StrEnum):
+    PRIMARY_RESEARCHER = "primary_researcher"
+    SECOND_KNOWLEDGEABLE_READER = "second_knowledgeable_reader"
+
+
+class CaseDimensionJudgment(ImmutableRecord):
+    projection_job_id: Identifier
+    output_receipt_hash: Sha256Digest
+    condition: Literal[
+        ConditionName.C0_CLASSICAL_PRE,
+        ConditionName.C1_LLM_PRE,
+        ConditionName.C2_LLM_QUERY,
+    ]
+    dimension: CaseReviewDimension
+    verdict: CaseReviewVerdict
+
+
+class CaseDetailedMatchSummary(ImmutableRecord):
+    projection_job_id: Identifier
+    output_receipt_hash: Sha256Digest
+    condition: Literal[
+        ConditionName.C0_CLASSICAL_PRE,
+        ConditionName.C1_LLM_PRE,
+        ConditionName.C2_LLM_QUERY,
+    ]
+    reference_assertion_count: int = Field(ge=0)
+    output_assertion_count: int = Field(ge=0)
+    matched_assertion_count: int = Field(ge=0)
+    permissible_alternative_assertion_matches: int = Field(ge=0)
+    reference_event_count: int = Field(ge=0)
+    output_event_count: int = Field(ge=0)
+    matched_event_count: int = Field(ge=0)
+    permissible_alternative_event_matches: int = Field(ge=0)
+
+    @model_validator(mode="after")
+    def matching_counts_are_bounded(self) -> Self:
+        if self.matched_assertion_count > min(
+            self.reference_assertion_count, self.output_assertion_count
+        ):
+            raise ValueError("assertion matches exceed a review-side denominator")
+        if self.matched_event_count > min(
+            self.reference_event_count, self.output_event_count
+        ):
+            raise ValueError("event matches exceed a review-side denominator")
+        if self.permissible_alternative_assertion_matches > self.matched_assertion_count:
+            raise ValueError("permissible assertion alternatives exceed all matches")
+        if self.permissible_alternative_event_matches > self.matched_event_count:
+            raise ValueError("permissible event alternatives exceed all matches")
+        return self
+
+
+class CaseReviewerAssessment(ImmutableRecord):
+    reviewer_id: Identifier
+    role: CaseReviewRole
+    reviewed_at: AwareDatetime
+    judgments: tuple[CaseDimensionJudgment, ...]
+    detailed_matching: tuple[CaseDetailedMatchSummary, ...] = ()
+    judgments_supplied_by_named_human: Literal[True] = True
+    automatically_generated_judgments: Literal[False] = False
+    release_class: Literal[ReleaseClass.RESTRICTED] = ReleaseClass.RESTRICTED
+
+    @model_validator(mode="after")
+    def assessment_inventory_is_unique(self) -> Self:
+        judgment_keys = tuple(
+            (item.projection_job_id, item.dimension) for item in self.judgments
+        )
+        if len(self.judgments) != 15 or len(set(judgment_keys)) != 15:
+            raise ValueError("one case assessment requires 3 outputs by 5 dimensions")
+        detailed_jobs = tuple(item.projection_job_id for item in self.detailed_matching)
+        if len(detailed_jobs) not in {0, 3} or len(set(detailed_jobs)) != len(detailed_jobs):
+            raise ValueError("detailed matching must cover either zero or three outputs")
+        return self
+
+
+class CaseCompletedUnitReview(ImmutableRecord):
+    review_unit_id: Identifier
+    context_id: Identifier
+    window_id: Identifier
+    evidence_binding_hash: Sha256Digest
+    packet_equality_group_id: Identifier
+    required_output_job_ids: tuple[Identifier, Identifier, Identifier]
+    selected_for_paper_example: bool
+    primary: CaseReviewerAssessment
+    secondary: CaseReviewerAssessment | None = None
+    release_class: Literal[ReleaseClass.RESTRICTED] = ReleaseClass.RESTRICTED
+
+    @model_validator(mode="after")
+    def reviewer_roles_and_example_selection_agree(self) -> Self:
+        if self.primary.role is not CaseReviewRole.PRIMARY_RESEARCHER:
+            raise ValueError("every unit requires a primary researcher assessment")
+        if self.secondary is not None:
+            if self.secondary.role is not CaseReviewRole.SECOND_KNOWLEDGEABLE_READER:
+                raise ValueError("secondary assessment has the wrong reviewer role")
+            if self.secondary.reviewer_id == self.primary.reviewer_id:
+                raise ValueError("a second reader must be distinct from the primary reviewer")
+            if not self.selected_for_paper_example:
+                raise ValueError("second-reader review is limited to selected paper examples")
+        return self
+
+
+class CaseStudyCompletedReview(ImmutableRecord):
+    review_id: Identifier
+    execution_plan_hash: Sha256Digest
+    review_template_hash: Sha256Digest
+    terminal_resume_manifest_hash: Sha256Digest
+    bounded_output_receipt_hashes: tuple[Sha256Digest, ...]
+    units: tuple[
+        CaseCompletedUnitReview,
+        CaseCompletedUnitReview,
+        CaseCompletedUnitReview,
+        CaseCompletedUnitReview,
+        CaseCompletedUnitReview,
+        CaseCompletedUnitReview,
+        CaseCompletedUnitReview,
+        CaseCompletedUnitReview,
+    ]
+    primary_judgment_count: Literal[120] = 120
+    operational_output_excluded_from_bounded_review: Literal[True] = True
+    completed_at: AwareDatetime
+    release_class: Literal[ReleaseClass.RESTRICTED] = ReleaseClass.RESTRICTED
+
+    @model_validator(mode="after")
+    def completed_inventory_is_exact(self) -> Self:
+        if len(self.bounded_output_receipt_hashes) != 24 or len(
+            set(self.bounded_output_receipt_hashes)
+        ) != 24:
+            raise ValueError("completed case review requires 24 bounded ITT outputs")
+        if len({item.context_id for item in self.units}) != 8:
+            raise ValueError("completed case review requires eight distinct contexts")
+        assessments = tuple(
+            assessment
+            for unit in self.units
+            for assessment in (unit.primary, unit.secondary)
+            if assessment is not None
+        )
+        if any(item.reviewed_at > self.completed_at for item in assessments):
+            raise ValueError("completed review predates a reviewer assessment")
+        return self
+
+
+def validate_completed_case_study_review(
+    *,
+    plan: CaseStudyExecutionPlan,
+    resume: CaseStudyResumeManifest,
+    template: CaseStudyReviewInputTemplate,
+    review: CaseStudyCompletedReview,
+) -> None:
+    """Validate human review coverage against terminal, lineage-audited ITT outputs."""
+
+    status = audit_case_study_resume(plan, resume)
+    if not status.complete:
+        raise CaseStudyResumeError("case review requires all 25 terminal ITT outputs")
+    expected_template = compile_case_review_input_template(plan)
+    if template != expected_template:
+        raise CaseStudyResumeError("case review template differs from the frozen plan")
+    bounded = tuple(item for item in resume.output_receipts if not item.operational_only)
+    receipts = {item.projection_job_id: item for item in bounded}
+    if (
+        review.execution_plan_hash != plan.content_hash
+        or review.review_template_hash != template.content_hash
+        or review.terminal_resume_manifest_hash != resume.content_hash
+        or review.bounded_output_receipt_hashes
+        != tuple(item.content_hash for item in bounded)
+    ):
+        raise CaseStudyResumeError("completed case review has different plan/output lineage")
+    template_units = {item.context_id: item for item in template.units}
+    review_units = {item.context_id: item for item in review.units}
+    if set(review_units) != set(template_units):
+        raise CaseStudyResumeError("completed case review does not cover the frozen contexts")
+    latest_output = max(item.completed_at for item in bounded)
+    for context_id, unit in review_units.items():
+        expected = template_units[context_id]
+        if (
+            unit.review_unit_id != expected.review_unit_id
+            or unit.window_id != expected.window_id
+            or unit.evidence_binding_hash != expected.evidence_binding_hash
+            or unit.packet_equality_group_id != expected.packet_equality_group_id
+            or unit.required_output_job_ids != expected.required_output_job_ids
+        ):
+            raise CaseStudyResumeError("completed case review rewrites its blank unit")
+        for assessment in (unit.primary, unit.secondary):
+            if assessment is None:
+                continue
+            if assessment.reviewed_at <= latest_output:
+                raise CaseStudyResumeError("case reviewer assessment predates terminal outputs")
+            expected_pairs = {
+                (job_id, dimension)
+                for job_id in expected.required_output_job_ids
+                for dimension in CaseReviewDimension
+            }
+            observed_pairs = {
+                (item.projection_job_id, item.dimension) for item in assessment.judgments
+            }
+            if observed_pairs != expected_pairs:
+                raise CaseStudyResumeError("case assessment has incomplete dimension coverage")
+            for judgment in assessment.judgments:
+                receipt = receipts.get(judgment.projection_job_id)
+                if receipt is None or (
+                    judgment.output_receipt_hash != receipt.content_hash
+                    or judgment.condition is not receipt.condition
+                ):
+                    raise CaseStudyResumeError("case judgment cites another output")
+                if receipt.terminal_outcome is not RunOutcome.SUCCEEDED and (
+                    judgment.verdict is not CaseReviewVerdict.NOT_ASSESSABLE
+                ):
+                    raise CaseStudyResumeError("non-success ITT output must be not assessable")
+            detailed_expected = expected.detailed_matching is not None
+            if detailed_expected != bool(assessment.detailed_matching):
+                raise CaseStudyResumeError("case detailed matching differs from frozen coverage")
+            if detailed_expected:
+                detailed = {item.projection_job_id: item for item in assessment.detailed_matching}
+                if set(detailed) != set(expected.required_output_job_ids):
+                    raise CaseStudyResumeError("case detailed matching omits a condition")
+                for job_id, matching in detailed.items():
+                    receipt = receipts[job_id]
+                    if (
+                        matching.output_receipt_hash != receipt.content_hash
+                        or matching.condition is not receipt.condition
+                    ):
+                        raise CaseStudyResumeError("detailed matching cites another output")
+                    if receipt.terminal_outcome is not RunOutcome.SUCCEEDED and any(
+                        (
+                            matching.output_assertion_count,
+                            matching.matched_assertion_count,
+                            matching.output_event_count,
+                            matching.matched_event_count,
+                        )
+                    ):
+                        raise CaseStudyResumeError(
+                            "non-success detailed review cannot claim output-side objects"
+                        )
+
+
 def compile_case_review_input_template(
     plan: CaseStudyExecutionPlan,
 ) -> CaseStudyReviewInputTemplate:
@@ -2230,9 +2872,15 @@ def write_restricted_case_record(
     """Atomically create one restricted record without overwrite or path disclosure."""
 
     destination, _ = _resolve_restricted_destination(destination, restricted_root)
-    if destination.exists() or destination.is_symlink():
-        raise CaseStudyResumeError("refusing to overwrite a restricted case record")
     payload = canonical_json(record).encode("utf-8") + b"\n"
+    if destination.exists() or destination.is_symlink():
+        if (
+            destination.is_file()
+            and not destination.is_symlink()
+            and destination.read_bytes() == payload
+        ):
+            return
+        raise CaseStudyResumeError("refusing to overwrite a restricted case record")
     descriptor, temporary_name = tempfile.mkstemp(
         dir=destination.parent,
         prefix=f".{destination.name}.",
@@ -2245,10 +2893,29 @@ def write_restricted_case_record(
             stream.write(payload)
             stream.flush()
             os.fsync(stream.fileno())
-        temporary.replace(destination)
+        try:
+            os.link(temporary, destination)
+        except FileExistsError:
+            if (
+                destination.is_symlink()
+                or not destination.is_file()
+                or destination.read_bytes() != payload
+            ):
+                raise CaseStudyResumeError(
+                    "concurrent restricted record differs from the requested replay"
+                ) from None
+        directory_descriptor = os.open(
+            destination.parent,
+            os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
+        )
+        try:
+            os.fsync(directory_descriptor)
+        finally:
+            os.close(directory_descriptor)
     except BaseException:
-        temporary.unlink(missing_ok=True)
         raise
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def write_case_resume_manifest(
@@ -2284,6 +2951,36 @@ def load_case_study_admission_attestation(
         label="admission attestation",
     )
     return CaseStudyAdmissionAttestation.model_validate_json(resolved.read_bytes())
+
+
+def load_case_study_semantic_admission_bundle(
+    path: Path,
+    *,
+    restricted_root: Path,
+) -> CaseStudySemanticAdmissionBundle:
+    """Load one exact restricted typed-gate bundle."""
+
+    resolved = _resolve_exact_restricted_file(
+        path,
+        restricted_root,
+        label="semantic admission bundle",
+    )
+    return CaseStudySemanticAdmissionBundle.model_validate_json(resolved.read_bytes())
+
+
+def load_completed_case_study_review(
+    path: Path,
+    *,
+    restricted_root: Path,
+) -> CaseStudyCompletedReview:
+    """Load one exact restricted human-completed case review."""
+
+    resolved = _resolve_exact_restricted_file(
+        path,
+        restricted_root,
+        label="completed case review",
+    )
+    return CaseStudyCompletedReview.model_validate_json(resolved.read_bytes())
 
 
 def load_case_study_resume_manifest(
@@ -2406,6 +3103,7 @@ def case_study_runtime_contract_hashes() -> dict[str, str]:
         CaseStudyRuntimePolicy,
         CaseStudyInputAttestation,
         CaseStudyAdmissionAttestation,
+        CaseStudySemanticAdmissionBundle,
         CaseStudyExecutionPlan,
         CasePrequeryReceipt,
         CasePrequeryBarrierReceipt,
@@ -2413,6 +3111,7 @@ def case_study_runtime_contract_hashes() -> dict[str, str]:
         CaseOutputReceipt,
         CaseStudyResumeManifest,
         CaseStudyReviewInputTemplate,
+        CaseStudyCompletedReview,
         PublicCaseStudyProgress,
     )
     return {
@@ -2422,23 +3121,38 @@ def case_study_runtime_contract_hashes() -> dict[str, str]:
 
 
 __all__ = [
+    "CASE_SEMANTIC_NATIVE_ARTIFACT_ROLES",
     "AttestedRestrictedCaseStudy",
     "AttestedSelectedModelFreeze",
+    "CaseBlindedErrorReviewGate",
     "CaseC0PreparationEnvelope",
     "CaseC0ProjectionEnvelope",
     "CaseC1RequestEnvelope",
     "CaseC2RequestEnvelope",
+    "CaseCompletedUnitReview",
+    "CaseDetailedMatchSummary",
     "CaseDetailedMatchingInputTemplate",
+    "CaseDimensionJudgment",
+    "CaseGoldFirewallGate",
     "CaseGpuCallRole",
     "CaseGpuCallSlot",
+    "CaseGpuScheduleGate",
+    "CaseMetricRegenerationGate",
     "CaseModelRuntimeBinding",
+    "CaseNativeGateArtifactReference",
     "CaseOutputReceipt",
     "CasePrequeryBarrierReceipt",
     "CasePrequeryKind",
     "CasePrequeryReceipt",
+    "CasePublicReleaseScanGate",
     "CaseQueryAccessReceipt",
     "CaseReviewDimension",
+    "CaseReviewRole",
+    "CaseReviewVerdict",
+    "CaseReviewerAssessment",
+    "CaseStoragePreflightGate",
     "CaseStudyAdmissionAttestation",
+    "CaseStudyCompletedReview",
     "CaseStudyExecutionPlan",
     "CaseStudyInputAttestation",
     "CaseStudyInputError",
@@ -2448,6 +3162,9 @@ __all__ = [
     "CaseStudyResumeStatus",
     "CaseStudyReviewInputTemplate",
     "CaseStudyRuntimePolicy",
+    "CaseStudySemanticAdmissionBundle",
+    "CaseSyntheticClosureGate",
+    "CaseTimingLineageGate",
     "CaseUnitReviewInputTemplate",
     "CaseWindowExecutionPlan",
     "OperationalCaseExecutionPlan",
@@ -2466,6 +3183,10 @@ __all__ = [
     "load_case_study_admission_attestation",
     "load_case_study_execution_plan",
     "load_case_study_resume_manifest",
+    "load_case_study_semantic_admission_bundle",
+    "load_completed_case_study_review",
+    "validate_case_study_semantic_admission",
+    "validate_completed_case_study_review",
     "validate_resume_successor",
     "write_case_resume_manifest",
     "write_restricted_case_record",

@@ -10,6 +10,7 @@ from story_projection_onto.contracts import (
     AbstractionLevel,
     DiscoursePosition,
     Document,
+    EventCandidate,
     EvidencePacket,
     EvidenceRecord,
     LocalContextSchema,
@@ -20,6 +21,7 @@ from story_projection_onto.contracts import (
     RevelationPosition,
     RightsClass,
     SpoilerHorizon,
+    to_model_visible_evidence,
 )
 from story_projection_onto.evidence import (
     EvidenceBoundaryCategory,
@@ -84,6 +86,7 @@ def evidence(
     *,
     release_class: ReleaseClass = ReleaseClass.PUBLIC,
     mention_candidates: tuple[MentionCandidate, ...] = (),
+    event_candidates: tuple[EventCandidate, ...] = (),
 ) -> EvidenceRecord:
     evidence_id = f"evidence-{order}"
     text = f"Witness {order} records a provisional observation."
@@ -94,6 +97,7 @@ def evidence(
         text_hash=digest(text),
         discourse_position=DiscoursePosition(passage_order=order),
         mention_candidates=mention_candidates,
+        event_candidates=event_candidates,
         provenance=ProvenanceReference(
             provenance_id=f"provenance-{order}",
             evidence_id=evidence_id,
@@ -205,6 +209,47 @@ def test_boundary_accepts_defeasible_candidates_and_does_not_parse_story_text() 
     # Copyrighted or synthetic evidence can itself contain JSON-like prose; text
     # is content, not a metadata side channel.
     audit_prequery_evidence_boundary({"text": '{"entity_id":"words appearing in source evidence"}'})
+
+
+@pytest.mark.parametrize(
+    ("start_char", "end_char", "message"),
+    (
+        (1, 8, "do not resolve"),
+        (0, 10_000, "exceed"),
+    ),
+)
+def test_evidence_record_rejects_mentions_not_bound_to_its_exact_text_slice(
+    start_char: int,
+    end_char: int,
+    message: str,
+) -> None:
+    mention = MentionCandidate(
+        candidate_id="mention-bad-offset",
+        evidence_id="evidence-1",
+        start_char=start_char,
+        end_char=end_char,
+        surface="Witness",
+        surface_hash=digest("Witness"),
+    )
+
+    with pytest.raises(ValueError, match=message):
+        evidence(1, mention_candidates=(mention,))
+
+
+def test_evidence_record_rejects_unresolved_event_participant_mentions() -> None:
+    text = "Witness 1 records a provisional observation."
+    event = EventCandidate(
+        candidate_id="event-1",
+        evidence_id="evidence-1",
+        trigger_start_char=text.index("records"),
+        trigger_end_char=text.index("records") + len("records"),
+        trigger_surface="records",
+        participant_mention_candidate_ids=("missing-mention",),
+        confidence=0.9,
+    )
+
+    with pytest.raises(ValueError, match="must resolve within"):
+        evidence(1, event_candidates=(event,))
 
 
 def test_boundary_rejects_a_constructed_model_even_under_an_innocent_key() -> None:
@@ -393,14 +438,49 @@ def test_model_visible_serialization_is_canonical_and_strictly_allowlisted() -> 
         "release_class",
     }.intersection(packet_payload)
     for visible_record in packet_payload["evidence"]:
-        assert not {
+        assert {
             "passage_id",
             "text_hash",
             "provenance",
             "confidence",
-            "release_class",
-        }.intersection(visible_record)
+        }.issubset(visible_record)
+        assert "release_class" not in visible_record
+        source = next(
+            item for item in packet.evidence if item.evidence_id == visible_record["evidence_id"]
+        )
+        assert visible_record["passage_id"] == source.passage_id
+        assert visible_record["text_hash"] == source.text_hash
+        assert visible_record["confidence"] == source.confidence
+        assert visible_record["provenance"] == source.provenance.model_dump(mode="json")
     audit_prequery_evidence_boundary(packet_payload, namespace="test.model_visible")
+
+
+def test_live_model_visible_evidence_rejects_missing_source_artifact_hash() -> None:
+    source = evidence(1)
+    unbound = EvidenceRecord(
+        evidence_id=source.evidence_id,
+        passage_id=source.passage_id,
+        text=source.text,
+        text_hash=source.text_hash,
+        discourse_position=source.discourse_position,
+        mention_candidates=source.mention_candidates,
+        event_candidates=source.event_candidates,
+        relation_phrase_candidates=source.relation_phrase_candidates,
+        temporal_clues=source.temporal_clues,
+        provenance=ProvenanceReference(
+            provenance_id=source.provenance.provenance_id,
+            evidence_id=source.evidence_id,
+            extraction_method=source.provenance.extraction_method,
+            locator=source.provenance.locator,
+            source_artifact_hash=None,
+            confidence=source.provenance.confidence,
+        ),
+        confidence=source.confidence,
+        release_class=source.release_class,
+    )
+
+    with pytest.raises(ValueError, match="requires a source artifact hash"):
+        to_model_visible_evidence(unbound)
 
 
 def _reenvelope_packet(

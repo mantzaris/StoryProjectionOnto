@@ -48,6 +48,9 @@ gpu = [
 [project.scripts]
 story-projection-onto = "story_projection_onto.cli:main"
 
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/story_projection_onto"]
 

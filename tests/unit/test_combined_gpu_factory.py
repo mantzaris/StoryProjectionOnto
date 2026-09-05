@@ -14,7 +14,10 @@ from story_projection_onto.combined_gpu_factory import (
     _FrozenCombinedLifecycleOwner,
     _FrozenCombinedOwnedService,
     _OrdinarySemanticCompletion,
+    _registered_combined_storage_preflights,
     _registered_repair_policy_hash,
+    _require_registered_combined_storage_preflights,
+    _require_registered_phase_five_transition_storage_preflight,
     _SemanticIntent,
 )
 from story_projection_onto.combined_gpu_production import (
@@ -25,16 +28,19 @@ from story_projection_onto.combined_gpu_production import (
 )
 from story_projection_onto.conditions.base import ConditionAttemptRecord
 from story_projection_onto.contracts import ReleaseClass, RunOutcome, canonical_sha256
+from story_projection_onto.held_out_execution import FrozenHeldOutSemanticExecutor
 from story_projection_onto.store import (
     ArtifactStore,
     AttemptKind,
     BlobStore,
     Compression,
     GpuEventKind,
+    JobState,
     Ledger,
     ModelBackend,
     ModelCallRole,
     RetryClass,
+    StoragePreflight,
 )
 from tests.unit.test_combined_gpu_block import combined_fixture, digest
 from tests.unit.test_combined_gpu_production import _prepared
@@ -55,6 +61,28 @@ def _activation_slot():
         remaining_registered_p95_seconds_before=10_000.0,
         created_at=manifest.created_at,
     )
+
+
+def _validation_helper(
+    artifacts: ArtifactStore,
+    *,
+    validator_hash: str,
+) -> SimpleNamespace:
+    """Bind real canonical validation/lifecycle methods to a small test shim."""
+
+    helper = SimpleNamespace(artifacts=artifacts, validator_hash=validator_hash)
+    helper._advance_state = lambda job_id, state, occurred_at: (  # type: ignore[attr-defined]
+        FrozenHeldOutSemanticExecutor._advance_state(
+            helper,
+            job_id,
+            state,
+            occurred_at,
+        )
+    )
+    helper._record_attempt_validation = lambda **kwargs: (  # type: ignore[attr-defined]
+        FrozenHeldOutSemanticExecutor._record_attempt_validation(helper, **kwargs)
+    )
+    return helper
 
 
 def test_factory_recomputes_exact_registered_repair_policy_hash() -> None:
@@ -78,6 +106,172 @@ def test_factory_recomputes_exact_registered_repair_policy_hash() -> None:
             "validator_hash": validator_hash,
         }
     )
+
+
+def test_combined_factory_uses_distinct_registered_phase_four_and_five_reservations(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository = Path(__file__).resolve().parents[2]
+    storage = StoragePreflight(tmp_path)
+    original_check = storage.check
+    observed: list[dict[str, int]] = []
+    observed_phases: list[str] = []
+
+    registered_plan = factory.StorageAllocationPlan.load(
+        repository / "configs/study/storage_phase_allocations.json"
+    )
+
+    class _ObservedPlan:
+        def reservation_for(self, phase: str):
+            observed_phases.append(phase)
+            return registered_plan.reservation_for(phase)
+
+    class _ObservedPlanLoader:
+        @staticmethod
+        def load(path: Path):
+            assert path == repository / "configs/study/storage_phase_allocations.json"
+            return _ObservedPlan()
+
+    def capture_check(**arguments: int):
+        observed.append(dict(arguments))
+        return original_check(
+            **arguments,
+            current_occupied_bytes=0,
+            filesystem_free_bytes=30_000_000_000,
+        )
+
+    monkeypatch.setattr(storage, "check", capture_check)
+    monkeypatch.setattr(factory, "StorageAllocationPlan", _ObservedPlanLoader)
+
+    reports = _registered_combined_storage_preflights(
+        repository,
+        storage,
+    )
+
+    expected = {
+        "declared_growth_bytes": 500_000_000,
+        "largest_atomic_temporary_bytes": 134_217_728,
+        "quarantine_allowance_bytes": 134_217_728,
+        "release_staging_bytes": 268_435_456,
+    }
+    assert observed_phases == ["phase_4", "phase_5"]
+    assert tuple(phase for phase, _report in reports) == ("phase_4", "phase_5")
+    assert observed == [expected, expected]
+    assert all(
+        report.additional_reserved_bytes == sum(expected.values())
+        for _phase, report in reports
+    )
+
+
+def test_combined_factory_persists_both_storage_gates_before_rejecting(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository = Path(__file__).resolve().parents[2]
+    storage = StoragePreflight(tmp_path)
+    original_check = storage.check
+    call_count = 0
+
+    def second_phase_rejects(**arguments: int):
+        nonlocal call_count
+        call_count += 1
+        return original_check(
+            **arguments,
+            current_occupied_bytes=0 if call_count == 1 else 25_000_000_000,
+            filesystem_free_bytes=30_000_000_000,
+        )
+
+    monkeypatch.setattr(storage, "check", second_phase_rejects)
+
+    with Ledger(tmp_path / "study.sqlite3") as ledger:
+        with pytest.raises(CombinedFactoryError, match="storage preflight failed"):
+            _require_registered_combined_storage_preflights(
+                repository,
+                storage,
+                ledger,
+            )
+        phase_four = ledger.storage_samples_with_phase_prefix("phase_4:")
+        phase_five = ledger.storage_samples_with_phase_prefix("phase_5:")
+
+    assert call_count == 2
+    assert len(phase_four) == 1
+    assert phase_four[0].phase == "phase_4:combined_gpu_block:factory"
+    assert phase_four[0].allowed is True
+    assert len(phase_five) == 1
+    assert phase_five[0].phase == "phase_5:combined_gpu_block:factory"
+    assert phase_five[0].allowed is False
+
+
+def test_combined_phase_five_transition_rechecks_exact_registered_reservation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository = Path(__file__).resolve().parents[2]
+    storage = StoragePreflight(tmp_path)
+    original_check = storage.check
+    observed: list[dict[str, int]] = []
+
+    def capture_check(**arguments: int):
+        observed.append(dict(arguments))
+        return original_check(
+            **arguments,
+            current_occupied_bytes=0,
+            filesystem_free_bytes=30_000_000_000,
+        )
+
+    monkeypatch.setattr(storage, "check", capture_check)
+
+    with Ledger(tmp_path / "study.sqlite3") as ledger:
+        report = _require_registered_phase_five_transition_storage_preflight(
+            repository,
+            storage,
+            ledger,
+        )
+        samples = ledger.storage_samples_with_phase_prefix("phase_5:")
+
+    assert observed == [
+        {
+            "declared_growth_bytes": 500_000_000,
+            "largest_atomic_temporary_bytes": 134_217_728,
+            "quarantine_allowance_bytes": 134_217_728,
+            "release_staging_bytes": 268_435_456,
+        }
+    ]
+    assert report.allowed is True
+    assert len(samples) == 1
+    assert samples[0].phase == "phase_5:combined_gpu_block:transition"
+
+
+def test_combined_phase_five_transition_persists_rejection_before_stopping(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository = Path(__file__).resolve().parents[2]
+    storage = StoragePreflight(tmp_path)
+    original_check = storage.check
+    rejected = original_check(
+        current_occupied_bytes=25_000_000_000,
+        filesystem_free_bytes=30_000_000_000,
+        declared_growth_bytes=500_000_000,
+        largest_atomic_temporary_bytes=134_217_728,
+        quarantine_allowance_bytes=134_217_728,
+        release_staging_bytes=268_435_456,
+    )
+    monkeypatch.setattr(storage, "check", lambda **_arguments: rejected)
+
+    with Ledger(tmp_path / "study.sqlite3") as ledger:
+        with pytest.raises(CombinedFactoryError, match="Phase 5 storage preflight"):
+            _require_registered_phase_five_transition_storage_preflight(
+                repository,
+                storage,
+                ledger,
+            )
+        samples = ledger.storage_samples_with_phase_prefix("phase_5:")
+
+    assert len(samples) == 1
+    assert samples[0].phase == "phase_5:combined_gpu_block:transition"
+    assert samples[0].allowed is False
 
 
 class _LeaseRecoveryService:
@@ -183,6 +377,13 @@ def test_ordinary_terminal_failure_reconstructs_missing_completion_without_resen
         ),
         context=call.source.context,
         packet=SimpleNamespace(release_class=ReleaseClass.RESTRICTED),
+        prequery_barrier=SimpleNamespace(
+            sealed_at=manifest.created_at + timedelta(seconds=1)
+        ),
+        query_access=SimpleNamespace(
+            accessed_at=manifest.created_at
+            + timedelta(seconds=1, microseconds=1)
+        ),
     )
     guided = SimpleNamespace(
         request_hash=guided_hash,
@@ -208,6 +409,10 @@ def test_ordinary_terminal_failure_reconstructs_missing_completion_without_resen
     semantic.tokenizer = SimpleNamespace()
     semantic.tokenizer_manifest = SimpleNamespace()
     semantic.artifacts = artifacts
+    semantic.helper = _validation_helper(
+        artifacts,
+        validator_hash=runtime.validator_hash,
+    )
     semantic.state_root = tmp_path / "semantic"
     semantic.state_root.mkdir()
     identity = SimpleNamespace(content_hash=digest("terminal-row-service"))
@@ -294,6 +499,9 @@ def test_ordinary_terminal_failure_reconstructs_missing_completion_without_resen
         assert semantic._result_path(prepared.content_hash, "ordinary").is_file()
         assert artifacts.ledger.count_rows("model_calls") == 1
         assert artifacts.ledger.count_rows("gpu_events") == 1
+        assert artifacts.ledger.count_rows("validations") == 1
+        assert artifacts.ledger.count_rows("failures") == 1
+        assert artifacts.ledger.get_job(job.job_id).state is JobState.FINALIZED
     finally:
         artifacts.ledger.close()
 
@@ -488,6 +696,38 @@ def test_lifecycle_free_view_threads_exact_remaining_forecast_receipt() -> None:
     assert observed == [("ordinary", 321.25), ("phase5", 210.5)]
 
 
+def test_phase5_output_reference_reuses_existing_authoritative_cas_metadata(
+    tmp_path: Path,
+) -> None:
+    configuration, *_rest = combined_fixture()
+    artifacts = ArtifactStore(
+        BlobStore(tmp_path / "cas", compression=Compression.GZIP),
+        Ledger(tmp_path / "ledger.sqlite3"),
+    )
+    payload = (configuration.to_canonical_json() + "\n").encode("utf-8")
+    existing = artifacts.put_bytes(
+        payload,
+        media_type="application/vnd.story-projection.ontology-projection+json",
+        release_class=ReleaseClass.RESTRICTED,
+        created_at=_activation_slot().created_at,
+    )
+    semantic = object.__new__(_CombinedSemanticExecutor)
+    semantic.artifacts = artifacts
+    try:
+        reference = semantic._phase5_existing_record_reference(
+            configuration,
+            object_kind="phase5_after_projection",
+        )
+
+        assert reference.artifact_hash == existing.content_hash
+        assert reference.logical_content_hash == configuration.content_hash
+        assert reference.media_type == existing.media_type
+        assert reference.release_class is ReleaseClass.RESTRICTED
+        assert artifacts.ledger.get_artifact(existing.content_hash) == existing
+    finally:
+        artifacts.ledger.close()
+
+
 def test_semantic_generation_rejects_zero_remaining_forecast_before_gpu() -> None:
     semantic = object.__new__(_CombinedSemanticExecutor)
     with pytest.raises(CombinedFactoryError, match="nonzero remaining forecast"):
@@ -534,6 +774,12 @@ def test_invalid_terminal_base_recovery_makes_one_durable_repair_decision(
 
     class Inputs:
         run_config = base_config
+        prequery_barrier = SimpleNamespace(
+            sealed_at=manifest.created_at + timedelta(seconds=1)
+        )
+        query_access = SimpleNamespace(
+            accessed_at=manifest.created_at + timedelta(seconds=1)
+        )
 
         @staticmethod
         def model_dump(**_kwargs: object) -> dict[str, object]:
@@ -585,7 +831,10 @@ def test_invalid_terminal_base_recovery_makes_one_durable_repair_decision(
     semantic.state_root.mkdir()
     repair_trace = {"exists": False}
     persist_count = {"ordinary": 0, "phase5": 0}
+    fake_job_id = "TEST-ONLY-ledger-job"
     base = SimpleNamespace(
+        job_id=fake_job_id,
+        attempt_id=f"{semantic.run_id}-{call.call_id}-base",
         generated=SimpleNamespace(parsed_object={"nodes": []}),
         failure=None,
         raw_reference=SimpleNamespace(artifact_hash=digest("invalid-base-raw")),
@@ -595,6 +844,8 @@ def test_invalid_terminal_base_recovery_makes_one_durable_repair_decision(
         guided=base_guided,
     )
     repair = SimpleNamespace(
+        job_id=fake_job_id,
+        attempt_id=f"{semantic.run_id}-{call.call_id}-repair",
         generated=None,
         failure=RuntimeError("TEST-ONLY terminal repair failure"),
         raw_reference=None,
@@ -603,9 +854,29 @@ def test_invalid_terminal_base_recovery_makes_one_durable_repair_decision(
         semantic=repair_semantic,
         guided=repair_guided,
     )
+    validation_failures: set[str] = set()
+
+    def record_validation(**kwargs: object) -> str:
+        attempt = kwargs["attempt"]
+        if kwargs.get("error") is not None:
+            validation_failures.add(attempt.attempt_id)
+        return f"{attempt.attempt_id}-validation"
+
     semantic.helper = SimpleNamespace(
         _repair_request=lambda **_kwargs: (repair_semantic, repair_config),
         _repair_guided_request=lambda **_kwargs: repair_guided,
+        _record_attempt_validation=record_validation,
+        _advance_state=lambda *_args, **_kwargs: None,
+        _record_projection=lambda **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        artifacts.ledger,
+        "failures_for_lineage",
+        lambda attempt_id: (
+            (SimpleNamespace(attempt_id=attempt_id),)
+            if attempt_id in validation_failures
+            else ()
+        ),
     )
     semantic._attempt_trace_exists = lambda _call, suffix: (  # type: ignore[method-assign]
         suffix == "repair" and repair_trace["exists"]
@@ -618,12 +889,28 @@ def test_invalid_terminal_base_recovery_makes_one_durable_repair_decision(
         assert kwargs["repair"] is True
         persist_count["ordinary"] += 1
         repair_trace["exists"] = True
+        artifacts.ledger.record_gpu_event(
+            event_id=repair.event_id,
+            event_kind=GpuEventKind.REPAIR,
+            allocated_seconds=1.0,
+            started_at=started + timedelta(seconds=3),
+            ended_at=started + timedelta(seconds=4),
+            succeeded=False,
+        )
         return repair
 
     def persist_phase5(**kwargs: object) -> object:
         assert kwargs["repair"] is True
         persist_count["phase5"] += 1
         repair_trace["exists"] = True
+        artifacts.ledger.record_gpu_event(
+            event_id=repair.event_id,
+            event_kind=GpuEventKind.REPAIR,
+            allocated_seconds=1.0,
+            started_at=started + timedelta(seconds=3),
+            ended_at=started + timedelta(seconds=4),
+            succeeded=False,
+        )
         return repair
 
     semantic.helper._persist_attempt = persist_ordinary
@@ -701,7 +988,9 @@ def test_invalid_terminal_base_recovery_makes_one_durable_repair_decision(
             2 if reserve_available else 1
         )
         assert first.outcome is second.outcome
-        assert artifacts.ledger.count_rows("gpu_events") == 1
+        assert artifacts.ledger.count_rows("gpu_events") == (
+            2 if reserve_available else 1
+        )
     finally:
         artifacts.ledger.close()
 

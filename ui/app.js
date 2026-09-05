@@ -6,6 +6,7 @@
   const compareSelect = byId("compare-select");
   const detailPanel = byId("detail-panel");
   const assetStatus = byId("asset-status");
+  const semanticAssessmentStatus = byId("semantic-assessment-status");
   const revisionStatus = byId("revision-status");
   let cytoscapeAvailable = false;
   let cy = null;
@@ -14,6 +15,74 @@
   let currentDiff = null;
   let revisionSeedDecimal = null;
   let sequence = 1;
+  const pageParameters = new URLSearchParams(window.location.search);
+  const geometryCaptureMode = pageParameters.get("geometry_capture") === "1";
+  const requestedProjectionId = pageParameters.get("projection_id");
+  const frozenFontFamily = "system-ui,sans-serif";
+  const frozenFontBasePx = 14;
+
+  const roundedCoordinate = (value) => Math.round(Number(value) * 1000000) / 1000000;
+  const codeUnitCompare = (left, right) => (left < right ? -1 : left > right ? 1 : 0);
+  const coordinateKey = ({ x, y }) =>
+    `${roundedCoordinate(x).toFixed(6)}:${roundedCoordinate(y).toFixed(6)}`;
+  const stableCodeUnitHash = (value) => {
+    let result = 2166136261;
+    for (let index = 0; index < value.length; index += 1) {
+      result = Math.imul(result ^ value.charCodeAt(index), 16777619) >>> 0;
+    }
+    return result;
+  };
+  const hubId = (assertionId) => `render-hub:${assertionId}`;
+  const hubLabelId = (assertionId) => `render-label:${assertionId}:hub`;
+  const roleLabelId = (assertionId, index) =>
+    `render-label:${assertionId}:role:${index}`;
+
+  const naryHubPositions = (state) => {
+    const positions = new Map(
+      state.positions.map((item) => [
+        item.visualization_node_id,
+        { x: item.x, y: item.y },
+      ]),
+    );
+    const occupied = new Set([...positions.values()].map(coordinateKey));
+    const visibleAssertions = new Set(state.visible_assertion_ids);
+    const result = new Map();
+    const assertions = [...state.assertions].sort((left, right) =>
+      codeUnitCompare(left.visualization_assertion_id, right.visualization_assertion_id),
+    );
+    for (const assertion of assertions) {
+      if (!visibleAssertions.has(assertion.visualization_assertion_id) || !assertion.roles.length) {
+        continue;
+      }
+      const rolePositions = assertion.roles.map((role) => positions.get(role.object_id));
+      if (rolePositions.some((item) => !item)) {
+        throw new Error("n-ary renderer hub references an unpositioned role");
+      }
+      const centerX = rolePositions.reduce((total, item) => total + item.x, 0) /
+        rolePositions.length;
+      const centerY = rolePositions.reduce((total, item) => total + item.y, 0) /
+        rolePositions.length;
+      const identifierHash = stableCodeUnitHash(assertion.visualization_assertion_id);
+      let offsetX = identifierHash % 49 - 24;
+      const offsetY = Math.floor(identifierHash / 49) % 49 - 24;
+      if (offsetX === 0 && offsetY === 0) offsetX = 25;
+      let attempt = 0;
+      while (true) {
+        const candidate = {
+          x: roundedCoordinate(centerX + offsetX + attempt * 53),
+          y: roundedCoordinate(centerY + offsetY + attempt * 47),
+        };
+        const key = coordinateKey(candidate);
+        if (key !== "0.000000:0.000000" && !occupied.has(key)) {
+          occupied.add(key);
+          result.set(assertion.visualization_assertion_id, candidate);
+          break;
+        }
+        attempt += 1;
+      }
+    }
+    return result;
+  };
 
   const escapeHtml = (value) =>
     String(value ?? "")
@@ -101,6 +170,10 @@
     const node = bundle.state.nodes.find((item) => item.visualization_node_id === id);
     const detail = bundle.node_details.find((item) => item.visualization_node_id === id);
     if (!node || !detail) return;
+    const descriptionLabel =
+      detail.description_support_status === "supported"
+        ? "Projection description (verified)"
+        : "Projection-authored node description (not verified)";
     renderDetails(`
       <h3>${escapeHtml(node.contextual_label)}</h3>
       <dl>
@@ -112,9 +185,10 @@
         <dt>Confidence</dt><dd>${Number(node.confidence).toFixed(2)}</dd>
         <dt>Aliases</dt><dd>${escapeHtml(detail.aliases.join(", ") || "none")}</dd>
         <dt>Type definition</dt><dd>${escapeHtml(detail.contextual_type_definition)}</dd>
+        <dt>Description support</dt><dd>${escapeHtml(detail.description_support_status)}</dd>
         <dt>Stable anchor</dt><dd><code>${escapeHtml(detail.stable_anchor_id)}</code></dd>
       </dl>
-      <p>${escapeHtml(node.description)}</p>
+      <p><strong>${descriptionLabel}:</strong> ${escapeHtml(node.description)}</p>
       <p><strong>Evidence (${node.evidence_badge.count})</strong><br />${evidenceButtons(node.evidence_badge.evidence_ids)}</p>
     `);
     bindEvidenceButtons();
@@ -145,6 +219,19 @@
     const holderLabel = holderNode
       ? `${holderNode.contextual_label} (${assertion.epistemic_holder_id})`
       : assertion.epistemic_holder_id || "none";
+    const descriptionEvidenceLabel =
+      detail.description_support_status === "supported"
+        ? "Verified description evidence"
+        : detail.description_support_status === "pending"
+          ? "Projection-claimed description evidence (not verified)"
+          : "Description evidence";
+    const descriptionEvidence =
+      detail.description_support_status === "supported" ||
+      detail.description_support_status === "pending"
+        ? detail.why_matters_evidence_ids.length
+          ? evidenceButtons(detail.why_matters_evidence_ids)
+          : "none"
+        : "none verified";
     renderDetails(`
       <h3>${escapeHtml(assertion.contextual_label)}</h3>
       <dl>
@@ -163,10 +250,12 @@
         <dt>Uncertainty</dt><dd>${escapeHtml(assertion.uncertainty)}</dd>
         <dt>Confidence</dt><dd>${Number(assertion.confidence).toFixed(2)}</dd>
         <dt>Contextual relevance</dt><dd>${Number(detail.contextual_relevance).toFixed(2)}</dd>
+        <dt>Assertion support</dt><dd>${escapeHtml(detail.assertion_support_status)}</dd>
+        <dt>Description support</dt><dd>${escapeHtml(detail.description_support_status)}</dd>
         <dt>Provenance</dt><dd>${escapeHtml(provenance)}</dd>
       </dl>
-      <p><strong>Why it matters:</strong> ${escapeHtml(assertion.why_matters)}</p>
-      <p><strong>Why support:</strong><br />${evidenceButtons(detail.why_matters_evidence_ids)}</p>
+      <p><strong>${detail.description_support_status === "supported" ? "Why it matters (verified):" : "Projection-authored why-it-matters (not verified):"}</strong> ${escapeHtml(assertion.why_matters)}</p>
+      <p><strong>${descriptionEvidenceLabel}:</strong><br />${descriptionEvidence}</p>
       <p><strong>Evidence (${assertion.evidence_badge.count})</strong><br />${evidenceButtons(assertion.evidence_badge.evidence_ids)}</p>
     `);
     bindEvidenceButtons();
@@ -178,8 +267,12 @@
     const positions = new Map(
       bundle.state.positions.map((item) => [item.visualization_node_id, { x: item.x, y: item.y }]),
     );
+    const hubPositions = naryHubPositions(bundle.state);
     const details = new Map(
       bundle.node_details.map((item) => [item.visualization_node_id, item]),
+    );
+    const assertionDetails = new Map(
+      bundle.assertion_details.map((item) => [item.visualization_assertion_id, item]),
     );
     const classes = diffClasses();
     const elements = [];
@@ -194,14 +287,19 @@
           subtitle: `${detail.contextual_type_label} · ${node.contextual_role}`,
           confidence: node.confidence,
           evidenceCount: node.evidence_badge.count,
+          labelComponentId: node.projection_object_id,
+          labelSemanticId: node.projection_object_id,
         },
         position: positions.get(node.visualization_node_id),
-        classes: `${detail.object_kind} ${classes.get(node.visualization_node_id) || ""}`,
+        classes: `${detail.object_kind} semantic-${detail.description_support_status} ${classes.get(node.visualization_node_id) || ""}`,
       });
     }
     for (const assertion of bundle.state.assertions) {
       if (!visibleAssertions.has(assertion.visualization_assertion_id)) continue;
-      const edgeClass = `${assertion.epistemic_holder_id ? "epistemic" : ""} ${classes.get(assertion.visualization_assertion_id) || ""}`;
+      const assertionSupport = assertionDetails.get(
+        assertion.visualization_assertion_id,
+      )?.assertion_support_status || "pending";
+      const edgeClass = `${assertion.epistemic_holder_id ? "epistemic" : ""} semantic-${assertionSupport} ${classes.get(assertion.visualization_assertion_id) || ""}`;
       const epistemicStatus = assertion.epistemic_holder_id
         ? `${assertion.epistemic_attitude}@${assertion.epistemic_holder_id}`
         : `${assertion.uncertainty} · c=${Number(assertion.confidence).toFixed(2)}`;
@@ -215,14 +313,26 @@
             label: `${assertion.contextual_label} · ${temporalLabel(assertion.temporal_scope.validity_time)} · ${epistemicStatus} · E${assertion.evidence_badge.count}`,
             confidence: assertion.confidence,
             evidenceCount: assertion.evidence_badge.count,
+            semanticId: assertion.visualization_assertion_id,
+            labelComponentId: assertion.projection_assertion_id,
+            labelSemanticId: assertion.projection_assertion_id,
           },
           classes: edgeClass,
         });
       } else {
-        const hubId = `render-hub:${assertion.visualization_assertion_id}`;
+        const assertionHubId = hubId(assertion.visualization_assertion_id);
         elements.push({
           group: "nodes",
-          data: { id: hubId, label: assertion.contextual_label, rendererOnly: true },
+          data: {
+            id: assertionHubId,
+            semanticId: assertion.visualization_assertion_id,
+            assertionId: assertion.visualization_assertion_id,
+            label: assertion.contextual_label,
+            labelComponentId: hubLabelId(assertion.visualization_assertion_id),
+            labelSemanticId: assertion.projection_assertion_id,
+            rendererOnly: true,
+          },
+          position: hubPositions.get(assertion.visualization_assertion_id),
           classes: `assertion-hub ${edgeClass}`,
         });
         assertion.roles.forEach((role, index) => {
@@ -231,9 +341,12 @@
             data: {
               id: `render-role:${assertion.visualization_assertion_id}:${index}`,
               assertionId: assertion.visualization_assertion_id,
-              source: hubId,
+              semanticId: assertion.visualization_assertion_id,
+              source: assertionHubId,
               target: role.object_id,
               label: role.role,
+              labelComponentId: roleLabelId(assertion.visualization_assertion_id, index),
+              labelSemanticId: assertion.projection_assertion_id,
             },
             classes: `role-edge ${edgeClass}`,
           });
@@ -257,6 +370,7 @@
           { x: item.x, y: item.y },
         ]),
       );
+      const comparisonHubPositions = naryHubPositions(comparisonBundle.state);
       const comparisonDetails = new Map(
         comparisonBundle.node_details.map((item) => [item.visualization_node_id, item]),
       );
@@ -314,6 +428,7 @@
               label: `Before: ${assertion.contextual_label}`,
               rendererOnly: true,
             },
+            position: comparisonHubPositions.get(assertion.visualization_assertion_id),
             classes: `assertion-hub ${classes}`,
           });
           assertion.roles.forEach((role, index) => {
@@ -339,10 +454,33 @@
   const renderGraph = () => {
     if (!currentBundle || !cytoscapeAvailable) return;
     if (cy) cy.destroy();
+    const graphContainer = byId("graph");
+    if (geometryCaptureMode) {
+      const { width, height } = currentBundle.state.viewport;
+      graphContainer.style.position = "fixed";
+      graphContainer.style.inset = "0 auto auto 0";
+      graphContainer.style.width = `${width}px`;
+      graphContainer.style.height = `${height}px`;
+      graphContainer.style.minHeight = `${height}px`;
+      graphContainer.style.zIndex = "10000";
+      graphContainer.style.background = "#081017";
+    }
+    const viewport = currentBundle.state.viewport;
+    const fixedPan = {
+      x: viewport.width / 2 - viewport.center_x * viewport.zoom,
+      y: viewport.height / 2 - viewport.center_y * viewport.zoom,
+    };
     cy = window.cytoscape({
-      container: byId("graph"),
+      container: graphContainer,
       elements: graphElements(currentBundle),
-      layout: { name: "preset", fit: true, padding: 48 },
+      layout: {
+        name: "preset",
+        fit: !geometryCaptureMode,
+        padding: geometryCaptureMode ? 0 : 48,
+      },
+      zoom: geometryCaptureMode ? viewport.zoom : undefined,
+      pan: geometryCaptureMode ? fixedPan : undefined,
+      pixelRatio: geometryCaptureMode ? 1 : "auto",
       minZoom: 0.2,
       maxZoom: 3,
       style: [
@@ -350,7 +488,10 @@
           selector: "node",
           style: {
             label: "data(label)",
-            "font-size": 12,
+            "font-family": frozenFontFamily,
+            "font-size": frozenFontBasePx,
+            "font-style": "normal",
+            "font-weight": "normal",
             "text-wrap": "wrap",
             "text-max-width": 150,
             "text-valign": "bottom",
@@ -365,7 +506,15 @@
         { selector: "node.event", style: { shape: "diamond", "background-color": "#d8904f" } },
         {
           selector: "node.assertion-hub",
-          style: { shape: "round-rectangle", width: 20, height: 20, "font-size": 10 },
+          style: {
+            shape: "round-rectangle",
+            width: 20,
+            height: 20,
+            "font-family": frozenFontFamily,
+            "font-size": frozenFontBasePx,
+            "font-style": "normal",
+            "font-weight": "normal",
+          },
         },
         {
           selector: "edge",
@@ -376,7 +525,10 @@
             "target-arrow-color": "#86a4b7",
             "target-arrow-shape": "triangle",
             "curve-style": "bezier",
-            "font-size": 10,
+            "font-family": frozenFontFamily,
+            "font-size": frozenFontBasePx,
+            "font-style": "normal",
+            "font-weight": "normal",
             "text-background-color": "#101b27",
             "text-background-opacity": 0.88,
             "text-background-padding": 3,
@@ -393,6 +545,11 @@
         { selector: ":selected", style: { "overlay-color": "#ffffff", "overlay-opacity": 0.12 } },
       ],
     });
+    if (geometryCaptureMode) {
+      cy.zoom(viewport.zoom);
+      cy.pan(fixedPan);
+      cy.resize();
+    }
     cy.on("tap", "node", (event) => {
       const id = event.target.id();
       const bundle = event.target.data("sourceBundle") === "comparison" ? comparisonBundle : currentBundle;
@@ -409,8 +566,232 @@
     });
   };
 
+  const renderedLabelRectangle = (element) => {
+    const box = element.renderedBoundingBox({
+      includeNodes: false,
+      includeEdges: false,
+      includeLabels: true,
+      includeOverlays: false,
+      includeShadows: false,
+    });
+    return {
+      left: roundedCoordinate(box.x1),
+      top: roundedCoordinate(box.y1),
+      right: roundedCoordinate(box.x2),
+      bottom: roundedCoordinate(box.y2),
+    };
+  };
+
+  const canonicalFontFamily = (value) =>
+    String(value).toLowerCase().replaceAll(" ", "").replaceAll('"', "").replaceAll("'", "");
+
+  const captureTypographyStyles = () => {
+    const probe = cy.add([
+      {
+        group: "nodes",
+        data: { id: "render-probe:node", label: "probe" },
+        position: { x: -10000, y: -10000 },
+      },
+      {
+        group: "nodes",
+        data: { id: "render-probe:hub", label: "probe" },
+        position: { x: -10020, y: -10020 },
+        classes: "assertion-hub",
+      },
+      {
+        group: "edges",
+        data: {
+          id: "render-probe:edge",
+          source: "render-probe:node",
+          target: "render-probe:hub",
+          label: "probe",
+        },
+      },
+    ]);
+    const effectiveStyle = (identifier, elementKind) => {
+      const element = cy.$id(identifier);
+      return {
+        element_kind: elementKind,
+        font_family: canonicalFontFamily(element.style("font-family")),
+        font_size_px: roundedCoordinate(parseFloat(element.style("font-size"))),
+        font_style: element.style("font-style"),
+        font_weight: element.style("font-weight"),
+      };
+    };
+    const styles = [
+      effectiveStyle("render-probe:edge", "edge"),
+      effectiveStyle("render-probe:hub", "hub"),
+      effectiveStyle("render-probe:node", "node"),
+    ];
+    probe.remove();
+    return styles;
+  };
+
+  const nextPaint = () =>
+    new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+  window.storyProjectionCaptureGeometry = async () => {
+    if (!geometryCaptureMode || !cy || !currentBundle) {
+      throw new Error("geometry capture is available only in the dedicated capture mode");
+    }
+    if (document.fonts?.ready) await document.fonts.ready;
+    await nextPaint();
+    cy.resize();
+    const typographyStyles = captureTypographyStyles();
+    await nextPaint();
+    const { state } = currentBundle;
+    const nodeByVisualizationId = new Map(
+      state.nodes.map((item) => [item.visualization_node_id, item]),
+    );
+    const assertionByVisualizationId = new Map(
+      state.assertions.map((item) => [item.visualization_assertion_id, item]),
+    );
+    const positions = [];
+    const rendererOnlyPositions = [];
+    const labelRectangles = [];
+    const labelSemanticIds = [];
+    for (const visualizationId of state.visible_node_ids) {
+      const semantic = nodeByVisualizationId.get(visualizationId);
+      const element = cy.$id(visualizationId);
+      if (!semantic || element.length !== 1 || !element.visible()) {
+        throw new Error(`visible semantic node is absent from renderer: ${visualizationId}`);
+      }
+      const position = element.renderedPosition();
+      positions.push([
+        semantic.projection_object_id,
+        { x: roundedCoordinate(position.x), y: roundedCoordinate(position.y) },
+      ]);
+      labelRectangles.push({
+        label_id: element.data("labelComponentId"),
+        ...renderedLabelRectangle(element),
+      });
+      labelSemanticIds.push([
+        element.data("labelComponentId"),
+        element.data("labelSemanticId"),
+      ]);
+    }
+    const interactiveAssertions = [];
+    for (const visualizationId of state.visible_assertion_ids) {
+      const semantic = assertionByVisualizationId.get(visualizationId);
+      if (!semantic) throw new Error(`unknown visual assertion: ${visualizationId}`);
+      const rendered = cy.elements().filter((element) => {
+        const semanticId =
+          element.data("semanticId") || element.data("assertionId") || element.id();
+        return semanticId === visualizationId && element.visible();
+      });
+      if (rendered.length === 0) {
+        throw new Error(`visible semantic assertion is absent from renderer: ${visualizationId}`);
+      }
+      const labeledElements = Array.from(rendered)
+        .filter((element) => Boolean(element.data("label")))
+        .sort((left, right) =>
+          codeUnitCompare(left.data("labelComponentId"), right.data("labelComponentId")),
+        );
+      if (labeledElements.length === 0) {
+        throw new Error(`visible semantic assertion has no rendered label: ${visualizationId}`);
+      }
+      for (const element of labeledElements) {
+        const componentId = element.data("labelComponentId");
+        const semanticId = element.data("labelSemanticId");
+        if (!componentId || semanticId !== semantic.projection_assertion_id) {
+          throw new Error(`renderer label binding drifted for: ${visualizationId}`);
+        }
+        labelRectangles.push({
+          label_id: componentId,
+          ...renderedLabelRectangle(element),
+        });
+        labelSemanticIds.push([componentId, semanticId]);
+      }
+      if (semantic.roles.length) {
+        const element = cy.$id(hubId(visualizationId));
+        if (element.length !== 1 || !element.visible()) {
+          throw new Error(`visible n-ary hub is absent from renderer: ${visualizationId}`);
+        }
+        const position = element.renderedPosition();
+        rendererOnlyPositions.push([
+          element.id(),
+          { x: roundedCoordinate(position.x), y: roundedCoordinate(position.y) },
+        ]);
+      }
+      interactiveAssertions.push(semantic.projection_assertion_id);
+    }
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+    context.font = `${frozenFontBasePx}px ${frozenFontFamily}`;
+    const fontProbeCss = context.font;
+    const fontProbeWidths = ["StoryProjectionOnto", "belief@holder", "WMWMiiii"]
+      .map((value) => roundedCoordinate(context.measureText(value).width));
+    const visibleSemanticIds = [
+      ...state.visible_node_ids.map(
+        (id) => nodeByVisualizationId.get(id).projection_object_id,
+      ),
+      ...state.visible_assertion_ids.map(
+        (id) => assertionByVisualizationId.get(id).projection_assertion_id,
+      ),
+    ].sort(codeUnitCompare);
+    return {
+      capture_protocol: "cytoscape-browser-geometry-v1",
+      projection_hash: currentBundle.projection_hash,
+      visualization_bundle_hash: currentBundle.content_hash,
+      visualization_state_hash: state.content_hash,
+      layout_config_hash: state.layout_config_hash,
+      style_config_hash: state.style_config_hash,
+      font_config_hash: state.font_config_hash,
+      viewport: state.viewport,
+      labels_visible: state.labels_visible,
+      temporal_filter_hash: state.temporal_filter.content_hash,
+      positions: positions.sort((left, right) => codeUnitCompare(left[0], right[0])),
+      renderer_only_positions: rendererOnlyPositions.sort((left, right) =>
+        codeUnitCompare(left[0], right[0]),
+      ),
+      label_rectangles: labelRectangles.sort((left, right) =>
+        codeUnitCompare(left.label_id, right.label_id),
+      ),
+      label_semantic_ids: labelSemanticIds.sort((left, right) =>
+        codeUnitCompare(left[0], right[0]),
+      ),
+      visible_semantic_ids: visibleSemanticIds,
+      interactive_assertion_ids: interactiveAssertions.sort(codeUnitCompare),
+      renderer_runtime: {
+        cytoscape_version: window.cytoscape.version,
+        user_agent: navigator.userAgent,
+        platform: navigator.platform || "unknown",
+        device_pixel_ratio: window.devicePixelRatio,
+        container_width: byId("graph").clientWidth,
+        container_height: byId("graph").clientHeight,
+        document_fonts_status: document.fonts?.status || "unavailable",
+        font_probe_available: document.fonts?.check(fontProbeCss) || false,
+        font_probe_css: fontProbeCss,
+        font_probe_widths: fontProbeWidths,
+        typography_styles: typographyStyles,
+      },
+    };
+  };
+
   const loadProjection = async (projectionId) => {
     currentBundle = await api(`/api/projections/${encodeURIComponent(projectionId)}`);
+    if (
+      ![
+        "pending_scorer_or_reviewer",
+        "verified_scorer_or_reviewer",
+      ].includes(currentBundle.semantic_assessment_status)
+    ) {
+      throw new Error("projection has an unrecognized or unbound semantic assessment status");
+    }
+    if (currentBundle.semantic_assessment_status === "pending_scorer_or_reviewer") {
+      semanticAssessmentStatus.textContent =
+        "Semantic support: pending scorer or reviewer assessment; graph shows structurally accepted output in its declared content scope";
+      semanticAssessmentStatus.classList.add("warning");
+    } else {
+      if (!currentBundle.semantic_overlay) {
+        throw new Error("verified semantic status lacks its bound assessment overlay");
+      }
+      const source = currentBundle.semantic_overlay.source_kind;
+      const mode = currentBundle.semantic_display_mode;
+      semanticAssessmentStatus.textContent =
+        `Semantic support: verified ${source} overlay; ${mode === "supported_only" ? "unsupported assertions are omitted and unverified descriptions are withheld" : "all selected output is retained and support status is disclosed"}`;
+      semanticAssessmentStatus.classList.remove("warning");
+    }
     comparisonBundle = null;
     currentDiff = null;
     const compareId = compareSelect.value;
@@ -578,7 +959,7 @@
         ? `Cytoscape.js ${health.cytoscape.version} verified locally`
         : "Cytoscape.js is not yet vendored and verified; see ui/README.md";
       assetStatus.classList.toggle("warning", !verified);
-      await initializeProjectionMenus();
+      await initializeProjectionMenus(requestedProjectionId);
     } catch (error) {
       assetStatus.textContent = error.message;
       assetStatus.classList.add("error");

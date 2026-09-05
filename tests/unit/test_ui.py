@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -9,20 +10,21 @@ from pydantic import ValidationError
 from story_projection_onto.contracts import (
     AbstractionLevel,
     BudgetAccounting,
-    CommitmentCheckStatus,
     ConditionName,
     ConstructionCertificate,
     ConstructionOperator,
     ConstructionSeal,
     DiscoursePosition,
     Entity,
+    EpistemicAttitude,
+    EpistemicScope,
     EvidencePacket,
     EvidenceRecord,
-    EvidenceSupportStatus,
     ExplicitValueState,
     FeedbackAction,
     FeedbackAnchor,
     FeedbackResolutionStatus,
+    HolderRelativeTime,
     InstanceGraph,
     LocalContextSchema,
     LocalPredicateDefinition,
@@ -33,6 +35,7 @@ from story_projection_onto.contracts import (
     OntologyProjection,
     OutputBudgets,
     PreQueryInventory,
+    PropositionContent,
     ProvenanceReference,
     QualifiedAssertion,
     QueryContext,
@@ -41,17 +44,19 @@ from story_projection_onto.contracts import (
     RevelationPosition,
     SpoilerHorizon,
     StoryTime,
-    TemporalDeterminationStatus,
     TemporalKind,
     TemporalScope,
     UpperOntology,
     ValidationRecord,
-    ValidationStatus,
     ValidityTime,
     VisualizationTemporalFilter,
     canonical_sha256,
+    projection_validation_target_hash,
+    runtime_structural_acceptance_record,
 )
 from story_projection_onto.ui import (
+    NODE_DESCRIPTION_WITHHELD,
+    WHY_MATTERS_WITHHELD,
     FeedbackEpisodeKind,
     FeedbackEpisodePlan,
     FeedbackReplayExpectation,
@@ -60,7 +65,15 @@ from story_projection_onto.ui import (
     MergeSplitOperation,
     RefineContextIntent,
     RevisionExecutionResult,
+    SemanticAssessmentSourceKind,
+    SemanticDisplayMode,
+    SemanticSupportStatus,
+    VisualizationAssertionSemanticAssessment,
     VisualizationChangeKind,
+    VisualizationCompilationError,
+    VisualizationContentScope,
+    VisualizationSemanticOverlay,
+    _structurally_accepted_assertion_ids,
     apply_context_refinement,
     assert_revision_anchors_resolve_in_packet,
     assert_revision_has_no_projection_local_anchors,
@@ -86,6 +99,7 @@ def provenance(evidence_id: str, order: int) -> ProvenanceReference:
         evidence_id=evidence_id,
         extraction_method="hand-authored synthetic fixture",
         locator=f"fixture:{order}",
+        source_artifact_hash=digest(f"fixture-source:{evidence_id}:{order}"),
         confidence=1.0,
     )
 
@@ -245,16 +259,10 @@ def entity(
     )
 
 
-def validation(assertion_id: str, *, supported: bool = True) -> ValidationRecord:
-    return ValidationRecord(
-        validation_id=f"validation-{assertion_id}",
-        target_id=assertion_id,
-        validation_status=ValidationStatus.ACCEPTED,
-        evidence_support_status=(
-            EvidenceSupportStatus.SUPPORTED if supported else EvidenceSupportStatus.UNSUPPORTED
-        ),
-        temporal_status=TemporalDeterminationStatus.VALID,
-        commitment_status=CommitmentCheckStatus.VALID,
+def validation(target_id: str) -> ValidationRecord:
+    return runtime_structural_acceptance_record(
+        validation_id=f"validation-{target_id[:32]}",
+        target_id=target_id,
         validated_at=NOW + timedelta(seconds=3),
     )
 
@@ -363,18 +371,26 @@ def projection(
     merged: bool = False,
     split_decision: bool = False,
     decision_offset_seconds: int = 1,
+    instance_graph_override: InstanceGraph | None = None,
 ) -> OntologyProjection:
-    instance_graph = graph(merged=merged)
-    assertion_ids = tuple(item.assertion_id for item in instance_graph.assertions)
+    instance_graph = instance_graph_override or graph(merged=merged)
     budget = BudgetAccounting(
         nodes_used=len(instance_graph.entities),
         assertions_used=len(instance_graph.assertions),
-        display_nodes_used=len(instance_graph.entities),
-        display_assertions_used=len(instance_graph.assertions),
+        display_nodes_used=min(
+            len(instance_graph.entities), query_context.budgets.display_node_budget
+        ),
+        display_assertions_used=min(
+            len(instance_graph.assertions), query_context.budgets.display_assertion_budget
+        ),
         input_tokens=100,
         output_tokens=100,
     )
-    variant = "merged" if merged else ("split" if split_decision else "base")
+    variant = (
+        "custom"
+        if instance_graph_override is not None
+        else ("merged" if merged else ("split" if split_decision else "base"))
+    )
     common = {
         "projection_id": (
             f"projection-{condition.value.lower()}-{variant}-{query_context.context_id}"
@@ -388,13 +404,26 @@ def projection(
         "local_schema": schema(),
         "instance_graph": instance_graph,
         "omissions": (),
-        "validation_records": tuple(validation(item) for item in assertion_ids),
         "budget_accounting": budget,
         "budgets": query_context.budgets,
         "run_id": f"run-{condition.value.lower()}-{variant}-{query_context.context_id}",
         "release_class": ReleaseClass.PUBLIC,
     }
     if condition is ConditionName.C0_CLASSICAL_PRE:
+        validation_target = projection_validation_target_hash(
+            condition=condition,
+            snapshot_hash=evidence_packet.snapshot_hash,
+            packet_hash=evidence_packet.content_hash,
+            context_hash=query_context.content_hash,
+            upper_ontology=common["upper_ontology"],
+            local_schema=common["local_schema"],
+            instance_graph=instance_graph,
+            decisions=(),
+            omissions=(),
+            budget_accounting=budget,
+            budgets=query_context.budgets,
+        )
+        records = (validation(validation_target),)
         seal = ConstructionSeal(
             seal_id="seal-c0-shared",
             condition=condition,
@@ -407,6 +436,7 @@ def projection(
         return OntologyProjection(
             **common,
             decisions=(),
+            validation_records=records,
             construction_seal=seal,
         )
 
@@ -437,11 +467,13 @@ def projection(
             ("entity-a", "entity-b") if merged else (("entity-ab",) if split_decision else ())
         ),
     )
+    normalized_draft_hash = digest(f"ui-normalized-draft-{variant}")
+    records = (validation(normalized_draft_hash),)
     generation_fields = {
         "generation_lineage_hash": digest("ui-generation-lineage"),
         "raw_output_artifact_hash": digest("ui-raw-output"),
-        "normalized_draft_hash": digest("ui-normalized-draft"),
-        "validation_bundle_hash": canonical_sha256(common["validation_records"]),
+        "normalized_draft_hash": normalized_draft_hash,
+        "validation_bundle_hash": canonical_sha256(records),
     }
     certificate = ConstructionCertificate(
         certificate_id=f"certificate-{'merge' if merged else 'base'}",
@@ -462,8 +494,110 @@ def projection(
         **common,
         **generation_fields,
         decisions=(decision,),
+        validation_records=records,
         pre_query_inventory=inventory,
         construction_certificate=certificate,
+    )
+
+
+def c1_projection(
+    query_context: QueryContext,
+    evidence_packet: EvidencePacket,
+) -> OntologyProjection:
+    """Construct the production C1 validation shape for renderer regressions."""
+
+    source = projection(ConditionName.C0_CLASSICAL_PRE, query_context, evidence_packet)
+    payload = source.model_dump(mode="python", exclude={"content_hash"})
+    projection_id = "projection-c1-aggregate-context-alpha"
+    payload.update(
+        {
+            "projection_id": projection_id,
+            "condition": ConditionName.C1_LLM_PRE,
+            "generation_lineage_hash": digest("ui-c1-generation-lineage"),
+            "raw_output_artifact_hash": digest("ui-c1-raw-output"),
+            "normalized_draft_hash": digest("ui-c1-normalized-draft"),
+            "construction_seal": ConstructionSeal(
+                seal_id="seal-c1-shared",
+                condition=ConditionName.C1_LLM_PRE,
+                snapshot_hash=evidence_packet.snapshot_hash,
+                ontology_hash=digest("fixture-c1-preontology"),
+                constructed_at=NOW - timedelta(minutes=10),
+                sealed_at=NOW - timedelta(minutes=5),
+                sealed_object_ids=("sealed-c1-fixture-object",),
+            ),
+            "run_id": "run-c1-aggregate-context-alpha",
+        }
+    )
+    validation_target = projection_validation_target_hash(
+        condition=ConditionName.C1_LLM_PRE,
+        snapshot_hash=payload["snapshot_hash"],
+        packet_hash=payload["packet_hash"],
+        context_hash=payload["context_hash"],
+        upper_ontology=payload["upper_ontology"],
+        local_schema=payload["local_schema"],
+        instance_graph=payload["instance_graph"],
+        decisions=payload["decisions"],
+        omissions=payload["omissions"],
+        budget_accounting=payload["budget_accounting"],
+        budgets=payload["budgets"],
+    )
+    records = (validation(validation_target),)
+    payload["validation_records"] = records
+    payload["validation_bundle_hash"] = canonical_sha256(records)
+    return OntologyProjection.model_validate(payload)
+
+
+def semantic_overlay(
+    source: OntologyProjection,
+    query_context: QueryContext,
+    evidence_packet: EvidencePacket,
+    *,
+    statuses: dict[
+        str,
+        tuple[SemanticSupportStatus, SemanticSupportStatus],
+    ]
+    | None = None,
+    supported_evidence: dict[str, tuple[str, ...]] | None = None,
+) -> VisualizationSemanticOverlay:
+    status_by_id = statuses or {
+        item.assertion_id: (
+            SemanticSupportStatus.SUPPORTED,
+            SemanticSupportStatus.SUPPORTED,
+        )
+        for item in source.instance_graph.assertions
+    }
+    evidence_by_id = supported_evidence or {}
+    rows = []
+    for item in sorted(source.instance_graph.assertions, key=lambda row: row.assertion_id):
+        assertion_status, description_status = status_by_id[item.assertion_id]
+        default_evidence = (
+            tuple(sorted(item.why_matters_evidence_ids))
+            if description_status is SemanticSupportStatus.SUPPORTED
+            else ()
+        )
+        rows.append(
+            VisualizationAssertionSemanticAssessment(
+                projection_assertion_id=item.assertion_id,
+                projection_assertion_hash=item.content_hash,
+                assertion_support_status=assertion_status,
+                description_support_status=description_status,
+                supported_description_evidence_ids=evidence_by_id.get(
+                    item.assertion_id, default_evidence
+                ),
+            )
+        )
+    return VisualizationSemanticOverlay(
+        overlay_id=f"overlay-{source.projection_id}",
+        projection_hash=source.content_hash,
+        snapshot_hash=source.snapshot_hash,
+        packet_hash=evidence_packet.content_hash,
+        context_hash=query_context.content_hash,
+        source_kind=SemanticAssessmentSourceKind.SCORER,
+        source_artifact_hash=digest(f"scorer-artifact-{source.projection_id}"),
+        assessment_revision="semantic-overlay-fixture-v1",
+        assertion_assessments=tuple(rows),
+        assessed_at=NOW + timedelta(minutes=1),
+        release_class=ReleaseClass.PUBLIC,
     )
 
 
@@ -507,22 +641,395 @@ def test_compiler_exposes_rich_grounded_details_and_fixed_anchors() -> None:
     assert c0_positions == c2_positions
 
 
-def test_compiler_never_displays_unsupported_assertions_or_descriptions() -> None:
+def test_compiler_renders_full_structural_output_with_semantic_assessment_pending() -> None:
     query_context = context()
     evidence_packet = packet()
-    c0 = projection(ConditionName.C0_CLASSICAL_PRE, query_context, evidence_packet)
-    payload = c0.model_dump(mode="python", exclude={"content_hash"})
-    payload["validation_records"] = (
-        validation("assert-a-c", supported=True),
-        validation("assert-b-c", supported=False),
+    projections = (
+        projection(ConditionName.C0_CLASSICAL_PRE, query_context, evidence_packet),
+        c1_projection(query_context, evidence_packet),
+        projection(ConditionName.C2_LLM_QUERY, query_context, evidence_packet),
     )
-    changed = OntologyProjection(**payload)
-    bundle = build_visualization_bundle(changed, query_context, evidence_packet)
-    # The otherwise supported assertion is also hidden because its target node's
-    # description depends on the unsupported assertion. Rendering no orphan edge is safer
-    # than silently inventing a replacement description.
-    assert bundle.state.assertions == ()
-    assert {item.projection_object_id for item in bundle.state.nodes} == {"entity-a"}
+    for source in projections:
+        bundle = build_visualization_bundle(source, query_context, evidence_packet)
+        assert len(bundle.state.nodes) == 3
+        assert len(bundle.state.assertions) == 2
+        assert bundle.semantic_assessment_status == "pending_scorer_or_reviewer"
+        assert _structurally_accepted_assertion_ids(source) == frozenset(
+            {"assert-a-c", "assert-b-c"}
+        )
+
+
+def test_registered_display_is_exact_deterministic_and_endpoint_closed() -> None:
+    evidence_packet = packet()
+    base_context = context()
+    context_payload = base_context.model_dump(
+        mode="python", exclude={"content_hash", "budgets"}
+    )
+    context_payload["budgets"] = OutputBudgets(
+        node_budget=10,
+        assertion_budget=12,
+        display_node_budget=2,
+        display_assertion_budget=1,
+    )
+    limited_context = QueryContext.model_validate(context_payload)
+    source = projection(ConditionName.C0_CLASSICAL_PRE, limited_context, evidence_packet)
+
+    raw = build_visualization_bundle(source, limited_context, evidence_packet)
+    registered = build_visualization_bundle(
+        source,
+        limited_context,
+        evidence_packet,
+        content_scope=VisualizationContentScope.REGISTERED_DISPLAY,
+    )
+    replay = build_visualization_bundle(
+        source,
+        limited_context,
+        evidence_packet,
+        content_scope=VisualizationContentScope.REGISTERED_DISPLAY,
+    )
+
+    assert len(raw.state.nodes) == 3
+    assert len(raw.state.assertions) == 2
+    assert len(registered.state.nodes) == source.budget_accounting.display_nodes_used == 2
+    assert (
+        len(registered.state.assertions)
+        == source.budget_accounting.display_assertions_used
+        == 1
+    )
+    assert registered == replay
+    assert registered.display_selection.content_scope is (
+        VisualizationContentScope.REGISTERED_DISPLAY
+    )
+    selected_node_ids = {
+        item.projection_object_id for item in registered.state.nodes
+    }
+    selected_assertion = registered.state.assertions[0]
+    assert selected_assertion.source_visualization_node_id is not None
+    visual_to_projection = {
+        item.visualization_node_id: item.projection_object_id
+        for item in registered.state.nodes
+    }
+    assert {
+        visual_to_projection[selected_assertion.source_visualization_node_id],
+        visual_to_projection[selected_assertion.target_visualization_node_id],
+    } == selected_node_ids
+
+
+def test_registered_display_fails_closed_when_budget_cannot_preserve_endpoints() -> None:
+    evidence_packet = packet()
+    base_context = context()
+    context_payload = base_context.model_dump(
+        mode="python", exclude={"content_hash", "budgets"}
+    )
+    context_payload["budgets"] = OutputBudgets(
+        node_budget=10,
+        assertion_budget=12,
+        display_node_budget=1,
+        display_assertion_budget=1,
+    )
+    impossible_context = QueryContext.model_validate(context_payload)
+    source = projection(ConditionName.C0_CLASSICAL_PRE, impossible_context, evidence_packet)
+
+    with pytest.raises(VisualizationCompilationError, match="dependency closure"):
+        build_visualization_bundle(
+            source,
+            impossible_context,
+            evidence_packet,
+            content_scope=VisualizationContentScope.REGISTERED_DISPLAY,
+        )
+
+
+def test_registered_display_treats_epistemic_holder_as_required_dependency() -> None:
+    evidence_packet = packet()
+    attributed = assertion(
+        "assert-attributed-a-c",
+        "entity-a",
+        "entity-c",
+        ("ev-a", "ev-b", "ev-c"),
+        point=1,
+        discourse=1,
+    )
+    attributed_payload = attributed.model_dump(mode="python", exclude={"content_hash"})
+    proposition = PropositionContent(
+        proposition_content_id="proposition-a-c",
+        predicate_id=attributed.predicate_id,
+        subject_id=attributed.subject_id,
+        object_id=attributed.object_id,
+        temporal_content=attributed.temporal_scope,
+        evidence_ids=attributed.evidence_ids,
+    )
+    attributed_payload.update(
+        {
+            "proposition_content_id": proposition.proposition_content_id,
+            "epistemic_scope": EpistemicScope(
+                holder_id="entity-b",
+                attitude=EpistemicAttitude.REPORTED,
+                proposition_content_id=proposition.proposition_content_id,
+                holder_relative_time=HolderRelativeTime(
+                    kind=TemporalKind.POINT,
+                    point=1,
+                ),
+                evidence_ids=("ev-b",),
+            ),
+            "narrative_commitment": NarrativeCommitment.HOLDER_ATTRIBUTED,
+        }
+    )
+    attributed = QualifiedAssertion.model_validate(attributed_payload)
+    attributed_graph = InstanceGraph(
+        entities=(
+            entity(
+                "entity-a",
+                "Ari",
+                "m-a",
+                ("ev-a",),
+                (attributed.assertion_id,),
+                point=1,
+            ),
+            entity(
+                "entity-b",
+                "Bex",
+                "m-b",
+                ("ev-b",),
+                (attributed.assertion_id,),
+                point=1,
+            ),
+            entity(
+                "entity-c",
+                "Cato",
+                "m-c",
+                ("ev-c",),
+                (attributed.assertion_id,),
+                point=1,
+            ),
+        ),
+        events=(),
+        proposition_contents=(proposition,),
+        assertions=(attributed,),
+    )
+    base_context = context()
+    context_payload = base_context.model_dump(
+        mode="python", exclude={"content_hash", "budgets"}
+    )
+    context_payload["budgets"] = OutputBudgets(
+        node_budget=10,
+        assertion_budget=12,
+        display_node_budget=2,
+        display_assertion_budget=1,
+    )
+    insufficient_context = QueryContext.model_validate(context_payload)
+    insufficient = projection(
+        ConditionName.C0_CLASSICAL_PRE,
+        insufficient_context,
+        evidence_packet,
+        instance_graph_override=attributed_graph,
+    )
+    with pytest.raises(VisualizationCompilationError, match="dependency closure"):
+        build_visualization_bundle(
+            insufficient,
+            insufficient_context,
+            evidence_packet,
+            content_scope=VisualizationContentScope.REGISTERED_DISPLAY,
+        )
+
+    context_payload["budgets"] = OutputBudgets(
+        node_budget=10,
+        assertion_budget=12,
+        display_node_budget=3,
+        display_assertion_budget=1,
+    )
+    sufficient_context = QueryContext.model_validate(context_payload)
+    sufficient = projection(
+        ConditionName.C0_CLASSICAL_PRE,
+        sufficient_context,
+        evidence_packet,
+        instance_graph_override=attributed_graph,
+    )
+    bundle = build_visualization_bundle(
+        sufficient,
+        sufficient_context,
+        evidence_packet,
+        content_scope=VisualizationContentScope.REGISTERED_DISPLAY,
+    )
+    projection_by_visual = {
+        item.visualization_node_id: item.projection_object_id for item in bundle.state.nodes
+    }
+    assertion_view = bundle.state.assertions[0]
+    assert assertion_view.epistemic_holder_id in projection_by_visual
+    assert projection_by_visual[assertion_view.epistemic_holder_id] == "entity-b"
+    assert set(bundle.display_selection.projection_node_ids) == {
+        "entity-a",
+        "entity-b",
+        "entity-c",
+    }
+    supported = build_visualization_bundle(
+        sufficient,
+        sufficient_context,
+        evidence_packet,
+        content_scope=VisualizationContentScope.REGISTERED_DISPLAY,
+        semantic_overlay=semantic_overlay(
+            sufficient,
+            sufficient_context,
+            evidence_packet,
+        ),
+        semantic_display_mode=SemanticDisplayMode.SUPPORTED_ONLY,
+    )
+    assert {
+        item.projection_object_id for item in supported.state.nodes
+    } == {"entity-a", "entity-b", "entity-c"}
+
+
+def test_verified_overlay_exposes_verdicts_without_changing_raw_projection_content() -> None:
+    query_context = context()
+    evidence_packet = packet()
+    source = projection(ConditionName.C0_CLASSICAL_PRE, query_context, evidence_packet)
+    assessment = semantic_overlay(
+        source,
+        query_context,
+        evidence_packet,
+        statuses={
+            "assert-a-c": (
+                SemanticSupportStatus.SUPPORTED,
+                SemanticSupportStatus.SUPPORTED,
+            ),
+            "assert-b-c": (
+                SemanticSupportStatus.UNSUPPORTED,
+                SemanticSupportStatus.UNSUPPORTED,
+            ),
+        },
+    )
+    pending = build_visualization_bundle(source, query_context, evidence_packet)
+    verified = build_visualization_bundle(
+        source,
+        query_context,
+        evidence_packet,
+        semantic_overlay=assessment,
+    )
+
+    assert verified.semantic_assessment_status == "verified_scorer_or_reviewer"
+    assert verified.semantic_overlay == assessment
+    assert verified.projection_hash == pending.projection_hash == source.content_hash
+    assert [item.model_dump(exclude={"content_hash"}) for item in verified.state.nodes] == [
+        item.model_dump(exclude={"content_hash"}) for item in pending.state.nodes
+    ]
+    assert [
+        item.model_dump(exclude={"content_hash"}) for item in verified.state.assertions
+    ] == [item.model_dump(exclude={"content_hash"}) for item in pending.state.assertions]
+    assert {
+        item.projection_assertion_id: item.assertion_support_status
+        for item in verified.assertion_details
+    } == {"assert-a-c": "supported", "assert-b-c": "unsupported"}
+
+
+def test_supported_display_omits_unsupported_and_withholds_unverified_prose() -> None:
+    query_context = context()
+    evidence_packet = packet()
+    source = projection(ConditionName.C0_CLASSICAL_PRE, query_context, evidence_packet)
+    assessment = semantic_overlay(
+        source,
+        query_context,
+        evidence_packet,
+        statuses={
+            "assert-a-c": (
+                SemanticSupportStatus.SUPPORTED,
+                SemanticSupportStatus.INSUFFICIENT,
+            ),
+            "assert-b-c": (
+                SemanticSupportStatus.UNSUPPORTED,
+                SemanticSupportStatus.UNSUPPORTED,
+            ),
+        },
+    )
+    supported = build_visualization_bundle(
+        source,
+        query_context,
+        evidence_packet,
+        semantic_overlay=assessment,
+        semantic_display_mode=SemanticDisplayMode.SUPPORTED_ONLY,
+    )
+
+    assert [
+        item.projection_assertion_id for item in supported.state.assertions
+    ] == ["assert-a-c"]
+    assert {
+        item.projection_object_id for item in supported.state.nodes
+    } == {"entity-a", "entity-c"}
+    assert all(item.description == NODE_DESCRIPTION_WITHHELD for item in supported.state.nodes)
+    assert supported.state.assertions[0].why_matters == WHY_MATTERS_WITHHELD
+    assert supported.assertion_details[0].why_matters_evidence_ids == ()
+    assert supported.assertion_details[0].assertion_support_status == "supported"
+    assert supported.assertion_details[0].description_support_status == "insufficient"
+
+
+def test_semantic_overlay_is_exhaustive_and_hash_bound() -> None:
+    query_context = context()
+    evidence_packet = packet()
+    source = projection(ConditionName.C0_CLASSICAL_PRE, query_context, evidence_packet)
+    complete = semantic_overlay(source, query_context, evidence_packet)
+
+    missing_payload = complete.model_dump(mode="python", exclude={"content_hash"})
+    missing_payload["assertion_assessments"] = complete.assertion_assessments[:1]
+    missing = VisualizationSemanticOverlay.model_validate(missing_payload)
+    with pytest.raises(VisualizationCompilationError, match="every and only"):
+        build_visualization_bundle(
+            source, query_context, evidence_packet, semantic_overlay=missing
+        )
+
+    wrong_projection_payload = complete.model_dump(
+        mode="python", exclude={"content_hash"}
+    )
+    wrong_projection_payload["projection_hash"] = digest("another-projection")
+    wrong_projection = VisualizationSemanticOverlay.model_validate(
+        wrong_projection_payload
+    )
+    with pytest.raises(VisualizationCompilationError, match="another projection"):
+        build_visualization_bundle(
+            source, query_context, evidence_packet, semantic_overlay=wrong_projection
+        )
+
+    first = complete.assertion_assessments[0]
+    wrong_row_payload = first.model_dump(mode="python", exclude={"content_hash"})
+    wrong_row_payload["projection_assertion_hash"] = digest("another-assertion")
+    wrong_row = VisualizationAssertionSemanticAssessment.model_validate(wrong_row_payload)
+    wrong_assertion_payload = complete.model_dump(
+        mode="python", exclude={"content_hash"}
+    )
+    wrong_assertion_payload["assertion_assessments"] = (
+        wrong_row,
+        *complete.assertion_assessments[1:],
+    )
+    wrong_assertion = VisualizationSemanticOverlay.model_validate(
+        wrong_assertion_payload
+    )
+    with pytest.raises(VisualizationCompilationError, match="assertion hash differs"):
+        build_visualization_bundle(
+            source, query_context, evidence_packet, semantic_overlay=wrong_assertion
+        )
+
+    outside_lineage = semantic_overlay(
+        source,
+        query_context,
+        evidence_packet,
+        supported_evidence={"assert-a-c": ("ev-b",)},
+    )
+    with pytest.raises(VisualizationCompilationError, match="projection assertion"):
+        build_visualization_bundle(
+            source, query_context, evidence_packet, semantic_overlay=outside_lineage
+        )
+
+
+def test_static_interface_persistently_discloses_pending_semantic_assessment() -> None:
+    ui_root = Path(__file__).resolve().parents[2] / "ui"
+    html = (ui_root / "index.html").read_text(encoding="utf-8")
+    script = (ui_root / "app.js").read_text(encoding="utf-8")
+
+    assert 'id="semantic-assessment-status"' in html
+    assert "Semantic support: pending scorer or reviewer assessment" in html
+    assert 'currentBundle.semantic_assessment_status === "pending_scorer_or_reviewer"' in script
+    assert '"verified_scorer_or_reviewer"' in script
+    assert "graph shows structurally accepted output in its declared content scope" in script
+    assert "Projection-authored node description (not verified)" in script
+    assert "Projection-claimed description evidence (not verified)" in script
+    assert 'detail.description_support_status === "supported"' in script
 
 
 def test_story_and_spoiler_filters_change_visibility_not_semantics() -> None:
@@ -543,6 +1050,7 @@ def test_story_and_spoiler_filters_change_visibility_not_semantics() -> None:
     )
     assert filtered.state.semantic_hash == bundle.state.semantic_hash
     assert filtered.projection_hash == bundle.projection_hash
+    assert filtered.semantic_assessment_status == "pending_scorer_or_reviewer"
     assert filtered.state.content_hash != bundle.state.content_hash
     assert len(filtered.state.visible_node_ids) == 1
     assert filtered.state.visible_assertion_ids == ()
@@ -594,6 +1102,20 @@ def test_diff_marks_contextual_relevance_only_change_as_requalified() -> None:
         mode="python",
         exclude={"content_hash", "instance_graph"},
     )
+    validation_target = projection_validation_target_hash(
+        condition=projection_payload["condition"],
+        snapshot_hash=projection_payload["snapshot_hash"],
+        packet_hash=projection_payload["packet_hash"],
+        context_hash=projection_payload["context_hash"],
+        upper_ontology=projection_payload["upper_ontology"],
+        local_schema=projection_payload["local_schema"],
+        instance_graph=changed_graph,
+        decisions=projection_payload["decisions"],
+        omissions=projection_payload["omissions"],
+        budget_accounting=projection_payload["budget_accounting"],
+        budgets=projection_payload["budgets"],
+    )
+    projection_payload["validation_records"] = (validation(validation_target),)
     after_projection = OntologyProjection(
         **projection_payload,
         instance_graph=changed_graph,

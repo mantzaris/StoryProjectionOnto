@@ -12,12 +12,17 @@ from story_projection_onto.contracts import (
     EvidenceRecord,
     ReleaseClass,
 )
+from story_projection_onto.feedback_provenance import (
+    AppendOnlyResearcherTraceCaptureStore,
+    ResearcherTraceSubmissionReceipt,
+)
 from story_projection_onto.ui import (
     FeedbackReplayExpectation,
     LocalUiRepository,
     RevisionCallKind,
     RevisionCallRecord,
     RevisionExecutionResult,
+    RevisionInstruction,
     build_visualization_bundle,
     compare_visualizations,
     create_app,
@@ -112,6 +117,100 @@ def test_local_api_projection_evidence_filter_and_honest_revision_gate() -> None
     )
     assert revision.status_code == 503
     assert "no regeneration was claimed" in revision.json()["detail"]
+
+
+def test_researcher_trace_capture_persists_instruction_and_receipt_without_runner(
+    tmp_path: Path,
+) -> None:
+    testclient = pytest.importorskip("fastapi.testclient")
+    query_context = context()
+    evidence_packet = packet()
+    before_projection = projection(
+        ConditionName.C2_LLM_QUERY,
+        query_context,
+        evidence_packet,
+    )
+    before_bundle = build_visualization_bundle(
+        before_projection,
+        query_context,
+        evidence_packet,
+    )
+    runner_calls = []
+
+    def forbidden_runner(*args):
+        runner_calls.append(args)
+        raise AssertionError("capture-only endpoint invoked the revision runner")
+
+    capture_root = tmp_path / "trace-capture"
+    app = create_app(
+        LocalUiRepository((before_bundle,)),
+        revision_runner=forbidden_runner,
+        revision_seed=11,
+        static_directory=Path(__file__).resolve().parents[2] / "ui",
+        clock=lambda: NOW + timedelta(minutes=2),
+        researcher_trace_episode_by_projection_id={
+            before_projection.projection_id: "trace-easy"
+        },
+        researcher_trace_capture_sink=AppendOnlyResearcherTraceCaptureStore(
+            capture_root
+        ),
+    )
+    client = testclient.TestClient(app)
+    submission = {
+        "before_projection_id": before_projection.projection_id,
+        "action": "REFINE_CONTEXT",
+        "anchors": [
+            {
+                "evidence_ids": ["ev-a"],
+                "mention_candidate_ids": ["m-a"],
+                "requested_semantic_signature": "focus on key-carrying responsibility",
+            }
+        ],
+        "rationale": "Researcher trace request captured at the real endpoint.",
+        "sequence": 1,
+        "seed": 11,
+        "lens": "key-carrying responsibility",
+        "grouped_mention_candidate_ids": [],
+    }
+    response = client.post("/api/revisions", json=submission)
+    assert response.status_code == 200
+    assert response.json()["capture_only"] is True
+    assert response.json()["regeneration_started"] is False
+    assert runner_calls == []
+
+    instruction_path = capture_root / "trace-easy.instruction.json"
+    receipt_path = capture_root / "trace-easy.receipt.json"
+    submission_path = capture_root / "trace-easy.submission.json"
+    instruction = RevisionInstruction.model_validate_json(instruction_path.read_bytes())
+    receipt = ResearcherTraceSubmissionReceipt.model_validate_json(
+        receipt_path.read_bytes()
+    )
+    assert instruction_path.read_bytes() == (
+        instruction.to_canonical_json() + "\n"
+    ).encode("utf-8")
+    assert receipt_path.read_bytes() == (receipt.to_canonical_json() + "\n").encode(
+        "utf-8"
+    )
+    assert submission_path.read_text(encoding="utf-8") == (
+        receipt.submission_canonical_json + "\n"
+    )
+    assert hashlib.sha256(submission_path.read_bytes()).hexdigest() == (
+        receipt.submission_file_sha256
+    )
+    assert instruction_path.stat().st_mode & 0o777 == 0o600
+    assert receipt_path.stat().st_mode & 0o777 == 0o600
+    assert submission_path.stat().st_mode & 0o777 == 0o600
+    assert receipt.endpoint == "/api/revisions"
+    assert receipt.requested_at == instruction.revision.created_at
+    assert receipt.instruction_hash == instruction.content_hash
+    assert receipt.before_projection_hash == before_projection.content_hash
+    assert receipt.before_bundle_hash == before_bundle.content_hash
+
+    # An exact request at the same fixed test clock is idempotent.
+    assert client.post("/api/revisions", json=submission).status_code == 200
+    changed = dict(submission, rationale="Attempt to rebind an accepted trace.")
+    assert client.post("/api/revisions", json=changed).status_code == 500
+    assert runner_calls == []
 
 
 def test_static_page_has_required_rich_fields_and_no_cytoscape_stub() -> None:

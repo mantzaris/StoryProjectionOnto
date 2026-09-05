@@ -1507,6 +1507,15 @@
       "title": "RoleBinding",
       "type": "object"
     },
+    "SemanticAssessmentScope": {
+      "description": "Machine-readable distinction between runtime checks and post-hoc judgment.",
+      "enum": [
+        "runtime_structural_only_not_assessed",
+        "posthoc_scorer_or_reviewer"
+      ],
+      "title": "SemanticAssessmentScope",
+      "type": "string"
+    },
     "StoryTime": {
       "additionalProperties": false,
       "description": "Time at which an event occurs in the story world.",
@@ -1738,6 +1747,9 @@
           "title": "Schema Version",
           "type": "string"
         },
+        "semantic_assessment_scope": {
+          "$ref": "#/$defs/SemanticAssessmentScope"
+        },
         "target_id": {
           "maxLength": 192,
           "minLength": 1,
@@ -1771,6 +1783,7 @@
         "evidence_support_status",
         "temporal_status",
         "commitment_status",
+        "semantic_assessment_scope",
         "validated_at"
       ],
       "title": "ValidationRecord",

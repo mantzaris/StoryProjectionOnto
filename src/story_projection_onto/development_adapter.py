@@ -33,6 +33,8 @@ from story_projection_onto.contracts import (
     ConstructionRequest,
     FixedOntologyInput,
     ImmutableRecord,
+    LegacyModelVisibleEvidenceRecord,
+    ModelVisibleEvidenceInput,
     ModelVisibleEvidenceRecord,
     OutputBudgets,
     PreconstructionRequest,
@@ -328,6 +330,43 @@ def _compact_evidence_records(
     return records
 
 
+def _compact_evidence_grounding(
+    evidence: Sequence[object],
+    aliases: Mapping[str, str],
+) -> dict[str, object]:
+    """Expose immutable indexed lineage separately from the seven-field text rows.
+
+    Keeping the positional candidate codec unchanged preserves its audited meaning.
+    New live requests additionally carry this exact, losslessly decoded mapping so a
+    model can copy the authoritative provenance object instead of guessing it.
+    """
+
+    grounding: dict[str, object] = {}
+    for untyped in evidence:
+        if not isinstance(untyped, ModelVisibleEvidenceRecord):
+            raise DevelopmentAdapterIntegrityError(
+                "legacy evidence without indexed grounding lineage cannot enter a model wire"
+            )
+        record = untyped
+        evidence_alias = _alias(record.evidence_id, aliases)
+        if evidence_alias is None:
+            raise DevelopmentAdapterIntegrityError(
+                "model-visible evidence lacks its registered source alias"
+            )
+        provenance = record.provenance.model_dump(
+            mode="json",
+            exclude={"content_hash", "schema_version"},
+        )
+        provenance["evidence_id"] = evidence_alias
+        grounding[evidence_alias] = {
+            "passage_id": record.passage_id,
+            "text_hash": record.text_hash,
+            "record_confidence": record.confidence,
+            "provenance": provenance,
+        }
+    return grounding
+
+
 def _compact_wire_value(
     value: object,
     *,
@@ -390,6 +429,20 @@ def model_wire_encoding_manifest(
             "disambiguation": "the persisted bijection records source_kind for every alias",
         },
         "model_output_rule": "cite source aliases; controller restores registered IDs",
+        "evidence_grounding_lineage": {
+            "join_key": "evidence source alias",
+            "fields": [
+                "passage_id",
+                "text_hash",
+                "record_confidence",
+                "provenance",
+            ],
+            "provenance_output_rule": (
+                "preserve each cited source locator and source_artifact_hash exactly; "
+                "provenance confidence must not exceed record_confidence or indexed "
+                "provenance confidence"
+            ),
+        },
         "alias_manifest_hash": (
             None if alias_manifest is None else alias_manifest.content_hash
         ),
@@ -408,11 +461,63 @@ def _source_id(alias: object, aliases: Mapping[str, str]) -> str:
 def decode_compact_evidence_records(
     records: Sequence[object],
     alias_manifest: ModelWireAliasManifest,
-) -> tuple[ModelVisibleEvidenceRecord, ...]:
+    grounding: Mapping[str, object] | None = None,
+) -> tuple[ModelVisibleEvidenceInput, ...]:
     """Invert the positional evidence codec and re-run every typed invariant."""
 
     aliases = alias_manifest.alias_to_source
-    decoded: list[ModelVisibleEvidenceRecord] = []
+    grounding_by_evidence_id: dict[str, dict[str, object]] = {}
+    if grounding is not None:
+        try:
+            for evidence_alias, untyped_grounding in grounding.items():
+                evidence_id = _source_id(evidence_alias, aliases)
+                if not isinstance(untyped_grounding, Mapping):
+                    raise DevelopmentAdapterIntegrityError(
+                        "compact evidence grounding entry must be an object"
+                    )
+                expected_keys = {
+                    "passage_id",
+                    "text_hash",
+                    "record_confidence",
+                    "provenance",
+                }
+                if set(untyped_grounding) != expected_keys:
+                    raise DevelopmentAdapterIntegrityError(
+                        "compact evidence grounding entry has an invalid field set"
+                    )
+                untyped_provenance = untyped_grounding["provenance"]
+                if not isinstance(untyped_provenance, Mapping):
+                    raise DevelopmentAdapterIntegrityError(
+                        "compact evidence provenance must be an object"
+                    )
+                provenance = dict(untyped_provenance)
+                provenance_evidence_alias = provenance.get("evidence_id")
+                if provenance_evidence_alias != evidence_alias:
+                    raise DevelopmentAdapterIntegrityError(
+                        "compact provenance must name its containing evidence alias"
+                    )
+                provenance["evidence_id"] = _source_id(
+                    provenance_evidence_alias,
+                    aliases,
+                )
+                if evidence_id in grounding_by_evidence_id:
+                    raise DevelopmentAdapterIntegrityError(
+                        "compact evidence grounding IDs must be unique"
+                    )
+                grounding_by_evidence_id[evidence_id] = {
+                    "passage_id": untyped_grounding["passage_id"],
+                    "text_hash": untyped_grounding["text_hash"],
+                    "confidence": untyped_grounding["record_confidence"],
+                    "provenance": provenance,
+                }
+        except DevelopmentAdapterIntegrityError:
+            raise
+        except (TypeError, ValueError, KeyError) as exc:
+            raise DevelopmentAdapterIntegrityError(
+                "compact evidence grounding failed lossless decoding"
+            ) from exc
+    decoded: list[ModelVisibleEvidenceInput] = []
+    decoded_evidence_ids: set[str] = set()
     try:
         for untyped in records:
             row = cast(Sequence[object], untyped)
@@ -421,6 +526,7 @@ def decode_compact_evidence_records(
                     "compact evidence row must contain exactly seven fields"
                 )
             evidence_id = _source_id(row[0], aliases)
+            decoded_evidence_ids.add(evidence_id)
             discourse = cast(Sequence[object], row[2])
             if len(discourse) != 3:
                 raise DevelopmentAdapterIntegrityError(
@@ -519,8 +625,13 @@ def decode_compact_evidence_records(
                         "confidence": clue[4],
                     }
                 )
+            evidence_type = (
+                ModelVisibleEvidenceRecord
+                if grounding is not None
+                else LegacyModelVisibleEvidenceRecord
+            )
             decoded.append(
-                ModelVisibleEvidenceRecord.model_validate(
+                evidence_type.model_validate(
                     {
                         "evidence_id": evidence_id,
                         "text": row[1],
@@ -533,6 +644,7 @@ def decode_compact_evidence_records(
                         "event_candidates": events,
                         "relation_phrase_candidates": relations,
                         "temporal_clues": temporal,
+                        **grounding_by_evidence_id.get(evidence_id, {}),
                     }
                 )
             )
@@ -542,6 +654,10 @@ def decode_compact_evidence_records(
         raise DevelopmentAdapterIntegrityError(
             "compact evidence failed typed lossless decoding"
         ) from exc
+    if grounding is not None and set(grounding_by_evidence_id) != decoded_evidence_ids:
+        raise DevelopmentAdapterIntegrityError(
+            "compact evidence grounding must cover exactly the positional evidence rows"
+        )
     return tuple(decoded)
 
 
@@ -614,8 +730,13 @@ def decode_development_semantic_request(
     sections = encoded.sections
     envelope_value = sections.get("request_envelope")
     evidence_value = sections.get("evidence_snapshot", sections.get("evidence_packet"))
+    grounding_value = sections.get("evidence_grounding")
     if not isinstance(envelope_value, Mapping) or evidence_value is None:
         raise DevelopmentAdapterIntegrityError("lossless wire lacks its request envelope")
+    if grounding_value is not None and not isinstance(grounding_value, Mapping):
+        raise DevelopmentAdapterIntegrityError(
+            "lossless wire evidence grounding must be an object"
+        )
     envelope = cast(dict[str, object], _expand_compact_wire_value(envelope_value))
     try:
         condition = ConditionName(cast(str, envelope["condition"]))
@@ -641,6 +762,7 @@ def decode_development_semantic_request(
                     for item in decode_compact_evidence_records(
                         evidence_value,
                         encoded.alias_manifest,
+                        grounding_value,
                     )
                 ],
             }
@@ -677,6 +799,7 @@ def decode_development_semantic_request(
                 for item in decode_compact_evidence_records(
                     evidence_rows,
                     encoded.alias_manifest,
+                    grounding_value,
                 )
             ],
         }
@@ -1107,6 +1230,10 @@ def _request_sections(
                 semantic_request.evidence,
                 aliases,
             ),
+            "evidence_grounding": _compact_evidence_grounding(
+                semantic_request.evidence,
+                aliases,
+            ),
             "request_envelope": _compact_wire_value(
                 semantic_request.model_dump(
                     mode="json",
@@ -1140,6 +1267,10 @@ def _request_sections(
                 aliases,
             ),
         },
+        "evidence_grounding": _compact_evidence_grounding(
+            semantic_request.packet.evidence,
+            aliases,
+        ),
         "request_envelope": _compact_wire_value(
             semantic_request.model_dump(
                 mode="json",

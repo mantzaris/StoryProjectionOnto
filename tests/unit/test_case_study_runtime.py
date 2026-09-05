@@ -10,6 +10,7 @@ import pytest
 from pydantic import ValidationError
 
 from story_projection_onto.case_study_runtime import (
+    CASE_SEMANTIC_NATIVE_ARTIFACT_ROLES,
     AttestedSelectedModelFreeze,
     CaseOutputReceipt,
     CasePrequeryBarrierReceipt,
@@ -65,6 +66,18 @@ ROOT = Path(__file__).resolve().parents[2]
 T0 = datetime(2026, 9, 4, 12, 0, tzinfo=UTC)
 HASH_A = "a" * 64
 HASH_B = "b" * 64
+
+
+def test_semantic_native_inventory_requires_complete_community_review() -> None:
+    assert {
+        "blinded_community_rubric_template",
+        "blinded_community_source_manifest",
+        "blinded_community_package",
+        "blinded_community_rejoin",
+        "blinded_community_completion",
+        "blinded_community_finalization",
+        "blinded_community_table",
+    }.issubset(CASE_SEMANTIC_NATIVE_ARTIFACT_ROLES)
 
 
 def _artificial_source() -> str:
@@ -265,6 +278,10 @@ def case_fixture(tmp_path: Path) -> _Fixture:
         storage_preflight_hash=HASH_A,
         gpu_schedule_admission_hash=HASH_A,
         public_release_scan_hash=HASH_A,
+        semantic_gate_bundle_hash=HASH_A,
+        held_out_results_closure_hash=HASH_A,
+        cumulative_ledger_sha256=HASH_A,
+        gpu_event_inventory_hash=HASH_A,
         selected_model_freeze_file_sha256=hashlib.sha256(
             selected_model_freeze_path.read_bytes()
         ).hexdigest(),
@@ -974,10 +991,21 @@ def test_restricted_writers_refuse_overwrite_escape_and_symlink(
         restricted_root=case_fixture.restricted_root,
     )
     assert written.name == f"{initial.content_hash}.json"
-    with pytest.raises(CaseStudyResumeError, match="overwrite"):
+    assert (
         write_case_resume_manifest(
             initial,
             states,
+            restricted_root=case_fixture.restricted_root,
+        )
+        == written
+    )
+    changed = initial.model_copy(
+        update={"resume_id": "resume-artificial-changed", "content_hash": ""}
+    )
+    with pytest.raises(CaseStudyResumeError, match="overwrite"):
+        write_restricted_case_record(
+            changed,
+            written,
             restricted_root=case_fixture.restricted_root,
         )
     with pytest.raises(CaseStudyResumeError, match="inside"):

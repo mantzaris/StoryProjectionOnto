@@ -45,12 +45,10 @@ from story_projection_onto.conditions.fixed_select import (
     prepare_fixed_selection,
 )
 from story_projection_onto.contracts import (
-    CommitmentCheckStatus,
     ConditionName,
     ConstructionOperator,
     ConstructionRequest,
     EvidencePacket,
-    EvidenceSupportStatus,
     NoTemporalEpistemicOntologyDraft,
     OntologyDraft,
     PacketMaterializationEvent,
@@ -58,13 +56,11 @@ from story_projection_onto.contracts import (
     PrequeryPreparationBinding,
     RetrievalMethod,
     RunOutcome,
-    TemporalDeterminationStatus,
     ValidatedGeneration,
-    ValidationRecord,
-    ValidationStatus,
     canonical_json,
     canonical_sha256,
     normalize_generation_metadata,
+    runtime_structural_acceptance_record,
     to_model_visible_packet,
 )
 from story_projection_onto.development_adapter import (
@@ -114,10 +110,12 @@ from story_projection_onto.store import (
     AttemptKind,
     FailureKind,
     InputKind,
+    JobState,
     ModelBackend,
     ModelCallRole,
     ReleaseClass,
     RetryClass,
+    SemanticAssessmentScope,
     TemporalValidationStatus,
 )
 from story_projection_onto.store import (
@@ -792,7 +790,9 @@ class ProductionDevelopmentCallExecutor:
                 context=opening.context,
                 query_access=opening.access_event,
                 prequery_barrier=barrier,
-                query_processing_started_at=opening.access_event.accessed_at,
+                query_processing_started_at=self._strictly_after(
+                    opening.access_event.accessed_at
+                ),
                 packet_materialization=materialized.event,
                 upper_ontology=self.repository.construction.upper_ontology,
                 run_config=config,
@@ -823,6 +823,7 @@ class ProductionDevelopmentCallExecutor:
             request = build_c1_preconstruction_request(
                 snapshot_hash=neutral.snapshot.content_hash,
                 snapshot_sealed_at=neutral.snapshot.sealed_at,
+                sealed_horizon=neutral.snapshot.horizon,
                 ordered_snapshot_evidence_ids=neutral.snapshot.eligible_evidence_ids,
                 evidence=neutral.evidence,
                 upper_ontology=self.repository.construction.upper_ontology,
@@ -959,6 +960,7 @@ class ProductionDevelopmentCallExecutor:
             draft=invalid_draft,
             upper_ontology=semantic.upper_ontology,
             evidence=semantic.packet.evidence,
+            horizon=self.repository.neutral_by_unit[call.unit_id].snapshot.horizon,
             budgets=semantic.budgets,
             capabilities=semantic.capabilities,
         )
@@ -1107,6 +1109,7 @@ class ProductionDevelopmentCallExecutor:
         ledger = adapter.artifacts.ledger
         created_at = self._now()
         parent_attempt_id = None
+        parent_validation_id = None
         if call.kind is DevelopmentCallKind.REPAIR_PROBE:
             if call.parent_call_id is None:
                 raise DevelopmentExecutionError("repair call lost its registered parent")
@@ -1126,20 +1129,38 @@ class ProductionDevelopmentCallExecutor:
                 raise DevelopmentExecutionError("repair parent attempt lineage changed")
             job = ledger.get_job(parent_receipt.job_id)
             parent_attempt_id = parent_receipt.attempt_id
+            if len(parent_receipt.ledger_validation_ids) != 1:
+                raise DevelopmentExecutionError(
+                    "repair parent lacks exactly one structural validation"
+                )
+            parent_validation_id = parent_receipt.ledger_validation_ids[0]
         else:
+            prequery_sealed_at = envelope.preconstruction_barrier_recorded_at
             job = ledger.create_or_resume_job(
                 {
                     "execution_id": self.repository.execution_id,
                     "call_id": call.call_id,
                     "call_manifest_hash": self.repository.manifest.content_hash,
+                    "condition": call.condition.value,
+                    "lifecycle_kind": (
+                        "query_blind_prebuild"
+                        if call.kind is DevelopmentCallKind.C1_PRECONSTRUCTION
+                        else "query_time_generation"
+                    ),
                 },
                 release_class=ReleaseClass.PUBLIC,
-                created_at=created_at,
+                created_at=prequery_sealed_at,
             )
         ledger.link_job_to_study(
             study_id=self.repository.execution_id,
             job_id=job.job_id,
             created_at=created_at,
+        )
+        self._advance_lifecycle_before_generation(
+            ledger=ledger,
+            job_id=job.job_id,
+            call=call,
+            envelope=envelope,
         )
         attempt_id = f"{self.repository.execution_id}-{call.call_id}-attempt"
         ledger.record_attempt(
@@ -1201,6 +1222,12 @@ class ProductionDevelopmentCallExecutor:
         allocated = event.allocated_seconds
         if not math.isfinite(allocated) or allocated < 0:
             raise DevelopmentExecutionError("metered call duration is invalid")
+        self._advance_lifecycle_after_generation(
+            ledger=ledger,
+            job_id=job.job_id,
+            repair=call.kind is DevelopmentCallKind.REPAIR_PROBE,
+            occurred_at=_parse_utc(event.ended_at),
+        )
         if generated is None:
             assert transport_error is not None
             return self._persist_failed_call(
@@ -1216,6 +1243,7 @@ class ProductionDevelopmentCallExecutor:
                 fixed_derivation=fixed_derivation,
                 fixed_inventory=fixed_inventory,
                 fixed_probe=fixed_probe,
+                parent_validation_id=parent_validation_id,
                 job_id=job.job_id,
                 attempt_id=attempt_id,
                 event_id=event_id,
@@ -1271,6 +1299,7 @@ class ProductionDevelopmentCallExecutor:
                 fixed_derivation=fixed_derivation,
                 fixed_inventory=fixed_inventory,
                 fixed_probe=fixed_probe,
+                parent_validation_id=parent_validation_id,
                 job_id=job.job_id,
                 attempt_id=attempt_id,
                 event_id=event_id,
@@ -1303,6 +1332,81 @@ class ProductionDevelopmentCallExecutor:
             fixed_inventory=fixed_inventory,
             fixed_probe=fixed_probe,
             fixed_derivation=fixed_derivation,
+            inputs=inputs,
+            parent_validation_id=parent_validation_id,
+        )
+
+    @staticmethod
+    def _advance_one(
+        *,
+        ledger: Any,
+        job_id: str,
+        state: JobState,
+        occurred_at: datetime,
+    ) -> None:
+        observed = tuple(item.to_state for item in ledger.transitions(job_id))
+        if state in observed:
+            return
+        ledger.transition_job(job_id, state, occurred_at=occurred_at)
+
+    def _advance_lifecycle_before_generation(
+        self,
+        *,
+        ledger: Any,
+        job_id: str,
+        call: DevelopmentCallSpec,
+        envelope: CallExecutionEnvelope,
+    ) -> None:
+        if call.kind is DevelopmentCallKind.REPAIR_PROBE:
+            if ledger.get_job(job_id).state is not JobState.GENERATED:
+                raise DevelopmentExecutionError(
+                    "repair probe requires its parent job at generated"
+                )
+            return
+        self._advance_one(
+            ledger=ledger,
+            job_id=job_id,
+            state=JobState.PREQUERY_SEALED,
+            occurred_at=envelope.preconstruction_barrier_recorded_at,
+        )
+        access = envelope.query_access_event
+        if call.kind is DevelopmentCallKind.C1_PRECONSTRUCTION:
+            if access is not None:
+                raise DevelopmentExecutionError(
+                    "query-blind C1 lifecycle received query access"
+                )
+            return
+        if access is None:
+            raise DevelopmentExecutionError(
+                "query-time development lifecycle lacks query access"
+            )
+        self._advance_one(
+            ledger=ledger,
+            job_id=job_id,
+            state=JobState.QUERY_REVEALED,
+            occurred_at=access.accessed_at,
+        )
+
+    def _advance_lifecycle_after_generation(
+        self,
+        *,
+        ledger: Any,
+        job_id: str,
+        repair: bool,
+        occurred_at: datetime,
+    ) -> None:
+        self._advance_one(
+            ledger=ledger,
+            job_id=job_id,
+            state=JobState.REPAIRED if repair else JobState.GENERATED,
+            occurred_at=occurred_at,
+        )
+
+    def _has_registered_repair_successor(self, call: DevelopmentCallSpec) -> bool:
+        return any(
+            successor.kind is DevelopmentCallKind.REPAIR_PROBE
+            and successor.parent_call_id == call.call_id
+            for successor in self.repository.manifest.calls
         )
 
     def _validated_generation(
@@ -1401,24 +1505,24 @@ class ProductionDevelopmentCallExecutor:
             draft=normalized,
             upper_ontology=semantic.upper_ontology,
             evidence=evidence,
+            horizon=self.repository.neutral_by_unit[call.unit_id].snapshot.horizon,
             budgets=semantic.budgets,
             capabilities=semantic.capabilities,
         )
         boundary.raise_for_errors()
         validated_at = self._strictly_after(completed_at)
-        validation = ValidationRecord(
+        validation = runtime_structural_acceptance_record(
             validation_id=(
                 "validation-"
                 + canonical_sha256({"call": call.call_id, "draft": normalized.content_hash})[:20]
             ),
             target_id=normalized.content_hash,
-            validation_status=ValidationStatus.ACCEPTED,
-            evidence_support_status=EvidenceSupportStatus.SUPPORTED,
-            temporal_status=TemporalDeterminationStatus.VALID,
-            commitment_status=CommitmentCheckStatus.VALID,
-            diagnostics=(
-                "deterministic boundary, citation, temporal, and commitment checks accepted",
+            repair_parent_hash=(
+                envelope.parent_output_artifact_hash
+                if call.kind is DevelopmentCallKind.REPAIR_PROBE
+                else None
             ),
+            repair_attempt=(1 if call.kind is DevelopmentCallKind.REPAIR_PROBE else 0),
             validated_at=validated_at,
         )
         generation = ValidatedGeneration(
@@ -1807,6 +1911,8 @@ class ProductionDevelopmentCallExecutor:
         preparation_bindings: tuple[PrequeryPreparationBinding, ...],
         fixed_inventory: SealedOntologyInventory | None,
         fixed_probe: FixedSelectOutputAudit | None,
+        inputs: ProduceInputs | None,
+        parent_validation_id: str | None,
     ) -> ServiceCallResult:
         created_at = self._strictly_after(generation.validated_at)
         common = self._common_references(
@@ -1891,17 +1997,64 @@ class ProductionDevelopmentCallExecutor:
             input_artifact_hash=generation.raw_output_artifact_hash,
             validator_manifest_hash=config.validator_hash,
             validation_status=LedgerValidationStatus.ACCEPTED,
-            evidence_support_status=LedgerEvidenceSupportStatus.SUPPORTED,
-            temporal_status=TemporalValidationStatus.VALID,
-            commitment_status=LedgerCommitmentCheckStatus.VALID,
+            evidence_support_status=LedgerEvidenceSupportStatus.NOT_APPLICABLE,
+            temporal_status=TemporalValidationStatus.NOT_APPLICABLE,
+            commitment_status=LedgerCommitmentCheckStatus.NOT_APPLICABLE,
+            semantic_assessment_scope=(
+                SemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED
+            ),
             diagnostics_artifact_hash=persist_logical_record(
                 adapter.artifacts,
                 boundary,
                 object_kind="boundary_validation_report",
                 created_at=created_at,
             ).artifact_hash,
+            parent_validation_id=parent_validation_id,
+            repair_attempt_id=(
+                attempt_id if call.kind is DevelopmentCallKind.REPAIR_PROBE else None
+            ),
             created_at=created_at,
         )
+        if isinstance(condition_result, ConditionAttemptRecord):
+            if inputs is None or condition_result.projection is None:
+                raise DevelopmentExecutionError(
+                    "successful query construction lacks exact projection inputs"
+                )
+            projection = condition_result.projection
+            projection_ref = persist_logical_record(
+                adapter.artifacts,
+                projection,
+                object_kind="ontology_projection",
+                created_at=created_at,
+            )
+            certificate = projection.construction_certificate or projection.construction_seal
+            if certificate is None:
+                raise DevelopmentExecutionError(
+                    "successful development projection lacks construction lineage"
+                )
+            parent_projection_id = None
+            if call.kind is DevelopmentCallKind.REPAIR_PROBE:
+                assert call.parent_call_id is not None
+                parent_projection_id = (
+                    f"{self.repository.execution_id}-{call.parent_call_id}-projection"
+                )
+                adapter.artifacts.ledger.get_projection(parent_projection_id)
+            adapter.artifacts.ledger.record_projection(
+                projection_id=f"{self.repository.execution_id}-{call.call_id}-projection",
+                job_id=job_id,
+                validation_id=validation_id,
+                snapshot_id=inputs.snapshot.snapshot_id,
+                packet_input_id=inputs.packet.packet_id,
+                condition_id=call.condition.value,
+                context_hash=inputs.context.content_hash,
+                upper_ontology_hash=inputs.upper_ontology.content_hash,
+                construction_certificate_hash=certificate.content_hash,
+                projection_artifact_hash=projection_ref.artifact_hash,
+                projection_semantic_hash=projection.content_hash,
+                parent_projection_id=parent_projection_id,
+                release_class=ReleaseClass.PUBLIC,
+                finalized_at=created_at,
+            )
         receipt = DevelopmentCallAuditReceipt(
             receipt_id=f"{self.repository.execution_id}-{call.call_id}-receipt",
             ordinal=call.ordinal,
@@ -1976,6 +2129,19 @@ class ProductionDevelopmentCallExecutor:
             completion_tokens=generated.completion_tokens,
             completed_at=completed_at,
         )
+        if not self._has_registered_repair_successor(call):
+            self._advance_one(
+                ledger=adapter.artifacts.ledger,
+                job_id=job_id,
+                state=JobState.VALIDATED,
+                occurred_at=created_at,
+            )
+            self._advance_one(
+                ledger=adapter.artifacts.ledger,
+                job_id=job_id,
+                state=JobState.FINALIZED,
+                occurred_at=completed_at,
+            )
         self._commit_result(adapter, call, receipt_artifact.content_hash, service_result)
         if isinstance(condition_result, ConditionPreparation):
             self.repository.c1_preparation_references[call.unit_id] = result_ref
@@ -1996,6 +2162,7 @@ class ProductionDevelopmentCallExecutor:
         fixed_derivation: FixedSchemaDerivationReceipt | None,
         fixed_inventory: SealedOntologyInventory | None,
         fixed_probe: FixedSelectOutputAudit | None,
+        parent_validation_id: str | None,
         job_id: str,
         attempt_id: str,
         event_id: str,
@@ -2054,10 +2221,17 @@ class ProductionDevelopmentCallExecutor:
             input_artifact_hash=validation_input,
             validator_manifest_hash=config.validator_hash,
             validation_status=LedgerValidationStatus.REJECTED,
-            evidence_support_status=LedgerEvidenceSupportStatus.UNSUPPORTED,
+            evidence_support_status=LedgerEvidenceSupportStatus.NOT_APPLICABLE,
             temporal_status=TemporalValidationStatus.NOT_APPLICABLE,
             commitment_status=LedgerCommitmentCheckStatus.NOT_APPLICABLE,
+            semantic_assessment_scope=(
+                SemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED
+            ),
             diagnostics_artifact_hash=diagnostics.content_hash,
+            parent_validation_id=parent_validation_id,
+            repair_attempt_id=(
+                attempt_id if call.kind is DevelopmentCallKind.REPAIR_PROBE else None
+            ),
             created_at=created_at,
         )
         common = self._common_references(
@@ -2150,6 +2324,23 @@ class ProductionDevelopmentCallExecutor:
             failure_code=failure_code,
             completed_at=self._strictly_after(created_at),
         )
+        # A registered repair probe is a successor attempt on this same job.
+        # Preserve the rejected base validation/failure now, but leave the
+        # lifecycle at GENERATED so the repair can take the only legal
+        # GENERATED -> REPAIRED edge.  The repair attempt owns terminalization.
+        if not self._has_registered_repair_successor(call):
+            self._advance_one(
+                ledger=adapter.artifacts.ledger,
+                job_id=job_id,
+                state=JobState.VALIDATED,
+                occurred_at=created_at,
+            )
+            self._advance_one(
+                ledger=adapter.artifacts.ledger,
+                job_id=job_id,
+                state=JobState.FINALIZED,
+                occurred_at=result.completed_at,
+            )
         self._commit_result(adapter, call, receipt_artifact.content_hash, result)
         return result
 

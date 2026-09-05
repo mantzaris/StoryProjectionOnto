@@ -1,14 +1,18 @@
 """Deterministic boundary validation for LLM-generated ontology artifacts.
 
-The checks here reject unsupported or temporally inadmissible material.  They never
-fill missing semantics, infer a causal claim, invent a qualification, or rewrite a
-draft.  A rejected report can be shown to the model for the single bounded repair
-defined in :mod:`story_projection_onto.llm`.
+Structural checks here reject malformed references, out-of-bound citations, invalid
+temporal shapes, and capability violations.  Semantic evidence support is accepted
+only when a separate scorer or reviewer supplies an assessment; citation presence is
+never treated as support by itself.  These validators never fill missing semantics,
+infer a causal claim, invent a qualification, or rewrite a draft.  A rejected
+structural report can be shown to the model for the single bounded repair defined in
+:mod:`story_projection_onto.llm`.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass
 from enum import StrEnum
 from typing import Literal, Self
 
@@ -23,8 +27,11 @@ from .contracts import (
     ConstructionOperator,
     DiscoursePosition,
     EvidencePacket,
+    EvidenceRecord,
     EvidenceSnapshot,
     HolderRelativeTime,
+    InstanceGraph,
+    ModelVisibleEvidenceInput,
     ModelVisibleEvidenceRecord,
     NarrativeCommitment,
     OntologyDraft,
@@ -35,12 +42,14 @@ from .contracts import (
     QueryContext,
     RevelationPosition,
     RoleBinding,
+    SpoilerHorizon,
     StoryTime,
     TemporalKind,
     UpperOntology,
     ValidityTime,
     to_model_visible_query,
 )
+from .display_selection import DisplaySelectionError, compile_registered_display_selection
 from .llm import (
     ABLATION_QUALIFICATION_REASON,
     ConstructionCapability,
@@ -51,6 +60,13 @@ from .llm import (
     RuntimeManifest,
     SealedOntologyInventory,
     enforce_fixed_select_output,
+)
+from .temporal import (
+    TemporalDiagnosticCode,
+    TemporalValidationResult,
+    validate_assertion_temporality,
+    validate_temporal_extent,
+    validate_temporal_scope,
 )
 
 
@@ -96,6 +112,7 @@ class ValidationCode(StrEnum):
     SCHEMA_PARENT_MISMATCH = "schema_parent_mismatch"
     PREDICATE_SIGNATURE_MISMATCH = "predicate_signature_mismatch"
     TEMPORAL_INTERVAL_INVALID = "temporal_interval_invalid"
+    TEMPORAL_VALUE_INVALID = "temporal_value_invalid"
     TEMPORAL_ORDER_CYCLE = "temporal_order_cycle"
     DECISION_DELTA_INVALID = "decision_delta_invalid"
     DESCRIPTION_SUPPORT_INVALID = "description_support_invalid"
@@ -448,6 +465,87 @@ def validate_evidence_grounding(
     return _report(diagnostics)
 
 
+def _source_bound_draft_provenance_diagnostics(
+    *,
+    draft: OntologyDraft,
+    evidence: Sequence[EvidenceRecord | ModelVisibleEvidenceInput],
+) -> tuple[ValidationDiagnostic, ...]:
+    """Bind emitted assertion provenance to exact indexed source identity.
+
+    Historical request fixtures without this lineage remain parseable, but this
+    production validator rejects them.  Assertion-specific provenance identifiers and
+    extraction methods may differ; the immutable locator/source hash may not, and an
+    emitted provenance confidence cannot exceed either indexed confidence bound.
+    Nothing is synthesized on the model's behalf.
+    """
+
+    diagnostics: list[ValidationDiagnostic] = []
+    exact_evidence: dict[str, EvidenceRecord | ModelVisibleEvidenceRecord] = {}
+    for index, item in enumerate(evidence):
+        if (
+            isinstance(item, (EvidenceRecord, ModelVisibleEvidenceRecord))
+            and item.provenance.source_artifact_hash is not None
+        ):
+            exact_evidence[item.evidence_id] = item
+        else:
+            diagnostics.append(
+                ValidationDiagnostic(
+                    code=ValidationCode.PROVENANCE_MISMATCH,
+                    path=f"evidence.{index}",
+                    message=(
+                        "production evidence lacks passage, text-hash, provenance, or "
+                        "record-confidence lineage"
+                    ),
+                    related_ids=(item.evidence_id,),
+                )
+            )
+
+    for assertion in draft.instance_graph.assertions:
+        path = f"instance_graph.assertions.{assertion.assertion_id}.provenance"
+        observed_by_id = {item.evidence_id: item for item in assertion.provenance}
+        cited_ids = set(assertion.evidence_ids)
+        observed_ids = tuple(item.evidence_id for item in assertion.provenance)
+        provenance_ids = tuple(item.provenance_id for item in assertion.provenance)
+        mismatched_ids: set[str] = set()
+        for evidence_id in cited_ids & set(observed_by_id) & set(exact_evidence):
+            observed = observed_by_id[evidence_id]
+            indexed = exact_evidence[evidence_id]
+            confidence_ceiling = min(indexed.confidence, indexed.provenance.confidence)
+            if (
+                observed.locator != indexed.provenance.locator
+                or observed.source_artifact_hash
+                != indexed.provenance.source_artifact_hash
+                or observed.confidence > confidence_ceiling
+            ):
+                mismatched_ids.add(evidence_id)
+        missing_exact_ids = cited_ids - set(exact_evidence)
+        if (
+            set(observed_ids) != cited_ids
+            or len(observed_ids) != len(set(observed_ids))
+            or len(provenance_ids) != len(set(provenance_ids))
+            or mismatched_ids
+            or missing_exact_ids
+        ):
+            diagnostics.append(
+                ValidationDiagnostic(
+                    code=ValidationCode.PROVENANCE_MISMATCH,
+                    path=path,
+                    message=(
+                        "assertion provenance must exactly preserve each cited source "
+                        "locator/hash and stay within indexed confidence bounds"
+                    ),
+                    related_ids=tuple(
+                        sorted(
+                            (set(observed_ids) ^ cited_ids)
+                            | mismatched_ids
+                            | missing_exact_ids
+                        )
+                    ),
+                )
+            )
+    return tuple(diagnostics)
+
+
 def validate_draft_evidence_grounding(
     *,
     snapshot: EvidenceSnapshot,
@@ -480,6 +578,13 @@ def validate_draft_evidence_grounding(
                 message="query and sealed evidence snapshot use different spoiler horizons",
             )
         )
+
+    diagnostics.extend(
+        _source_bound_draft_provenance_diagnostics(
+            draft=draft,
+            evidence=packet.evidence,
+        )
+    )
 
     def citations(
         record_id: str, evidence_ids: Sequence[str]
@@ -692,11 +797,150 @@ def validate_repair_preservation(
     )
 
 
+@dataclass(frozen=True)
+class ProjectionDependencyClosure:
+    """Existing graph objects required to keep selected assertions well formed.
+
+    This is reachability over an already constructed, sealed graph. It does not
+    create, rewrite, or rank semantics; query-time C0/C1 selection uses it only to
+    avoid detaching retained objects from dependencies authored before query reveal.
+    """
+
+    assertion_ids: frozenset[str]
+    node_ids: frozenset[str]
+    proposition_content_ids: frozenset[str]
+
+
+def _temporal_dependency_ids(
+    extent: StoryTime | ValidityTime | HolderRelativeTime,
+) -> frozenset[str]:
+    dependencies: set[str] = set()
+    if extent.kind is TemporalKind.RELATIVE and extent.anchor_id is not None:
+        dependencies.add(extent.anchor_id)
+    if extent.kind is TemporalKind.PARTIAL_ORDER:
+        for constraint in extent.partial_order:
+            dependencies.add(constraint.left_id)
+            dependencies.add(constraint.right_id)
+    return frozenset(dependencies)
+
+
+def close_projection_dependencies(
+    graph: InstanceGraph,
+    *,
+    seed_assertion_ids: Iterable[str],
+) -> ProjectionDependencyClosure:
+    """Return the recursive sealed-object closure for assertion selection.
+
+    The closure includes binary/n-ary endpoints, node description assertions,
+    epistemic holders, proposition contents and their endpoints, and every object
+    named by relative or partial-order temporal extents. Unknown source references
+    remain unresolved so final structural validation rejects them rather than this
+    helper inventing a repair.
+    """
+
+    entities = {item.entity_id: item for item in graph.entities}
+    events = {item.event_id: item for item in graph.events}
+    propositions = {
+        item.proposition_content_id: item for item in graph.proposition_contents
+    }
+    assertions = {item.assertion_id: item for item in graph.assertions}
+    known_ids = set(entities) | set(events) | set(propositions) | set(assertions)
+    seeds = set(seed_assertion_ids)
+    unknown_seeds = seeds - set(assertions)
+    if unknown_seeds:
+        raise ValueError(
+            "projection dependency closure received unknown assertion IDs: "
+            + ", ".join(sorted(unknown_seeds))
+        )
+
+    selected_assertions: set[str] = set()
+    selected_nodes: set[str] = set()
+    selected_propositions: set[str] = set()
+    visited: set[str] = set()
+    pending = set(seeds)
+
+    def temporal_dependencies(
+        *extents: StoryTime | ValidityTime | HolderRelativeTime,
+    ) -> set[str]:
+        return {
+            identifier
+            for extent in extents
+            for identifier in _temporal_dependency_ids(extent)
+        }
+
+    while pending:
+        identifier = min(pending)
+        pending.remove(identifier)
+        if identifier in visited:
+            continue
+        visited.add(identifier)
+        dependencies: set[str] = set()
+
+        assertion = assertions.get(identifier)
+        if assertion is not None:
+            selected_assertions.add(identifier)
+            dependencies.update(
+                value
+                for value in (assertion.subject_id, assertion.object_id)
+                if value is not None
+            )
+            dependencies.update(role.object_id for role in assertion.roles)
+            if assertion.proposition_content_id is not None:
+                dependencies.add(assertion.proposition_content_id)
+            dependencies.update(
+                temporal_dependencies(
+                    assertion.temporal_scope.story_time,
+                    assertion.temporal_scope.validity_time,
+                )
+            )
+            if assertion.epistemic_scope is not None:
+                dependencies.add(assertion.epistemic_scope.holder_id)
+                dependencies.update(
+                    temporal_dependencies(
+                        assertion.epistemic_scope.holder_relative_time
+                    )
+                )
+        elif identifier in entities:
+            entity = entities[identifier]
+            selected_nodes.add(identifier)
+            dependencies.update(entity.description_assertion_ids)
+            dependencies.update(temporal_dependencies(entity.temporal_state))
+        elif identifier in events:
+            event = events[identifier]
+            selected_nodes.add(identifier)
+            dependencies.update(event.description_assertion_ids)
+            dependencies.update(temporal_dependencies(event.occurrence_time))
+        elif identifier in propositions:
+            proposition = propositions[identifier]
+            selected_propositions.add(identifier)
+            dependencies.update(
+                value
+                for value in (proposition.subject_id, proposition.object_id)
+                if value is not None
+            )
+            dependencies.update(role.object_id for role in proposition.roles)
+            dependencies.update(
+                temporal_dependencies(
+                    proposition.temporal_content.story_time,
+                    proposition.temporal_content.validity_time,
+                )
+            )
+
+        pending.update((dependencies & known_ids) - visited)
+
+    return ProjectionDependencyClosure(
+        assertion_ids=frozenset(selected_assertions),
+        node_ids=frozenset(selected_nodes),
+        proposition_content_ids=frozenset(selected_propositions),
+    )
+
+
 def validate_draft_structure(
     *,
     draft: OntologyDraft,
     upper_ontology: UpperOntology,
-    evidence: Sequence[ModelVisibleEvidenceRecord],
+    evidence: Sequence[ModelVisibleEvidenceInput],
+    horizon: SpoilerHorizon,
     budgets: OutputBudgets,
     capabilities: ConstructionCapabilities,
 ) -> BoundaryValidationReport:
@@ -717,6 +961,10 @@ def validate_draft_structure(
                 related_ids=tuple(dict.fromkeys(ids)),
             )
         )
+
+    diagnostics.extend(
+        _source_bound_draft_provenance_diagnostics(draft=draft, evidence=evidence)
+    )
 
     graph = draft.instance_graph
     type_by_id = {item.type_id: item for item in draft.local_schema.contextual_types}
@@ -810,41 +1058,68 @@ def validate_draft_structure(
         set(mention_by_id) | set(event_candidate_by_id) | relation_candidate_ids | temporal_clue_ids
     )
 
-    actual_nodes = len(graph.entities) + len(graph.events)
-    actual_assertions = len(graph.assertions)
     accounting = draft.budget_accounting
-    if accounting.nodes_used != actual_nodes:
-        add(
-            ValidationCode.BUDGET_ACCOUNTING_MISMATCH,
-            "budget_accounting.nodes_used",
-            "declared node use differs from the entity/event graph count",
-        )
-    if accounting.assertions_used != actual_assertions:
-        add(
-            ValidationCode.BUDGET_ACCOUNTING_MISMATCH,
-            "budget_accounting.assertions_used",
-            "declared assertion use differs from the qualified-assertion count",
-        )
-    if accounting.display_nodes_used > actual_nodes:
-        add(
-            ValidationCode.BUDGET_ACCOUNTING_MISMATCH,
-            "budget_accounting.display_nodes_used",
-            "display-node use exceeds materialized graph nodes",
-        )
-    if accounting.display_assertions_used > actual_assertions:
-        add(
-            ValidationCode.BUDGET_ACCOUNTING_MISMATCH,
-            "budget_accounting.display_assertions_used",
-            "display-assertion use exceeds materialized assertions",
-        )
-    try:
-        accounting.validate_against(budgets)
-    except ValueError as exc:
-        add(ValidationCode.BUDGET_ACCOUNTING_MISMATCH, "budget_accounting", str(exc))
+    if capabilities == ConstructionCapabilities.prequery_construction():
+        # C1's sealed preontology is intentionally more comprehensive than any one
+        # contextual projection.  It is never a registered display object; only the
+        # later fixed-selection projection receives the common final display gate.
+        # Preserve the original prebuild accounting checks exactly so renderer
+        # feasibility cannot silently reduce C1's construction capacity.
+        actual_nodes = len(graph.entities) + len(graph.events)
+        actual_assertions = len(graph.assertions)
+        if accounting.nodes_used != actual_nodes:
+            add(
+                ValidationCode.BUDGET_ACCOUNTING_MISMATCH,
+                "budget_accounting.nodes_used",
+                "declared node use differs from the entity/event graph count",
+            )
+        if accounting.assertions_used != actual_assertions:
+            add(
+                ValidationCode.BUDGET_ACCOUNTING_MISMATCH,
+                "budget_accounting.assertions_used",
+                "declared assertion use differs from the qualified-assertion count",
+            )
+        if accounting.display_nodes_used > actual_nodes:
+            add(
+                ValidationCode.BUDGET_ACCOUNTING_MISMATCH,
+                "budget_accounting.display_nodes_used",
+                "display-node use exceeds materialized graph nodes",
+            )
+        if accounting.display_assertions_used > actual_assertions:
+            add(
+                ValidationCode.BUDGET_ACCOUNTING_MISMATCH,
+                "budget_accounting.display_assertions_used",
+                "display-assertion use exceeds materialized assertions",
+            )
+        try:
+            accounting.validate_against(budgets)
+        except ValueError as exc:
+            add(
+                ValidationCode.BUDGET_ACCOUNTING_MISMATCH,
+                "budget_accounting",
+                str(exc),
+            )
+    else:
+        try:
+            compile_registered_display_selection(graph, accounting, budgets)
+        except DisplaySelectionError as exc:
+            for path in exc.repair_paths:
+                add(
+                    ValidationCode.BUDGET_ACCOUNTING_MISMATCH,
+                    path,
+                    str(exc),
+                )
 
     upper_types = set(upper_ontology.primitive_types)
     upper_relations = set(upper_ontology.primitive_relations)
     for contextual_type in type_by_id.values():
+        if not contextual_type.evidence_ids:
+            add(
+                ValidationCode.MISSING_GROUNDING,
+                f"local_schema.contextual_types.{contextual_type.type_id}.evidence_ids",
+                "contextual type requires nonempty evidence grounding",
+                contextual_type.type_id,
+            )
         if contextual_type.parent_upper_type not in upper_types:
             add(
                 ValidationCode.SCHEMA_PARENT_MISMATCH,
@@ -854,6 +1129,13 @@ def validate_draft_structure(
                 contextual_type.parent_upper_type,
             )
     for predicate in predicate_by_id.values():
+        if not predicate.evidence_ids:
+            add(
+                ValidationCode.MISSING_GROUNDING,
+                f"local_schema.predicates.{predicate.predicate_id}.evidence_ids",
+                "local predicate requires nonempty evidence grounding",
+                predicate.predicate_id,
+            )
         if predicate.parent_upper_relation not in upper_relations:
             add(
                 ValidationCode.SCHEMA_PARENT_MISMATCH,
@@ -1125,15 +1407,6 @@ def validate_draft_structure(
                     assertion.epistemic_scope.holder_id,
                 )
             footprint.add(assertion.epistemic_scope.holder_id)
-        provenance_ids = {item.evidence_id for item in assertion.provenance}
-        if provenance_ids != set(assertion.evidence_ids):
-            add(
-                ValidationCode.PROVENANCE_MISMATCH,
-                f"{path}.provenance",
-                "assertion provenance must cover exactly its cited evidence IDs",
-                assertion.assertion_id,
-                *sorted(set(assertion.evidence_ids) ^ provenance_ids),
-            )
         assertion_footprints[assertion.assertion_id] = footprint
 
     for kind, records in (("entities", graph.entities), ("events", graph.events)):
@@ -1282,6 +1555,36 @@ def validate_draft_structure(
     temporal_owners = referent_ids | set(assertion_by_id)
     order_edges: dict[str, set[str]] = {identifier: set() for identifier in temporal_owners}
 
+    def add_registered_temporal_diagnostics(
+        result: TemporalValidationResult,
+        owner_id: str,
+    ) -> None:
+        code_map = {
+            TemporalDiagnosticCode.INVALID_INTERVAL_BOUNDS: (
+                ValidationCode.TEMPORAL_INTERVAL_INVALID
+            ),
+            TemporalDiagnosticCode.INVALID_EXPLICIT_TIME: (
+                ValidationCode.TEMPORAL_VALUE_INVALID
+            ),
+            TemporalDiagnosticCode.EVIDENCE_AFTER_SPOILER_HORIZON: (
+                ValidationCode.DISCOURSE_HORIZON_LEAK
+            ),
+            TemporalDiagnosticCode.REVELATION_AFTER_SPOILER_HORIZON: (
+                ValidationCode.REVELATION_HORIZON_LEAK
+            ),
+        }
+        for diagnostic in result.diagnostics:
+            code = code_map.get(diagnostic.code)
+            if code is None:
+                continue
+            add(
+                code,
+                diagnostic.field_path,
+                diagnostic.message,
+                owner_id,
+                *diagnostic.involved_ids,
+            )
+
     def validate_temporal(
         owner_id: str,
         field_name: str,
@@ -1289,15 +1592,6 @@ def validate_draft_structure(
     ) -> None:
         kind = extent.kind
         path = f"temporal.{owner_id}.{field_name}"
-        start = extent.start
-        end = extent.end
-        if kind is TemporalKind.INTERVAL and start is not None and end is not None and start > end:
-            add(
-                ValidationCode.TEMPORAL_INTERVAL_INVALID,
-                path,
-                "temporal interval start exceeds its end",
-                owner_id,
-            )
         if kind is TemporalKind.RELATIVE:
             anchor = extent.anchor_id
             relation = extent.relation
@@ -1333,8 +1627,24 @@ def validate_draft_structure(
 
     for entity in graph.entities:
         validate_temporal(entity.entity_id, "temporal_state", entity.temporal_state)
+        add_registered_temporal_diagnostics(
+            validate_temporal_extent(
+                entity.temporal_state,
+                known_anchor_ids=temporal_owners,
+                field_path=f"entities.{entity.entity_id}.temporal_state",
+            ),
+            entity.entity_id,
+        )
     for event in graph.events:
         validate_temporal(event.event_id, "occurrence_time", event.occurrence_time)
+        add_registered_temporal_diagnostics(
+            validate_temporal_extent(
+                event.occurrence_time,
+                known_anchor_ids=temporal_owners,
+                field_path=f"events.{event.event_id}.occurrence_time",
+            ),
+            event.event_id,
+        )
     for proposition in graph.proposition_contents:
         validate_temporal(
             proposition.proposition_content_id,
@@ -1345,6 +1655,18 @@ def validate_draft_structure(
             proposition.proposition_content_id,
             "validity_time",
             proposition.temporal_content.validity_time,
+        )
+        add_registered_temporal_diagnostics(
+            validate_temporal_scope(
+                proposition.temporal_content,
+                horizon=horizon,
+                known_anchor_ids=temporal_owners,
+                field_path=(
+                    "proposition_contents."
+                    f"{proposition.proposition_content_id}.temporal_content"
+                ),
+            ),
+            proposition.proposition_content_id,
         )
     for assertion in graph.assertions:
         validate_temporal(assertion.assertion_id, "story_time", assertion.temporal_scope.story_time)
@@ -1357,6 +1679,14 @@ def validate_draft_structure(
                 "holder_relative_time",
                 assertion.epistemic_scope.holder_relative_time,
             )
+        add_registered_temporal_diagnostics(
+            validate_assertion_temporality(
+                assertion,
+                horizon=horizon,
+                known_anchor_ids=temporal_owners,
+            ),
+            assertion.assertion_id,
+        )
 
     visiting: set[str] = set()
     visited: set[str] = set()

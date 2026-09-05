@@ -1,8 +1,15 @@
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
-from story_projection_onto.contracts import ConditionName, ConstructionOperator
+from story_projection_onto.contracts import (
+    ConditionName,
+    ConstructionOperator,
+    ConstructionRequest,
+    OntologyDraft,
+)
 from story_projection_onto.llm import (
     FixedSelectOutputAudit,
     ProposedOperation,
@@ -20,16 +27,45 @@ from story_projection_onto.validate import (
     SpoilerHorizonBoundary,
     ValidationCode,
     validate_construction_lineage,
+    validate_draft_structure,
     validate_evidence_grounding,
     validate_fixed_select,
     validate_repair_preservation,
     validate_single_repair_lineage,
 )
 
+ROOT = Path(__file__).resolve().parents[2]
 HASH_A = "a" * 64
 HASH_B = "b" * 64
 HASH_C = "c" * 64
 REVEAL = datetime(2026, 9, 3, 12, 0, tzinfo=UTC)
+
+
+def _without_hashes(value: object) -> object:
+    if isinstance(value, dict):
+        return {
+            key: _without_hashes(child)
+            for key, child in value.items()
+            if key != "content_hash"
+        }
+    if isinstance(value, list):
+        return [_without_hashes(child) for child in value]
+    return value
+
+
+def _phase1_c2_boundary(payload: dict[str, object]):
+    request = ConstructionRequest.model_validate_json(
+        (ROOT / "tests/fixtures/phase1/c2_query_request.json").read_text(encoding="utf-8")
+    )
+    draft = OntologyDraft.model_validate(_without_hashes(payload))
+    return validate_draft_structure(
+        draft=draft,
+        upper_ontology=request.upper_ontology,
+        evidence=request.packet.evidence,
+        horizon=request.context.spoiler_horizon,
+        budgets=request.budgets,
+        capabilities=request.capabilities,
+    )
 
 
 def valid_evidence_report():
@@ -227,6 +263,66 @@ def test_discourse_and_revelation_horizons_are_enforced_independently() -> None:
     revelation_codes = {item.code for item in revelation_only.diagnostics}
     assert ValidationCode.REVELATION_HORIZON_LEAK in revelation_codes
     assert ValidationCode.DISCOURSE_HORIZON_LEAK not in revelation_codes
+
+
+def test_draft_boundary_rejects_assertion_and_proposition_horizon_leaks() -> None:
+    payload = json.loads(
+        (ROOT / "tests/fixtures/phase1/c2_query_output.json").read_text(encoding="utf-8")
+    )
+    graph = payload["instance_graph"]
+    assertion_scope = graph["assertions"][0]["temporal_scope"]
+    proposition_scope = graph["proposition_contents"][0]["temporal_content"]
+    for scope in (assertion_scope, proposition_scope):
+        scope["discourse_position"] = {"passage_order": 999_999}
+        scope["revelation_position"] = {"revelation_order": 999_999}
+
+    report = _phase1_c2_boundary(payload)
+    paths_by_code = {
+        code: tuple(item.path for item in report.diagnostics if item.code is code)
+        for code in (
+            ValidationCode.DISCOURSE_HORIZON_LEAK,
+            ValidationCode.REVELATION_HORIZON_LEAK,
+        )
+    }
+
+    assert not report.accepted
+    for paths in paths_by_code.values():
+        assert any(path.startswith("assertions.") for path in paths)
+        assert any(path.startswith("proposition_contents.") for path in paths)
+
+
+def test_draft_boundary_rejects_explicit_invalid_temporal_values() -> None:
+    payload = json.loads(
+        (ROOT / "tests/fixtures/phase1/c2_query_output.json").read_text(encoding="utf-8")
+    )
+    graph = payload["instance_graph"]
+    graph["entities"][0]["temporal_state"] = {
+        "kind": "invalid",
+        "reason": "explicit invalid sentinel",
+    }
+    graph["proposition_contents"][0]["temporal_content"]["validity_time"] = {
+        "kind": "invalid",
+        "reason": "explicit invalid sentinel",
+    }
+    graph["assertions"][0]["temporal_scope"]["story_time"] = {
+        "kind": "invalid",
+        "reason": "explicit invalid sentinel",
+    }
+
+    report = _phase1_c2_boundary(payload)
+    invalid = tuple(
+        item
+        for item in report.diagnostics
+        if item.code is ValidationCode.TEMPORAL_VALUE_INVALID
+    )
+
+    assert not report.accepted
+    assert len(invalid) == 3
+    assert {item.related_ids[0] for item in invalid} == {
+        graph["entities"][0]["entity_id"],
+        graph["proposition_contents"][0]["proposition_content_id"],
+        graph["assertions"][0]["assertion_id"],
+    }
 
 
 def test_c1_lineage_requires_every_construction_decision_and_seal_before_reveal() -> None:

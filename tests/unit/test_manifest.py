@@ -32,6 +32,8 @@ def test_manifest_is_order_independent_and_changes_with_content(tmp_path: Path) 
 def test_manifest_excludes_private_and_cache_paths(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "module.py").write_text("pass\n", encoding="utf-8")
+    (tmp_path / "src" / "legacy.pyc").write_bytes(b"direct bytecode")
+    (tmp_path / "src" / "optimized.pyo").write_bytes(b"direct optimized bytecode")
     (tmp_path / "src" / "__pycache__").mkdir()
     (tmp_path / "src" / "__pycache__" / "module.pyc").write_bytes(b"private")
     (tmp_path / ".local_data").mkdir()

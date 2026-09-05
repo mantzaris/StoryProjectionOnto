@@ -7,6 +7,7 @@ import argparse
 import importlib
 import json
 from collections.abc import Callable, Sequence
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +23,7 @@ from story_projection_onto.case_study_factory import (
     CASE_PRODUCTION_FACTORY,
     CaseStudyFactoryError,
     CaseStudyProductionBundle,
+    preflight_frozen_production_case_study_bundle,
 )
 from story_projection_onto.case_study_runtime import (
     CaseStudyRuntimePolicy,
@@ -50,6 +52,7 @@ def parse_args(arguments: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--preregistration", type=Path)
     parser.add_argument("--input-attestation", type=Path)
     parser.add_argument("--admission-attestation", type=Path)
+    parser.add_argument("--semantic-gate-bundle", type=Path)
     parser.add_argument("--selected-model-freeze", type=Path)
     parser.add_argument("--admission-evidence-bundle", type=Path)
     parser.add_argument("--admission-evidence-bundle-reference", type=Path)
@@ -60,6 +63,7 @@ def parse_args(arguments: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--ledger", type=Path)
     parser.add_argument("--artifact-root", type=Path)
+    parser.add_argument("--staging-transition-directory", type=Path)
     parser.add_argument("--runtime-root", type=Path)
     parser.add_argument("--quota-root", type=Path)
     parser.add_argument("--snapshot", type=Path)
@@ -84,18 +88,24 @@ def _production_factory(reference: str) -> Callable[..., CaseStudyProductionBund
     return factory
 
 
-def _require_execute_options(options: argparse.Namespace) -> dict[str, Any]:
+def _require_execute_options(
+    options: argparse.Namespace,
+    *,
+    operation: str = "--execute",
+) -> dict[str, Any]:
     names = (
         "index",
         "index_manifest",
         "preregistration",
         "input_attestation",
         "admission_attestation",
+        "semantic_gate_bundle",
         "selected_model_freeze",
         "admission_evidence_bundle",
         "admission_evidence_bundle_reference",
         "ledger",
         "artifact_root",
+        "staging_transition_directory",
         "runtime_root",
         "quota_root",
         "snapshot",
@@ -108,7 +118,7 @@ def _require_execute_options(options: argparse.Namespace) -> dict[str, Any]:
     missing = tuple(name for name in names if getattr(options, name) is None)
     if missing:
         flags = ", ".join(f"--{name.replace('_', '-')}" for name in missing)
-        raise CaseStudyFactoryError(f"--execute requires: {flags}")
+        raise CaseStudyFactoryError(f"{operation} requires: {flags}")
     return {name: getattr(options, name) for name in names}
 
 
@@ -120,7 +130,7 @@ def _redacted_error(error: BaseException, options: argparse.Namespace) -> str:
     # prose), so all other diagnostics stay in restricted logs/CAS artifacts.
     if not (
         isinstance(error, CaseStudyFactoryError)
-        and message.startswith("--execute requires:")
+        and message.startswith(("--execute requires:", "--validate-only requires:"))
     ):
         return "case command blocked; diagnostics retained in restricted storage"
     return message
@@ -141,12 +151,15 @@ def _status_payload(
         "case_base_watchdog_seconds": CASE_BASE_WATCHDOG_SECONDS,
         "case_gpu_call_count": len(plan.gpu_call_slots),
         "controller_contract_valid": True,
-        "execute_enabled": True,
+        "execute_enabled": False,
+        "execution_ready": False,
         "execution_plan_hash": plan.content_hash,
         "hard_gpu_limit_seconds": HARD_GPU_LIMIT_SECONDS,
         "required_next_repair_seconds": CASE_REQUIRED_NEXT_REPAIR_SECONDS,
         "scheduled_gpu_limit_seconds": SCHEDULED_GPU_LIMIT_SECONDS,
         "service_start_watchdog_seconds": CASE_SERVICE_START_WATCHDOG_SECONDS,
+        "state": "contract_only",
+        "validation_scope": "contract_only",
         "writes_performed": False,
     }
     if options.resume is not None:
@@ -179,7 +192,54 @@ def main(arguments: Sequence[str] | None = None) -> int:
         policy = CaseStudyRuntimePolicy.load(repository / "configs/case_study/runtime.json")
         factory_reference = options.adapter_factory or policy.production_adapter_factory
         factory = _production_factory(factory_reference)
-        if not options.execute:
+        if options.validate_only:
+            values = _require_execute_options(options, operation="--validate-only")
+            construction = options.construction
+            if not construction.is_absolute():
+                construction = repository / construction
+            preflight = preflight_frozen_production_case_study_bundle(
+                repository=repository,
+                restricted_root=options.restricted_root,
+                plan_path=options.plan,
+                index_path=values["index"],
+                index_manifest_path=values["index_manifest"],
+                preregistration_path=values["preregistration"],
+                input_attestation_path=values["input_attestation"],
+                admission_attestation_path=values["admission_attestation"],
+                semantic_gate_bundle_path=values["semantic_gate_bundle"],
+                selected_model_freeze_path=values["selected_model_freeze"],
+                admission_evidence_bundle_path=values["admission_evidence_bundle"],
+                admission_evidence_bundle_reference_path=(
+                    values["admission_evidence_bundle_reference"]
+                ),
+                construction_path=construction,
+                ledger_path=values["ledger"],
+                artifact_root=values["artifact_root"],
+                staging_transition_directory=values["staging_transition_directory"],
+                runtime_root=values["runtime_root"],
+                quota_root=values["quota_root"],
+                snapshot_path=values["snapshot"],
+                shared_cache=values["shared_cache"],
+                verified_model_manifest_path=values["verified_model_manifest"],
+                source_association_path=values["source_association"],
+                expected_predecessor_ledger_sha256=values[
+                    "expected_predecessor_ledger_sha256"
+                ],
+                source_revision=values["source_revision"],
+                port=options.port,
+            )
+            payload = _status_payload(plan=plan, policy=policy, options=options)
+            payload.update(asdict(preflight))
+            payload.update(
+                {
+                    "execute_enabled": True,
+                    "execution_ready": True,
+                    "state": "ready",
+                    "validation_scope": "full_production_preflight",
+                    "writes_performed": False,
+                }
+            )
+        elif not options.execute:
             payload = _status_payload(plan=plan, policy=policy, options=options)
         else:
             values = _require_execute_options(options)
@@ -195,6 +255,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
                 preregistration_path=values["preregistration"],
                 input_attestation_path=values["input_attestation"],
                 admission_attestation_path=values["admission_attestation"],
+                semantic_gate_bundle_path=values["semantic_gate_bundle"],
                 selected_model_freeze_path=values["selected_model_freeze"],
                 admission_evidence_bundle_path=values["admission_evidence_bundle"],
                 admission_evidence_bundle_reference_path=(
@@ -203,6 +264,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
                 construction_path=construction,
                 ledger_path=values["ledger"],
                 artifact_root=values["artifact_root"],
+                staging_transition_directory=values["staging_transition_directory"],
                 runtime_root=values["runtime_root"],
                 quota_root=values["quota_root"],
                 snapshot_path=values["snapshot"],

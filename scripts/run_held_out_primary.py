@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import importlib
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 from story_projection_onto.held_out_binding import (
@@ -27,6 +28,10 @@ from story_projection_onto.held_out_primary import (
     HeldOutControlError,
     open_reviewed_held_out_plan,
 )
+from story_projection_onto.held_out_results import (
+    DEFAULT_HELD_OUT_RESULTS_ROOT,
+    close_held_out_primary_results,
+)
 
 
 def parser() -> argparse.ArgumentParser:
@@ -46,6 +51,11 @@ def parser() -> argparse.ArgumentParser:
         default=DEFAULT_HELD_OUT_RUNTIME_BINDING_PATH,
     )
     command.add_argument("--output-root", type=Path, default=DEFAULT_HELD_OUT_OUTPUT_ROOT)
+    command.add_argument(
+        "--results-gate-root",
+        type=Path,
+        default=DEFAULT_HELD_OUT_RESULTS_ROOT,
+    )
     mode = command.add_mutually_exclusive_group(required=True)
     mode.add_argument("--validate-only", action="store_true")
     mode.add_argument("--run", action="store_true")
@@ -191,6 +201,16 @@ def main(argv: list[str] | None = None) -> int:
             output_root,
             label="held-out output root",
         )
+        results_gate_root = (
+            options.results_gate_root
+            if options.results_gate_root.is_absolute()
+            else repository / options.results_gate_root
+        )
+        _restricted_descendant(
+            restricted_root,
+            results_gate_root,
+            label="held-out results gate root",
+        )
         try:
             execution = execute_reviewed_held_out_manifest(
                 reviewed_plan=reviewed_plan,
@@ -203,6 +223,15 @@ def main(argv: list[str] | None = None) -> int:
                 sessions=bundle.sessions,
                 runtime=bundle.runtime,
                 output_root=output_root,
+            )
+            scorer_bridge, primary_results_gate = close_held_out_primary_results(
+                reviewed_plan=reviewed_plan,
+                call_manifest=manifest,
+                execution=execution,
+                held_out_output_root=output_root,
+                results_root=results_gate_root,
+                runtime=bundle.runtime,
+                clock=lambda: datetime.now(UTC),
             )
         except InterruptedCallRecoveryRequired:
             preserve = getattr(bundle, "preserve_for_resume", None)
@@ -232,6 +261,8 @@ def main(argv: list[str] | None = None) -> int:
                 {
                     "state": "complete",
                     "execution_manifest_hash": execution.content_hash,
+                    "scorer_bridge_hash": scorer_bridge.content_hash,
+                    "primary_results_gate_hash": primary_results_gate.content_hash,
                     "itt_call_count": len(execution.itt_records),
                     "allocated_gpu_seconds": "read_from_global_ledger",
                 },

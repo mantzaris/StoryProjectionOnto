@@ -4,6 +4,10 @@
   "reporting_policy_path": "configs/study/reporting.json",
   "reporting_policy_file_sha256": "33b546739f47082faae9269c447bf3654699f516ec5b8b82f6ff5f505acf84b3",
   "reporting_policy_sha256": "fa911d3fa56d11c995cda64b435305ee4f0c21a6b1cf8f1adf1c770702196a93",
+  "error_review_taxonomy_path": "configs/study/held_out_error_review_taxonomy.json",
+  "error_review_taxonomy_file_sha256": "eca9b92c65aa61682eb00385f9ded567490213b3d591921f465a622308431b49",
+  "community_review_template_path": "configs/study/community_review_template.json",
+  "community_review_template_file_sha256": "9763a573009e7ecc704faad180867ba1fcf2bae31add13a6008ba5890423ecb7",
   "phase_labels": [
     {"phase_id": "phase_1", "label": "Contracts, resource controls, and GPU pilot"},
     {"phase_id": "phase_2", "label": "Synthetic benchmark"},
@@ -19,6 +23,7 @@
       "producer": "study_status",
       "required_columns": ["phase_id", "status", "reason"],
       "sort_columns": ["phase_id"],
+      "display_columns": ["phase_id", "status", "reason"],
       "description": "Registered completion state of all seven phases."
     },
     {
@@ -26,6 +31,69 @@
       "producer": "canonical_csv",
       "required_columns": ["comparison", "metric", "estimate", "paired_median", "standardized_effect", "ci_lower", "ci_upper", "p_value", "adjusted_p_value", "sign_flip_p_value", "bootstrap_lower", "bootstrap_upper", "paired_world_count", "status", "analysis_family", "p_value_kind", "multiplicity_method", "independent_unit"],
       "sort_columns": ["comparison", "metric"],
+      "display_columns": ["metric", "estimate", "ci_lower", "ci_upper", "p_value", "adjusted_p_value", "sign_flip_p_value", "status"],
+      "source_producer_table_id": "canonical_comparisons",
+      "registered_row_filters": [
+        {"column": "analysis_family", "equals": "registered_primary"},
+        {"column": "comparison", "equals": "C2-C1"}
+      ],
+      "expected_output_row_count": 2,
+      "row_identity_columns": ["analysis_family", "comparison", "metric"],
+      "exact_row_identity_groups": [
+        {
+          "fixed": {"analysis_family": "registered_primary", "comparison": "C2-C1"},
+          "varying": {"metric": ["ontology_decision_macro_f1", "strict_qualified_assertion_f1"]}
+        }
+      ],
+      "supplemental_metric_sources": [
+        {
+          "source_role": "primary_unit_temporal_epistemic",
+          "producer_table_id": "report_unit_metrics_csv",
+          "description": "Complete primary-unit node, qualified-assertion, grounding, validity, unsupported-assertion, ontology-decision component, unrepresentable-decision, and temporal/epistemic rows, including component numerators and denominators.",
+          "required_columns": ["source_block", "unit_id", "condition", "world_id", "context_id", "seed_block", "output_valid", "projection_id", "unit_hash", "metric_name", "metric_status", "value", "numerator", "denominator", "metric_version_hash"],
+          "key_columns": ["unit_id"],
+          "row_filters": [{"column": "source_block", "equals": "primary"}],
+          "metrics": [
+            {"metric_name": "contextual_node_precision", "expected_row_count": 252},
+            {"metric_name": "contextual_node_recall", "expected_row_count": 252},
+            {"metric_name": "contextual_node_f1", "expected_row_count": 252},
+            {"metric_name": "strict_qualified_assertion_precision", "expected_row_count": 252},
+            {"metric_name": "strict_qualified_assertion_recall", "expected_row_count": 252},
+            {"metric_name": "strict_qualified_assertion_f1", "expected_row_count": 252},
+            {"metric_name": "essential_temporal_qualification_accuracy", "expected_row_count": 252},
+            {"metric_name": "evidence_citation_validity", "expected_row_count": 252},
+            {"metric_name": "grounding_precision", "expected_row_count": 252},
+            {"metric_name": "unsupported_assertion_rate", "expected_row_count": 252},
+            {"metric_name": "ontology_decision_macro_f1", "expected_row_count": 252},
+            {"metric_name": "ontology_decision_unrepresentable_gold_count", "expected_row_count": 252},
+            {"metric_name": "ontology_decision_unrepresentable_prediction_count", "expected_row_count": 252},
+            {"metric_name": "ontology_decision_merge_split_precision", "expected_row_count": 252},
+            {"metric_name": "ontology_decision_merge_split_recall", "expected_row_count": 252},
+            {"metric_name": "ontology_decision_merge_split_f1", "expected_row_count": 252},
+            {"metric_name": "ontology_decision_contextual_type_precision", "expected_row_count": 252},
+            {"metric_name": "ontology_decision_contextual_type_recall", "expected_row_count": 252},
+            {"metric_name": "ontology_decision_contextual_type_f1", "expected_row_count": 252},
+            {"metric_name": "ontology_decision_schema_relation_precision", "expected_row_count": 252},
+            {"metric_name": "ontology_decision_schema_relation_recall", "expected_row_count": 252},
+            {"metric_name": "ontology_decision_schema_relation_f1", "expected_row_count": 252},
+            {"metric_name": "ontology_decision_event_reification_precision", "expected_row_count": 252},
+            {"metric_name": "ontology_decision_event_reification_recall", "expected_row_count": 252},
+            {"metric_name": "ontology_decision_event_reification_f1", "expected_row_count": 252},
+            {"metric_name": "ontology_decision_abstraction_precision", "expected_row_count": 252},
+            {"metric_name": "ontology_decision_abstraction_recall", "expected_row_count": 252},
+            {"metric_name": "ontology_decision_abstraction_f1", "expected_row_count": 252},
+            {"metric_name": "ontology_decision_temporal_epistemic_qualification_precision", "expected_row_count": 252},
+            {"metric_name": "ontology_decision_temporal_epistemic_qualification_recall", "expected_row_count": 252},
+            {"metric_name": "ontology_decision_temporal_epistemic_qualification_f1", "expected_row_count": 252}
+          ],
+          "partitions": [
+            {"column": "condition", "value": "C0", "expected_rows_per_metric": 36},
+            {"column": "condition", "value": "C1", "expected_rows_per_metric": 72},
+            {"column": "condition", "value": "C2", "expected_rows_per_metric": 72},
+            {"column": "condition", "value": "A-FixedSelect", "expected_rows_per_metric": 72}
+          ]
+        }
+      ],
       "description": "Registered primary paired C2 minus C1 world-level results."
     },
     {
@@ -33,6 +101,20 @@
       "producer": "canonical_csv",
       "required_columns": ["comparison", "metric", "estimate", "paired_median", "standardized_effect", "ci_lower", "ci_upper", "p_value", "adjusted_p_value", "sign_flip_p_value", "bootstrap_lower", "bootstrap_upper", "paired_world_count", "status", "analysis_family", "p_value_kind", "multiplicity_method", "independent_unit"],
       "sort_columns": ["comparison", "metric"],
+      "display_columns": ["metric", "estimate", "ci_lower", "ci_upper", "p_value", "sign_flip_p_value", "paired_world_count", "status"],
+      "source_producer_table_id": "canonical_comparisons",
+      "registered_row_filters": [
+        {"column": "analysis_family", "equals": "required_secondary"},
+        {"column": "comparison", "equals": "C2-C0"}
+      ],
+      "expected_output_row_count": 3,
+      "row_identity_columns": ["analysis_family", "comparison", "metric"],
+      "exact_row_identity_groups": [
+        {
+          "fixed": {"analysis_family": "required_secondary", "comparison": "C2-C0"},
+          "varying": {"metric": ["ontology_decision_macro_f1", "rare_pivotal_qualified_assertion_recall", "strict_qualified_assertion_f1"]}
+        }
+      ],
       "description": "Required secondary paired C2 minus C0 world-level results."
     },
     {
@@ -40,6 +122,45 @@
       "producer": "canonical_csv",
       "required_columns": ["comparison", "metric", "estimate", "paired_median", "standardized_effect", "ci_lower", "ci_upper", "p_value", "adjusted_p_value", "sign_flip_p_value", "bootstrap_lower", "bootstrap_upper", "paired_world_count", "status", "analysis_family", "p_value_kind", "multiplicity_method", "independent_unit", "gate_status_hash", "registered_analysis_hash", "alpha", "rare_safeguard_margin", "organization_adjusted_p_value", "mechanism_one_sided_p_value", "c2_vs_c1_rare_lower_bound", "c2_vs_fixed_rare_lower_bound", "c2_vs_fixed_rare_p_value", "organization_gate_passed", "construction_freedom_gate_passed", "c2_vs_c1_rare_safeguard_gate_passed", "c2_vs_fixed_rare_safeguard_status", "c2_vs_fixed_rare_safeguard_gate_passed"],
       "sort_columns": ["comparison", "metric"],
+      "display_columns": ["metric", "estimate", "ci_lower", "ci_upper", "mechanism_one_sided_p_value", "organization_gate_passed", "construction_freedom_gate_passed", "status"],
+      "source_producer_table_id": "canonical_comparisons",
+      "registered_row_filters": [
+        {"column": "analysis_family", "one_of": ["gated_mechanism", "gated_mechanism_safeguard", "mechanism_support"]},
+        {"column": "comparison", "equals": "C2-A-FixedSelect"}
+      ],
+      "expected_output_row_count": 4,
+      "row_identity_columns": ["analysis_family", "comparison", "metric"],
+      "exact_row_identity_groups": [
+        {
+          "fixed": {"analysis_family": "gated_mechanism", "comparison": "C2-A-FixedSelect", "metric": "ontology_decision_macro_f1"}
+        },
+        {
+          "fixed": {"analysis_family": "gated_mechanism_safeguard", "comparison": "C2-A-FixedSelect", "metric": "rare_pivotal_qualified_assertion_recall"}
+        },
+        {
+          "fixed": {"analysis_family": "mechanism_support", "comparison": "C2-A-FixedSelect"},
+          "varying": {"metric": ["contrastive_collapse", "contrastive_decision_change_f1"]}
+        }
+      ],
+      "supplemental_metric_sources": [
+        {
+          "source_role": "contrastive_mechanism_diagnostics",
+          "producer_table_id": "report_contrast_metrics_csv",
+          "description": "Complete fixed contrast-pair decision-change F1 and collapse rows for every primary condition; the paired C2 versus A-FixedSelect summaries remain world-level and outside the primary Holm family.",
+          "required_columns": ["world_id", "before_context_id", "after_context_id", "condition", "seed_block", "unit_hash", "metric_name", "metric_status", "value", "numerator", "denominator", "metric_version_hash"],
+          "key_columns": ["world_id", "before_context_id", "after_context_id", "condition", "seed_block"],
+          "metrics": [
+            {"metric_name": "contrastive_collapse", "expected_row_count": 84},
+            {"metric_name": "contrastive_decision_change_f1", "expected_row_count": 84}
+          ],
+          "partitions": [
+            {"column": "condition", "value": "C0", "expected_rows_per_metric": 12},
+            {"column": "condition", "value": "C1", "expected_rows_per_metric": 24},
+            {"column": "condition", "value": "C2", "expected_rows_per_metric": 24},
+            {"column": "condition", "value": "A-FixedSelect", "expected_rows_per_metric": 24}
+          ]
+        }
+      ],
       "description": "Gated C2 versus A-FixedSelect mechanism comparisons and capability checks."
     },
     {
@@ -47,6 +168,52 @@
       "producer": "canonical_csv",
       "required_columns": ["comparison", "metric", "estimate", "paired_median", "standardized_effect", "ci_lower", "ci_upper", "p_value", "adjusted_p_value", "sign_flip_p_value", "bootstrap_lower", "bootstrap_upper", "paired_world_count", "status", "analysis_family", "p_value_kind", "multiplicity_method", "independent_unit", "gate_status_hash", "registered_analysis_hash", "alpha", "rare_safeguard_margin", "organization_adjusted_p_value", "mechanism_one_sided_p_value", "c2_vs_c1_rare_lower_bound", "c2_vs_fixed_rare_lower_bound", "c2_vs_fixed_rare_p_value", "organization_gate_passed", "construction_freedom_gate_passed", "c2_vs_c1_rare_safeguard_gate_passed", "c2_vs_fixed_rare_safeguard_status", "c2_vs_fixed_rare_safeguard_gate_passed"],
       "sort_columns": ["comparison", "metric"],
+      "display_columns": ["comparison", "metric", "estimate", "ci_lower", "ci_upper", "c2_vs_c1_rare_lower_bound", "c2_vs_fixed_rare_lower_bound", "status"],
+      "source_producer_table_id": "canonical_comparisons",
+      "registered_row_filters": [
+        {"column": "metric", "one_of": ["rare_pivotal_qualified_assertion_recall", "rare_pivotal_support_path_survival"]}
+      ],
+      "expected_output_row_count": 5,
+      "row_identity_columns": ["analysis_family", "comparison", "metric"],
+      "exact_row_identity_groups": [
+        {
+          "fixed": {"analysis_family": "gated_mechanism_safeguard", "comparison": "C2-A-FixedSelect", "metric": "rare_pivotal_qualified_assertion_recall"}
+        },
+        {
+          "fixed": {"analysis_family": "rare_pivotal_safeguard", "comparison": "C2-C1", "metric": "rare_pivotal_qualified_assertion_recall"}
+        },
+        {
+          "fixed": {"analysis_family": "required_secondary", "comparison": "C2-C0", "metric": "rare_pivotal_qualified_assertion_recall"}
+        },
+        {
+          "fixed": {"analysis_family": "secondary_complete_world_panel", "metric": "rare_pivotal_support_path_survival"},
+          "varying": {"comparison": ["C2-C0", "C2-C1"]}
+        }
+      ],
+      "supplemental_metric_sources": [
+        {
+          "source_role": "primary_unit_rare_pivotal",
+          "producer_table_id": "report_unit_metrics_csv",
+          "description": "Complete primary-unit common/rare by pivotal/nonpivotal recall, rare-pivotal recall, and support-path rows with exact denominators.",
+          "required_columns": ["source_block", "unit_id", "condition", "world_id", "context_id", "seed_block", "output_valid", "projection_id", "unit_hash", "metric_name", "metric_status", "value", "numerator", "denominator", "metric_version_hash"],
+          "key_columns": ["unit_id"],
+          "row_filters": [{"column": "source_block", "equals": "primary"}],
+          "metrics": [
+            {"metric_name": "rare_pivotal_qualified_assertion_recall", "expected_row_count": 252},
+            {"metric_name": "rare_pivotal_support_path_survival", "expected_row_count": 252},
+            {"metric_name": "qualified_assertion_recall_common_nonpivotal", "expected_row_count": 252},
+            {"metric_name": "qualified_assertion_recall_common_pivotal", "expected_row_count": 252},
+            {"metric_name": "qualified_assertion_recall_rare_nonpivotal", "expected_row_count": 252},
+            {"metric_name": "qualified_assertion_recall_rare_pivotal", "expected_row_count": 252}
+          ],
+          "partitions": [
+            {"column": "condition", "value": "C0", "expected_rows_per_metric": 36},
+            {"column": "condition", "value": "C1", "expected_rows_per_metric": 72},
+            {"column": "condition", "value": "C2", "expected_rows_per_metric": 72},
+            {"column": "condition", "value": "A-FixedSelect", "expected_rows_per_metric": 72}
+          ]
+        }
+      ],
       "description": "Rare-pivotal recall, support-path survival, and noninferiority safeguards."
     },
     {
@@ -54,6 +221,91 @@
       "producer": "canonical_csv",
       "required_columns": ["comparison", "metric", "estimate", "paired_median", "standardized_effect", "ci_lower", "ci_upper", "p_value", "adjusted_p_value", "sign_flip_p_value", "bootstrap_lower", "bootstrap_upper", "paired_world_count", "status", "analysis_family", "p_value_kind", "multiplicity_method", "independent_unit"],
       "sort_columns": ["metric", "comparison"],
+      "display_columns": ["comparison", "metric", "estimate", "ci_lower", "ci_upper", "paired_world_count", "status"],
+      "source_producer_table_id": "canonical_comparisons",
+      "registered_row_filters": [
+        {"column": "analysis_family", "one_of": ["crossing_two_part", "secondary_complete_world_panel"]},
+        {"column": "metric", "one_of": ["assertion_edge_count", "canonical_mapped_relation_entropy", "component_count", "conditional_crossing_rate", "crossing_opportunity_count", "crossing_opportunity_incidence", "degree_histogram_entropy", "degree_mass_entropy", "density", "exposure_weighted_crossing_rate", "irrelevant_visible_load", "label_overlap_area", "label_overlap_count", "local_relation_neighborhood_entropy", "native_schema_relation_entropy", "node_count"]}
+      ],
+      "expected_output_row_count": 32,
+      "row_identity_columns": ["analysis_family", "comparison", "metric"],
+      "exact_row_identity_groups": [
+        {
+          "fixed": {"analysis_family": "secondary_complete_world_panel"},
+          "varying": {
+            "comparison": ["C2-C0", "C2-C1"],
+            "metric": ["assertion_edge_count", "canonical_mapped_relation_entropy", "component_count", "degree_histogram_entropy", "degree_mass_entropy", "density", "irrelevant_visible_load", "label_overlap_area", "label_overlap_count", "local_relation_neighborhood_entropy", "native_schema_relation_entropy", "node_count"]
+          }
+        },
+        {
+          "fixed": {"analysis_family": "crossing_two_part"},
+          "varying": {
+            "comparison": ["C2-C0", "C2-C1"],
+            "metric": ["conditional_crossing_rate", "crossing_opportunity_count", "crossing_opportunity_incidence", "exposure_weighted_crossing_rate"]
+          }
+        }
+      ],
+      "supplemental_metric_sources": [
+        {
+          "source_role": "primary_unit_entropy_clutter",
+          "producer_table_id": "report_unit_metrics_csv",
+          "description": "Complete primary-unit entropy, topology, geometry, crossing, visible-load, and rare-discoverability rows, retaining raw values, supports, denominators, and undefined statuses.",
+          "required_columns": ["source_block", "unit_id", "condition", "world_id", "context_id", "seed_block", "output_valid", "projection_id", "unit_hash", "metric_name", "metric_status", "value", "numerator", "denominator", "metric_version_hash"],
+          "key_columns": ["unit_id"],
+          "row_filters": [{"column": "source_block", "equals": "primary"}],
+          "metrics": [
+            {"metric_name": "degree_histogram_entropy", "expected_row_count": 252},
+            {"metric_name": "degree_histogram_entropy_raw", "expected_row_count": 252},
+            {"metric_name": "degree_histogram_support_size", "expected_row_count": 252},
+            {"metric_name": "occupied_degree_bin_count", "expected_row_count": 252},
+            {"metric_name": "degree_histogram_denominator", "expected_row_count": 252},
+            {"metric_name": "degree_mass_entropy", "expected_row_count": 252},
+            {"metric_name": "degree_mass_entropy_raw", "expected_row_count": 252},
+            {"metric_name": "degree_mass_support_size", "expected_row_count": 252},
+            {"metric_name": "degree_mass_denominator", "expected_row_count": 252},
+            {"metric_name": "local_relation_neighborhood_entropy", "expected_row_count": 252},
+            {"metric_name": "local_relation_neighborhood_entropy_raw", "expected_row_count": 252},
+            {"metric_name": "local_relation_neighborhood_support_size", "expected_row_count": 252},
+            {"metric_name": "local_relation_neighborhood_denominator", "expected_row_count": 252},
+            {"metric_name": "native_schema_relation_entropy", "expected_row_count": 252},
+            {"metric_name": "native_schema_relation_entropy_raw", "expected_row_count": 252},
+            {"metric_name": "native_schema_relation_support_size", "expected_row_count": 252},
+            {"metric_name": "active_native_relation_count", "expected_row_count": 252},
+            {"metric_name": "native_schema_relation_denominator", "expected_row_count": 252},
+            {"metric_name": "canonical_mapped_relation_entropy", "expected_row_count": 252},
+            {"metric_name": "canonical_mapped_relation_entropy_raw", "expected_row_count": 252},
+            {"metric_name": "canonical_mapped_relation_support_size", "expected_row_count": 252},
+            {"metric_name": "canonical_mapped_relation_denominator", "expected_row_count": 252},
+            {"metric_name": "canonical_relation_vocabulary_size", "expected_row_count": 252},
+            {"metric_name": "canonical_other_count", "expected_row_count": 252},
+            {"metric_name": "canonical_other_rate", "expected_row_count": 252},
+            {"metric_name": "isolate_count", "expected_row_count": 252},
+            {"metric_name": "positive_degree_node_count", "expected_row_count": 252},
+            {"metric_name": "node_count", "expected_row_count": 252},
+            {"metric_name": "assertion_edge_count", "expected_row_count": 252},
+            {"metric_name": "topology_edge_count", "expected_row_count": 252},
+            {"metric_name": "density", "expected_row_count": 252},
+            {"metric_name": "component_count", "expected_row_count": 252},
+            {"metric_name": "label_overlap_count", "expected_row_count": 252},
+            {"metric_name": "label_overlap_area", "expected_row_count": 252},
+            {"metric_name": "irrelevant_visible_load", "expected_row_count": 252},
+            {"metric_name": "crossing_opportunity_indicator", "expected_row_count": 252},
+            {"metric_name": "crossing_opportunity_count", "expected_row_count": 252},
+            {"metric_name": "crossing_count", "expected_row_count": 252},
+            {"metric_name": "conditional_crossing_rate", "expected_row_count": 252},
+            {"metric_name": "rare_pivotal_discoverability_mean_interactions", "expected_row_count": 252},
+            {"metric_name": "rare_pivotal_discoverability_max_interactions", "expected_row_count": 252},
+            {"metric_name": "rare_pivotal_discovered_count", "expected_row_count": 252},
+            {"metric_name": "rare_pivotal_omitted_count", "expected_row_count": 252}
+          ],
+          "partitions": [
+            {"column": "condition", "value": "C0", "expected_rows_per_metric": 36},
+            {"column": "condition", "value": "C1", "expected_rows_per_metric": 72},
+            {"column": "condition", "value": "C2", "expected_rows_per_metric": 72},
+            {"column": "condition", "value": "A-FixedSelect", "expected_rows_per_metric": 72}
+          ]
+        }
+      ],
       "description": "Entropy and direct visual-clutter profiles with undefined cases retained."
     },
     {
@@ -61,6 +313,103 @@
       "producer": "canonical_csv",
       "required_columns": ["comparison", "metric", "estimate", "paired_median", "standardized_effect", "ci_lower", "ci_upper", "p_value", "adjusted_p_value", "sign_flip_p_value", "bootstrap_lower", "bootstrap_upper", "paired_world_count", "status", "analysis_family", "p_value_kind", "multiplicity_method", "independent_unit"],
       "sort_columns": ["metric", "comparison"],
+      "display_columns": ["comparison", "metric", "estimate", "ci_lower", "ci_upper", "paired_world_count", "status"],
+      "source_producer_table_id": "canonical_comparisons",
+      "registered_row_filters": [
+        {"column": "analysis_family", "one_of": ["cross_seed_community", "gold_aligned_community", "secondary_complete_world_panel"]},
+        {"column": "metric", "one_of": ["community_adjusted_mutual_information", "community_adjusted_mutual_information_double", "community_adjusted_mutual_information_half", "community_fragmentation_error", "community_fragmentation_error_double", "community_fragmentation_error_half", "community_mean_conductance", "community_mean_conductance_double", "community_mean_conductance_half", "community_merging_error", "community_merging_error_double", "community_merging_error_half", "community_purity", "community_purity_double", "community_purity_half", "cross_seed_community_adjusted_mutual_information", "cross_seed_community_omitted_seed_1_count", "cross_seed_community_omitted_seed_2_count", "cross_seed_community_variation_of_information", "leiden_cluster_count_base", "leiden_modularity_base"]}
+      ],
+      "expected_output_row_count": 52,
+      "row_identity_columns": ["analysis_family", "comparison", "metric"],
+      "exact_row_identity_groups": [
+        {
+          "fixed": {"analysis_family": "secondary_complete_world_panel"},
+          "varying": {
+            "comparison": ["C2-C0", "C2-C1"],
+            "metric": ["community_adjusted_mutual_information", "community_fragmentation_error", "community_mean_conductance", "community_merging_error", "community_purity", "leiden_cluster_count_base", "leiden_modularity_base"]
+          }
+        },
+        {
+          "fixed": {"analysis_family": "gold_aligned_community"},
+          "varying": {
+            "comparison": ["C2-C0", "C2-C1"],
+            "metric": ["community_adjusted_mutual_information", "community_adjusted_mutual_information_double", "community_adjusted_mutual_information_half", "community_fragmentation_error", "community_fragmentation_error_double", "community_fragmentation_error_half", "community_mean_conductance", "community_mean_conductance_double", "community_mean_conductance_half", "community_merging_error", "community_merging_error_double", "community_merging_error_half", "community_purity", "community_purity_double", "community_purity_half"]
+          }
+        },
+        {
+          "fixed": {"analysis_family": "cross_seed_community"},
+          "varying": {
+            "comparison": ["C2-A-FixedSelect", "C2-C1"],
+            "metric": ["cross_seed_community_adjusted_mutual_information", "cross_seed_community_omitted_seed_1_count", "cross_seed_community_omitted_seed_2_count", "cross_seed_community_variation_of_information"]
+          }
+        }
+      ],
+      "supplemental_metric_sources": [
+        {
+          "source_role": "cross_seed_unit_community",
+          "producer_table_id": "report_cross_seed_metrics_csv",
+          "description": "Complete C1, C2, and A-FixedSelect cross-construction-seed AMI, variation-of-information, and omitted-anchor rows.",
+          "required_columns": ["world_id", "context_id", "condition", "seed_blocks", "unit_hash", "metric_name", "metric_status", "value", "numerator", "denominator", "metric_version_hash"],
+          "key_columns": ["condition", "world_id", "context_id"],
+          "metrics": [
+            {"metric_name": "cross_seed_community_adjusted_mutual_information", "expected_row_count": 108},
+            {"metric_name": "cross_seed_community_variation_of_information", "expected_row_count": 108},
+            {"metric_name": "cross_seed_community_omitted_seed_1_count", "expected_row_count": 108},
+            {"metric_name": "cross_seed_community_omitted_seed_2_count", "expected_row_count": 108}
+          ],
+          "partitions": [
+            {"column": "condition", "value": "C1", "expected_rows_per_metric": 36},
+            {"column": "condition", "value": "C2", "expected_rows_per_metric": 36},
+            {"column": "condition", "value": "A-FixedSelect", "expected_rows_per_metric": 36}
+          ]
+        },
+        {
+          "source_role": "primary_unit_community",
+          "producer_table_id": "report_unit_metrics_csv",
+          "description": "Complete primary-unit Leiden-CPM cluster, modularity, gold alignment, conductance, fragmentation, merging, and omission rows at base, half, and double resolution.",
+          "required_columns": ["source_block", "unit_id", "condition", "world_id", "context_id", "seed_block", "output_valid", "projection_id", "unit_hash", "metric_name", "metric_status", "value", "numerator", "denominator", "metric_version_hash"],
+          "key_columns": ["unit_id"],
+          "row_filters": [{"column": "source_block", "equals": "primary"}],
+          "metrics": [
+            {"metric_name": "leiden_cluster_count_half", "expected_row_count": 252},
+            {"metric_name": "leiden_cluster_count_base", "expected_row_count": 252},
+            {"metric_name": "leiden_cluster_count_double", "expected_row_count": 252},
+            {"metric_name": "leiden_modularity_half", "expected_row_count": 252},
+            {"metric_name": "leiden_modularity_base", "expected_row_count": 252},
+            {"metric_name": "leiden_modularity_double", "expected_row_count": 252},
+            {"metric_name": "community_adjusted_mutual_information", "expected_row_count": 252},
+            {"metric_name": "community_purity", "expected_row_count": 252},
+            {"metric_name": "community_mean_conductance", "expected_row_count": 252},
+            {"metric_name": "community_conductance_defined_cluster_count", "expected_row_count": 252},
+            {"metric_name": "community_conductance_undefined_cluster_count", "expected_row_count": 252},
+            {"metric_name": "community_fragmentation_error", "expected_row_count": 252},
+            {"metric_name": "community_merging_error", "expected_row_count": 252},
+            {"metric_name": "community_omitted_anchor_count", "expected_row_count": 252},
+            {"metric_name": "community_adjusted_mutual_information_half", "expected_row_count": 252},
+            {"metric_name": "community_purity_half", "expected_row_count": 252},
+            {"metric_name": "community_mean_conductance_half", "expected_row_count": 252},
+            {"metric_name": "community_conductance_defined_cluster_count_half", "expected_row_count": 252},
+            {"metric_name": "community_conductance_undefined_cluster_count_half", "expected_row_count": 252},
+            {"metric_name": "community_fragmentation_error_half", "expected_row_count": 252},
+            {"metric_name": "community_merging_error_half", "expected_row_count": 252},
+            {"metric_name": "community_omitted_anchor_count_half", "expected_row_count": 252},
+            {"metric_name": "community_adjusted_mutual_information_double", "expected_row_count": 252},
+            {"metric_name": "community_purity_double", "expected_row_count": 252},
+            {"metric_name": "community_mean_conductance_double", "expected_row_count": 252},
+            {"metric_name": "community_conductance_defined_cluster_count_double", "expected_row_count": 252},
+            {"metric_name": "community_conductance_undefined_cluster_count_double", "expected_row_count": 252},
+            {"metric_name": "community_fragmentation_error_double", "expected_row_count": 252},
+            {"metric_name": "community_merging_error_double", "expected_row_count": 252},
+            {"metric_name": "community_omitted_anchor_count_double", "expected_row_count": 252}
+          ],
+          "partitions": [
+            {"column": "condition", "value": "C0", "expected_rows_per_metric": 36},
+            {"column": "condition", "value": "C1", "expected_rows_per_metric": 72},
+            {"column": "condition", "value": "C2", "expected_rows_per_metric": 72},
+            {"column": "condition", "value": "A-FixedSelect", "expected_rows_per_metric": 72}
+          ]
+        }
+      ],
       "description": "Leiden-CPM community quality, error, count, conductance, and stability results."
     },
     {
@@ -68,6 +417,10 @@
       "producer": "canonical_csv",
       "required_columns": ["call_id", "world_id", "context_id", "status", "signature_divergence", "strict_f1_change", "base_strict_f1", "paraphrase_strict_f1", "base_score_hash", "paraphrase_score_hash", "base_projection_hash", "paraphrase_projection_hash"],
       "sort_columns": ["world_id", "context_id", "call_id"],
+      "display_columns": ["world_id", "context_id", "status", "signature_divergence", "strict_f1_change", "base_strict_f1", "paraphrase_strict_f1"],
+      "source_producer_table_id": "report_paraphrase_csv",
+      "expected_output_row_count": 12,
+      "row_identity_columns": ["call_id", "context_id", "world_id"],
       "description": "Fixed paraphrase and same-evidence contrastive behavior."
     },
     {
@@ -75,6 +428,10 @@
       "producer": "canonical_csv",
       "required_columns": ["call_id", "condition", "world_id", "context_id", "principal_metric", "parent_value", "ablation_value", "difference", "parent_score_hash", "ablation_score_hash"],
       "sort_columns": ["condition", "world_id", "context_id", "call_id"],
+      "display_columns": ["condition", "world_id", "context_id", "principal_metric", "parent_value", "ablation_value", "difference"],
+      "source_producer_table_id": "report_ablations_csv",
+      "expected_output_row_count": 28,
+      "row_identity_columns": ["call_id", "condition", "context_id", "world_id"],
       "description": "Reduced one-switch A-NoContext, A-NoTemporalEpistemic, and A-NoRareGuard results."
     },
     {
@@ -82,6 +439,7 @@
       "producer": "canonical_csv",
       "required_columns": ["episode_class", "condition", "action", "metric", "value", "unit", "episode_count", "capability_limited_count", "gold_applicability", "status"],
       "sort_columns": ["episode_class", "condition", "action", "metric"],
+      "display_columns": ["episode_class", "condition", "action", "metric", "value", "unit", "status"],
       "description": "Six scripted known-answer revisions and three researcher interface traces."
     },
     {
@@ -89,6 +447,7 @@
       "producer": "canonical_csv",
       "required_columns": ["scope", "window_id", "context_id", "condition", "metric", "value", "status", "interpretation"],
       "sort_columns": ["scope", "window_id", "context_id", "condition", "metric"],
+      "display_columns": ["scope", "window_id", "context_id", "condition", "metric", "value", "status", "interpretation"],
       "description": "Descriptive bounded first-novel transfer and full-index operational results."
     },
     {
@@ -96,6 +455,7 @@
       "producer": "canonical_csv",
       "required_columns": ["phase", "run_id", "call_id", "condition", "outcome", "attempt_class", "repair_parent_call_id", "allocated_gpu_seconds", "included_in_itt", "failure_type"],
       "sort_columns": ["phase", "run_id", "call_id"],
+      "display_columns": ["phase", "call_id", "condition", "outcome", "attempt_class", "allocated_gpu_seconds", "included_in_itt", "failure_type"],
       "description": "Complete successful, failed, invalid, timed-out, repaired, and incomplete call inventory."
     },
     {
@@ -103,6 +463,7 @@
       "producer": "canonical_csv",
       "required_columns": ["scope", "metric", "value", "unit", "status", "source_note"],
       "sort_columns": ["scope", "metric", "unit"],
+      "display_columns": ["scope", "metric", "value", "unit", "status", "source_note"],
       "description": "GPU, RunPod wall-time, memory, storage, token, and service-state accounting."
     },
     {
@@ -110,6 +471,7 @@
       "producer": "qualitative_selection",
       "required_columns": ["example_id", "report_label", "candidate_id", "source_split", "world_id", "context_id", "condition", "node_summary", "assertion_summary", "temporal_sequence", "why_matters", "opaque_evidence_ids", "projection_hash", "selection_rule_sha256", "illustration_only"],
       "sort_columns": ["example_id", "context_id", "condition"],
+      "display_columns": ["example_id", "source_split", "world_id", "context_id", "condition", "node_summary", "assertion_summary", "why_matters"],
       "description": "Frozen-rule qualitative illustrations; these are not confirmatory evidence."
     }
   ],
@@ -140,23 +502,10 @@
     "lower": "ci_lower",
     "upper": "ci_upper"
   },
-  "public_static_paths": [
-    "LICENSE",
-    "configs/study/phase7_compiler.json",
-    "configs/study/phase7_source_registry.template.json",
-    "configs/study/reporting.json",
-    "docs/PHASE7_REPORTING.md",
-    "scripts/build_public_bundle.py",
-    "scripts/build_results_report.py",
-    "scripts/compile_phase7_results.py",
-    "scripts/compile_report_ingestion.py",
-    "src/story_projection_onto/phase7_compiler.py",
-    "src/story_projection_onto/public_release.py",
-    "src/story_projection_onto/report_ingestion.py",
-    "src/story_projection_onto/reporting.py",
-    "tests/unit/test_phase7_compiler.py"
-  ],
+  "public_source_manifest_path": "configs/study/public_reproduction_sources.json",
+  "public_source_manifest_file_sha256": "55f8798900c13721c34783a0f78fd8c9a773d97583bd9a81048716faf879f7e3",
+  "public_source_manifest_sha256": "43776da2ce17e009cb1f43d9dd8515912a366fb6414c158e07f9ca8399f2ac70",
   "maximum_qualitative_figures": 6,
   "public_bundle_limit_bytes": 2000000000,
-  "configuration_sha256": "6a0dc9c5ecdba82a6432cdf12b9c5f14d355f7916d665903d80bade0326c66f2"
+  "configuration_sha256": "898492d60600eee0c2c8eac3b5d4fe2c6f1ede11bb7e16a80f0a6562434d81d5"
 }

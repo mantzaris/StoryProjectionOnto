@@ -5,11 +5,17 @@ import json
 import shutil
 from datetime import UTC, datetime
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, cast
 
 import pytest
 
-from story_projection_onto.contracts import ConditionName, RunOutcome
+from story_projection_onto.contracts import (
+    ConditionName,
+    ConstructionRequest,
+    OntologyDraft,
+    RunOutcome,
+)
 from story_projection_onto.development_artifacts import (
     DevelopmentCallAuditReceipt,
     DevelopmentCPUProjectionReceipt,
@@ -17,6 +23,18 @@ from story_projection_onto.development_artifacts import (
     OpaqueJSONReference,
 )
 from story_projection_onto.development_runtime import load_development_call_manifest
+from story_projection_onto.metrics.alignment import (
+    AlignmentPlan,
+    AnchorKind,
+    AssertionAlignmentTarget,
+    GroundingStatus,
+    NodeAlignmentTarget,
+    NodeKind,
+    PermissibleAssertionAlternative,
+    prediction_records_from_components,
+    score_alignment,
+)
+from story_projection_onto.metrics.common import revalidated_copy
 from story_projection_onto.scorer_only.development_assessment import (
     _CORE_RUNTIME_SOURCE_PATHS,
     DevelopmentAssessmentInputManifest,
@@ -26,8 +44,10 @@ from story_projection_onto.scorer_only.development_assessment import (
     _assert_gold_free_payload,
     _CASReader,
     _context_independent_assertion_slot,
+    _prediction_bundle,
     _sha256_file,
     _stage_objects,
+    _validate_ledger_validations,
     _verify_runtime_sources,
 )
 from story_projection_onto.store import (
@@ -37,6 +57,20 @@ from story_projection_onto.store import (
     Ledger,
     ReleaseClass,
 )
+from story_projection_onto.store import (
+    CommitmentCheckStatus as LedgerCommitmentCheckStatus,
+)
+from story_projection_onto.store import (
+    EvidenceSupportStatus as LedgerEvidenceSupportStatus,
+)
+from story_projection_onto.store import (
+    SemanticAssessmentScope as LedgerSemanticAssessmentScope,
+)
+from story_projection_onto.store import (
+    TemporalValidationStatus as LedgerTemporalValidationStatus,
+)
+from story_projection_onto.store import ValidationStatus as LedgerValidationStatus
+from story_projection_onto.validate import validate_draft_structure
 
 ROOT = Path(__file__).resolve().parents[2]
 NOW = datetime(2026, 9, 4, 12, 0, tzinfo=UTC)
@@ -265,3 +299,202 @@ def test_provider_does_not_read_gold_before_exact_24_rows(tmp_path: Path) -> Non
     )
     with pytest.raises(DevelopmentAssessmentIntegrityError, match="exact 24"):
         provider(load_development_call_manifest(ROOT), ())
+
+
+@pytest.mark.parametrize(
+    ("successful", "validation_status"),
+    [
+        (True, LedgerValidationStatus.ACCEPTED),
+        (False, LedgerValidationStatus.REJECTED),
+    ],
+)
+def test_development_ledger_integrity_requires_structural_only_status_tuple(
+    successful: bool,
+    validation_status: LedgerValidationStatus,
+) -> None:
+    record = SimpleNamespace(
+        job_id="job-1",
+        attempt_id="attempt-1",
+        input_artifact_hash=digest("raw"),
+        validator_manifest_hash=digest("validator"),
+        validation_status=validation_status,
+        evidence_support_status=LedgerEvidenceSupportStatus.NOT_APPLICABLE,
+        temporal_status=LedgerTemporalValidationStatus.NOT_APPLICABLE,
+        commitment_status=LedgerCommitmentCheckStatus.NOT_APPLICABLE,
+        semantic_assessment_scope=(
+            LedgerSemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED
+        ),
+    )
+    ledger = SimpleNamespace(get_validation=lambda _validation_id: record)
+    receipt = SimpleNamespace(
+        ledger_validation_ids=("validation-1",),
+        job_id=record.job_id,
+        attempt_id=record.attempt_id,
+    )
+
+    _validate_ledger_validations(
+        cast(Any, ledger),
+        cast(Any, receipt),
+        raw_response_hash=record.input_artifact_hash,
+        validator_hash=record.validator_manifest_hash,
+        successful=successful,
+    )
+
+    record.evidence_support_status = LedgerEvidenceSupportStatus.SUPPORTED
+    with pytest.raises(
+        DevelopmentAssessmentIntegrityError,
+        match="structural-only append-only validation verdict",
+    ):
+        _validate_ledger_validations(
+            cast(Any, ledger),
+            cast(Any, receipt),
+            raw_response_hash=record.input_artifact_hash,
+            validator_hash=record.validator_manifest_hash,
+            successful=successful,
+        )
+
+    record.evidence_support_status = LedgerEvidenceSupportStatus.NOT_APPLICABLE
+    record.semantic_assessment_scope = LedgerSemanticAssessmentScope.LEGACY_UNSPECIFIED
+    with pytest.raises(
+        DevelopmentAssessmentIntegrityError,
+        match="structural-only append-only validation verdict",
+    ):
+        _validate_ledger_validations(
+            cast(Any, ledger),
+            cast(Any, receipt),
+            raw_response_hash=record.input_artifact_hash,
+            validator_hash=record.validator_manifest_hash,
+            successful=successful,
+        )
+
+
+def test_scorer_marks_structurally_valid_false_assertion_unsupported_and_strict_miss(
+) -> None:
+    request_payload = json.loads(
+        (ROOT / "tests/fixtures/phase1/c2_query_request.json").read_text(encoding="utf-8")
+    )
+    for index, evidence in enumerate(request_payload["packet"]["evidence"], start=1):
+        text_hash = hashlib.sha256(evidence["text"].encode("utf-8")).hexdigest()
+        evidence.update(
+            {
+                "passage_id": f"development-assessment-passage-{index}",
+                "text_hash": text_hash,
+                "confidence": 1.0,
+                "provenance": {
+                    "provenance_id": f"development-assessment-provenance-{index}",
+                    "evidence_id": evidence["evidence_id"],
+                    "extraction_method": "hand-authored synthetic test lineage",
+                    "locator": f"development-assessment:{index}",
+                    "source_artifact_hash": text_hash,
+                    "confidence": 1.0,
+                },
+            }
+        )
+    request = ConstructionRequest.model_validate(request_payload)
+    indexed_by_id = {item.evidence_id: item for item in request.packet.evidence}
+    source_payload = json.loads(
+        (ROOT / "tests/fixtures/phase1/c2_query_output.json").read_text(encoding="utf-8")
+    )
+    for assertion in source_payload["instance_graph"]["assertions"]:
+        for provenance in assertion["provenance"]:
+            indexed = indexed_by_id[provenance["evidence_id"]]
+            provenance["locator"] = indexed.provenance.locator
+            provenance["source_artifact_hash"] = indexed.provenance.source_artifact_hash
+            provenance["confidence"] = min(indexed.confidence, indexed.provenance.confidence)
+    source = OntologyDraft.model_validate(source_payload)
+    valid_evidence_ids = frozenset(item.evidence_id for item in request.packet.evidence)
+    node_targets = tuple(
+        NodeAlignmentTarget(
+            target_id=f"gold-{entity.entity_id}",
+            kind=NodeKind.ENTITY,
+            anchor_kind=AnchorKind.MENTION,
+            permissible_anchor_sets=(
+                tuple(sorted(entity.supported_mention_candidate_ids)),
+            ),
+        )
+        for entity in source.instance_graph.entities
+    ) + tuple(
+        NodeAlignmentTarget(
+            target_id=f"gold-{event.event_id}",
+            kind=NodeKind.EVENT,
+            anchor_kind=AnchorKind.EVIDENCE,
+            permissible_anchor_sets=(tuple(sorted(event.evidence_ids)),),
+        )
+        for event in source.instance_graph.events
+    )
+    nodes_only_plan = AlignmentPlan(
+        matcher_revision="semantic-separation-regression-v1",
+        source_gold_hash="a" * 64,
+        source_alternative_set_hash="b" * 64,
+        node_targets=node_targets,
+        assertion_targets=(),
+    )
+    _, source_predictions, _ = prediction_records_from_components(
+        local_schema=source.local_schema,
+        instance_graph=source.instance_graph,
+        predicate_aliases=None,
+        valid_evidence_ids=valid_evidence_ids,
+        grounding_by_assertion_id={
+            item.assertion_id: GroundingStatus.SUPPORTED
+            for item in source.instance_graph.assertions
+        },
+        plan=nodes_only_plan,
+    )
+    supported_source = source_predictions[0]
+    plan = AlignmentPlan(
+        matcher_revision=nodes_only_plan.matcher_revision,
+        source_gold_hash=nodes_only_plan.source_gold_hash,
+        source_alternative_set_hash=nodes_only_plan.source_alternative_set_hash,
+        node_targets=node_targets,
+        assertion_targets=(
+            AssertionAlignmentTarget(
+                target_id="gold-assertion",
+                alternatives=(
+                    PermissibleAssertionAlternative(
+                        alternative_id="registered-primary",
+                        signature=supported_source.signature,
+                        supporting_evidence_ids=supported_source.evidence_ids,
+                    ),
+                ),
+                essential_temporal=True,
+            ),
+        ),
+    )
+
+    false_assertion = revalidated_copy(
+        source.instance_graph.assertions[0],
+        predicate_id="p-c2-status",
+    )
+    false_graph = revalidated_copy(
+        source.instance_graph,
+        assertions=(false_assertion, *source.instance_graph.assertions[1:]),
+    )
+    structurally_valid_false_draft = revalidated_copy(source, instance_graph=false_graph)
+    structural = validate_draft_structure(
+        draft=structurally_valid_false_draft,
+        upper_ontology=request.upper_ontology,
+        evidence=request.packet.evidence,
+        horizon=request.context.spoiler_horizon,
+        budgets=request.budgets,
+        capabilities=request.capabilities,
+    )
+    assert structural.accepted
+
+    nodes, assertions, supported_ids = _prediction_bundle(
+        local_schema=structurally_valid_false_draft.local_schema,
+        instance_graph=structurally_valid_false_draft.instance_graph,
+        plan=plan,
+        valid_evidence_ids=valid_evidence_ids,
+    )
+    score = score_alignment(
+        plan=plan,
+        predicted_nodes=nodes,
+        predicted_assertions=assertions,
+    )
+    by_id = {item.prediction_id: item for item in assertions}
+
+    assert false_assertion.assertion_id not in supported_ids
+    assert by_id[false_assertion.assertion_id].grounding_status is GroundingStatus.UNSUPPORTED
+    assert score.strict_assertion_matches == ()
+    assert score.strict_assertion_score.true_positive_count == 0
+    assert score.strict_assertion_score.f1 == 0.0

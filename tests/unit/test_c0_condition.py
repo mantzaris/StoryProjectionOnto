@@ -5,7 +5,12 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from story_projection_onto.conditions.base import ProduceInputs, RunConditionConfig
+from story_projection_onto.conditions.base import (
+    ConditionPreparation,
+    ProduceInputs,
+    RunConditionConfig,
+    preontology_semantic_hash,
+)
 from story_projection_onto.conditions.c0 import (
     ClassicalEntityKind,
     ClassicalPreBuilder,
@@ -14,6 +19,7 @@ from story_projection_onto.conditions.c0 import (
     RuleCandidateBackend,
     SpacyCandidateBackend,
     load_classical_rule_config,
+    project_sealed_c0,
 )
 from story_projection_onto.contracts import (
     AbstractionLevel,
@@ -23,7 +29,10 @@ from story_projection_onto.contracts import (
     EventCandidate,
     EvidencePacket,
     EvidenceRecord,
+    EvidenceSnapshot,
+    InstanceGraph,
     MentionCandidate,
+    OntologyDraft,
     OntologyProjection,
     OutputBudgets,
     Passage,
@@ -43,6 +52,7 @@ from story_projection_onto.contracts import (
     TemporalKind,
     UpperOntology,
     canonical_sha256,
+    projection_validation_target_hash,
     to_model_visible_query,
 )
 from story_projection_onto.evidence import build_evidence_snapshot
@@ -52,6 +62,20 @@ BASE = datetime(2026, 9, 3, 10, 0, tzinfo=UTC)
 
 def digest(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def strip_content_hashes(value):
+    if isinstance(value, dict):
+        return {
+            key: strip_content_hashes(child)
+            for key, child in value.items()
+            if key != "content_hash"
+        }
+    if isinstance(value, list):
+        return [strip_content_hashes(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(strip_content_hashes(item) for item in value)
+    return value
 
 
 def mention(
@@ -346,6 +370,99 @@ def test_c0_query_blind_prebuild_covers_entity_relation_event_time_and_epistemic
     )
 
 
+def test_c0_cpu_diagnostic_parses_development_story_step_and_validity_forms() -> None:
+    # This is a deterministic parser diagnostic, not the registered C0
+    # competence gate (which is produced only after the complete development
+    # block has terminal ITT rows).
+    text = (
+        "At story step 1, Mira served as Harbor Warden for Harbor Guild "
+        "through step 4."
+    )
+    mira = mention("story-step-evidence", "m-story-mira", text, "Mira", "person")
+    guild = mention(
+        "story-step-evidence",
+        "m-story-guild",
+        text,
+        "Harbor Guild",
+        "collective",
+    )
+    relation = RelationPhraseCandidate(
+        candidate_id="r-story-office",
+        evidence_id="story-step-evidence",
+        subject_mention_candidate_id=mira.candidate_id,
+        object_mention_candidate_id=guild.candidate_id,
+        surface_phrase="served as",
+        confidence=0.96,
+    )
+    record = EvidenceRecord(
+        evidence_id="story-step-evidence",
+        passage_id="story-step-passage",
+        text=text,
+        text_hash=digest(text),
+        discourse_position=DiscoursePosition(passage_order=1),
+        mention_candidates=(mira, guild),
+        relation_phrase_candidates=(relation,),
+        temporal_clues=(
+            TemporalClue(
+                clue_id="story-step-clue",
+                evidence_id="story-step-evidence",
+                normalized_expression="story-step-1",
+                target_candidate_ids=(relation.candidate_id,),
+                confidence=0.99,
+            ),
+        ),
+        provenance=ProvenanceReference(
+            provenance_id="story-step-provenance",
+            evidence_id="story-step-evidence",
+            extraction_method="fixture",
+            locator="fixture:story-step",
+            confidence=1.0,
+        ),
+        confidence=1.0,
+        release_class=ReleaseClass.PUBLIC,
+    )
+    horizon = SpoilerHorizon(
+        horizon_id="story-step-horizon",
+        max_discourse_position=DiscoursePosition(passage_order=1),
+        max_revelation_position=RevelationPosition(revelation_order=1),
+    )
+    snapshot = EvidenceSnapshot(
+        snapshot_id="story-step-snapshot",
+        corpus_id="synthetic",
+        world_or_window_id="story-step-world",
+        horizon=horizon,
+        eligible_evidence_ids=(record.evidence_id,),
+        index_config_hash=digest("story-step-index"),
+        created_at=BASE,
+        sealed_at=BASE + timedelta(minutes=1),
+        release_class=ReleaseClass.PUBLIC,
+    )
+
+    preparation = ClassicalPreBuilder().prepare(
+        snapshot=snapshot,
+        evidence=(record,),
+        upper_ontology=upper(),
+        preconstruction_budgets=semantic_budgets(),
+        constructed_at=BASE + timedelta(minutes=2),
+        sealed_at=BASE + timedelta(minutes=3),
+    )
+
+    assert preparation.sealed_preontology is not None
+    assertion = next(
+        item
+        for item in preparation.sealed_preontology.draft.instance_graph.assertions
+        if item.predicate_id == "c0-predicate-served_as"
+    )
+    assert assertion.temporal_scope.story_time == StoryTime(
+        kind=TemporalKind.POINT,
+        point=1,
+        label="story step 1",
+    )
+    assert assertion.temporal_scope.validity_time.kind is TemporalKind.INTERVAL
+    assert assertion.temporal_scope.validity_time.start == 1
+    assert assertion.temporal_scope.validity_time.end == 4
+
+
 def test_c0_query_projection_selects_only_sealed_ids_under_equal_final_budgets() -> None:
     snapshot, evidence, packet = snapshot_and_packet()
     upper_ontology = upper()
@@ -446,6 +563,165 @@ def test_c0_query_projection_selects_only_sealed_ids_under_equal_final_budgets()
     )
     assert projection.budget_accounting.nodes_used <= final_budgets.node_budget
     assert projection.budget_accounting.assertions_used <= final_budgets.assertion_budget
+
+
+def test_c0_projection_recursively_retains_sealed_epistemic_holder_and_binds_target() -> None:
+    snapshot, evidence, packet = snapshot_and_packet()
+    upper_ontology = upper()
+    original = ClassicalPreBuilder().prepare(
+        snapshot=snapshot,
+        evidence=evidence,
+        upper_ontology=upper_ontology,
+        preconstruction_budgets=semantic_budgets(),
+        constructed_at=BASE + timedelta(minutes=2),
+        sealed_at=BASE + timedelta(minutes=3),
+    )
+    assert original.sealed_preontology is not None
+    source = original.sealed_preontology
+    graph_payload = strip_content_hashes(source.draft.instance_graph.model_dump(mode="python"))
+    assertions = graph_payload["assertions"]
+    report = next(
+        item for item in assertions if item["predicate_id"] == "c0-predicate-reported"
+    )
+    endpoints = {report["subject_id"], report["object_id"]}
+    holder = next(
+        item for item in graph_payload["entities"] if item["entity_id"] not in endpoints
+    )
+    assert report["epistemic_scope"] is not None
+    report["epistemic_scope"]["holder_id"] = holder["entity_id"]
+    required_nodes = endpoints | {holder["entity_id"]}
+    for entity_payload in graph_payload["entities"]:
+        if entity_payload["entity_id"] in required_nodes:
+            entity_payload["description_assertion_ids"] = [report["assertion_id"]]
+    modified_graph = InstanceGraph.model_validate(graph_payload)
+    draft_payload = strip_content_hashes(source.draft.model_dump(mode="python"))
+    draft_payload["instance_graph"] = modified_graph
+    modified_draft = OntologyDraft.model_validate(draft_payload)
+    seal_payload = strip_content_hashes(source.construction_seal.model_dump(mode="python"))
+    seal_payload["ontology_hash"] = preontology_semantic_hash(
+        upper_ontology,
+        modified_draft,
+    )
+    modified_seal = source.construction_seal.__class__.model_validate(seal_payload)
+    source_payload = strip_content_hashes(source.model_dump(mode="python"))
+    source_payload.update(draft=modified_draft, construction_seal=modified_seal)
+    modified_source = source.__class__.model_validate(source_payload)
+    preparation = ConditionPreparation(
+        preparation_id="c0-holder-preparation",
+        condition=ConditionName.C0_CLASSICAL_PRE,
+        snapshot_hash=snapshot.content_hash,
+        completed_at=modified_seal.sealed_at,
+        sealed_preontology=modified_source,
+    )
+
+    final_budgets = OutputBudgets(
+        node_budget=3,
+        assertion_budget=1,
+        display_node_budget=3,
+        display_assertion_budget=1,
+    )
+    context = QueryContext(
+        context_id="context-c0-holder",
+        wording="Who reported Rowan?",
+        lens="reported claims",
+        target="reported Rowan",
+        story_scope=StoryTime(kind=TemporalKind.POINT, point=2, label="day two"),
+        spoiler_horizon=snapshot.horizon,
+        abstraction=AbstractionLevel.EVENT_ROLE,
+        budgets=final_budgets,
+        revealed_at=BASE + timedelta(hours=2),
+    )
+    config = RunConditionConfig(
+        config_id="c0-holder-config",
+        condition=ConditionName.C0_CLASSICAL_PRE,
+        budgets=final_budgets,
+        maximum_input_tokens=10_240,
+        maximum_output_tokens=2_048,
+        scored_schema_hash=canonical_sha256(
+            OntologyProjection.model_json_schema(mode="validation")
+        ),
+        validator_hash=digest("validator-v1"),
+        upper_ontology_hash=upper_ontology.content_hash,
+    )
+    barrier = PrequeryBarrier(
+        barrier_id="barrier-c0-holder",
+        execution_id="c0-holder-execution",
+        execution_manifest_hash=digest("c0-holder-manifest"),
+        neutral_evidence_artifact_hashes=(digest("c0-holder-neutral"),),
+        preparation_bindings=(
+            PrequeryPreparationBinding(
+                unit_id=snapshot.world_or_window_id,
+                condition=ConditionName.C0_CLASSICAL_PRE,
+                snapshot_hash=snapshot.content_hash,
+                preparation_hash=preparation.content_hash,
+                lineage_artifact_hash=modified_seal.content_hash,
+                completed_at=preparation.completed_at,
+            ),
+        ),
+        sealed_at=context.revealed_at - timedelta(microseconds=1),
+    )
+    access = QueryAccessEvent(
+        access_event_id="access-c0-holder",
+        execution_id=barrier.execution_id,
+        query_context_hash=context.content_hash,
+        model_visible_query_hash=to_model_visible_query(context).content_hash,
+        snapshot_hash=snapshot.content_hash,
+        stage_manifest_hash=digest("c0-holder-stage"),
+        query_artifact_hash=digest("c0-holder-query"),
+        prequery_barrier_hash=barrier.content_hash,
+        packet_hash=packet.content_hash,
+        registered_revealed_at=context.revealed_at,
+        accessed_at=context.revealed_at,
+    )
+    projection = project_sealed_c0(
+        modified_source,
+        ProduceInputs(
+            preparation=preparation,
+            snapshot=snapshot,
+            packet=packet,
+            context=context,
+            query_access=access,
+            prequery_barrier=barrier,
+            query_processing_started_at=context.revealed_at + timedelta(microseconds=1),
+            upper_ontology=upper_ontology,
+            run_config=config,
+        ),
+    )
+
+    assert {item.assertion_id for item in projection.instance_graph.assertions} == {
+        report["assertion_id"]
+    }
+    assert holder["entity_id"] in {
+        item.entity_id for item in projection.instance_graph.entities
+    }
+    expected_target = projection_validation_target_hash(
+        condition=projection.condition,
+        snapshot_hash=projection.snapshot_hash,
+        packet_hash=projection.packet_hash,
+        context_hash=projection.context_hash,
+        upper_ontology=projection.upper_ontology,
+        local_schema=projection.local_schema,
+        instance_graph=projection.instance_graph,
+        decisions=projection.decisions,
+        omissions=projection.omissions,
+        budget_accounting=projection.budget_accounting,
+        budgets=projection.budgets,
+    )
+    assert {item.target_id for item in projection.validation_records} == {expected_target}
+    assert any(
+        diagnostic.startswith("structural_report_sha256:")
+        for diagnostic in projection.validation_records[0].diagnostics
+    )
+
+    tampered_payload = strip_content_hashes(projection.model_dump(mode="python"))
+    tampered_payload["decisions"][0]["rationale"] = (
+        "A changed selection rationale must invalidate the structural target binding."
+    )
+    with pytest.raises(
+        ValueError,
+        match="projection structural validation targets different final semantics",
+    ):
+        OntologyProjection.model_validate(tampered_payload)
 
 
 def test_c0_preconstruction_refuses_incomplete_or_post_horizon_evidence() -> None:

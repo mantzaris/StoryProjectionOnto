@@ -163,7 +163,7 @@ def _prebuilt_phase5_index(tmp_path: Path):
     return protocol, gate, inputs, index
 
 
-def _controller(tmp_path: Path):
+def _controller(tmp_path: Path, *, phase5_storage_preflight=lambda: None):
     configuration, _selections, _sources, runtime, gate, manifest = combined_fixture()
     protocol, phase5_gate, phase5_inputs, phase5_index = _prebuilt_phase5_index(tmp_path)
     restricted_root = tmp_path / "artifacts" / "restricted"
@@ -191,6 +191,7 @@ def _controller(tmp_path: Path):
         provider=SimpleNamespace(),
         lifecycle_owner=lifecycle,
         artifacts=artifacts,
+        phase5_storage_preflight=phase5_storage_preflight,
         output_root=restricted_root / "combined_gpu_block",
         clock=clock,
     )
@@ -201,8 +202,13 @@ def test_combined_owner_dispatches_exact_order_with_one_load_and_one_shutdown(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    controller, lifecycle, phase5_index = _controller(tmp_path)
-    dispatch_order: list[int] = []
+    dispatch_order: list[int | str] = []
+    controller, lifecycle, phase5_index = _controller(
+        tmp_path,
+        phase5_storage_preflight=lambda: dispatch_order.append(
+            "phase_5_storage_preflight"
+        ),
+    )
     phase5_calls = tuple(controller.manifest.calls[12:21])
     monkeypatch.setattr(controller, "_validate_gate", lambda: phase5_calls)
 
@@ -229,7 +235,11 @@ def test_combined_owner_dispatches_exact_order_with_one_load_and_one_shutdown(
     monkeypatch.setattr(controller, "_complete", lambda **_kwargs: completed)
 
     assert controller.run() is completed
-    assert dispatch_order == list(range(1, 50))
+    assert dispatch_order == [
+        *range(1, 13),
+        "phase_5_storage_preflight",
+        *range(13, 50),
+    ]
     assert lifecycle.activations == 1
     assert lifecycle.shutdowns == 1
     assert lifecycle.active_recoveries == 0
@@ -246,7 +256,11 @@ def test_resume_after_physical_shutdown_finalizes_without_service_recovery_or_re
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    controller, lifecycle, phase5_index = _controller(tmp_path)
+    phase5_storage_checks: list[str] = []
+    controller, lifecycle, phase5_index = _controller(
+        tmp_path,
+        phase5_storage_preflight=lambda: phase5_storage_checks.append("unexpected"),
+    )
     phase5_calls = tuple(controller.manifest.calls[12:21])
     monkeypatch.setattr(controller, "_validate_gate", lambda: phase5_calls)
     controller.journal.initialize()
@@ -301,6 +315,7 @@ def test_resume_after_physical_shutdown_finalizes_without_service_recovery_or_re
     assert lifecycle.active_recoveries == before_counts[1]
     assert lifecycle.shutdowns == before_counts[2]
     assert lifecycle.shutdown_recoveries == before_counts[3]
+    assert phase5_storage_checks == []
     assert controller.journal.exists(Path("execution_index.json"))
 
 

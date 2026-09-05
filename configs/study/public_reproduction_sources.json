@@ -1,0 +1,205 @@
+{
+  "schema_version": "1.0.0",
+  "manifest_id": "conference-public-reproduction-v1",
+  "groups": [
+    {
+      "category": "interactive_interface",
+      "roots": ["ui"],
+      "explicit_paths": [],
+      "include_suffixes": [".css", ".html", ".js", ".json", ".md", ".sh"],
+      "include_extensionless_names": ["CYTOSCAPE_LICENSE"],
+      "required_paths": [
+        "ui/CYTOSCAPE_LICENSE",
+        "ui/app.js",
+        "ui/cytoscape.min.js",
+        "ui/index.html",
+        "ui/style.css"
+      ],
+      "expected_path_count": 10,
+      "path_inventory_sha256": "5bd38c88af0e7214db80b3861dedf044e0dd1dcb85cd071b7d94aa28349ff54d"
+    },
+    {
+      "category": "json_schemas",
+      "roots": ["schemas/jsonschema"],
+      "explicit_paths": [],
+      "include_suffixes": [".json"],
+      "include_extensionless_names": [],
+      "required_paths": [
+        "schemas/jsonschema/evidence_packet.schema.json",
+        "schemas/jsonschema/ontology_projection.schema.json",
+        "schemas/jsonschema/qualified_assertion.schema.json",
+        "schemas/jsonschema/schema_manifest.json"
+      ],
+      "expected_path_count": 23,
+      "path_inventory_sha256": "65e2b663b2c762ca2db795dd77b925cb1f4c37a77c04e2a6b873513ba3167eb5"
+    },
+    {
+      "category": "project_metadata",
+      "roots": [],
+      "explicit_paths": ["LICENSE", "README.md", "pyproject.toml", "uv.lock"],
+      "include_suffixes": [],
+      "include_extensionless_names": [],
+      "required_paths": ["LICENSE", "README.md", "pyproject.toml", "uv.lock"],
+      "expected_path_count": 4,
+      "path_inventory_sha256": "80d08c76fa8ad434e7b7c91fd50a5f40251242597df9ef0be433423705d929fb"
+    },
+    {
+      "category": "prompts",
+      "roots": ["prompts"],
+      "explicit_paths": [],
+      "include_suffixes": [".md"],
+      "include_extensionless_names": [],
+      "required_paths": [
+        "prompts/ablations/no_temporal_epistemic_v1.md",
+        "prompts/c1_pre/prompt_v1.md",
+        "prompts/c2_query/prompt_v1.md",
+        "prompts/fixed_select/prompt_v1.md",
+        "prompts/repair/prompt_v1.md"
+      ],
+      "expected_path_count": 5,
+      "path_inventory_sha256": "6e9938d44d0fe3a323eec7183198da7be0976951019b13921b6afb3dedbf88f1"
+    },
+    {
+      "category": "report_assets",
+      "roots": ["scripts"],
+      "explicit_paths": [
+        "docs/BLINDED_POSTRUN_AND_QUALITATIVE.md",
+        "docs/HELD_OUT_PRIMARY_EXECUTION.md",
+        "docs/INDEPENDENT_REVIEW_HANDOFF.md",
+        "docs/PHASE4_SCORING_AND_ANALYSIS.md",
+        "docs/PHASE5_EXECUTION.md",
+        "docs/PHASE5_SCRIPT_COMMITMENT.md",
+        "docs/PHASE5_SOURCE_PRODUCTION.md",
+        "docs/PHASE6_EXECUTION.md",
+        "docs/PHASE7_REPORTING.md",
+        "docs/SYNTHETIC_BENCHMARK.md",
+        "plan_notes/IMPLEMENTATION_PLAN_QUERY_DEPENDENT_TEMPORAL_ONTOLOGY.md",
+        "plan_notes/METHODOLOGICAL_PLAN_QUERY_DEPENDENT_TEMPORAL_ONTOLOGY.md"
+      ],
+      "include_suffixes": [".mjs", ".py"],
+      "include_extensionless_names": [],
+      "required_paths": [
+        "docs/PHASE4_SCORING_AND_ANALYSIS.md",
+        "docs/PHASE5_EXECUTION.md",
+        "docs/PHASE6_EXECUTION.md",
+        "docs/PHASE7_REPORTING.md",
+        "plan_notes/IMPLEMENTATION_PLAN_QUERY_DEPENDENT_TEMPORAL_ONTOLOGY.md",
+        "plan_notes/METHODOLOGICAL_PLAN_QUERY_DEPENDENT_TEMPORAL_ONTOLOGY.md",
+        "scripts/build_final_accounting_source_recipe.py",
+        "scripts/build_public_bundle.py",
+        "scripts/build_results_report.py",
+        "scripts/compile_final_accounting.py",
+        "scripts/compile_phase7_results.py",
+        "scripts/run_phase4_analysis.py",
+        "scripts/run_phase5_feedback.py"
+      ],
+      "expected_path_count": 58,
+      "path_inventory_sha256": "8570fe0a7013ea593240c8aed13e7b48974c5f36b86a3d555a3f12467351fd23"
+    },
+    {
+      "category": "science_code",
+      "roots": ["src/story_projection_onto"],
+      "explicit_paths": [],
+      "include_suffixes": [".py"],
+      "include_extensionless_names": [],
+      "required_paths": [
+        "src/story_projection_onto/case_study_analysis.py",
+        "src/story_projection_onto/conditions/c0.py",
+        "src/story_projection_onto/conditions/c1.py",
+        "src/story_projection_onto/conditions/c2.py",
+        "src/story_projection_onto/conditions/fixed_select.py",
+        "src/story_projection_onto/contracts.py",
+        "src/story_projection_onto/final_accounting.py",
+        "src/story_projection_onto/metrics/pipeline.py",
+        "src/story_projection_onto/phase7_compiler.py",
+        "src/story_projection_onto/public_release.py",
+        "src/story_projection_onto/scorer_only/phase4_analysis.py",
+        "src/story_projection_onto/scorer_only/phase5_report.py",
+        "src/story_projection_onto/synthetic_benchmark.py"
+      ],
+      "expected_path_count": 96,
+      "path_inventory_sha256": "5e01777bd52385bb4ee24435900f3f3f9ce0000106f7ff03deee2270b43cfd51"
+    },
+    {
+      "category": "study_configuration",
+      "roots": ["configs/case_study", "configs/study"],
+      "explicit_paths": [],
+      "include_suffixes": [".json", ".md"],
+      "include_extensionless_names": [],
+      "required_paths": [
+        "configs/study/authority.json",
+        "configs/study/feedback.json",
+        "configs/study/metrics.json",
+        "configs/study/phase4_analysis.json",
+        "configs/study/phase5_execution.json",
+        "configs/study/phase7_compiler.json",
+        "configs/study/public_reproduction_sources.json",
+        "configs/study/reporting.json",
+        "configs/study/resource_limits.json",
+        "configs/study/synthetic_benchmark.json",
+        "configs/study/visualization.json"
+      ],
+      "expected_path_count": 31,
+      "path_inventory_sha256": "0b65a7ab1136522e04eb0461c71f1a7ca8a3604eb57a8a16d833ffe44e3d4040"
+    },
+    {
+      "category": "synthetic_benchmark",
+      "roots": [
+        "data/synthetic/condition_inputs",
+        "data/synthetic/manifests",
+        "data/synthetic/model_visible"
+      ],
+      "explicit_paths": [],
+      "include_suffixes": [".json"],
+      "include_extensionless_names": [],
+      "required_paths": [
+        "data/synthetic/manifests/benchmark_manifest.json",
+        "data/synthetic/manifests/seed_manifest.json"
+      ],
+      "expected_path_count": 226,
+      "path_inventory_sha256": "57b35a08f19e8ea1a6fd213465267b86e9e3aaa9c8f9243cfd329b2cfdd1ea92"
+    },
+    {
+      "category": "synthetic_gold",
+      "roots": ["data/synthetic/scorer_only"],
+      "explicit_paths": [],
+      "include_suffixes": [".json"],
+      "include_extensionless_names": [],
+      "required_paths": [
+        "data/synthetic/scorer_only/development/syn-dev-01.json",
+        "data/synthetic/scorer_only/held_out/draft_seal.json",
+        "data/synthetic/scorer_only/held_out/syn-test-01.json",
+        "data/synthetic/scorer_only/held_out/syn-test-12.json",
+        "data/synthetic/scorer_only/sampling/a_no_context_selection.json",
+        "data/synthetic/scorer_only/sampling/paraphrase_selection.json"
+      ],
+      "expected_path_count": 32,
+      "path_inventory_sha256": "b8b68db5267475eb853b65a898d45646d7ffdb58b7f22fc263b48a7ee535379d"
+    },
+    {
+      "category": "verification_tests",
+      "roots": ["tests"],
+      "explicit_paths": [],
+      "include_suffixes": [".json", ".mjs", ".py"],
+      "include_extensionless_names": [],
+      "required_paths": [
+        "tests/conftest.py",
+        "tests/fixtures/phase1/c1_pre_output.json",
+        "tests/fixtures/phase4/metric_regression_cases.json",
+        "tests/integration/test_condition_pathways.py",
+        "tests/integration/test_system_browser_smoke.py",
+        "tests/integration/test_xgrammar_decoder_compatibility.py",
+        "tests/integration/ui_browser_smoke.mjs",
+        "tests/property/test_benchmark_properties.py",
+        "tests/property/test_metric_structure_properties.py",
+        "tests/unit/test_final_accounting.py",
+        "tests/unit/test_gpu_runtime.py",
+        "tests/unit/test_phase7_compiler.py",
+        "tests/unit/test_public_release.py"
+      ],
+      "expected_path_count": 120,
+      "path_inventory_sha256": "b011b0994198e06ecbd66d03c64a9e7c17ddaf52ebc18d36be598f00ed669c88"
+    }
+  ],
+  "manifest_sha256": "43776da2ce17e009cb1f43d9dd8515912a366fb6414c158e07f9ca8399f2ac70"
+}

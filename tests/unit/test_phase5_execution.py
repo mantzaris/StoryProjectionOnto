@@ -8,15 +8,26 @@ from types import SimpleNamespace
 import pytest
 
 from story_projection_onto.contracts import (
+    BudgetAccounting,
     ConditionName,
+    ConstructionOperator,
     ConstructionSeal,
     FeedbackAction,
+    InstanceGraph,
+    LocalContextSchema,
+    OmissionRecord,
+    OntologyDecision,
     OntologyProjection,
+    OutputBudgets,
     ReleaseClass,
     RevelationPosition,
     SpoilerHorizon,
+    UpperOntology,
     canonical_sha256,
+    projection_validation_target_hash,
+    runtime_structural_acceptance_record,
 )
+from story_projection_onto.feedback_provenance import ResearcherTraceSubmissionReceipt
 from story_projection_onto.feedback_runtime import (
     FeedbackAttemptStatus,
     FeedbackEpisodeKind,
@@ -30,6 +41,7 @@ from story_projection_onto.phase5_execution import (
     C2RegenerationResult,
     CpuReprojectionInput,
     InterruptedFeedbackCallRecoveryRequired,
+    Phase5CpuLedgerMaterializationError,
     Phase5ExecutionError,
     Phase5ExecutionInputManifest,
     Phase5PrerequisiteError,
@@ -44,23 +56,37 @@ from story_projection_onto.phase5_execution import (
     feedback_model_call_record_hash,
     load_phase5_input_manifest,
     load_phase5_runner_configuration,
+    materialize_phase5_cpu_ledger,
+    phase5_cpu_receiving_job_identity,
     validate_phase5_inputs,
+    validate_phase5_ledger_preflight,
     validate_phase5_prerequisites,
 )
 from story_projection_onto.store import (
     ArtifactRecord,
+    ArtifactStore,
     AttemptKind,
+    BlobStore,
+    CommitmentCheckStatus,
     Compression,
+    EvidenceSupportStatus,
     GpuEventKind,
+    InputKind,
+    JobState,
     Ledger,
     ModelBackend,
     ModelCallRole,
     RetryClass,
+    SemanticAssessmentScope,
+    TemporalValidationStatus,
+    ValidationStatus,
 )
 from story_projection_onto.ui import (
     MergeSplitIntent,
     MergeSplitOperation,
     RefineContextIntent,
+    RevisionDraftSubmission,
+    VisualizationContentScope,
     VisualizationTemporalFilter,
     build_merge_split_instruction,
     build_refine_context_instruction,
@@ -82,6 +108,47 @@ def _context(context_id: str):
     values = _without_hashes(context().model_dump(mode="python"))
     values["context_id"] = context_id
     return context().__class__.model_validate(values)
+
+
+def _rebind_prequery_validation(
+    payload: dict,
+    *,
+    validated_at: datetime,
+) -> None:
+    condition = ConditionName(payload["condition"])
+    if condition not in {ConditionName.C0_CLASSICAL_PRE, ConditionName.C1_LLM_PRE}:
+        raise ValueError("test helper only rebinds pre-query projections")
+    upper_ontology = UpperOntology.model_validate(payload["upper_ontology"])
+    local_schema = LocalContextSchema.model_validate(payload["local_schema"])
+    instance_graph = InstanceGraph.model_validate(payload["instance_graph"])
+    decisions = tuple(OntologyDecision.model_validate(item) for item in payload["decisions"])
+    omissions = tuple(OmissionRecord.model_validate(item) for item in payload["omissions"])
+    budget_accounting = BudgetAccounting.model_validate(payload["budget_accounting"])
+    budgets = OutputBudgets.model_validate(payload["budgets"])
+    target_hash = projection_validation_target_hash(
+        condition=condition,
+        snapshot_hash=payload["snapshot_hash"],
+        packet_hash=payload["packet_hash"],
+        context_hash=payload["context_hash"],
+        upper_ontology=upper_ontology,
+        local_schema=local_schema,
+        instance_graph=instance_graph,
+        decisions=decisions,
+        omissions=omissions,
+        budget_accounting=budget_accounting,
+        budgets=budgets,
+    )
+    records = (
+        runtime_structural_acceptance_record(
+            validation_id=f"validation-{target_hash[:32]}",
+            target_id=target_hash,
+            validated_at=validated_at,
+        ),
+    )
+    payload["validation_records"] = records
+    payload["validation_bundle_hash"] = (
+        canonical_sha256(records) if condition is ConditionName.C1_LLM_PRE else None
+    )
 
 
 def _c1_projection(query_context) -> OntologyProjection:
@@ -109,6 +176,7 @@ def _c1_projection(query_context) -> OntologyProjection:
         ),
     )
     values["construction_seal"] = ConstructionSeal.model_validate(seal)
+    _rebind_prequery_validation(values, validated_at=NOW + timedelta(seconds=3))
     return OntologyProjection.model_validate(values)
 
 
@@ -160,10 +228,18 @@ def _cpu(condition: ConditionName, instruction):
         )
         if condition is ConditionName.C0_CLASSICAL_PRE:
             after = _reseal_c0(after)
+        after = _selection_only(after, instruction)
     return CpuReprojectionInput(
         condition=condition,
         before_projection=before,
         after_projection=after,
+        instruction_hash=instruction.content_hash,
+        source_query_stage_hash=digest(
+            f"source-query-stage-{instruction.before_context.context_id}"
+        ),
+        source_preparation_hash=digest(
+            f"source-preparation-{condition.value}-{instruction.before_context.context_id}"
+        ),
         resolver_hash=digest(f"resolver-{condition.value}"),
         started_at=instruction.revision.created_at + timedelta(seconds=1),
         completed_at=instruction.revision.created_at + timedelta(seconds=2),
@@ -183,6 +259,35 @@ def _reseal_c0(value: OntologyProjection) -> OntologyProjection:
         *(item.assertion_id for item in graph.assertions),
     )
     payload["construction_seal"] = ConstructionSeal.model_validate(seal)
+    return OntologyProjection.model_validate(payload)
+
+
+def _selection_only(value: OntologyProjection, instruction) -> OntologyProjection:
+    payload = _without_hashes(value.model_dump(mode="python"))
+    graph = value.instance_graph
+    selected_ids = (
+        *(item.entity_id for item in graph.entities),
+        *(item.event_id for item in graph.events),
+        *(item.proposition_content_id for item in graph.proposition_contents),
+        *(item.assertion_id for item in graph.assertions),
+    )
+    payload["decisions"] = (
+        OntologyDecision(
+            decision_id=(
+                f"selection-{value.condition.value.lower()}-"
+                f"{instruction.after_context.context_id}"
+            ),
+            operator=ConstructionOperator.SELECTION,
+            evidence_ids=(packet().ordered_evidence_ids[0],),
+            rationale="Test-only fixed same-seal selection decision.",
+            decided_at=instruction.revision.created_at + timedelta(seconds=1),
+            input_object_ids=selected_ids,
+        ),
+    )
+    _rebind_prequery_validation(
+        payload,
+        validated_at=instruction.revision.created_at + timedelta(seconds=2),
+    )
     return OntologyProjection.model_validate(payload)
 
 
@@ -236,13 +341,62 @@ def _inputs():
     for index, slot in enumerate(protocol.researcher_trace_slots):
         action = slot.allowed_actions[index % 2]
         instruction = _instruction(slot.episode_id, slot.context_id, action)
+        before = projection(
+            ConditionName.C2_LLM_QUERY, instruction.before_context, packet()
+        )
+        before_bundle = build_visualization_bundle(
+            before,
+            instruction.before_context,
+            packet(),
+            content_scope=VisualizationContentScope.REGISTERED_DISPLAY,
+        )
+        submission_values = dict(
+            before_projection_id=before.projection_id,
+            action=instruction.revision.action,
+            anchors=instruction.revision.anchors,
+            rationale=instruction.revision.rationale,
+            sequence=instruction.revision.sequence,
+            seed=protocol.llm_seed,
+        )
+        if instruction.refine_context_intent is not None:
+            intent = instruction.refine_context_intent
+            submission_values.update(
+                lens=intent.lens,
+                story_scope=intent.story_scope,
+                spoiler_horizon=intent.spoiler_horizon,
+            )
+        else:
+            assert instruction.merge_split_intent is not None
+            intent = instruction.merge_split_intent
+            submission_values.update(
+                merge_split_operation=intent.operation,
+                grouped_mention_candidate_ids=intent.grouped_mention_candidate_ids,
+            )
+        submission = RevisionDraftSubmission(**submission_values)
+        submission_json = submission.to_canonical_json()
+        instruction_bytes = (instruction.to_canonical_json() + "\n").encode("utf-8")
         traces.append(
             ResearcherTraceInput(
                 episode_id=slot.episode_id,
                 instruction=instruction,
                 packet=packet(),
-                c2_before_projection=projection(
-                    ConditionName.C2_LLM_QUERY, instruction.before_context, packet()
+                c2_before_projection=before,
+                submission_receipt=ResearcherTraceSubmissionReceipt(
+                    receipt_id=f"TEST-ONLY-receipt-{slot.episode_id}",
+                    episode_id=slot.episode_id,
+                    action=instruction.revision.action,
+                    requested_at=instruction.revision.created_at,
+                    before_projection_id=before.projection_id,
+                    before_projection_hash=before.content_hash,
+                    before_bundle_hash=before_bundle.content_hash,
+                    submission_hash=submission.content_hash,
+                    submission_canonical_json=submission_json,
+                    submission_file_sha256=hashlib.sha256(
+                        (submission_json + "\n").encode("utf-8")
+                    ).hexdigest(),
+                    instruction_hash=instruction.content_hash,
+                    instruction_file_sha256=hashlib.sha256(instruction_bytes).hexdigest(),
+                    recorded_at=instruction.revision.created_at,
                 ),
             )
         )
@@ -269,6 +423,7 @@ def _inputs():
     inputs = Phase5ExecutionInputManifest(
         run_id="TEST-ONLY-phase5-run",
         protocol_hash=protocol.content_hash,
+        script_commitment_manifest_hash=digest("phase5-script-commitment"),
         primary_results_gate_hash=gate.content_hash,
         final_reviewed_seal_hash=gate.final_reviewed_seal_hash,
         source_manifest_hash=digest("phase5-source-manifest"),
@@ -514,6 +669,288 @@ def test_exact_inventory_executes_once_resumes_and_detects_tamper(tmp_path: Path
             output_root=root,
             completed_at=finished,
         )
+
+
+def test_artifact_store_requires_exact_ledger_preflight_before_adapter_call(
+    tmp_path: Path,
+) -> None:
+    protocol, gate, inputs = _inputs()
+    adapter = _Adapter()
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        artifacts = ArtifactStore(
+            BlobStore(tmp_path / "cas", compression=Compression.GZIP),
+            ledger,
+        )
+        with pytest.raises(
+            Phase5CpuLedgerMaterializationError,
+            match="materialization failed closed",
+        ):
+            execute_phase5(
+                inputs=inputs,
+                protocol=protocol,
+                prerequisites=gate,
+                adapter=adapter,
+                ledger_verifier=_Verifier(),
+                output_root=tmp_path / "must-not-start",
+                completed_at=NOW + timedelta(minutes=5),
+                artifacts=artifacts,
+                ledger_study_id="TEST-ONLY-unregistered-phase5-study",
+            )
+    assert adapter.calls == []
+    assert not (tmp_path / "must-not-start").exists()
+
+
+def _seed_phase5_source_projection_rows(
+    artifacts: ArtifactStore,
+    inputs: Phase5ExecutionInputManifest,
+) -> None:
+    ledger = artifacts.ledger
+    source_study_id = "TEST-ONLY-held-out-source-study"
+    ledger.register_study(
+        study_id=source_study_id,
+        protocol_hash=inputs.held_out_call_manifest_hash,
+        code_manifest_hash=digest("phase5-source-code"),
+        configuration_hash=digest("phase5-source-config"),
+        release_class=ReleaseClass.PUBLIC,
+        created_at=NOW - timedelta(hours=1),
+    )
+    sources: dict[str, tuple[OntologyProjection, object]] = {}
+    for item in inputs.scripted_inputs:
+        for cpu in item.cpu_inputs:
+            sources[cpu.before_projection.content_hash] = (
+                cpu.before_projection,
+                item.packet,
+            )
+        sources[item.c2_before_projection.content_hash] = (
+            item.c2_before_projection,
+            item.packet,
+        )
+    for item in inputs.researcher_trace_inputs:
+        sources[item.c2_before_projection.content_hash] = (
+            item.c2_before_projection,
+            item.packet,
+        )
+    for ordinal, (projection_hash, (semantic, evidence_packet)) in enumerate(
+        sources.items(), 1
+    ):
+        prefix = f"TEST-ONLY-phase5-source-{ordinal}"
+        snapshot_artifact = artifacts.put_bytes(
+            f"snapshot:{semantic.snapshot_hash}\n".encode(),
+            media_type="application/json",
+            release_class=ReleaseClass.PUBLIC,
+            created_at=NOW - timedelta(minutes=30),
+        )
+        packet_artifact = artifacts.put_bytes(
+            (evidence_packet.to_canonical_json() + "\n").encode(),
+            media_type="application/vnd.story-projection.evidence-packet+json",
+            release_class=ReleaseClass.PUBLIC,
+            created_at=NOW - timedelta(minutes=29),
+        )
+        snapshot_input = ledger.register_input(
+            input_id=f"{prefix}-snapshot-input",
+            study_id=source_study_id,
+            input_kind=InputKind.EVIDENCE_SNAPSHOT,
+            content_hash=semantic.snapshot_hash,
+            artifact_hash=snapshot_artifact.content_hash,
+            release_class=ReleaseClass.PUBLIC,
+            created_at=NOW - timedelta(minutes=30),
+        )
+        snapshot = ledger.register_evidence_snapshot(
+            snapshot_id=f"{prefix}-snapshot",
+            input_id=snapshot_input.input_id,
+            horizon_hash=digest(f"{prefix}-horizon"),
+            evidence_manifest_hash=digest(f"{prefix}-evidence"),
+            index_configuration_hash=digest(f"{prefix}-index"),
+            prequery_seal_hash=semantic.snapshot_hash,
+            eligible_evidence_count=len(evidence_packet.evidence),
+            created_at=NOW - timedelta(minutes=30),
+        )
+        packet_input = ledger.register_input(
+            input_id=f"{prefix}-packet-input",
+            study_id=source_study_id,
+            input_kind=InputKind.EVIDENCE_PACKET,
+            content_hash=semantic.packet_hash,
+            artifact_hash=packet_artifact.content_hash,
+            release_class=ReleaseClass.PUBLIC,
+            created_at=NOW - timedelta(minutes=29),
+        )
+        job = ledger.create_or_resume_job(
+            {
+                "TEST_ONLY": "held_out_source_projection",
+                "projection_hash": projection_hash,
+                "lifecycle_kind": "query_time_generation",
+            },
+            release_class=ReleaseClass.PUBLIC,
+            created_at=NOW - timedelta(minutes=20),
+        )
+        ledger.link_job_to_study(
+            study_id=source_study_id,
+            job_id=job.job_id,
+            created_at=NOW - timedelta(minutes=20),
+        )
+        ledger.advance_job_lifecycle(
+            job.job_id,
+            (
+                (JobState.PREQUERY_SEALED, NOW - timedelta(minutes=20)),
+                (
+                    JobState.QUERY_REVEALED,
+                    NOW - timedelta(minutes=20) + timedelta(microseconds=1),
+                ),
+            ),
+        )
+        attempt = ledger.record_attempt(
+            attempt_id=f"{prefix}-attempt",
+            job_id=job.job_id,
+            attempt_kind=AttemptKind.BASE,
+            input_hash=projection_hash,
+            config_hash=digest(f"{prefix}-config"),
+            seed=0,
+            created_at=NOW - timedelta(minutes=19),
+        )
+        projection_artifact = artifacts.put_bytes(
+            (semantic.to_canonical_json() + "\n").encode(),
+            media_type="application/vnd.story-projection.ontology-projection+json",
+            release_class=ReleaseClass.PUBLIC,
+            created_at=NOW - timedelta(minutes=18),
+        )
+        ledger.advance_job_lifecycle(
+            job.job_id,
+            (
+                (JobState.PREQUERY_SEALED, NOW - timedelta(minutes=20)),
+                (
+                    JobState.QUERY_REVEALED,
+                    NOW - timedelta(minutes=20) + timedelta(microseconds=1),
+                ),
+                (JobState.GENERATED, NOW - timedelta(minutes=18)),
+            ),
+        )
+        validation = ledger.record_validation(
+            validation_id=f"{prefix}-validation",
+            job_id=job.job_id,
+            attempt_id=attempt.attempt_id,
+            input_artifact_hash=projection_artifact.content_hash,
+            validator_manifest_hash=digest(f"{prefix}-validator"),
+            validation_status=ValidationStatus.ACCEPTED,
+            evidence_support_status=EvidenceSupportStatus.NOT_APPLICABLE,
+            temporal_status=TemporalValidationStatus.NOT_APPLICABLE,
+            commitment_status=CommitmentCheckStatus.NOT_APPLICABLE,
+            semantic_assessment_scope=(
+                SemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED
+            ),
+            created_at=NOW - timedelta(minutes=17),
+        )
+        certificate = semantic.construction_certificate or semantic.construction_seal
+        assert certificate is not None
+        ledger.record_projection(
+            projection_id=f"{prefix}-projection",
+            job_id=job.job_id,
+            validation_id=validation.validation_id,
+            snapshot_id=snapshot.snapshot_id,
+            packet_input_id=packet_input.input_id,
+            condition_id=semantic.condition.value,
+            context_hash=semantic.context_hash,
+            upper_ontology_hash=semantic.upper_ontology.content_hash,
+            construction_certificate_hash=certificate.content_hash,
+            projection_artifact_hash=projection_artifact.content_hash,
+            projection_semantic_hash=semantic.content_hash,
+            release_class=ReleaseClass.PUBLIC,
+            finalized_at=NOW - timedelta(minutes=17),
+        )
+        ledger.advance_job_lifecycle(
+            job.job_id,
+            (
+                (JobState.PREQUERY_SEALED, NOW - timedelta(minutes=20)),
+                (
+                    JobState.QUERY_REVEALED,
+                    NOW - timedelta(minutes=20) + timedelta(microseconds=1),
+                ),
+                (JobState.GENERATED, NOW - timedelta(minutes=18)),
+                (JobState.VALIDATED, NOW - timedelta(minutes=17)),
+                (JobState.FINALIZED, NOW - timedelta(minutes=17)),
+            ),
+        )
+
+
+def test_cpu_ledger_materialization_is_complete_replayable_and_tamper_evident(
+    tmp_path: Path,
+) -> None:
+    protocol, _gate, inputs = _inputs()
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        artifacts = ArtifactStore(
+            BlobStore(tmp_path / "cas", compression=Compression.GZIP),
+            ledger,
+        )
+        _seed_phase5_source_projection_rows(artifacts, inputs)
+        ledger_study_id = "TEST-ONLY-phase5-receiving-study"
+        ledger.register_study(
+            study_id=ledger_study_id,
+            protocol_hash=digest("phase5-receiving-protocol"),
+            code_manifest_hash=digest("phase5-receiving-code"),
+            configuration_hash=digest("phase5-receiving-config"),
+            release_class=ReleaseClass.RESTRICTED,
+            created_at=NOW - timedelta(minutes=1),
+        )
+        baseline = {
+            table: ledger.count_rows(table)
+            for table in ("jobs", "attempts", "validations", "projections", "failures")
+        }
+        materialize_phase5_cpu_ledger(
+            inputs=inputs,
+            protocol=protocol,
+            artifacts=artifacts,
+            ledger_study_id=ledger_study_id,
+        )
+        validate_phase5_ledger_preflight(
+            inputs=inputs,
+            artifacts=artifacts,
+            ledger_study_id=ledger_study_id,
+        )
+        expected_deltas = {
+            "jobs": 12,
+            "attempts": 12,
+            "validations": 12,
+            "projections": 6,
+            "failures": 6,
+        }
+        observed = {table: ledger.count_rows(table) for table in baseline}
+        assert observed == {
+            table: baseline[table] + expected_deltas[table] for table in baseline
+        }
+        materialize_phase5_cpu_ledger(
+            inputs=inputs,
+            protocol=protocol,
+            artifacts=artifacts,
+            ledger_study_id=ledger_study_id,
+        )
+        assert {table: ledger.count_rows(table) for table in baseline} == observed
+
+        script = inputs.scripted_inputs[0]
+        cpu = script.cpu_inputs[0]
+        job = ledger.resolve_job_identity(
+            phase5_cpu_receiving_job_identity(
+                inputs=inputs,
+                ledger_study_id=ledger_study_id,
+                script=script,
+                cpu=cpu,
+            ),
+            study_id=ledger_study_id,
+        )
+        ledger._connection.execute("DROP TRIGGER job_transitions_reject_update")
+        ledger._connection.execute(
+            "UPDATE job_transitions SET occurred_at = ? WHERE job_id = ? AND sequence = 3",
+            ((cpu.completed_at + timedelta(seconds=1)).isoformat(), job.job_id),
+        )
+        ledger._connection.commit()
+        with pytest.raises(
+            Phase5CpuLedgerMaterializationError,
+            match="lifecycle differs",
+        ):
+            materialize_phase5_cpu_ledger(
+                inputs=inputs,
+                protocol=protocol,
+                artifacts=artifacts,
+                ledger_study_id=ledger_study_id,
+            )
 
 
 def test_completion_clock_is_evaluated_once_after_all_nine_terminal_calls(
@@ -870,7 +1307,7 @@ def test_node_is_hidden_when_description_assertion_exceeds_revelation_horizon() 
     values = _without_hashes(original.model_dump(mode="python"))
     assertion = values["instance_graph"]["assertions"][0]
     assertion["temporal_scope"]["revelation_position"]["revelation_order"] = 9
-    values["validation_bundle_hash"] = None
+    _rebind_prequery_validation(values, validated_at=NOW + timedelta(seconds=3))
     changed = OntologyProjection.model_validate(values)
     bundle = build_visualization_bundle(changed, query_context, evidence_packet)
     horizon_values = _without_hashes(query_context.spoiler_horizon.model_dump(mode="python"))

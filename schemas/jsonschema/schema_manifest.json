@@ -1,13 +1,13 @@
 {
   "generator": "scripts/generate_schemas.py",
-  "manifest_hash": "6e2e91d574ec3414409083dac0e8923f9e6b991ba34ce9cac7bb249c5a7f3176",
+  "manifest_hash": "ec99077520896fa0ded7bbeebd2a24bd0dc255f54e5e1765751e74130757a9f1",
   "schema_version": "1.0.0",
   "schemas": [
     {
-      "bytes": 77016,
+      "bytes": 80076,
       "contract": "ConstructionRequest",
       "file": "construction_request.schema.json",
-      "sha256": "3157fef8225e667126bcf35cbf626c70c386a206257601059ebfbb68fb0b1486",
+      "sha256": "870ae5bfc41a6752ab54a4b44f23fe97b335bab6bbe4c399c35e8b01df4dc0f8",
       "surface": "model_interaction"
     },
     {
@@ -25,17 +25,17 @@
       "surface": "public_contract"
     },
     {
-      "bytes": 12922,
+      "bytes": 17714,
       "contract": "ModelVisibleEvidencePacket",
       "file": "model_visible_evidence_packet.schema.json",
-      "sha256": "5fff71ec80333d2715ea069fc71613e028f2ea185b593220706a0be5442a6e34",
+      "sha256": "b91d1d593132698152bbcfeae6ac7c090f5baf18d675e9a6b94fd0147136ff9d",
       "surface": "model_interaction"
     },
     {
-      "bytes": 11335,
+      "bytes": 13674,
       "contract": "ModelVisibleEvidenceRecord",
       "file": "model_visible_evidence_record.schema.json",
-      "sha256": "34d914b444b69f6f0d8e81ffbcca2528aa7c9a21843326983f23f580b4fea35f",
+      "sha256": "f48ab7ddac506be4c221107417df797b413c9039f69847fb57b48869c06a91c9",
       "surface": "model_interaction"
     },
     {
@@ -74,10 +74,10 @@
       "surface": "model_interaction"
     },
     {
-      "bytes": 64637,
+      "bytes": 65090,
       "contract": "OntologyProjection",
       "file": "ontology_projection.schema.json",
-      "sha256": "4ffaf5a999f6da654cb27e86993801483396858f66d59aa80c2d8b672bca292d",
+      "sha256": "f680369aae8161496de506ad4647588c3fec9978a2b7642bce4104787394f6c5",
       "surface": "public_contract"
     },
     {
@@ -88,10 +88,10 @@
       "surface": "public_contract"
     },
     {
-      "bytes": 20574,
+      "bytes": 27749,
       "contract": "PreconstructionRequest",
       "file": "preconstruction_request.schema.json",
-      "sha256": "0a7af468372187ef31ed31fc10b8e230586cab033acbc8b773c633479001e28f",
+      "sha256": "7fca767fc36e52b1ba1fae8602afbd44166175845c01b1af923d3a7b4b3fb8d1",
       "surface": "model_interaction"
     },
     {
@@ -130,10 +130,10 @@
       "surface": "public_contract"
     },
     {
-      "bytes": 52757,
+      "bytes": 53210,
       "contract": "ValidatedGeneration",
       "file": "validated_generation.schema.json",
-      "sha256": "45e83a44a5024a908b2acc5b71859dfd4f603e19deeb369b0aa88bae03e97f4f",
+      "sha256": "9a41d4ef85780ccd007c7bc08f4a5e0bea0072840b45b3216fc076444c22b1cf",
       "surface": "public_contract"
     },
     {

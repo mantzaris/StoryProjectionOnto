@@ -2,15 +2,15 @@
   "schema_version": "1.0.0",
   "study_id": "query-dependent-temporal-ontology-conference-study",
   "study_status": "incomplete",
-  "status_reason": "The primary 14B pilot was rejected; fallback acceptance, development execution, independent review, held-out runs, and the lawful first-novel study remain incomplete.",
-  "generated_at_utc": "2026-09-04T00:00:00Z",
-  "code_revision": "e09f83eca015c194552c4e53a4138f6fa36befa2",
+  "status_reason": "Recovery interim through fallback v3: the primary 14B pilots and fallback attempts were rejected, no scientific generation was accepted, and fallback acceptance, development execution, independent review, held-out runs, and the lawful first-novel study remain incomplete.",
+  "generated_at_utc": "2026-09-04T23:24:55Z",
+  "code_revision": "cadfb25c39e4f0b1998ab15ad89dcc5e97d1fbf1",
   "dirty_worktree": true,
   "model_repository": null,
   "model_revision": null,
   "phases": [
-    {"phase_id": "phase_1", "label": "Contracts, resource controls, and GPU pilot", "status": "incomplete", "reason": "The 14B candidate was rejected and fallback acceptance has not completed.", "source_artifact_hashes": ["b458b368d4420dd1f8948893e8cdeb684cbf0f52cc558d9a9454b3c58ff17244", "b8c2f719d2e48d7190e8d4995bd31bc990ca288f6d0f13563171e9d4c940ca7b", "c978e75cef00ba7276055538c69d50b1a5396e628463ec25546b4bc97bd53ab9", "4b870ec47668105badd32528d6fb6997fc0221618097e048ff28d27716f78050", "90bbb5279e99bc9fe39d92332e70c2e431c42e2131df3cbb816db6ba43861bef"]},
-    {"phase_id": "phase_2", "label": "Synthetic benchmark", "status": "incomplete", "reason": "The mandatory independent condition-blind review has not been supplied or adjudicated.", "source_artifact_hashes": ["15f022302ba1bfbf6f1caf8d3869b16752d02fd693966b2b9bcb1bf28d5be3bb"]},
+    {"phase_id": "phase_1", "label": "Contracts, resource controls, and GPU pilot", "status": "incomplete", "reason": "The 14B candidate was rejected and fallback acceptance has not completed.", "source_artifact_hashes": ["b458b368d4420dd1f8948893e8cdeb684cbf0f52cc558d9a9454b3c58ff17244", "b8c2f719d2e48d7190e8d4995bd31bc990ca288f6d0f13563171e9d4c940ca7b", "c978e75cef00ba7276055538c69d50b1a5396e628463ec25546b4bc97bd53ab9", "4b870ec47668105badd32528d6fb6997fc0221618097e048ff28d27716f78050", "c2d84fe31a2e4da613b5d7af418ba9d5c11d1b1c8f8e22583fba5f47ecaa42c3", "9279cdcb048be6bf44da6570d26df9ffd048d839a3bb9f5d76a328f6ea62108a", "fd42f197b88bef61ad5696280fd6b4a72f256fd3b0991a069771c5074c9b50e7", "90bbb5279e99bc9fe39d92332e70c2e431c42e2131df3cbb816db6ba43861bef"]},
+    {"phase_id": "phase_2", "label": "Synthetic benchmark", "status": "incomplete", "reason": "The mandatory independent condition-blind review has not been supplied or adjudicated.", "source_artifact_hashes": ["02a3ef312a24d9f19387e5613a68568f002ad4c237ddac494a371a74e945bf14"]},
     {"phase_id": "phase_3", "label": "Conditions and primary comparisons", "status": "incomplete", "reason": "Development and held-out GPU condition outputs are not complete.", "source_artifact_hashes": []},
     {"phase_id": "phase_4", "label": "Metrics, statistics, and ablations", "status": "incomplete", "reason": "No registered held-out condition table exists to analyze.", "source_artifact_hashes": []},
     {"phase_id": "phase_5", "label": "Visualization and feedback", "status": "incomplete", "reason": "GPU-backed scripted feedback and researcher traces have not executed.", "source_artifact_hashes": []},
@@ -18,9 +18,9 @@
     {"phase_id": "phase_7", "label": "Results and conference artifacts", "status": "incomplete", "reason": "The reporting substrate exists, but final immutable result inputs do not.", "source_artifact_hashes": []}
   ],
   "tables": [
-    {"table_id": "study_status", "relative_path": "tables/study_status.csv", "sha256": "d1cae85a93158406ed710d39a7b6eb69cb4eee6d69bb91b3a32b7bc16051143d", "row_count": 7, "required_columns": ["phase_id", "status", "reason"], "status": "complete", "description": "Machine-readable phase status at this build", "source_artifact_hashes": ["fb2aac2dcc188e867be7d118dfd8effa85b893d83d5cbba2b80c11e1b3fa1cf6"]},
-    {"table_id": "resource_accounting", "relative_path": "tables/resource_accounting.csv", "sha256": "6d655ceb4c91d2875463be129cc766ac4230036f8286215d5cfe3e09d0c03927", "row_count": 8, "required_columns": ["scope", "metric", "value", "unit", "status", "source_note"], "status": "complete", "description": "Verified resource accounting through the rejected primary pilot (not final)", "source_artifact_hashes": ["c978e75cef00ba7276055538c69d50b1a5396e628463ec25546b4bc97bd53ab9", "4b870ec47668105badd32528d6fb6997fc0221618097e048ff28d27716f78050", "90bbb5279e99bc9fe39d92332e70c2e431c42e2131df3cbb816db6ba43861bef"]},
-    {"table_id": "failure_accounting", "relative_path": "tables/failure_accounting.csv", "sha256": "1a9b8a298001a0fb4bb0548bd749a349845b7eaac3331d70ad99196e364cec92", "row_count": 2, "required_columns": ["run_id", "model_repository", "immutable_revision", "failure_type", "completed_generation_calls", "gate_passed", "vllm_service_stopped", "allocated_gpu_seconds", "interpretation"], "status": "complete", "description": "Observed primary-model pilot failures (not final run accounting)", "source_artifact_hashes": ["c978e75cef00ba7276055538c69d50b1a5396e628463ec25546b4bc97bd53ab9", "4b870ec47668105badd32528d6fb6997fc0221618097e048ff28d27716f78050"]}
+    {"table_id": "study_status", "relative_path": "tables/study_status.csv", "sha256": "d1cae85a93158406ed710d39a7b6eb69cb4eee6d69bb91b3a32b7bc16051143d", "row_count": 7, "required_columns": ["phase_id", "status", "reason"], "status": "complete", "description": "Machine-readable phase status at this recovery-interim build", "source_artifact_hashes": ["5393f43861b8d5cdab7bc5a2f08153d81db98b118310e7848d004e120a2f2917"]},
+    {"table_id": "resource_accounting", "relative_path": "tables/resource_accounting.csv", "sha256": "228538ad967640a7d4919d95b3c86e4a43ca6ae167b4fcfb5eb1dc72eb004e7b", "row_count": 8, "required_columns": ["scope", "metric", "value", "unit", "status", "source_note"], "status": "complete", "description": "Verified cumulative accounting through rejected fallback v3 (interim, not final)", "source_artifact_hashes": ["c978e75cef00ba7276055538c69d50b1a5396e628463ec25546b4bc97bd53ab9", "4b870ec47668105badd32528d6fb6997fc0221618097e048ff28d27716f78050", "c2d84fe31a2e4da613b5d7af418ba9d5c11d1b1c8f8e22583fba5f47ecaa42c3", "9279cdcb048be6bf44da6570d26df9ffd048d839a3bb9f5d76a328f6ea62108a", "fd42f197b88bef61ad5696280fd6b4a72f256fd3b0991a069771c5074c9b50e7", "90bbb5279e99bc9fe39d92332e70c2e431c42e2131df3cbb816db6ba43861bef"]},
+    {"table_id": "failure_accounting", "relative_path": "tables/failure_accounting.csv", "sha256": "339b205aa3ea22d6bca593b76fb0bd9ecf4a2641961b902d9b1ccee4452ef75a", "row_count": 4, "required_columns": ["run_id", "model_repository", "immutable_revision", "failure_type", "completed_generation_calls", "gate_passed", "vllm_service_stopped", "allocated_gpu_seconds", "interpretation"], "status": "complete", "description": "Observed incremental rejected-attempt allocations through fallback v3 (interim, not final)", "source_artifact_hashes": ["c978e75cef00ba7276055538c69d50b1a5396e628463ec25546b4bc97bd53ab9", "4b870ec47668105badd32528d6fb6997fc0221618097e048ff28d27716f78050", "c2d84fe31a2e4da613b5d7af418ba9d5c11d1b1c8f8e22583fba5f47ecaa42c3", "9279cdcb048be6bf44da6570d26df9ffd048d839a3bb9f5d76a328f6ea62108a", "fd42f197b88bef61ad5696280fd6b4a72f256fd3b0991a069771c5074c9b50e7"]}
   ],
   "figures": [
     {"figure_id": "phase_status", "kind": "phase_status", "title": "Registered study phase status", "relative_path": "figures/study_status.pdf"}
@@ -49,14 +49,17 @@
   "source_artifact_hashes": [
     "b458b368d4420dd1f8948893e8cdeb684cbf0f52cc558d9a9454b3c58ff17244",
     "b8c2f719d2e48d7190e8d4995bd31bc990ca288f6d0f13563171e9d4c940ca7b",
-    "15f022302ba1bfbf6f1caf8d3869b16752d02fd693966b2b9bcb1bf28d5be3bb",
+    "02a3ef312a24d9f19387e5613a68568f002ad4c237ddac494a371a74e945bf14",
     "c978e75cef00ba7276055538c69d50b1a5396e628463ec25546b4bc97bd53ab9",
     "4b870ec47668105badd32528d6fb6997fc0221618097e048ff28d27716f78050",
+    "c2d84fe31a2e4da613b5d7af418ba9d5c11d1b1c8f8e22583fba5f47ecaa42c3",
+    "9279cdcb048be6bf44da6570d26df9ffd048d839a3bb9f5d76a328f6ea62108a",
+    "fd42f197b88bef61ad5696280fd6b4a72f256fd3b0991a069771c5074c9b50e7",
     "90bbb5279e99bc9fe39d92332e70c2e431c42e2131df3cbb816db6ba43861bef"
   ],
   "ingestion_receipt_relative_path": "report_ingestion_receipt.json",
-  "ingestion_receipt_file_sha256": "fc59693f79befe5c44d3eabd67e78ec5ca4fa5d2f4c05be30828ce3ce2b11ba0",
-  "ingestion_receipt_sha256": "138ace45558305eed38fc12929be67b158031abd097d11da7ad953ad3637b13a",
+  "ingestion_receipt_file_sha256": "8f90d49337c1d55fba5413b1d57af54fd1bb5bbd9a4777133f1be733ec94b7fd",
+  "ingestion_receipt_sha256": "004b2e7ace7c75d1fcabd3f59a7f5686e1f088c4038db1f07ef6a5fc6a25bfef",
   "reporting_policy_sha256": "fa911d3fa56d11c995cda64b435305ee4f0c21a6b1cf8f1adf1c770702196a93",
-  "manifest_sha256": "16a65d4bb31bd34c4c0f5564062f348388b4d7d841b1ae80e648e6e0577bc071"
+  "manifest_sha256": "016232981064343020e0335a399d43744ba64f4f5c723978dc931f4326f2f255"
 }

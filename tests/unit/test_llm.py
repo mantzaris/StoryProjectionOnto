@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 from datetime import UTC, datetime
 
 import pytest
@@ -10,8 +11,11 @@ from story_projection_onto.contracts import (
     FIXED_SELECT_ALLOWED_OPERATORS,
     ConditionName,
     ConstructionOperator,
+    OntologyDraft,
+    canonical_json_schema,
 )
 from story_projection_onto.llm import (
+    VLLM_XGRAMMAR_IGNORED_STRING_KEYWORDS,
     CapabilityManifest,
     DecodingManifest,
     FixedSelectCapabilityError,
@@ -26,8 +30,10 @@ from story_projection_onto.llm import (
     SeedManifest,
     SemanticFingerprint,
     allowed_capabilities_for,
+    base_condition_output_schema,
     enforce_fixed_select_output,
     make_gpu_request_metadata,
+    vllm_xgrammar_decoder_schema,
 )
 
 HASH_A = "a" * 64
@@ -36,6 +42,69 @@ HASH_C = "c" * 64
 GIT_REVISION = "d" * 40
 TOKENIZER_REVISION = "tokenizer@immutable-revision"
 NOW = datetime(2026, 9, 3, 12, 0, tzinfo=UTC)
+
+
+def _schema_keyword_paths(value: object, keywords: frozenset[str]) -> set[str]:
+    paths: set[str] = set()
+
+    def visit(item: object, path: str) -> None:
+        if isinstance(item, dict):
+            for key, child in item.items():
+                child_path = f"{path}.{key}" if path else key
+                if key in keywords:
+                    paths.add(child_path)
+                visit(child, child_path)
+        elif isinstance(item, list):
+            for index, child in enumerate(item):
+                visit(child, f"{path}[{index}]")
+
+    visit(value, "")
+    return paths
+
+
+def test_xgrammar_compatibility_transform_is_decoder_only_and_narrow() -> None:
+    canonical = canonical_json_schema(OntologyDraft)
+    canonical_before = copy.deepcopy(canonical)
+    ignored_paths = _schema_keyword_paths(
+        canonical,
+        VLLM_XGRAMMAR_IGNORED_STRING_KEYWORDS,
+    )
+    assert ignored_paths
+
+    compatible = vllm_xgrammar_decoder_schema(canonical)
+
+    assert canonical == canonical_before
+    assert compatible is not canonical
+    assert not _schema_keyword_paths(
+        compatible,
+        VLLM_XGRAMMAR_IGNORED_STRING_KEYWORDS,
+    )
+    assert compatible["$defs"]["ConstructionOperator"]["enum"] == (
+        canonical["$defs"]["ConstructionOperator"]["enum"]
+    )
+    assert compatible["$defs"]["InstanceGraph"]["required"] == (
+        canonical["$defs"]["InstanceGraph"]["required"]
+    )
+    assert compatible["additionalProperties"] is False
+    named_like_keywords = {
+        "type": "object",
+        "properties": {
+            "format": {"type": "string", "format": "date-time"},
+            "pattern": {"type": "string", "pattern": "^x$"},
+        },
+    }
+    named_compatible = vllm_xgrammar_decoder_schema(named_like_keywords)
+    assert set(named_compatible["properties"]) == {"format", "pattern"}
+    assert named_compatible["properties"]["format"] == {"type": "string"}
+    assert named_compatible["properties"]["pattern"] == {"type": "string"}
+    # The condition builder exposes only the decoder copy.  Canonical model
+    # validation remains strict and still owns the removed constraints.
+    condition_schema = base_condition_output_schema(ConditionName.C1_LLM_PRE)
+    assert not _schema_keyword_paths(
+        condition_schema,
+        VLLM_XGRAMMAR_IGNORED_STRING_KEYWORDS,
+    )
+    assert canonical_json_schema(OntologyDraft) == canonical_before
 
 
 def decoding(seed: int, *, repair: bool = False) -> DecodingManifest:

@@ -434,6 +434,36 @@ class TemporalClue(ImmutableRecord):
     confidence: UnitInterval
 
 
+def _validate_record_candidate_bindings(
+    *,
+    evidence_id: str,
+    text: str,
+    mention_candidates: Sequence[MentionCandidate],
+    event_candidates: Sequence[EventCandidate],
+) -> None:
+    mention_ids = tuple(item.candidate_id for item in mention_candidates)
+    if len(mention_ids) != len(set(mention_ids)):
+        raise ValueError("mention candidate IDs must be unique within an evidence record")
+    for mention in mention_candidates:
+        if mention.evidence_id != evidence_id:
+            raise ValueError("all evidence candidates must reference the containing evidence_id")
+        if mention.end_char > len(text):
+            raise ValueError("mention offsets exceed the containing evidence text")
+        if text[mention.start_char : mention.end_char] != mention.surface:
+            raise ValueError("mention offsets do not resolve to the declared surface")
+    local_mention_ids = set(mention_ids)
+    for event in event_candidates:
+        if event.evidence_id != evidence_id:
+            raise ValueError("all evidence candidates must reference the containing evidence_id")
+        participant_ids = event.participant_mention_candidate_ids
+        if len(participant_ids) != len(set(participant_ids)):
+            raise ValueError("event participant mention IDs must be unique")
+        if not set(participant_ids).issubset(local_mention_ids):
+            raise ValueError(
+                "event participant mention IDs must resolve within the evidence record"
+            )
+
+
 class EvidenceRecord(ImmutableRecord):
     """A model-eligible passage fragment containing only defeasible candidates."""
 
@@ -464,11 +494,22 @@ class EvidenceRecord(ImmutableRecord):
             raise ValueError("all evidence candidates must reference the containing evidence_id")
         if self.provenance.evidence_id != self.evidence_id:
             raise ValueError("provenance must reference the containing evidence_id")
+        _validate_record_candidate_bindings(
+            evidence_id=self.evidence_id,
+            text=self.text,
+            mention_candidates=self.mention_candidates,
+            event_candidates=self.event_candidates,
+        )
         return self
 
 
-class ModelVisibleEvidenceRecord(ImmutableRecord):
-    """Strict allowlist for evidence passed to a model."""
+class LegacyModelVisibleEvidenceRecord(ImmutableRecord):
+    """Append-only parser for frozen pre-grounding-lineage request fixtures.
+
+    New request construction never emits this shape.  Runtime structural validation
+    rejects it so historical bytes remain inspectable without making provenance-free
+    evidence eligible for a new model call or accepted output.
+    """
 
     evidence_id: Identifier
     text: NonEmptyText
@@ -478,16 +519,58 @@ class ModelVisibleEvidenceRecord(ImmutableRecord):
     relation_phrase_candidates: tuple[RelationPhraseCandidate, ...] = ()
     temporal_clues: tuple[TemporalClue, ...] = ()
 
+    @model_validator(mode="after")
+    def validate_candidate_bindings(self) -> Self:
+        children = (
+            *self.relation_phrase_candidates,
+            *self.temporal_clues,
+        )
+        if any(child.evidence_id != self.evidence_id for child in children):
+            raise ValueError("all evidence candidates must reference the containing evidence_id")
+        _validate_record_candidate_bindings(
+            evidence_id=self.evidence_id,
+            text=self.text,
+            mention_candidates=self.mention_candidates,
+            event_candidates=self.event_candidates,
+        )
+        return self
+
+
+class ModelVisibleEvidenceRecord(LegacyModelVisibleEvidenceRecord):
+    """Strict model allowlist with the indexed lineage needed for exact citation."""
+
+    passage_id: Identifier
+    text_hash: Sha256Digest
+    provenance: ProvenanceReference
+    confidence: UnitInterval
+
+    @model_validator(mode="after")
+    def validate_model_visible_lineage(self) -> Self:
+        if hashlib.sha256(self.text.encode("utf-8")).hexdigest() != self.text_hash:
+            raise ValueError("model-visible text_hash does not match text")
+        if self.provenance.evidence_id != self.evidence_id:
+            raise ValueError("model-visible provenance must reference its evidence_id")
+        if self.provenance.source_artifact_hash is None:
+            raise ValueError("live model-visible provenance requires a source artifact hash")
+        return self
+
+
+ModelVisibleEvidenceInput = ModelVisibleEvidenceRecord | LegacyModelVisibleEvidenceRecord
+
 
 MODEL_VISIBLE_EVIDENCE_FIELDS = frozenset(
     {
         "evidence_id",
+        "passage_id",
         "text",
+        "text_hash",
         "discourse_position",
         "mention_candidates",
         "event_candidates",
         "relation_phrase_candidates",
         "temporal_clues",
+        "provenance",
+        "confidence",
     }
 )
 
@@ -562,7 +645,7 @@ class EvidencePacket(ImmutableRecord):
 
 class ModelVisibleEvidencePacket(ImmutableRecord):
     packet_hash: Sha256Digest
-    evidence: tuple[ModelVisibleEvidenceRecord, ...]
+    evidence: tuple[ModelVisibleEvidenceInput, ...]
     ordered_evidence_ids: tuple[Identifier, ...]
     retrieval_method: RetrievalMethod
 
@@ -977,6 +1060,20 @@ class CommitmentCheckStatus(StrEnum):
     NOT_APPLICABLE = "not_applicable"
 
 
+class SemanticAssessmentScope(StrEnum):
+    """Machine-readable distinction between runtime checks and post-hoc judgment."""
+
+    RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED = "runtime_structural_only_not_assessed"
+    POSTHOC_SCORER_OR_REVIEWER = "posthoc_scorer_or_reviewer"
+
+
+RUNTIME_STRUCTURAL_ONLY_DIAGNOSTIC = (
+    "runtime structural, citation-membership, temporal-shape, and commitment-shape "
+    "validation accepted; semantic evidence support, evidence-aligned temporal "
+    "correctness, and narrative commitment correctness were not assessed"
+)
+
+
 class ValidationRecord(ImmutableRecord):
     validation_id: Identifier
     target_id: Identifier
@@ -984,10 +1081,91 @@ class ValidationRecord(ImmutableRecord):
     evidence_support_status: EvidenceSupportStatus
     temporal_status: TemporalDeterminationStatus
     commitment_status: CommitmentCheckStatus
+    semantic_assessment_scope: SemanticAssessmentScope
     diagnostics: tuple[NonEmptyText, ...] = ()
     repair_parent_hash: Sha256Digest | None = None
     repair_attempt: Annotated[int, Field(ge=0, le=1)] = 0
     validated_at: AwareDatetime
+
+    @model_validator(mode="after")
+    def assessment_scope_matches_statuses(self) -> Self:
+        semantic_statuses = (
+            self.evidence_support_status,
+            self.temporal_status,
+            self.commitment_status,
+        )
+        if self.semantic_assessment_scope is (
+            SemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED
+        ) and semantic_statuses != (
+            EvidenceSupportStatus.NOT_APPLICABLE,
+            TemporalDeterminationStatus.NOT_APPLICABLE,
+            CommitmentCheckStatus.NOT_APPLICABLE,
+        ):
+            raise ValueError(
+                "runtime structural-only assessment scope requires unassessed semantic statuses"
+            )
+        if self.semantic_assessment_scope is (
+            SemanticAssessmentScope.POSTHOC_SCORER_OR_REVIEWER
+        ) and semantic_statuses == (
+            EvidenceSupportStatus.NOT_APPLICABLE,
+            TemporalDeterminationStatus.NOT_APPLICABLE,
+            CommitmentCheckStatus.NOT_APPLICABLE,
+        ):
+            raise ValueError(
+                "post-hoc assessment scope requires at least one assessed semantic status"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def repair_lineage_is_paired(self) -> Self:
+        if (self.repair_attempt == 0) != (self.repair_parent_hash is None):
+            raise ValueError("validation repair attempt and repair-parent hash disagree")
+        return self
+
+
+def runtime_structural_acceptance_record(
+    *,
+    validation_id: str,
+    target_id: str,
+    validated_at: datetime,
+    diagnostics: Sequence[str] = (),
+    repair_parent_hash: str | None = None,
+    repair_attempt: int = 0,
+) -> ValidationRecord:
+    """Build an accepted runtime record without claiming scorer-only semantics.
+
+    Runtime validators establish parse/schema integrity, citation membership, and the
+    *shape* of temporal and epistemic qualifications.  Evidence support and semantic
+    correctness are established later by a hash-bound scorer or reviewer artifact, so
+    their runtime status is exactly ``NOT_APPLICABLE`` rather than a positive verdict.
+    """
+
+    return ValidationRecord(
+        validation_id=validation_id,
+        target_id=target_id,
+        validation_status=ValidationStatus.ACCEPTED,
+        evidence_support_status=EvidenceSupportStatus.NOT_APPLICABLE,
+        temporal_status=TemporalDeterminationStatus.NOT_APPLICABLE,
+        commitment_status=CommitmentCheckStatus.NOT_APPLICABLE,
+        semantic_assessment_scope=(
+            SemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED
+        ),
+        diagnostics=(RUNTIME_STRUCTURAL_ONLY_DIAGNOSTIC, *diagnostics),
+        repair_parent_hash=repair_parent_hash,
+        repair_attempt=repair_attempt,
+        validated_at=validated_at,
+    )
+
+
+def _is_runtime_structural_acceptance(record: ValidationRecord) -> bool:
+    return (
+        record.validation_status is ValidationStatus.ACCEPTED
+        and record.evidence_support_status is EvidenceSupportStatus.NOT_APPLICABLE
+        and record.temporal_status is TemporalDeterminationStatus.NOT_APPLICABLE
+        and record.commitment_status is CommitmentCheckStatus.NOT_APPLICABLE
+        and record.semantic_assessment_scope
+        is SemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED
+    )
 
 
 class OutputBudgets(ImmutableRecord):
@@ -1220,6 +1398,23 @@ FIXED_SELECT_ALLOWED_OPERATORS = frozenset(
     }
 )
 CONSTRUCTIVE_OPERATORS = frozenset(ConstructionOperator) - FIXED_SELECT_ALLOWED_OPERATORS
+
+# Relevance/presentation decisions are valuable audit records, but they do not by
+# themselves establish that C2 constructed an ontology after query reveal.  This
+# set is deliberately narrower than ``CONSTRUCTIVE_OPERATORS`` (which remains the
+# capability boundary used to keep A-FixedSelect selection-only).
+SUBSTANTIVE_CONSTRUCTION_OPERATORS = frozenset(
+    {
+        ConstructionOperator.MERGE,
+        ConstructionOperator.SPLIT,
+        ConstructionOperator.CONTEXTUAL_TYPE,
+        ConstructionOperator.SCHEMA_RELATION,
+        ConstructionOperator.EVENT_REIFICATION,
+        ConstructionOperator.ABSTRACTION,
+        ConstructionOperator.TEMPORAL_QUALIFICATION,
+        ConstructionOperator.EPISTEMIC_QUALIFICATION,
+    }
+)
 
 
 class OntologyDecision(ImmutableRecord):
@@ -1462,8 +1657,15 @@ class ConstructionCertificate(ImmutableRecord):
                 raise ValueError("C2 certificate requires its empty pre-query inventory hash")
             if self.inherited_construction_seal_hash is not None:
                 raise ValueError("C2 cannot inherit a preconstructed ontology seal")
-            if not any(decision.operator in CONSTRUCTIVE_OPERATORS for decision in self.decisions):
-                raise ValueError("C2 certificate must record a nonselection construction decision")
+            if not any(
+                decision.operator in SUBSTANTIVE_CONSTRUCTION_OPERATORS
+                for decision in self.decisions
+            ):
+                raise ValueError(
+                    "C2 certificate must record a nonselection construction decision; "
+                    "include/exclude, rare-preservation, and presentation decisions alone "
+                    "do not establish ontology construction"
+                )
         else:
             if self.inherited_construction_seal_hash is None:
                 raise ValueError("A-FixedSelect must cite its inherited C1 construction seal")
@@ -1502,6 +1704,46 @@ class ParentProjectionRef(ImmutableRecord):
         return self
 
 
+def projection_validation_target_hash(
+    *,
+    condition: ConditionName,
+    snapshot_hash: str,
+    packet_hash: str,
+    context_hash: str,
+    upper_ontology: UpperOntology,
+    local_schema: LocalContextSchema,
+    instance_graph: InstanceGraph,
+    decisions: Sequence[OntologyDecision],
+    omissions: Sequence[OmissionRecord],
+    budget_accounting: BudgetAccounting,
+    budgets: OutputBudgets,
+) -> str:
+    """Hash the final structurally validated projection payload without a cycle.
+
+    Projection identifiers, validation records, and the projection's own content hash
+    are intentionally absent. The target instead binds the exact cell/evidence lineage,
+    upper and local schemas, final graph, query-time decisions, omissions, and semantic
+    and display budget accounting that deterministic structural validation consumed.
+    """
+
+    return canonical_sha256(
+        {
+            "domain": "ontology-projection-structural-validation-target-v1",
+            "condition": condition,
+            "snapshot_hash": snapshot_hash,
+            "packet_hash": packet_hash,
+            "context_hash": context_hash,
+            "upper_ontology": upper_ontology,
+            "local_schema": local_schema,
+            "instance_graph": instance_graph,
+            "decisions": tuple(decisions),
+            "omissions": tuple(omissions),
+            "budget_accounting": budget_accounting,
+            "budgets": budgets,
+        }
+    )
+
+
 class OntologyProjection(ImmutableRecord):
     projection_id: Identifier
     condition: ConditionName
@@ -1531,6 +1773,46 @@ class OntologyProjection(ImmutableRecord):
     @model_validator(mode="after")
     def validate_projection_lineage_and_budget(self) -> Self:
         self.budget_accounting.validate_against(self.budgets)
+        if not self.validation_records:
+            raise ValueError("ontology projection requires structural validation evidence")
+        if any(
+            record.validation_status is not ValidationStatus.ACCEPTED
+            for record in self.validation_records
+        ):
+            raise ValueError("ontology projection contains rejected structural validation")
+        if any(
+            not _is_runtime_structural_acceptance(record)
+            for record in self.validation_records
+        ):
+            raise ValueError(
+                "ontology projection runtime validation cannot claim post-hoc semantic status"
+            )
+        if self.condition in {
+            ConditionName.C0_CLASSICAL_PRE,
+            ConditionName.C1_LLM_PRE,
+        }:
+            expected_validation_target = projection_validation_target_hash(
+                condition=self.condition,
+                snapshot_hash=self.snapshot_hash,
+                packet_hash=self.packet_hash,
+                context_hash=self.context_hash,
+                upper_ontology=self.upper_ontology,
+                local_schema=self.local_schema,
+                instance_graph=self.instance_graph,
+                decisions=self.decisions,
+                omissions=self.omissions,
+                budget_accounting=self.budget_accounting,
+                budgets=self.budgets,
+            )
+        else:
+            expected_validation_target = self.normalized_draft_hash
+        if expected_validation_target is None or any(
+            record.target_id != expected_validation_target
+            for record in self.validation_records
+        ):
+            raise ValueError(
+                "projection structural validation targets different final semantics"
+            )
         if self.construction_certificate is not None:
             certificate = self.construction_certificate
             if certificate.snapshot_hash != self.snapshot_hash:
@@ -2072,18 +2354,22 @@ class ValidatedGeneration(ImmutableRecord):
         for record in self.validation_records:
             if record.target_id != self.draft.content_hash:
                 raise ValueError("validation record targets a different normalized draft")
-            if record.validation_status is not ValidationStatus.ACCEPTED:
-                raise ValueError("validated generation contains a rejected validation record")
-            if record.evidence_support_status is not EvidenceSupportStatus.SUPPORTED:
-                raise ValueError("validated generation lacks supported grounding")
-            if record.temporal_status is not TemporalDeterminationStatus.VALID:
-                raise ValueError("validated generation lacks valid temporal qualification")
-            if record.commitment_status is not CommitmentCheckStatus.VALID:
-                raise ValueError("validated generation lacks valid epistemic commitment")
+            if not _is_runtime_structural_acceptance(record):
+                raise ValueError(
+                    "validated generation requires accepted structural validation with "
+                    "semantic statuses not_applicable"
+                )
             if not (
                 self.generation_completed_at <= record.validated_at <= self.validated_at
             ):
                 raise ValueError("validation record timestamp is outside the trusted envelope")
+            if (
+                record.repair_attempt != self.repair_attempt
+                or record.repair_parent_hash != self.repair_parent_raw_output_hash
+            ):
+                raise ValueError(
+                    "validation record repair lineage differs from generation lineage"
+                )
         query_time = self.condition in (
             {ConditionName.A_FIXED_SELECT} | ACTIVE_QUERY_CONSTRUCTION_CONDITIONS
         )
@@ -2101,7 +2387,10 @@ class PreconstructionRequest(ImmutableRecord):
     request_id: Identifier
     condition: Literal[ConditionName.C1_LLM_PRE] = ConditionName.C1_LLM_PRE
     snapshot_hash: Sha256Digest
-    evidence: tuple[ModelVisibleEvidenceRecord, ...]
+    # Immutable-v3 acceptance fixtures predate this field. Live C1 construction
+    # uses the required builder argument, and sealing rejects an absent horizon.
+    sealed_horizon: SpoilerHorizon | None = None
+    evidence: tuple[ModelVisibleEvidenceInput, ...]
     upper_ontology: UpperOntology
     budgets: OutputBudgets
     capabilities: ConstructionCapabilities
@@ -2112,6 +2401,25 @@ class PreconstructionRequest(ImmutableRecord):
     def preconstruction_has_active_capabilities(self) -> Self:
         if self.capabilities != ConstructionCapabilities.prequery_construction():
             raise ValueError("C1 preconstruction requires the complete construction capability set")
+        if self.sealed_horizon is not None:
+            if any(
+                not isinstance(item, ModelVisibleEvidenceRecord)
+                for item in self.evidence
+            ):
+                raise ValueError(
+                    "live C1 preconstruction requires exact model-visible evidence lineage"
+                )
+            outside_horizon = tuple(
+                item.evidence_id
+                for item in self.evidence
+                if item.discourse_position.ordering_key
+                > self.sealed_horizon.max_discourse_position.ordering_key
+            )
+            if outside_horizon:
+                raise ValueError(
+                    "C1 preconstruction evidence exceeds its sealed horizon: "
+                    + ", ".join(outside_horizon)
+                )
         return self
 
 

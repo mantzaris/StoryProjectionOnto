@@ -57,6 +57,7 @@ from story_projection_onto.contracts import (
     QueryContext,
     RetrievalMethod,
     Sha256Digest,
+    canonical_json,
     canonical_sha256,
     to_model_visible_query,
 )
@@ -77,7 +78,18 @@ from story_projection_onto.held_out_primary import (
     HeldOutUnitPlan,
     PublicStageReference,
 )
-from story_projection_onto.store import ArtifactStore
+from story_projection_onto.store import (
+    ArtifactStore,
+    AttemptKind,
+    CommitmentCheckStatus,
+    EvidenceSupportStatus,
+    FailureKind,
+    InputKind,
+    JobState,
+    SemanticAssessmentScope,
+    TemporalValidationStatus,
+    ValidationStatus,
+)
 from story_projection_onto.store import ReleaseClass as StoreReleaseClass
 
 # These byte hashes are the frozen values in both accepted fallback-development
@@ -469,6 +481,144 @@ class ProductionHeldOutC0Adapter:
         finally:
             temporary.unlink(missing_ok=True)
 
+    def _prebuild_job_identity(self, unit: HeldOutUnitPlan) -> dict[str, object]:
+        return {
+            "execution_id": self.call_manifest.manifest_id,
+            "call_id": f"c0-prebuild-{unit.unit_id}",
+            "manifest_hash": self.call_manifest.content_hash,
+            "condition": ConditionName.C0_CLASSICAL_PRE.value,
+            "lifecycle_kind": "query_blind_prebuild",
+            "prequery_stage_hash": unit.prequery_stage.staging_manifest_hash,
+        }
+
+    def _projection_job_identity(
+        self,
+        unit: HeldOutUnitPlan,
+        query_stage_hash: str,
+    ) -> dict[str, object]:
+        return {
+            "execution_id": self.call_manifest.manifest_id,
+            "call_id": f"c0-projection-{unit.unit_id}-{query_stage_hash[:16]}",
+            "manifest_hash": self.call_manifest.content_hash,
+            "condition": ConditionName.C0_CLASSICAL_PRE.value,
+            "lifecycle_kind": "query_time_projection",
+            "query_stage_hash": query_stage_hash,
+        }
+
+    def _ensure_c0_prebuild_ledger(
+        self,
+        *,
+        unit: HeldOutUnitPlan,
+        neutral: NeutralEvidenceArtifact,
+        preparation: ConditionPreparation,
+        preparation_reference: HeldOutCASReference,
+    ) -> None:
+        completed_at = preparation.completed_at
+        job = self.artifacts.ledger.create_or_resume_job(
+            self._prebuild_job_identity(unit),
+            release_class=StoreReleaseClass.RESTRICTED,
+            created_at=neutral.snapshot.sealed_at,
+        )
+        self.artifacts.ledger.link_job_to_study(
+            study_id=self.call_manifest.manifest_id,
+            job_id=job.job_id,
+            created_at=neutral.snapshot.sealed_at,
+        )
+        self.artifacts.ledger.advance_job_lifecycle(
+            job.job_id,
+            (
+                (JobState.PREQUERY_SEALED, neutral.snapshot.sealed_at),
+                (JobState.GENERATED, completed_at),
+            ),
+        )
+        attempt_id = f"{self.call_manifest.manifest_id}-c0-prebuild-{unit.unit_id}"
+        self.artifacts.ledger.record_attempt(
+            attempt_id=attempt_id,
+            job_id=job.job_id,
+            attempt_kind=AttemptKind.BASE,
+            input_hash=neutral.content_hash,
+            config_hash=self.construction.content_hash,
+            seed=0,
+            created_at=neutral.snapshot.sealed_at,
+        )
+        validation_id = f"{attempt_id}-validation"
+        self.artifacts.ledger.record_validation(
+            validation_id=validation_id,
+            job_id=job.job_id,
+            attempt_id=attempt_id,
+            input_artifact_hash=preparation_reference.artifact_hash,
+            validator_manifest_hash=self.validator_hash,
+            validation_status=ValidationStatus.ACCEPTED,
+            evidence_support_status=EvidenceSupportStatus.NOT_APPLICABLE,
+            temporal_status=TemporalValidationStatus.NOT_APPLICABLE,
+            commitment_status=CommitmentCheckStatus.NOT_APPLICABLE,
+            semantic_assessment_scope=(
+                SemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED
+            ),
+            created_at=completed_at,
+        )
+        self.artifacts.ledger.advance_job_lifecycle(
+            job.job_id,
+            (
+                (JobState.PREQUERY_SEALED, neutral.snapshot.sealed_at),
+                (JobState.GENERATED, completed_at),
+                (JobState.VALIDATED, completed_at),
+                (JobState.FINALIZED, completed_at),
+            ),
+        )
+
+    def _register_projection_inputs(
+        self,
+        *,
+        snapshot: Any,
+        packet: EvidencePacket,
+        packet_artifact_hash: str,
+    ) -> tuple[str, str]:
+        study_id = self.call_manifest.manifest_id
+        snapshot_artifact = self.artifacts.put_bytes(
+            (snapshot.to_canonical_json() + "\n").encode("utf-8"),
+            media_type="application/vnd.story-projection.evidence-snapshot+json",
+            release_class=StoreReleaseClass.RESTRICTED,
+            created_at=snapshot.created_at,
+        )
+        snapshot_key = canonical_sha256((study_id, snapshot.content_hash))[:32]
+        snapshot_input_id = f"projection-snapshot-input-{snapshot_key}"
+        snapshot_id = f"projection-snapshot-{snapshot_key}"
+        self.artifacts.ledger.register_input(
+            input_id=snapshot_input_id,
+            study_id=study_id,
+            input_kind=InputKind.EVIDENCE_SNAPSHOT,
+            content_hash=snapshot.content_hash,
+            artifact_hash=snapshot_artifact.content_hash,
+            release_class=StoreReleaseClass.RESTRICTED,
+            created_at=snapshot.created_at,
+        )
+        self.artifacts.ledger.register_evidence_snapshot(
+            snapshot_id=snapshot_id,
+            input_id=snapshot_input_id,
+            horizon_hash=snapshot.horizon.content_hash,
+            evidence_manifest_hash=canonical_sha256(
+                tuple(item.content_hash for item in packet.evidence)
+            ),
+            index_configuration_hash=snapshot.index_config_hash,
+            prequery_seal_hash=snapshot.content_hash,
+            eligible_evidence_count=len(snapshot.eligible_evidence_ids),
+            created_at=snapshot.sealed_at,
+        )
+        packet_key = canonical_sha256((study_id, packet.content_hash))[:32]
+        packet_input_id = f"projection-packet-input-{packet_key}"
+        packet_artifact = self.artifacts.ledger.get_artifact(packet_artifact_hash)
+        self.artifacts.ledger.register_input(
+            input_id=packet_input_id,
+            study_id=study_id,
+            input_kind=InputKind.EVIDENCE_PACKET,
+            content_hash=packet.content_hash,
+            artifact_hash=packet_artifact.content_hash,
+            release_class=packet_artifact.release_class,
+            created_at=packet.created_at,
+        )
+        return snapshot_id, packet_input_id
+
     def _load_state(
         self,
         unit: HeldOutUnitPlan,
@@ -531,7 +681,13 @@ class ProductionHeldOutC0Adapter:
         planned = self._registered_prequery(unit)
         path = self._state_path(unit.unit_id)
         if path.exists():
-            _, preparation, _ = self._load_state(planned)
+            state, preparation, neutral = self._load_state(planned)
+            self._ensure_c0_prebuild_ledger(
+                unit=planned,
+                neutral=neutral,
+                preparation=preparation,
+                preparation_reference=state.preparation,
+            )
             return self._construction_receipt(planned, preparation)
 
         visible, neutral, certificate, neutral_manifest = self._load_query_blind_evidence(
@@ -573,6 +729,12 @@ class ProductionHeldOutC0Adapter:
             complete_graph_hash=preontology.construction_seal.ontology_hash,
         )
         self._write_state(state)
+        self._ensure_c0_prebuild_ledger(
+            unit=planned,
+            neutral=neutral,
+            preparation=preparation,
+            preparation_reference=reference,
+        )
         return self._construction_receipt(planned, preparation)
 
     def _registered_query(
@@ -826,6 +988,42 @@ class ProductionHeldOutC0Adapter:
             upper_ontology=self.construction.upper_ontology,
             run_config=run_config,
         )
+        job = self.artifacts.ledger.create_or_resume_job(
+            self._projection_job_identity(planned_unit, query_stage_hash),
+            release_class=StoreReleaseClass.RESTRICTED,
+            created_at=barrier.sealed_at,
+        )
+        self.artifacts.ledger.link_job_to_study(
+            study_id=self.call_manifest.manifest_id,
+            job_id=job.job_id,
+            created_at=barrier.sealed_at,
+        )
+        self.artifacts.ledger.advance_job_lifecycle(
+            job.job_id,
+            (
+                (JobState.PREQUERY_SEALED, barrier.sealed_at),
+                (JobState.QUERY_REVEALED, access.accessed_at),
+            ),
+        )
+        attempt_id = (
+            f"{self.call_manifest.manifest_id}-c0-projection-{planned_unit.unit_id}-"
+            f"{query_stage_hash[:16]}"
+        )
+        self.artifacts.ledger.record_attempt(
+            attempt_id=attempt_id,
+            job_id=job.job_id,
+            attempt_kind=AttemptKind.BASE,
+            input_hash=canonical_sha256(
+                {
+                    "construction_seal": construction_seal_hash,
+                    "packet": packet.content_hash,
+                    "context": context.content_hash,
+                }
+            ),
+            config_hash=run_config.content_hash,
+            seed=0,
+            created_at=processing_started_at,
+        )
         projection = project_sealed_c0(
             preontology,
             inputs,  # type: ignore[arg-type]
@@ -841,6 +1039,77 @@ class ProductionHeldOutC0Adapter:
             media_type="application/vnd.story-projection.ontology-projection+json",
             release_class=StoreReleaseClass.RESTRICTED,
             created_at=completed_at,
+        )
+        diagnostic = self.artifacts.put_bytes(
+            (
+                canonical_json(
+                    {
+                        "accepted": True,
+                        "assessment_scope": "runtime_structural_only",
+                        "projection_hash": projection.content_hash,
+                    }
+                )
+                + "\n"
+            ).encode("utf-8"),
+            media_type="application/vnd.story-projection.structural-validation+json",
+            release_class=StoreReleaseClass.RESTRICTED,
+            created_at=completed_at,
+        )
+        validation_id = f"{attempt_id}-validation"
+        self.artifacts.ledger.advance_job_lifecycle(
+            job.job_id,
+            (
+                (JobState.PREQUERY_SEALED, barrier.sealed_at),
+                (JobState.QUERY_REVEALED, access.accessed_at),
+                (JobState.GENERATED, completed_at),
+            ),
+        )
+        self.artifacts.ledger.record_validation(
+            validation_id=validation_id,
+            job_id=job.job_id,
+            attempt_id=attempt_id,
+            input_artifact_hash=artifact.content_hash,
+            validator_manifest_hash=self.validator_hash,
+            validation_status=ValidationStatus.ACCEPTED,
+            evidence_support_status=EvidenceSupportStatus.NOT_APPLICABLE,
+            temporal_status=TemporalValidationStatus.NOT_APPLICABLE,
+            commitment_status=CommitmentCheckStatus.NOT_APPLICABLE,
+            semantic_assessment_scope=(
+                SemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED
+            ),
+            diagnostics_artifact_hash=diagnostic.content_hash,
+            created_at=completed_at,
+        )
+        snapshot_id, packet_input_id = self._register_projection_inputs(
+            snapshot=neutral.snapshot,
+            packet=packet,
+            packet_artifact_hash=query_opening.evidence_packet_artifact.artifact_hash,
+        )
+        projection_id = f"{attempt_id}-projection"
+        self.artifacts.ledger.record_projection(
+            projection_id=projection_id,
+            job_id=job.job_id,
+            validation_id=validation_id,
+            snapshot_id=snapshot_id,
+            packet_input_id=packet_input_id,
+            condition_id=ConditionName.C0_CLASSICAL_PRE.value,
+            context_hash=context.content_hash,
+            upper_ontology_hash=self.construction.upper_ontology.content_hash,
+            construction_certificate_hash=construction_seal_hash,
+            projection_artifact_hash=artifact.content_hash,
+            projection_semantic_hash=projection.content_hash,
+            release_class=StoreReleaseClass.RESTRICTED,
+            finalized_at=completed_at,
+        )
+        self.artifacts.ledger.advance_job_lifecycle(
+            job.job_id,
+            (
+                (JobState.PREQUERY_SEALED, barrier.sealed_at),
+                (JobState.QUERY_REVEALED, access.accessed_at),
+                (JobState.GENERATED, completed_at),
+                (JobState.VALIDATED, completed_at),
+                (JobState.FINALIZED, completed_at),
+            ),
         )
         return PreconstructedProjectionReceipt(
             unit_id=planned_unit.unit_id,
@@ -873,6 +1142,155 @@ class ProductionHeldOutC0Adapter:
         self._registered_query(planned, query_stage_hash, query_opening)
         if (condition is ConditionName.C0_CLASSICAL_PRE) != (seed_block is None):
             raise HeldOutC0Error("unavailable projection condition/seed lineage changed")
+        source_call = None
+        if condition is ConditionName.C1_LLM_PRE:
+            source_call = next(
+                (
+                    call
+                    for call in self.call_manifest.calls
+                    if call.call_class == "test_c1"
+                    and call.unit_id == planned.unit_id
+                    and call.seed_block == seed_block
+                ),
+                None,
+            )
+            if source_call is None:
+                raise HeldOutC0Error(
+                    "unavailable C1 projection lacks its registered prebuild call"
+                )
+        access = query_opening.query_access_event
+        barrier_record = self.artifacts.ledger.get_prequery_barrier(
+            access.prequery_barrier_hash
+        )
+        barrier_time = _ledger_timestamp(barrier_record.sealed_at)
+        completed_at = self._now_after(query_opening.opened_at)
+        identity = (
+            self._projection_job_identity(planned, query_stage_hash)
+            if source_call is None
+            else {
+                "execution_id": self.call_manifest.manifest_id,
+                "call_id": (
+                    f"{source_call.call_id}-projection-{query_stage_hash[:16]}"
+                ),
+                "manifest_hash": self.call_manifest.content_hash,
+                "condition": ConditionName.C1_LLM_PRE.value,
+                "lifecycle_kind": "query_time_projection",
+                "source_prebuild_call_id": source_call.call_id,
+                "query_stage_hash": query_stage_hash,
+            }
+        )
+        job = self.artifacts.ledger.create_or_resume_job(
+            identity,
+            release_class=StoreReleaseClass.RESTRICTED,
+            created_at=barrier_time,
+        )
+        self.artifacts.ledger.link_job_to_study(
+            study_id=self.call_manifest.manifest_id,
+            job_id=job.job_id,
+            created_at=barrier_time,
+        )
+        self.artifacts.ledger.advance_job_lifecycle(
+            job.job_id,
+            (
+                (JobState.PREQUERY_SEALED, barrier_time),
+                (JobState.QUERY_REVEALED, access.accessed_at),
+                (JobState.GENERATED, completed_at),
+            ),
+        )
+        attempt_id = (
+            f"{self.call_manifest.manifest_id}-c0-projection-{planned.unit_id}-"
+            f"{query_stage_hash[:16]}"
+            if source_call is None
+            else (
+                f"{self.call_manifest.manifest_id}-{source_call.call_id}-"
+                f"projection-{query_stage_hash[:16]}"
+            )
+        )
+        self.artifacts.ledger.record_attempt(
+            attempt_id=attempt_id,
+            job_id=job.job_id,
+            attempt_kind=AttemptKind.BASE,
+            input_hash=canonical_sha256(
+                {
+                    "source_failure": source_failure_hash,
+                    "packet": query_opening.evidence_packet_hash,
+                    "query_access": access.content_hash,
+                }
+            ),
+            config_hash=(
+                self.construction.content_hash
+                if source_call is None
+                else canonical_sha256(
+                    {
+                        "construction": self.construction.content_hash,
+                        "source_prebuild_call": source_call.content_hash,
+                        "query_stage": query_stage_hash,
+                    }
+                )
+            ),
+            seed=0 if source_call is None else source_call.vllm_seed,
+            created_at=access.accessed_at,
+        )
+        diagnostic = self.artifacts.put_bytes(
+            (
+                canonical_json(
+                    {
+                        "reason": (
+                            "c0_preconstruction_unavailable"
+                            if source_call is None
+                            else "c1_preconstruction_unavailable"
+                        ),
+                        "source_failure_hash": source_failure_hash,
+                    }
+                )
+                + "\n"
+            ).encode("utf-8"),
+            media_type="application/vnd.story-projection.failure-diagnostics+json",
+            release_class=StoreReleaseClass.RESTRICTED,
+            created_at=completed_at,
+        )
+        self.artifacts.ledger.record_failure(
+            attempt_id=attempt_id,
+            failure_kind=FailureKind.OTHER,
+            message=(
+                f"{condition.value} query projection unavailable because "
+                "preconstruction failed"
+            ),
+            details={
+                "source_failure_hash": source_failure_hash,
+                "source_prebuild_call_id": (
+                    None if source_call is None else source_call.call_id
+                ),
+            },
+            artifact_hash=diagnostic.content_hash,
+            occurred_at=completed_at,
+        )
+        self.artifacts.ledger.record_validation(
+            validation_id=f"{attempt_id}-validation",
+            job_id=job.job_id,
+            attempt_id=attempt_id,
+            input_artifact_hash=diagnostic.content_hash,
+            validator_manifest_hash=self.validator_hash,
+            validation_status=ValidationStatus.REJECTED,
+            evidence_support_status=EvidenceSupportStatus.NOT_APPLICABLE,
+            temporal_status=TemporalValidationStatus.NOT_APPLICABLE,
+            commitment_status=CommitmentCheckStatus.NOT_APPLICABLE,
+            semantic_assessment_scope=(
+                SemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED
+            ),
+            diagnostics_artifact_hash=diagnostic.content_hash,
+            created_at=completed_at,
+        )
+        self.artifacts.ledger.advance_job_lifecycle(
+            job.job_id,
+            (
+                (JobState.PREQUERY_SEALED, barrier_time),
+                (JobState.QUERY_REVEALED, access.accessed_at),
+                (JobState.GENERATED, completed_at),
+                (JobState.VALIDATED, completed_at),
+                (JobState.FINALIZED, completed_at),
+            ),
+        )
         opened = query_opening.opened_stage
         assert opened.horizon_hash is not None and opened.budget_hash is not None
         return PreconstructedProjectionReceipt(
@@ -887,7 +1305,7 @@ class ProductionHeldOutC0Adapter:
             horizon_hash=opened.horizon_hash,
             budget_hash=opened.budget_hash,
             failure_artifact_hash=source_failure_hash,
-            completed_at=self._now_after(query_opening.opened_at),
+            completed_at=completed_at,
         )
 
 

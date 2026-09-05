@@ -25,7 +25,18 @@ semantic zeros when gold is nonempty; structural quantities remain `NA`.
 Runtime modules do not import this module. Gold projections, permissible alternatives,
 rare/pivotal labels, and community assignments enter only after the runtime-closed
 scorer bridge has been verified. Scorer plans and grounding audits are stored as
-restricted artifacts.
+restricted artifacts. A scorer-side grounding verdict requires an exact qualified
+signature—including story time, validity, epistemic holder/attitude, and narrative
+commitment—and only packet-admissible citations registered as support for that exact
+signature; an unrelated in-packet citation makes the assertion unsupported. Each
+valid complete score bundle also embeds a restricted,
+gold-free replay record containing the exact scored projection, query context, and
+evidence packet. Read-only Phase 4 admission reruns the grounding audit and complete
+metric pipeline from those inputs and exact-compares the bundle and intended-cell
+score; it also regenerates every invalid ITT score from its frozen failure kind,
+failure-artifact hash, allocated GPU seconds, scorer plan, and metric configuration.
+Thus a coordinated edit to rows and their linking hashes cannot pass merely because
+the edited files remain internally self-consistent.
 
 ## Geometry gate
 
@@ -40,8 +51,60 @@ invented by the scorer. For every structurally valid successful projection, prov
 The record must bind the projection hash and the frozen layout, style, font, viewport,
 visibility, label rectangles, and rare-pivotal discoverability trace. Preflight lists
 only the missing count in its public stdout summary. It refuses the analysis until all
-required geometry exists. Invalid or empty projections do not receive favorable
-geometry values.
+required geometry exists and `materialization_receipt.json` reproduces the successful
+source-result inventory. Invalid or empty projections do not receive favorable geometry
+values.
+
+The confirmatory renderer source is the immutable `registered_display` view, not the
+raw full-output inspection view and not a post-hoc support-filtered view. The shared
+selection rule ranks assertions by contextual relevance and confidence with canonical
+hash/ID tie breaking, preserves endpoint closure, then fills unused node slots by the
+same condition-neutral rule. It must materialize exactly
+`budget_accounting.display_nodes_used` and
+`budget_accounting.display_assertions_used`; those counts must equal the emitted graph
+counts capped by the common display budgets. An impossible endpoint-closed declaration
+fails the geometry gate. `full_structural` remains available for raw intention-to-treat
+inspection, but cannot enter registered clutter. Likewise a scorer/reviewer overlay can
+never enter confirmatory geometry: unsupported omissions therefore cannot earn lower
+clutter or better discoverability.
+
+Geometry is produced through the real vendored Cytoscape browser renderer, not by the
+scorer. First prepare the restricted, post-execution capture inputs; this joins relevance
+and rare-pivotal labels only after the model runtime is closed. Then validate, capture,
+and replay the output (timestamps are explicit for byte-exact recovery):
+
+```bash
+python scripts/materialize_phase4_geometry.py --prepare \
+  --prepared-at 2026-09-04T18:00:00Z \
+  --source-root "$GEOMETRY_SOURCE_ROOT" \
+  --held-out-root "$HELD_OUT_ROOT" --scorer-bridge "$SCORER_BRIDGE" \
+  --combined-root "$COMBINED_ROOT" --review-root "$REVIEW_ROOT" \
+  --ledger "$STUDY_LEDGER" --artifact-root "$STUDY_CAS" \
+  --source-association "$SOURCE_ASSOCIATION"
+
+python scripts/materialize_phase4_geometry.py --validate-only \
+  --source-root "$GEOMETRY_SOURCE_ROOT" --geometry-root "$GEOMETRY_ROOT"
+
+python scripts/materialize_phase4_geometry.py --run \
+  --source-root "$GEOMETRY_SOURCE_ROOT" --geometry-root "$GEOMETRY_ROOT" \
+  --completed-at 2026-09-04T18:15:00Z
+
+python scripts/materialize_phase4_geometry.py --replay \
+  --source-root "$GEOMETRY_SOURCE_ROOT" --geometry-root "$GEOMETRY_ROOT"
+```
+
+The capture fixes a 1200x800 unit-scale viewport and 14px
+`system-ui,sans-serif` node, edge, and n-ary-hub typography. It waits for browser font
+readiness and records the effective styles and font probe. N-ary hubs receive distinct,
+stable preset positions derived from their role nodes and assertion identity; hub and
+role labels retain separate rectangles rather than counting the empty area between
+them. A content-addressed copy accompanies each required
+`<projection-hash>.json` file. Before either Phase 4 validation or scoring, the scorer
+replays the restricted source manifest, every renderer DTO, every raw capture, every
+source-entry/raw hash, the public geometry, its content-addressed copy, and the receipt.
+The receipt explicitly records `world` as the independent confirmatory unit;
+per-projection/context geometry rows are observations, never independent samples. No
+command in this geometry sequence starts or calls the model.
 
 ## Commands
 
@@ -57,6 +120,7 @@ python scripts/run_phase4_analysis.py --validate-only \
   --ledger "$STUDY_LEDGER" \
   --artifact-root "$STUDY_CAS" \
   --source-association "$SOURCE_ASSOCIATION" \
+  --geometry-source-root "$GEOMETRY_SOURCE_ROOT" \
   --geometry-root "$GEOMETRY_ROOT" \
   --output-root "$PHASE4_OUTPUT"
 ```
@@ -75,6 +139,7 @@ python scripts/run_phase4_analysis.py --run \
   --ledger "$STUDY_LEDGER" \
   --artifact-root "$STUDY_CAS" \
   --source-association "$SOURCE_ASSOCIATION" \
+  --geometry-source-root "$GEOMETRY_SOURCE_ROOT" \
   --geometry-root "$GEOMETRY_ROOT" \
   --output-root "$PHASE4_OUTPUT"
 ```
@@ -117,6 +182,7 @@ The report-facing CSV contracts are:
 `comparisons.csv` uses only these frozen `analysis_family` values:
 `registered_primary`, `required_secondary`, `rare_pivotal_safeguard`,
 `gated_mechanism`, `gated_mechanism_safeguard`,
+`mechanism_support`,
 `secondary_complete_world_panel`, `gold_aligned_community`,
 `cross_seed_community`, and `crossing_two_part`.
 
@@ -138,6 +204,12 @@ C2-`A-FixedSelect` mechanism test remains gated by the organization result. The 
 two-sided family receives Benjamini-Hochberg adjustment across its ten planned
 metric/comparison tests; unestimable panels stay explicit. Crossing opportunities and
 conditional rates use the registered two-part analysis.
+
+Two additional 12-world, two-sided C2-`A-FixedSelect` rows report contrastive
+decision-change F1 and ontological collapse under the `mechanism_support` family.
+They are required mechanism diagnostics, but are not added to the two-endpoint primary
+Holm family and do not replace the gated ontology-decision endpoint or rare-pivotal
+safeguard.
 
 The complete output also contains contrast/collapse, paraphrase, reduced-ablation,
 rare-support-path, entropy, direct clutter, Leiden-CPM resolution sensitivity,

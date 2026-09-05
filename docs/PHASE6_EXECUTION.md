@@ -45,32 +45,53 @@ path-free shutdown intent is durable before physical termination; the terminal
 service journal can reconstruct the shutdown receipt after another loss. A terminal
 sole load never authorizes a replacement load.
 
-The repository CLI has a read-only validation/status mode and an explicit production
-mode. No path is discovered from the host. `--execute` requires every lawful input,
-gate bundle, cumulative-ledger path/hash, model-cache input, and runtime directory;
-missing inputs fail before model construction. Its stdout contains only counts,
-hashes, outcomes, and accounting totals. Paths, queries, packets, raw responses, and
-review material remain restricted. The read-only form validates a compiled plan,
-confirms the frozen outer factory is importable, and optionally audits a resume:
+The repository CLI has a read-only launch preflight and an explicit production mode.
+No path is discovered from the host. Both `--validate-only` and `--execute` require
+every lawful input, gate bundle, cumulative-ledger path/hash, model-cache input, and
+runtime directory; missing inputs fail before model construction. Its stdout contains
+only counts, hashes, outcomes, and accounting totals. Paths, queries, packets, raw
+responses, and review material remain restricted. With neither mode flag the command
+reports only `contract_only` status and explicitly sets `execution_ready=false`:
 
 ```bash
 python scripts/run_case_study_controller.py \
-  --validate-only \
-  --restricted-root /absolute/restricted/root \
-  --plan /absolute/restricted/root/case-execution-plan.json \
-  --resume /absolute/restricted/root/resume/<hash>.json
+  --restricted-root /srv/storyprojection-restricted \
+  --plan /srv/storyprojection-restricted/case-execution-plan.json
 ```
 
-After all eight pre-case gate records and the admission attestation exist, stage
-canonical restricted CAS copies and a typed bundle/reference without opening a
-model service:
+Before launch, run the complete production command with `--validate-only` in place
+of `--execute`. This no-write gate replays the semantic H0/H1 transition, exhaustive
+ledger/CAS integrity, bootstrap and controller state, exact source/model/snapshot
+association, full GPU accounting and remaining schedule, storage reserve, and both
+controller/service lock availability. It returns `execution_ready=true` only after
+all checks pass. The restricted runtime root must already exist with mode `0700`.
+
+After all eight typed pre-case gate records exist, compile the semantic bundle
+first, record its hash in the admission attestation, and then stage canonical
+restricted CAS copies without opening a model service. The bundle command takes
+the same eight named gate flags shown below, plus `--bundle-id`, `--frozen-at`,
+and `--output`, under `semantic-admission-bundle`.
+Its `--native-artifact-map` is exact rather than extensible: in addition to the
+registered execution/scoring inputs, it must name the seven completed community
+review artifacts (`blinded_community_rubric_template`,
+`blinded_community_source_manifest`, `blinded_community_package`,
+`blinded_community_rejoin`, `blinded_community_completion`,
+`blinded_community_finalization`, and `blinded_community_table`). Replay requires
+canonical source/package/final directory inventories, all 12 neutral panels, four
+primary conditions, half/base/double resolutions, deterministic C0 with no seed,
+seed block 1 for the three LLM conditions, and monotonic Phase 4 to review to
+bundle-freeze timestamps.
 
 ```bash
 python scripts/prepare_case_study_run.py stage-admission-evidence \
-  --restricted-root /absolute/restricted/root \
-  --admission-attestation /absolute/restricted/root/admission.json \
-  --ledger /absolute/restricted/root/study.sqlite \
-  --artifact-root /absolute/restricted/root/blobs/study \
+  --restricted-root /srv/storyprojection-restricted \
+  --plan /srv/storyprojection-restricted/case-execution-plan.json \
+  --admission-attestation /srv/storyprojection-restricted/admission.json \
+  --semantic-gate-bundle /srv/storyprojection-restricted/semantic-admission.json \
+  --semantic-evidence-root /srv/storyprojection-project \
+  --ledger /srv/storyprojection-restricted/study.sqlite \
+  --artifact-root /srv/storyprojection-project/artifacts/blobs/study \
+  --transition-directory /srv/storyprojection-restricted/admission-transition \
   --synthetic-run-closure /absolute/gates/synthetic-run-closure.json \
   --timing-lineage-audit /absolute/gates/timing-lineage.json \
   --gold-firewall-audit /absolute/gates/gold-firewall.json \
@@ -79,13 +100,14 @@ python scripts/prepare_case_study_run.py stage-admission-evidence \
   --storage-preflight /absolute/gates/storage-preflight.json \
   --gpu-schedule-admission /absolute/gates/gpu-schedule.json \
   --public-release-scan /absolute/gates/release-scan.json \
-  --bundle-output /absolute/restricted/root/admission-evidence.json \
-  --reference-output /absolute/restricted/root/admission-evidence-reference.json \
+  --bundle-output /srv/storyprojection-restricted/admission-evidence.json \
+  --reference-output /srv/storyprojection-restricted/admission-evidence-reference.json \
   --staged-at 2026-09-04T00:00:00Z
 ```
 
 The production invocation adds `--execute` plus the explicit index, index manifest,
-preregistration, two input/admission attestations, selected-model freeze, admission
+preregistration, two input/admission attestations, semantic gate bundle,
+selected-model freeze, admission
 bundle/reference, cumulative ledger and expected SHA-256, CAS/runtime/quota roots,
 verified snapshot manifest, snapshot/shared cache, source association/revision, and
 optional loopback port. Run it inside the named persistent `storyprojection-study`
@@ -107,6 +129,19 @@ call seconds, and the next 240-second repair against the global nine-hour schedu
 and strict ten-hour hard stop. A path-free bootstrap intent makes admission creation
 replayable if power fails between its CAS writes and final reference pointer.
 
+Admission staging is itself an audited append-only transition. Before the first
+write, it captures a checkpointed SQLite H0 snapshot, a complete H0 table/GPU
+inventory, and the complete shared-CAS inventory. It precomputes the exact nine
+payloads that may be added: eight gate copies plus the admission-evidence bundle.
+After staging, the transition receipt binds H0 to H1, proves that no pre-existing
+ledger row or CAS object changed, and proves that only those nine content-addressed
+payloads were added. The execution controller replays semantic admission against
+the archived H0 state and requires the live ledger to equal the archived H1 state;
+it never legitimizes its own staging writes by treating H1 as the predecessor.
+Recovery accepts only the exact zero-, one-, or two-artifact controller bootstrap
+prefix recorded by the execution plan. Any unrelated ledger row, CAS object, or
+uncheckpointed WAL blocks execution.
+
 No case execution is authorized until the lawful restricted corpus path, exact input
 attestation, all eight pre-case gate artifacts, selected-model freeze, current source
 manifest, storage preflight, and cumulative-ledger predecessor hash are supplied.
@@ -119,6 +154,13 @@ with no-replace semantics, file and parent-directory fsync, and CAS hashes. Muta
 a missing or torn pointer is reconstructed from the unique latest valid history
 entry. CLI exception text is generic because validation errors can include restricted
 input values; detailed diagnostics stay in restricted artifacts.
+
+Only one controller may own a cumulative ledger. The factory takes a canonical,
+nonblocking, process-scoped lock in that ledger's restricted parent before it opens
+the ledger and holds the lock until the service is stopped and the ledger is closed.
+Different runtime-root spellings therefore cannot start duplicate controllers for
+one ledger. The lock is released by the operating system after a process crash; a
+concurrent invocation fails before service construction.
 
 The synthetic adapter integration test uses only artificial text under `tmp_path`.
 It drives all 13 registered calls through a metered fake service, including one real

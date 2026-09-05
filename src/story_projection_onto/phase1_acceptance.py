@@ -16,6 +16,7 @@ import tempfile
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from functools import partial
 from pathlib import Path, PurePosixPath
@@ -27,6 +28,7 @@ from story_projection_onto.contracts import (
     ConstructionRequest,
     OntologyDraft,
     PreconstructionRequest,
+    SpoilerHorizon,
     canonical_json,
     canonical_sha256,
 )
@@ -61,6 +63,7 @@ from story_projection_onto.gpu_runtime import (
     capture_runtime_stack,
     capture_tokenizer_manifest,
     public_runtime_manifest,
+    restricted_transport_failure_details,
 )
 from story_projection_onto.llm import (
     CapabilityManifest,
@@ -70,6 +73,10 @@ from story_projection_onto.llm import (
     PackingSection,
     enforce_fixed_select_draft,
     sealed_inventory_from_fixed_ontology,
+    vllm_xgrammar_decoder_schema,
+)
+from story_projection_onto.phase1_legacy_provenance import (
+    Phase1LegacyEvidenceProvenanceBridge,
 )
 from story_projection_onto.scorer_only.acceptance_grounding import (
     audit_acceptance_semantic_grounding,
@@ -78,16 +85,22 @@ from story_projection_onto.store import (
     ArtifactStore,
     AttemptKind,
     BlobStore,
+    CommitmentCheckStatus,
+    EvidenceSupportStatus,
     FailureKind,
     GpuEventKind,
+    JobState,
     Ledger,
     ModelBackend,
     ModelCallRole,
     ReleaseClass,
     RetryClass,
+    SemanticAssessmentScope,
     StorageBudget,
     StorageBudgetExceeded,
     StoragePreflight,
+    TemporalValidationStatus,
+    ValidationStatus,
 )
 from story_projection_onto.validate import (
     validate_draft_structure,
@@ -114,6 +127,7 @@ ACCEPTANCE_IMPLEMENTATION_FILES = (
     "configs/study/fallback_model.json",
     "configs/study/gpu_call_inventory.json",
     "configs/study/model.json",
+    "configs/study/phase1_legacy_evidence_provenance.json",
     "configs/study/resource_limits.json",
     "configs/study/storage_phase_allocations.json",
     "plan_notes/IMPLEMENTATION_PLAN_QUERY_DEPENDENT_TEMPORAL_ONTOLOGY.md",
@@ -127,6 +141,7 @@ ACCEPTANCE_IMPLEMENTATION_FILES = (
     "src/story_projection_onto/llm.py",
     "src/story_projection_onto/model_gate.py",
     "src/story_projection_onto/phase1_acceptance.py",
+    "src/story_projection_onto/phase1_legacy_provenance.py",
     "src/story_projection_onto/scorer_only/acceptance_grounding.py",
     "src/story_projection_onto/store.py",
     "src/story_projection_onto/validate.py",
@@ -169,6 +184,12 @@ class AcceptanceCall:
             call=self,
             fixture=_load_json_object(fixture),
         )
+        legacy_provenance = Phase1LegacyEvidenceProvenanceBridge.load(root)
+        resolved_legacy = legacy_provenance.resolve_call(
+            call_id=self.call_id,
+            condition=self.condition,
+            request_fixture=self.request_fixture,
+        )
         return {
             "call_id": self.call_id,
             "call_class": self.call_class,
@@ -182,6 +203,15 @@ class AcceptanceCall:
             "watchdog_seconds": self.watchdog_seconds,
             "decoding_pass": self.decoding_pass.value,
             "parent_call_id": self.parent_call_id,
+            "legacy_evidence_provenance_certificate_sha256": (
+                legacy_provenance.manifest_sha256
+            ),
+            "legacy_evidence_payload_sha256": resolved_legacy.legacy_evidence_sha256,
+            "legacy_evidence_source_fixture": resolved_legacy.semantic_fixture,
+            "legacy_evidence_source_fixture_sha256": (
+                resolved_legacy.semantic_fixture_sha256
+            ),
+            "resolved_evidence_sha256": resolved_legacy.resolved_evidence_sha256,
         }
 
 
@@ -296,6 +326,7 @@ def acceptance_plan_manifest(root: Path) -> dict[str, object]:
     calls = phase1_acceptance_calls()
     validate_acceptance_calls(calls)
     schema_file = root / "schemas/jsonschema/ontology_draft.schema.json"
+    legacy_provenance = Phase1LegacyEvidenceProvenanceBridge.load(root)
     payload: dict[str, object] = {
         "schema_version": SCHEMA_VERSION,
         "kind": "phase1_gpu_acceptance_plan",
@@ -304,6 +335,12 @@ def acceptance_plan_manifest(root: Path) -> dict[str, object]:
         "class_counts": EXPECTED_ACCEPTANCE_COUNTS,
         "output_schema_file": "schemas/jsonschema/ontology_draft.schema.json",
         "output_schema_sha256": _file_hash(schema_file),
+        "legacy_evidence_provenance_certificate_sha256": (
+            legacy_provenance.manifest_sha256
+        ),
+        "legacy_evidence_provenance_certificate_file_sha256": (
+            legacy_provenance.certificate_file_sha256
+        ),
         "implementation_files": [
             {"path": relative, "sha256": _file_hash(root / relative)}
             for relative in ACCEPTANCE_IMPLEMENTATION_FILES
@@ -475,7 +512,7 @@ def _condition_output_schema(
     accounting_properties["input_tokens"] = {"const": 0, "type": "integer"}
     accounting_properties["output_tokens"] = {"const": 0, "type": "integer"}
     if call.condition is not ConditionName.A_FIXED_SELECT:
-        return schema
+        return vllm_xgrammar_decoder_schema(schema)
     fixed = cast(Mapping[str, object], fixture.get("fixed_ontology"))
     packet = cast(Mapping[str, object], fixture.get("packet"))
     local_schema = cast(Mapping[str, object], fixed.get("local_schema"))
@@ -582,7 +619,7 @@ def _condition_output_schema(
     cast(dict[str, object], definitions["OmissionRecord"]["properties"])["evidence_id"] = (
         _string_enum(evidence_ids)
     )
-    return schema
+    return vllm_xgrammar_decoder_schema(schema)
 
 
 def _request_sections(
@@ -647,10 +684,13 @@ def build_acceptance_request(
     model_name: str = SERVED_MODEL_NAME,
     model_revision: str = PINNED_MODEL_REVISION,
     additional_sections: Mapping[str, object] | None = None,
+    legacy_provenance_bridge: Phase1LegacyEvidenceProvenanceBridge | None = None,
 ) -> GuidedJSONRequest:
     """Pack a fixture without truncation and bind exact tokenizer/decoding metadata."""
 
     root = root.resolve(strict=True)
+    if legacy_provenance_bridge is not None and legacy_provenance_bridge.root != root:
+        raise ValueError("legacy provenance bridge belongs to a different project root")
     if tokenizer_manifest.tokenizer_revision != model_revision:
         raise ValueError("request model revision differs from the captured tokenizer")
     fixture = _load_json_object(root / call.request_fixture)
@@ -694,6 +734,14 @@ def build_acceptance_request(
             "decoding_config_hash": decoding.content_hash,
         }
     sections = _request_sections(call, fixture)
+    if legacy_provenance_bridge is not None:
+        sections["legacy_evidence_provenance"] = (
+            legacy_provenance_bridge.model_visible_provenance_section(
+                call_id=call.call_id,
+                condition=call.condition,
+                request_fixture=call.request_fixture,
+            )
+        )
     if additional_sections:
         overlap = set(sections).intersection(additional_sections)
         if overlap:
@@ -775,6 +823,11 @@ def build_acceptance_request(
             "sealed_ontology",
         ),
         }[call.condition],
+        *(
+            ("legacy_evidence_provenance",)
+            if legacy_provenance_bridge is not None
+            else ()
+        ),
         *(additional_sections or {}).keys(),
     )
     packing = PackingReport.build(
@@ -824,11 +877,16 @@ def validate_acceptance_generation(
     parsed_object: Mapping[str, object],
     authoritative_prompt_tokens: int | None = None,
     authoritative_completion_tokens: int | None = None,
+    legacy_provenance_bridge: Phase1LegacyEvidenceProvenanceBridge | None = None,
 ) -> dict[str, object]:
     """Mechanically audit schema, budget, evidence, and condition capabilities."""
 
+    root = root.resolve(strict=True)
+    if legacy_provenance_bridge is not None and legacy_provenance_bridge.root != root:
+        raise ValueError("legacy provenance bridge belongs to a different project root")
     if (authoritative_prompt_tokens is None) != (authoritative_completion_tokens is None):
         raise ValueError("authoritative prompt/completion counts must be supplied together")
+    wire_draft = OntologyDraft.model_validate(copy.deepcopy(dict(parsed_object)))
     normalized_object = copy.deepcopy(dict(parsed_object))
     if authoritative_prompt_tokens is not None and authoritative_completion_tokens is not None:
         accounting = normalized_object.get("budget_accounting")
@@ -839,6 +897,7 @@ def validate_acceptance_generation(
         accounting["input_tokens"] = authoritative_prompt_tokens
         accounting["output_tokens"] = authoritative_completion_tokens
     draft = OntologyDraft.model_validate(normalized_object)
+    raw_draft = draft
     if call.decoding_pass is DecodingPass.REPAIR:
         request_raw = _load_json_object(root / "tests/fixtures/phase1/c2_query_request.json")
     else:
@@ -852,6 +911,16 @@ def validate_acceptance_generation(
     if forbidden:
         raise ValueError("generated decisions exceed condition capability allowlist")
 
+    resolved_legacy = (
+        None
+        if legacy_provenance_bridge is None
+        else legacy_provenance_bridge.resolve_call(
+            call_id=call.call_id,
+            condition=call.condition,
+            request_fixture=call.request_fixture,
+        )
+    )
+
     if call.condition is ConditionName.C1_LLM_PRE:
         request = PreconstructionRequest.model_validate(request_raw)
         evidence_ids = {item.evidence_id for item in request.evidence}
@@ -859,6 +928,39 @@ def validate_acceptance_generation(
         upper_ontology = request.upper_ontology
         evidence = request.evidence
         request_capabilities = request.capabilities
+        if request.sealed_horizon is None:
+            # The immutable v3 C1 acceptance fixture predates the explicit field.
+            # Its paired, independently frozen C2 controller request binds the
+            # same snapshot/evidence and supplies the registered horizon solely
+            # to the post-generation validator. Live C1 requests must carry the
+            # horizon directly and are rejected by their builder/sealer if absent.
+            paired = _load_json_object(root / "tests/fixtures/phase1/c2_query_request.json")
+            raw_paired_packet = paired.get("packet")
+            if not isinstance(raw_paired_packet, Mapping):
+                raise ValueError("legacy C1 acceptance horizon source lacks its packet")
+            paired_packet = cast(Mapping[str, object], raw_paired_packet)
+            raw_paired_evidence = paired_packet.get("evidence")
+            if not isinstance(raw_paired_evidence, Sequence) or isinstance(
+                raw_paired_evidence, (str, bytes, bytearray)
+            ) or not all(isinstance(item, Mapping) for item in raw_paired_evidence):
+                raise ValueError("legacy C1 acceptance horizon source has invalid evidence")
+            paired_evidence = cast(Sequence[Mapping[str, object]], raw_paired_evidence)
+            paired_ids = tuple(item.get("evidence_id") for item in paired_evidence)
+            raw_request_evidence = request_raw.get("evidence")
+            if (
+                paired.get("condition") != ConditionName.C2_LLM_QUERY.value
+                or paired.get("snapshot_hash") != request.snapshot_hash
+                or paired_ids != tuple(item.evidence_id for item in request.evidence)
+                or raw_paired_evidence != raw_request_evidence
+            ):
+                raise ValueError("legacy C1 acceptance horizon source differs from its evidence")
+            raw_paired_context = paired.get("context")
+            if not isinstance(raw_paired_context, Mapping):
+                raise ValueError("legacy C1 acceptance horizon source lacks its context")
+            paired_context = cast(Mapping[str, object], raw_paired_context)
+            horizon = SpoilerHorizon.model_validate(paired_context.get("spoiler_horizon"))
+        else:
+            horizon = request.sealed_horizon
         horizon_leaks: list[str] = []
     else:
         request = ConstructionRequest.model_validate(request_raw)
@@ -867,6 +969,7 @@ def validate_acceptance_generation(
         upper_ontology = request.upper_ontology
         evidence = request.packet.evidence
         request_capabilities = request.capabilities
+        horizon = request.context.spoiler_horizon
         maximum_discourse = request.context.spoiler_horizon.max_discourse_position.ordering_key
         maximum_revelation = request.context.spoiler_horizon.max_revelation_position
         maximum_revelation_order = (
@@ -901,11 +1004,23 @@ def validate_acceptance_generation(
                 seed_block=call.seed_block,
                 source_draft=source_draft,
             )
-            enforce_fixed_select_draft(draft, sealed=sealed, seed_block=call.seed_block)
+            enforce_fixed_select_draft(wire_draft, sealed=sealed, seed_block=call.seed_block)
+    if resolved_legacy is not None:
+        evidence = resolved_legacy.evidence
+    if call.condition is ConditionName.A_FIXED_SELECT and resolved_legacy is not None:
+        effective = legacy_provenance_bridge.effective_draft(
+            raw_draft=raw_draft,
+            resolved=resolved_legacy,
+            purpose="fixed_select",
+        )
+        draft = effective.effective_draft
+    else:
+        effective = None
     structural = validate_draft_structure(
         draft=draft,
         upper_ontology=upper_ontology,
         evidence=evidence,
+        horizon=horizon,
         budgets=budgets,
         capabilities=request_capabilities,
     )
@@ -973,7 +1088,29 @@ def validate_acceptance_generation(
     graph = draft.instance_graph
     semantic_manifest = semantic_grounding.public_manifest()
     return {
-        "draft_hash": draft.content_hash,
+        "draft_hash": raw_draft.content_hash,
+        "raw_draft_sha256": wire_draft.content_hash,
+        "normalized_raw_draft_sha256": raw_draft.content_hash,
+        "effective_validation_draft_sha256": draft.content_hash,
+        "legacy_evidence_provenance_certificate_sha256": (
+            None
+            if legacy_provenance_bridge is None
+            else legacy_provenance_bridge.manifest_sha256
+        ),
+        "legacy_evidence_provenance_certificate_file_sha256": (
+            None
+            if legacy_provenance_bridge is None
+            else legacy_provenance_bridge.certificate_file_sha256
+        ),
+        "legacy_evidence_payload_sha256": (
+            None if resolved_legacy is None else resolved_legacy.legacy_evidence_sha256
+        ),
+        "resolved_evidence_sha256": (
+            None if resolved_legacy is None else resolved_legacy.resolved_evidence_sha256
+        ),
+        "effective_source_hash_insertions": (
+            [] if effective is None else list(effective.inserted_source_hash_paths)
+        ),
         "schema_valid": True,
         "budget_valid": True,
         "evidence_ids_valid": True,
@@ -1134,12 +1271,131 @@ class AcceptanceRunner:
             raise RuntimeError("unresumable vLLM service did not reach a verified stopped state")
         self.service.recover_stale_service_lease()
 
-    def _ensure_independent_repair_base(self, plan_hash: str) -> tuple[str, str]:
+    @staticmethod
+    def _now() -> datetime:
+        return datetime.now(UTC)
+
+    def _advance_one(
+        self,
+        job_id: str,
+        state: JobState,
+        *,
+        occurred_at: datetime | None = None,
+    ) -> None:
+        job = self.ledger.get_job(job_id)
+        identity = json.loads(job.identity_json)
+        query_blind = identity.get("lifecycle_kind") == "query_blind_prebuild"
+        observed = tuple(item.to_state for item in self.ledger.transitions(job_id))
+        repair_path = JobState.REPAIRED in observed or state is JobState.REPAIRED
+        canonical_path = (
+            (JobState.PLANNED, JobState.PREQUERY_SEALED)
+            + (() if query_blind else (JobState.QUERY_REVEALED,))
+            + (JobState.GENERATED,)
+            + ((JobState.REPAIRED,) if repair_path else ())
+            + (
+                JobState.VALIDATED,
+                JobState.FINALIZED,
+                JobState.SCORED,
+                JobState.RENDERED,
+            )
+        )
+        if observed != canonical_path[: len(observed)]:
+            raise RuntimeError("acceptance job has a noncanonical lifecycle prefix")
+        try:
+            target_index = canonical_path.index(state)
+        except ValueError as error:
+            raise RuntimeError("acceptance job requested an unsupported state") from error
+        if target_index < len(observed):
+            return
+        if target_index != len(observed):
+            raise RuntimeError("acceptance job lifecycle would skip a required state")
+        self.ledger.transition_job(
+            job_id,
+            state,
+            occurred_at=occurred_at or self._now(),
+        )
+
+    def _prepare_job_lifecycle(
+        self,
+        *,
+        job_id: str,
+        condition: ConditionName,
+        query_blind: bool,
+        occurred_at: datetime | None = None,
+    ) -> None:
+        if query_blind != (condition is ConditionName.C1_LLM_PRE):
+            raise RuntimeError("acceptance lifecycle condition/query boundary changed")
+        prequery_at = occurred_at or self._now()
+        self._advance_one(job_id, JobState.PREQUERY_SEALED, occurred_at=prequery_at)
+        if not query_blind:
+            reveal_at = (
+                self._now()
+                if occurred_at is None
+                else prequery_at + timedelta(microseconds=1)
+            )
+            if reveal_at <= prequery_at:
+                reveal_at = prequery_at + timedelta(microseconds=1)
+            self._advance_one(job_id, JobState.QUERY_REVEALED, occurred_at=reveal_at)
+
+    def _record_structural_validation(
+        self,
+        *,
+        job_id: str,
+        attempt_id: str,
+        input_artifact_hash: str,
+        validator_manifest_hash: str,
+        accepted: bool,
+        diagnostics_artifact_hash: str | None = None,
+        parent_validation_id: str | None = None,
+        repair: bool = False,
+        created_at: datetime | None = None,
+    ) -> str:
+        validation_id = f"{attempt_id}-validation"
+        self.ledger.record_validation(
+            validation_id=validation_id,
+            job_id=job_id,
+            attempt_id=attempt_id,
+            input_artifact_hash=input_artifact_hash,
+            validator_manifest_hash=validator_manifest_hash,
+            validation_status=(
+                ValidationStatus.ACCEPTED if accepted else ValidationStatus.REJECTED
+            ),
+            evidence_support_status=EvidenceSupportStatus.NOT_APPLICABLE,
+            temporal_status=TemporalValidationStatus.NOT_APPLICABLE,
+            commitment_status=CommitmentCheckStatus.NOT_APPLICABLE,
+            semantic_assessment_scope=(
+                SemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED
+            ),
+            diagnostics_artifact_hash=diagnostics_artifact_hash,
+            parent_validation_id=parent_validation_id,
+            repair_attempt_id=attempt_id if repair else None,
+            created_at=created_at,
+        )
+        return validation_id
+
+    def _finish_job_lifecycle(
+        self,
+        *,
+        job_id: str,
+        repair: bool,
+        occurred_at: datetime | None = None,
+    ) -> None:
+        timestamp = occurred_at or self._now()
+        self._advance_one(
+            job_id,
+            JobState.REPAIRED if repair else JobState.GENERATED,
+            occurred_at=timestamp,
+        )
+        self._advance_one(job_id, JobState.VALIDATED, occurred_at=timestamp)
+        self._advance_one(job_id, JobState.FINALIZED, occurred_at=timestamp)
+
+    def _ensure_independent_repair_base(self, plan_hash: str) -> tuple[str, str, str]:
         """Ledger the hand-authored invalid base without pretending it was a GPU call."""
 
         fixture = _load_json_object(self.root / "tests/fixtures/phase1/invalid_repair_case.json")
         base_draft = fixture["base_draft"]
         base_payload = (canonical_json(base_draft) + "\n").encode("utf-8")
+        created_at = self._now()
         artifact = self.artifacts.put_bytes(
             base_payload,
             media_type="application/json",
@@ -1150,8 +1406,17 @@ class AcceptanceRunner:
                 "run_id": self.run_id,
                 "call_id": "repair-base-fixture",
                 "plan_hash": plan_hash,
+                "condition": ConditionName.C2_LLM_QUERY.value,
+                "lifecycle_kind": "query_time_generation",
             },
             release_class=ReleaseClass.PUBLIC,
+            created_at=created_at,
+        )
+        self._prepare_job_lifecycle(
+            job_id=job.job_id,
+            condition=ConditionName.C2_LLM_QUERY,
+            query_blind=False,
+            occurred_at=created_at,
         )
         attempt_id = f"{self.run_id}-repair-base-fixture-attempt"
         self.ledger.record_attempt(
@@ -1181,6 +1446,19 @@ class AcceptanceRunner:
             allocated_gpu_seconds=0,
             successful=False,
         )
+        self._advance_one(
+            job.job_id,
+            JobState.GENERATED,
+            occurred_at=created_at + timedelta(microseconds=2),
+        )
+        validation_id = self._record_structural_validation(
+            job_id=job.job_id,
+            attempt_id=attempt_id,
+            input_artifact_hash=artifact.content_hash,
+            validator_manifest_hash=plan_hash,
+            accepted=False,
+            diagnostics_artifact_hash=artifact.content_hash,
+        )
         self.ledger.record_failure(
             attempt_id=attempt_id,
             failure_kind=FailureKind.INVALID_OUTPUT,
@@ -1188,17 +1466,21 @@ class AcceptanceRunner:
             details={"diagnostics_are_fact_free": True},
             artifact_hash=artifact.content_hash,
         )
-        return job.job_id, attempt_id
+        return job.job_id, attempt_id, validation_id
 
     def run(self) -> dict[str, object]:
         calls = phase1_acceptance_calls()
         validate_acceptance_calls(calls)
+        legacy_provenance_bridge = Phase1LegacyEvidenceProvenanceBridge.load(self.root)
         plan = acceptance_plan_manifest(self.root)
         plan_manifest_hash = cast(str, plan["manifest_sha256"])
         execution_identity: dict[str, object] = {
             "acceptance_plan_manifest_sha256": plan_manifest_hash,
             "launcher_configuration_sha256": self.service.configuration.configuration_hash,
             "tokenizer_manifest_sha256": self.tokenizer_manifest.manifest_sha256,
+            "legacy_evidence_provenance_certificate_sha256": (
+                legacy_provenance_bridge.manifest_sha256
+            ),
             "runtime_stack_manifest_sha256": (
                 None
                 if self.runtime_stack is None
@@ -1310,6 +1592,7 @@ class AcceptanceRunner:
                     call=call,
                     tokenizer=self.tokenizer,
                     tokenizer_manifest=self.tokenizer_manifest,
+                    legacy_provenance_bridge=legacy_provenance_bridge,
                 )
                 remaining_required_seconds = sum(
                     later.watchdog_seconds for later in calls[call_index + 1 :]
@@ -1368,6 +1651,36 @@ class AcceptanceRunner:
                         parsed_object=_parsed_object_from_vllm_response(stored),
                         authoritative_prompt_tokens=model_call.prompt_tokens,
                         authoritative_completion_tokens=model_call.completion_tokens,
+                        legacy_provenance_bridge=legacy_provenance_bridge,
+                    )
+                    parent_validation_id = None
+                    if call.decoding_pass is DecodingPass.REPAIR:
+                        repair_job, root_attempt_id, parent_validation_id = (
+                            self._ensure_independent_repair_base(plan_hash)
+                        )
+                        if (
+                            repair_job != model_call.job_id
+                            or self.ledger.attempt_lineage(model_call.attempt_id)[0].attempt_id
+                            != root_attempt_id
+                        ):
+                            raise RuntimeError("resumed repair job changed its fixture lineage")
+                    self._prepare_job_lifecycle(
+                        job_id=model_call.job_id,
+                        condition=call.condition,
+                        query_blind=call.condition is ConditionName.C1_LLM_PRE,
+                    )
+                    self._record_structural_validation(
+                        job_id=model_call.job_id,
+                        attempt_id=model_call.attempt_id,
+                        input_artifact_hash=model_call.response_artifact_hash,
+                        validator_manifest_hash=plan_hash,
+                        accepted=True,
+                        parent_validation_id=parent_validation_id,
+                        repair=call.decoding_pass is DecodingPass.REPAIR,
+                    )
+                    self._finish_job_lifecycle(
+                        job_id=model_call.job_id,
+                        repair=call.decoding_pass is DecodingPass.REPAIR,
                     )
                     successful_audits.append((call, audit))
                     timing_observations.append(
@@ -1401,24 +1714,41 @@ class AcceptanceRunner:
                     )
                     continue
                 parent_attempt: str | None = None
+                parent_validation_id: str | None = None
                 if call.decoding_pass is DecodingPass.REPAIR:
-                    parent_job, parent_attempt = self._ensure_independent_repair_base(plan_hash)
+                    parent_job, parent_attempt, parent_validation_id = (
+                        self._ensure_independent_repair_base(plan_hash)
+                    )
                 else:
                     parent_job = call_jobs.get(call.parent_call_id or "")
                 identity = {
                     "run_id": self.run_id,
                     "call_id": call.call_id if parent_job is None else call.parent_call_id,
                     "plan_hash": plan_hash,
+                    "condition": call.condition.value,
+                    "lifecycle_kind": (
+                        "query_blind_prebuild"
+                        if call.condition is ConditionName.C1_LLM_PRE
+                        else "query_time_generation"
+                    ),
                 }
+                created_at = self._now()
                 job = (
                     self.ledger.get_job(parent_job)
                     if parent_job is not None
                     else self.ledger.create_or_resume_job(
                         identity,
                         release_class=ReleaseClass.PUBLIC,
+                        created_at=created_at,
                     )
                 )
                 call_jobs[call.call_id] = job.job_id
+                self._prepare_job_lifecycle(
+                    job_id=job.job_id,
+                    condition=call.condition,
+                    query_blind=call.condition is ConditionName.C1_LLM_PRE,
+                    occurred_at=created_at,
+                )
                 attempt_id = f"{self.run_id}-{call.call_id}-attempt"
                 try:
                     self.ledger.attempt_lineage(attempt_id)
@@ -1502,12 +1832,6 @@ class AcceptanceRunner:
                             after_summary.total_allocated_microseconds
                             - before_summary.total_allocated_microseconds
                         ) / 1_000_000
-                        timing_observations.append(
-                            TimingObservation(
-                                call_class=call.call_class,
-                                allocated_seconds=failed_allocated_seconds,
-                            )
-                        )
                         self.ledger.record_model_call(
                             model_call_id=f"{self.run_id}-{call.call_id}",
                             job_id=job.job_id,
@@ -1528,6 +1852,77 @@ class AcceptanceRunner:
                             successful=False,
                         )
                     lowered_error = str(exc).casefold()
+                    failure_details: dict[str, object] = {
+                        "exception_type": type(exc).__name__,
+                        "call_id": call.call_id,
+                    }
+                    diagnostics_artifact_hash = None
+                    transport_details = restricted_transport_failure_details(exc)
+                    if transport_details is not None:
+                        diagnostics = self.artifacts.put_bytes(
+                            (
+                                canonical_json(
+                                    {
+                                        "schema_version": SCHEMA_VERSION,
+                                        "diagnostic_kind": "vllm_http_transport",
+                                        "call_id": call.call_id,
+                                        "request_hash": request.request_hash,
+                                        "exception_type": type(exc).__name__,
+                                        **transport_details,
+                                    }
+                                )
+                                + "\n"
+                            ).encode("utf-8"),
+                            media_type=(
+                                "application/vnd.story-projection."
+                                "restricted-transport-diagnostics+json"
+                            ),
+                            release_class=ReleaseClass.RESTRICTED,
+                        )
+                        diagnostics_artifact_hash = diagnostics.content_hash
+                        failure_details["restricted_diagnostics_artifact_hash"] = (
+                            diagnostics_artifact_hash
+                        )
+                    terminal_at = self._now()
+                    public_diagnostic = self.artifacts.put_bytes(
+                        (
+                            canonical_json(
+                                {
+                                    "schema_version": SCHEMA_VERSION,
+                                    "diagnostic_kind": "acceptance_call_failure",
+                                    "call_id": call.call_id,
+                                    "exception_type": type(exc).__name__,
+                                }
+                            )
+                            + "\n"
+                        ).encode("utf-8"),
+                        media_type=(
+                            "application/vnd.story-projection."
+                            "acceptance-failure-diagnostics+json"
+                        ),
+                        release_class=ReleaseClass.PUBLIC,
+                        created_at=terminal_at,
+                    )
+                    self._advance_one(
+                        job.job_id,
+                        (
+                            JobState.REPAIRED
+                            if call.decoding_pass is DecodingPass.REPAIR
+                            else JobState.GENERATED
+                        ),
+                        occurred_at=terminal_at,
+                    )
+                    self._record_structural_validation(
+                        job_id=job.job_id,
+                        attempt_id=attempt_id,
+                        input_artifact_hash=public_diagnostic.content_hash,
+                        validator_manifest_hash=plan_hash,
+                        accepted=False,
+                        diagnostics_artifact_hash=public_diagnostic.content_hash,
+                        parent_validation_id=parent_validation_id,
+                        repair=call.decoding_pass is DecodingPass.REPAIR,
+                        created_at=terminal_at,
+                    )
                     self.ledger.record_failure(
                         attempt_id=attempt_id,
                         failure_kind=(
@@ -1540,7 +1935,14 @@ class AcceptanceRunner:
                             )
                         ),
                         message="Phase-1 acceptance call failed",
-                        details={"exception_type": type(exc).__name__, "call_id": call.call_id},
+                        details=failure_details,
+                        artifact_hash=diagnostics_artifact_hash,
+                        occurred_at=terminal_at,
+                    )
+                    self._finish_job_lifecycle(
+                        job_id=job.job_id,
+                        repair=call.decoding_pass is DecodingPass.REPAIR,
+                        occurred_at=terminal_at,
                     )
                     results.append(
                         {
@@ -1601,15 +2003,43 @@ class AcceptanceRunner:
                         parsed_object=generated.parsed_object,
                         authoritative_prompt_tokens=generated.prompt_tokens,
                         authoritative_completion_tokens=generated.completion_tokens,
+                        legacy_provenance_bridge=legacy_provenance_bridge,
                     )
                 except Exception as exc:
                     self.ledger.record_model_call(**common_model_call, successful=False)
+                    terminal_at = self._now()
+                    self._advance_one(
+                        job.job_id,
+                        (
+                            JobState.REPAIRED
+                            if call.decoding_pass is DecodingPass.REPAIR
+                            else JobState.GENERATED
+                        ),
+                        occurred_at=terminal_at,
+                    )
+                    self._record_structural_validation(
+                        job_id=job.job_id,
+                        attempt_id=attempt_id,
+                        input_artifact_hash=artifact.content_hash,
+                        validator_manifest_hash=plan_hash,
+                        accepted=False,
+                        diagnostics_artifact_hash=artifact.content_hash,
+                        parent_validation_id=parent_validation_id,
+                        repair=call.decoding_pass is DecodingPass.REPAIR,
+                        created_at=terminal_at,
+                    )
                     self.ledger.record_failure(
                         attempt_id=attempt_id,
                         failure_kind=FailureKind.INVALID_OUTPUT,
                         message="Phase-1 generated output failed mechanical validation",
                         details={"exception_type": type(exc).__name__, "call_id": call.call_id},
                         artifact_hash=artifact.content_hash,
+                        occurred_at=terminal_at,
+                    )
+                    self._finish_job_lifecycle(
+                        job_id=job.job_id,
+                        repair=call.decoding_pass is DecodingPass.REPAIR,
+                        occurred_at=terminal_at,
                     )
                     results.append(
                         {
@@ -1630,6 +2060,31 @@ class AcceptanceRunner:
                 self.ledger.record_model_call(
                     **common_model_call,
                     successful=True,
+                )
+                terminal_at = self._now()
+                self._advance_one(
+                    job.job_id,
+                    (
+                        JobState.REPAIRED
+                        if call.decoding_pass is DecodingPass.REPAIR
+                        else JobState.GENERATED
+                    ),
+                    occurred_at=terminal_at,
+                )
+                self._record_structural_validation(
+                    job_id=job.job_id,
+                    attempt_id=attempt_id,
+                    input_artifact_hash=artifact.content_hash,
+                    validator_manifest_hash=plan_hash,
+                    accepted=True,
+                    parent_validation_id=parent_validation_id,
+                    repair=call.decoding_pass is DecodingPass.REPAIR,
+                    created_at=terminal_at,
+                )
+                self._finish_job_lifecycle(
+                    job_id=job.job_id,
+                    repair=call.decoding_pass is DecodingPass.REPAIR,
+                    occurred_at=terminal_at,
                 )
                 completed.append(call.call_id)
                 successful_audits.append((call, audit))
@@ -1800,6 +2255,12 @@ class AcceptanceRunner:
             "run_id": self.run_id,
             "plan_hash": plan_hash,
             "acceptance_plan_manifest_sha256": plan_manifest_hash,
+            "legacy_evidence_provenance_certificate_sha256": (
+                legacy_provenance_bridge.manifest_sha256
+            ),
+            "legacy_evidence_provenance_certificate_file_sha256": (
+                legacy_provenance_bridge.certificate_file_sha256
+            ),
             "execution_identity": execution_identity,
             "call_count": len(calls),
             "completed_call_count": len(completed),

@@ -108,6 +108,7 @@ from story_projection_onto.metrics.alignment import (
     GroundingStatus,
     PredictedAssertion,
     PredictedNode,
+    audit_qualified_assertion_grounding,
     prediction_records_from_components,
     score_alignment,
 )
@@ -124,6 +125,7 @@ from story_projection_onto.store import (
     EvidenceSupportStatus as LedgerEvidenceSupportStatus,
 )
 from story_projection_onto.store import ReleaseClass as LedgerReleaseClass
+from story_projection_onto.store import SemanticAssessmentScope as LedgerSemanticAssessmentScope
 from story_projection_onto.store import (
     TemporalValidationStatus as LedgerTemporalValidationStatus,
 )
@@ -803,14 +805,23 @@ def _validate_ledger_validations(
             raise DevelopmentAssessmentIntegrityError(
                 "validation ledger input differs from the raw model response"
             )
-        if successful and (
-            record.validation_status is not LedgerValidationStatus.ACCEPTED
-            or record.evidence_support_status is not LedgerEvidenceSupportStatus.SUPPORTED
-            or record.temporal_status is not LedgerTemporalValidationStatus.VALID
-            or record.commitment_status is not LedgerCommitmentCheckStatus.VALID
+        expected_validation_status = (
+            LedgerValidationStatus.ACCEPTED
+            if successful
+            else LedgerValidationStatus.REJECTED
+        )
+        if (
+            record.validation_status is not expected_validation_status
+            or record.evidence_support_status
+            is not LedgerEvidenceSupportStatus.NOT_APPLICABLE
+            or record.temporal_status is not LedgerTemporalValidationStatus.NOT_APPLICABLE
+            or record.commitment_status
+            is not LedgerCommitmentCheckStatus.NOT_APPLICABLE
+            or record.semantic_assessment_scope
+            is not LedgerSemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED
         ):
             raise DevelopmentAssessmentIntegrityError(
-                "successful result disagrees with its append-only validation verdict"
+                "result disagrees with its structural-only append-only validation verdict"
             )
 
 
@@ -1352,22 +1363,16 @@ def _prediction_bundle(
         grounding_by_assertion_id=provisional_status,
         plan=plan,
     )
-    preliminary = score_alignment(
+    audited_statuses = audit_qualified_assertion_grounding(
         plan=plan,
-        predicted_nodes=nodes,
         predicted_assertions=assertions,
     )
+    statuses = dict(audited_statuses)
     supported_ids = frozenset(
-        item.prediction_id for item in preliminary.structurally_aligned_assertion_matches
+        assertion_id
+        for assertion_id, status in audited_statuses
+        if status is GroundingStatus.SUPPORTED
     )
-    statuses = {
-        item.assertion_id: (
-            GroundingStatus.SUPPORTED
-            if item.assertion_id in supported_ids
-            else GroundingStatus.UNSUPPORTED
-        )
-        for item in instance_graph.assertions
-    }
     nodes, assertions, _ = prediction_records_from_components(
         local_schema=local_schema,
         instance_graph=instance_graph,
@@ -2470,11 +2475,13 @@ class DevelopmentScientificAssessmentProvider:
                     or validation.validation_status
                     is not LedgerValidationStatus.ACCEPTED
                     or validation.evidence_support_status
-                    is not LedgerEvidenceSupportStatus.SUPPORTED
+                    is not LedgerEvidenceSupportStatus.NOT_APPLICABLE
                     or validation.temporal_status
-                    is not LedgerTemporalValidationStatus.VALID
+                    is not LedgerTemporalValidationStatus.NOT_APPLICABLE
                     or validation.commitment_status
-                    is not LedgerCommitmentCheckStatus.VALID
+                    is not LedgerCommitmentCheckStatus.NOT_APPLICABLE
+                    or validation.semantic_assessment_scope
+                    is not LedgerSemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED
                 ):
                     raise DevelopmentAssessmentIntegrityError(
                         "CPU validation ledger differs from the accepted projection"
@@ -2684,11 +2691,17 @@ class DevelopmentScientificAssessmentProvider:
             if sealed is None:
                 schema_valid = False
                 continue
+            sealed_horizon = call.semantic_request.sealed_horizon
+            if sealed_horizon is None:
+                raise DevelopmentIntegrityError(
+                    "development C1 assessment lacks its trusted sealed horizon"
+                )
             draft = sealed.draft
             report = validate_draft_structure(
                 draft=draft,
                 upper_ontology=call.semantic_request.upper_ontology,
                 evidence=call.semantic_request.evidence,
+                horizon=sealed_horizon,
                 budgets=call.semantic_request.budgets,
                 capabilities=call.semantic_request.capabilities,
             )

@@ -32,7 +32,11 @@ from story_projection_onto.development_runtime import (
     DevelopmentExecutionResult,
     DevelopmentPrequeryInputs,
 )
-from story_projection_onto.experiment import AllocatedGPUMeter, ResourceLimits
+from story_projection_onto.experiment import (
+    AllocatedGPUMeter,
+    ResourceLimits,
+    StorageAllocationPlan,
+)
 from story_projection_onto.fallback_acceptance import validate_source_association
 from story_projection_onto.gpu_runtime import (
     FALLBACK_MODEL_REPOSITORY,
@@ -78,11 +82,38 @@ from story_projection_onto.store import (
     ReleaseClass,
     StorageBudget,
     StoragePreflight,
+    StorageReport,
 )
 
 
 class HeldOutFactoryError(RuntimeError):
     """A concrete held-out dependency differs from the accepted freeze."""
+
+
+def _registered_phase_three_storage_preflight(
+    repository: Path,
+    storage: StoragePreflight,
+) -> StorageReport:
+    plan = StorageAllocationPlan.load(
+        repository / "configs/study/storage_phase_allocations.json"
+    )
+    reservation = plan.reservation_for("phase_3")
+    return storage.check(**reservation.preflight_arguments())
+
+
+def _require_registered_phase_three_storage_preflight(
+    repository: Path,
+    storage: StoragePreflight,
+    ledger: Ledger,
+) -> StorageReport:
+    report = _registered_phase_three_storage_preflight(repository, storage)
+    ledger.record_storage_sample(
+        report,
+        phase="phase_3:held_out_primary:factory",
+    )
+    if not report.allowed:
+        raise HeldOutFactoryError("held-out storage preflight failed")
+    return report
 
 
 _PREDECESSOR_REPLAY_DYNAMIC_FIELDS = {
@@ -429,11 +460,11 @@ def create_frozen_production_held_out_bundle(
     """
 
     repository = repository.resolve(strict=True)
-    restricted_root = _canonical_restricted_root(repository, restricted_root)
     if configuration.production_adapter_factory == "PENDING":
         raise HeldOutFactoryError("production adapter factory is not frozen")
     if reviewed_plan.call_manifest.development_execution_result_hash == "PENDING":
         raise HeldOutFactoryError("held-out plan lacks an accepted development predecessor")
+    restricted_root = _canonical_restricted_root(repository, restricted_root)
     development_result = _load_development_result(repository, configuration)
     if (
         development_result.content_hash
@@ -495,10 +526,11 @@ def create_frozen_production_held_out_bundle(
                 min_headroom_bytes=limits.minimum_storage_headroom_bytes,
             ),
         )
-        preflight = storage.check()
-        ledger.record_storage_sample(preflight, phase="held_out_primary:factory")
-        if not preflight.allowed:
-            raise HeldOutFactoryError("held-out storage preflight failed")
+        _require_registered_phase_three_storage_preflight(
+            repository,
+            storage,
+            ledger,
+        )
         if predecessor_ledger_binding is None:
             raise HeldOutFactoryError("exact development predecessor ledger binding is missing")
         if (

@@ -11,10 +11,12 @@ from pydantic import Field, model_validator
 
 from story_projection_onto.contracts import (
     ConditionName,
+    EvidencePacket,
     GoldContextualProjection,
     GoldContrastInvariant,
     ImmutableRecord,
     OntologyProjection,
+    QueryContext,
     ReleaseClass,
     canonical_json,
     canonical_sha256,
@@ -22,6 +24,7 @@ from story_projection_onto.contracts import (
 from story_projection_onto.metrics.adapters import (
     ProjectionMetricAdapter,
     adapt_projection_for_metrics,
+    projection_is_content_bearing,
     projection_is_structurally_valid,
     verify_normalized_decisions,
     verify_projection_decisions,
@@ -231,22 +234,44 @@ class GeometryMetricInput(ImmutableRecord):
 
     projection_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
     visualization_state_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    materialization_source_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    source_result_hashes: tuple[str, ...] = Field(min_length=1)
     layout_config_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
     style_config_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
     font_config_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    viewport_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    renderer_runtime_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
     positions: tuple[tuple[str, Point], ...]
+    renderer_only_positions: tuple[tuple[str, Point], ...]
     label_rectangles: tuple[LabelRectangle, ...]
+    label_semantic_ids: tuple[tuple[str, str], ...]
     visible_semantic_ids: tuple[str, ...]
     irrelevant_semantic_ids: tuple[str, ...]
     rare_pivotal_discoverability: tuple[tuple[str, int], ...]
 
     @model_validator(mode="after")
     def geometry_is_canonical(self) -> Self:
+        if self.source_result_hashes != tuple(sorted(set(self.source_result_hashes))):
+            raise ValueError("geometry source-result hashes must be sorted and unique")
+        if any(
+            len(value) != 64 or any(character not in "0123456789abcdef" for character in value)
+            for value in self.source_result_hashes
+        ):
+            raise ValueError("geometry source-result hashes must be SHA-256 digests")
         position_ids = tuple(item[0] for item in self.positions)
         if self.positions != tuple(sorted(self.positions, key=lambda item: item[0])):
             raise ValueError("geometry positions must be canonically ordered")
         if len(position_ids) != len(set(position_ids)):
             raise ValueError("geometry positions require unique node IDs")
+        renderer_only_ids = tuple(item[0] for item in self.renderer_only_positions)
+        if self.renderer_only_positions != tuple(
+            sorted(self.renderer_only_positions, key=lambda item: item[0])
+        ):
+            raise ValueError("renderer-only positions must be canonically ordered")
+        if len(renderer_only_ids) != len(set(renderer_only_ids)):
+            raise ValueError("renderer-only positions require unique IDs")
+        if set(renderer_only_ids) & set(position_ids):
+            raise ValueError("semantic and renderer-only position IDs must be disjoint")
         rectangle_ids = tuple(item.label_id for item in self.label_rectangles)
         if self.label_rectangles != tuple(
             sorted(self.label_rectangles, key=lambda item: item.label_id)
@@ -254,6 +279,13 @@ class GeometryMetricInput(ImmutableRecord):
             raise ValueError("label rectangles must be canonically ordered")
         if len(rectangle_ids) != len(set(rectangle_ids)):
             raise ValueError("label rectangles require unique label IDs")
+        label_component_ids = tuple(item[0] for item in self.label_semantic_ids)
+        if self.label_semantic_ids != tuple(sorted(self.label_semantic_ids)):
+            raise ValueError("label-to-semantic bindings must be canonically ordered")
+        if len(label_component_ids) != len(set(label_component_ids)):
+            raise ValueError("label-to-semantic bindings require unique label IDs")
+        if set(label_component_ids) != set(rectangle_ids):
+            raise ValueError("every label rectangle requires one semantic binding")
         for values, name in (
             (self.visible_semantic_ids, "visible semantic IDs"),
             (self.irrelevant_semantic_ids, "irrelevant semantic IDs"),
@@ -267,6 +299,10 @@ class GeometryMetricInput(ImmutableRecord):
             raise ValueError("rare-pivotal discoverability must be canonical and unique")
         if not set(self.irrelevant_semantic_ids).issubset(self.visible_semantic_ids):
             raise ValueError("irrelevant visible IDs must be a subset of visible IDs")
+        if not {item[1] for item in self.label_semantic_ids}.issubset(
+            self.visible_semantic_ids
+        ):
+            raise ValueError("label bindings must reference visible semantics")
         return self
 
 
@@ -350,12 +386,76 @@ class ContrastPairScore(ImmutableRecord):
         return self
 
 
+class ScorerOnlyProjectionReplayMaterial(ImmutableRecord):
+    """Gold-free semantic source retained only inside the restricted scorer bundle.
+
+    Phase 4's metric adapter deliberately discards reviewer-readable labels and
+    qualifications.  Retaining the *exact* already-scored projection together with
+    its condition-neutral query and evidence inputs lets later blinded review replay
+    that adapter and render assessable panels without consulting an unbound side
+    channel.  This record is scorer-only even when its synthetic children would each
+    otherwise be publishable.
+    """
+
+    scorer_namespace: Literal["scorer_only"] = "scorer_only"
+    release_class: Literal[ReleaseClass.RESTRICTED] = ReleaseClass.RESTRICTED
+    projection: OntologyProjection
+    context: QueryContext
+    evidence_packet: EvidencePacket
+
+    @model_validator(mode="after")
+    def semantic_inputs_are_exactly_bound(self) -> Self:
+        bindings = (
+            ("context", self.projection.context_hash, self.context.content_hash),
+            ("packet", self.projection.packet_hash, self.evidence_packet.content_hash),
+            (
+                "snapshot",
+                self.projection.snapshot_hash,
+                self.evidence_packet.snapshot_hash,
+            ),
+        )
+        for name, projection_hash, source_hash in bindings:
+            if projection_hash != source_hash:
+                raise ValueError(
+                    f"scorer-only replay {name} differs from the scored projection"
+                )
+        if self.projection.budgets != self.context.budgets:
+            raise ValueError("scorer-only replay context and projection budgets differ")
+        packet_evidence_ids = set(self.evidence_packet.ordered_evidence_ids)
+        emitted_evidence_ids = {
+            evidence_id
+            for item in (
+                *self.projection.local_schema.contextual_types,
+                *self.projection.local_schema.predicates,
+                *self.projection.instance_graph.entities,
+                *self.projection.instance_graph.events,
+                *self.projection.instance_graph.proposition_contents,
+                *self.projection.instance_graph.assertions,
+                *self.projection.decisions,
+            )
+            for evidence_id in item.evidence_ids
+        }
+        if not emitted_evidence_ids.issubset(packet_evidence_ids):
+            raise ValueError("scorer-only replay projection cites evidence outside its packet")
+        return self
+
+
 class CompleteProjectionScoreBundle(ImmutableRecord):
     projection: ProjectionScoreBundle
+    scorer_only_replay: ScorerOnlyProjectionReplayMaterial
     rare_pivotal: RarePivotalScore
     clutter: ClutterProfile | None = None
     community: CommunityMetricPanel | None = None
     metric_rows: tuple[MetricResultRow, ...]
+
+    @model_validator(mode="after")
+    def replay_material_names_the_scored_projection(self) -> Self:
+        replay_projection = self.scorer_only_replay.projection
+        if replay_projection.content_hash != self.projection.adapter.projection_hash:
+            raise ValueError("scorer-only replay projection differs from the metric adapter")
+        if replay_projection.projection_id != self.projection.adapter.projection_id:
+            raise ValueError("scorer-only replay projection ID differs from the metric adapter")
+        return self
 
 
 class IntendedMetricUnit(ImmutableRecord):
@@ -435,6 +535,11 @@ class IntendedUnitScore(ImmutableRecord):
     projection_id: str | None = None
     projection_bundle_hash: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     failure_kind: OutputFailureKind | None = None
+    failure_artifact_hash: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]{64}$",
+    )
+    allocated_gpu_seconds: float = Field(default=0.0, ge=0.0)
     scoring_diagnostics: tuple[str, ...] = ()
     rows: tuple[MetricResultRow, ...] = Field(min_length=1)
 
@@ -445,6 +550,8 @@ class IntendedUnitScore(ImmutableRecord):
                 raise ValueError("valid intended-unit scores require projection lineage")
             if self.failure_kind is not None:
                 raise ValueError("valid intended-unit scores cannot carry a failure kind")
+            if self.failure_artifact_hash is not None or self.allocated_gpu_seconds != 0.0:
+                raise ValueError("valid intended-unit scores cannot carry failed-output lineage")
         elif self.failure_kind is None:
             raise ValueError("invalid intended-unit scores require a failure kind")
         if any(row.projection_id != self.projection_id for row in self.rows):
@@ -562,11 +669,14 @@ def score_projection(
         grounding_by_assertion_id=grounding_by_assertion_id,
         plan=alignment_plan,
     )
+    semantic_output_valid = (
+        adapter.structurally_valid and projection_is_content_bearing(projection)
+    )
     alignment = score_alignment(
         plan=alignment_plan,
         predicted_nodes=predicted_nodes,
         predicted_assertions=predicted_assertions,
-        invalid_semantic_output=not adapter.structurally_valid,
+        invalid_semantic_output=not semantic_output_valid,
     )
     scored_gold_decisions = (
         decision_compilation.gold_decisions
@@ -581,7 +691,7 @@ def score_projection(
     decision_score = score_ontology_decisions(
         gold=scored_gold_decisions,
         predicted=scored_predicted_decisions,
-        invalid_semantic_output=not adapter.structurally_valid,
+        invalid_semantic_output=not semantic_output_valid,
     )
     if not adapter.structurally_valid:
         structural = StructuralMetricPanel(
@@ -925,6 +1035,8 @@ def _partition_on_gold_anchors(
 def score_complete_projection(
     projection: OntologyProjection,
     *,
+    context: QueryContext,
+    evidence_packet: EvidencePacket,
     configuration: StudyMetricConfiguration,
     scorer_plan: ScorerMetricPlan,
     grounding_audit: GroundingAuditInput,
@@ -936,6 +1048,14 @@ def score_complete_projection(
     by their paired orchestrators; every metric that is defined on one projection is
     produced here from immutable, content-addressed inputs.
     """
+
+    if not (
+        projection_is_structurally_valid(projection)
+        and projection_is_content_bearing(projection)
+    ):
+        raise ValueError(
+            "complete projection scoring requires structurally valid, content-bearing output"
+        )
 
     if grounding_audit.projection_hash != projection.content_hash:
         raise ValueError("grounding audit names a different projection")
@@ -958,11 +1078,13 @@ def score_complete_projection(
             renderer.layout_config_hash,
             renderer.style_config_hash,
             renderer.font_config_hash,
+            renderer.viewport_hash,
         )
         actual_hashes = (
             geometry.layout_config_hash,
             geometry.style_config_hash,
             geometry.font_config_hash,
+            geometry.viewport_hash,
         )
         if actual_hashes != expected_hashes:
             raise ValueError("geometry does not use the frozen renderer configuration")
@@ -1065,6 +1187,7 @@ def score_complete_projection(
             base.adapter.edges,
             positions=dict(geometry.positions),
             label_rectangles=geometry.label_rectangles,
+            label_semantic_ids=dict(geometry.label_semantic_ids),
             visible_semantic_ids=geometry.visible_semantic_ids,
             irrelevant_semantic_ids=frozenset(geometry.irrelevant_semantic_ids),
             rare_pivotal_discoverability=dict(geometry.rare_pivotal_discoverability),
@@ -1284,6 +1407,11 @@ def score_complete_projection(
 
     return CompleteProjectionScoreBundle(
         projection=base,
+        scorer_only_replay=ScorerOnlyProjectionReplayMaterial(
+            projection=projection,
+            context=context,
+            evidence_packet=evidence_packet,
+        ),
         rare_pivotal=rare,
         clutter=clutter,
         community=community_panel,
@@ -1317,6 +1445,8 @@ def score_intended_projection(
     intended: IntendedMetricUnit,
     projection: OntologyProjection,
     *,
+    context: QueryContext,
+    evidence_packet: EvidencePacket,
     configuration: StudyMetricConfiguration,
     scorer_plan: ScorerMetricPlan,
     grounding_audit: GroundingAuditInput,
@@ -1334,7 +1464,10 @@ def score_intended_projection(
     ):
         if actual != expected:
             raise ValueError(f"projection {name} hash differs from intended unit")
-    if not projection_is_structurally_valid(projection):
+    if not (
+        projection_is_structurally_valid(projection)
+        and projection_is_content_bearing(projection)
+    ):
         return score_failed_output(
             FailedMetricOutput(
                 intended_unit=intended,
@@ -1346,6 +1479,8 @@ def score_intended_projection(
         )
     bundle = score_complete_projection(
         projection,
+        context=context,
+        evidence_packet=evidence_packet,
         configuration=configuration,
         scorer_plan=scorer_plan,
         grounding_audit=grounding_audit,
@@ -1639,6 +1774,8 @@ def score_failed_output(
         intended_unit=intended,
         output_valid=False,
         failure_kind=failure.failure_kind,
+        failure_artifact_hash=failure.failure_artifact_hash,
+        allocated_gpu_seconds=failure.allocated_gpu_seconds,
         scoring_diagnostics=tuple(
             f"decision_compilation:gold:{item.slot_key}:{item.reason}"
             for item in failed_gold_issues
@@ -2238,6 +2375,7 @@ def persist_metric_rows(
     ledger: Any,
     *,
     study_id: str,
+    job_id: str,
     rows: Sequence[MetricResultRow],
     result_artifact_hash: str | None = None,
 ) -> None:
@@ -2245,13 +2383,34 @@ def persist_metric_rows(
 
     from story_projection_onto.store import MetricStatus
 
+    if not rows:
+        raise ValueError("metric persistence requires a nonempty score inventory")
+    semantic_projection_ids = {row.projection_id for row in rows}
+    if len(semantic_projection_ids) != 1:
+        raise ValueError("one intended score cannot mix projection identities")
+    semantic_projection_id = next(iter(semantic_projection_ids), None)
+    ledger_projections = tuple(ledger.projections_for_job(job_id))
+    if semantic_projection_id is None:
+        if ledger_projections:
+            raise ValueError(
+                "failed ITT metric rows conflict with a durable job projection"
+            )
+        ledger_projection_id = None
+    else:
+        if len(ledger_projections) != 1:
+            raise ValueError(
+                "scored projection does not resolve exactly one job-bound ledger row"
+            )
+        ledger_projection_id = ledger_projections[0].projection_id
+
     for row in rows:
         ledger.record_metric(
             metric_id=(
-                f"metric-{canonical_sha256((study_id, row, result_artifact_hash))[:24]}"
+                f"metric-{canonical_sha256((study_id, job_id, row, result_artifact_hash))[:24]}"
             ),
             study_id=study_id,
-            projection_id=row.projection_id,
+            job_id=job_id,
+            projection_id=ledger_projection_id,
             unit_hash=row.unit_hash,
             metric_name=row.metric_name,
             metric_version_hash=row.metric_version_hash,
@@ -2286,6 +2445,7 @@ def persist_intended_unit_score(
     persist_metric_rows(
         artifact_store.ledger,
         study_id=study_id,
+        job_id=score.intended_unit.job_id,
         rows=score.rows,
         result_artifact_hash=artifact.content_hash,
     )
@@ -2376,6 +2536,7 @@ __all__ = [
     "PipelineMetricStatus",
     "ProjectionScoreBundle",
     "ScorerMetricPlan",
+    "ScorerOnlyProjectionReplayMaterial",
     "StructuralMetricPanel",
     "analysis_observations_from_scores",
     "load_intended_unit_scores",

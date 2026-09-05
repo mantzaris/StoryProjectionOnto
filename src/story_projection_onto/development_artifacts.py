@@ -20,6 +20,11 @@ from story_projection_onto.contracts import (
 )
 from story_projection_onto.development_runtime import DEVELOPMENT_CALL_COUNT
 
+SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS = (
+    "fallback-qwen3-8b-awq-development-v3-service-start-001",
+    "fallback-qwen3-8b-awq-development-v4-service-start-001",
+)
+
 
 class LogicalCASReference(ImmutableRecord):
     """Bind an immutable record's semantic hash to serialized CAS bytes."""
@@ -324,8 +329,9 @@ class DevelopmentForecastReceipt(ImmutableRecord):
     hard_limit_seconds: float = Field(gt=0.0)
     inventory_rows: tuple[DevelopmentForecastInventoryRow, ...]
     retry_amendment_sha256: Sha256Digest | None = None
+    second_recovery_overlay_sha256: Sha256Digest | None = None
     recovery_service_start_event_ids: tuple[str, ...] = ()
-    authorized_additional_service_start_events: int = Field(default=0, ge=0, le=1)
+    authorized_additional_service_start_events: int = Field(default=0, ge=0, le=2)
     effective_accounting_events: int = Field(gt=0)
     effective_inference_attempts: int = Field(gt=0)
     normal_acceptance_superseded: Literal[True] = True
@@ -353,10 +359,21 @@ class DevelopmentForecastReceipt(ImmutableRecord):
             self.recovery_service_start_event_ids
         ):
             raise ValueError("recovery service-start overlay count is inconsistent")
-        if bool(self.retry_amendment_sha256) != bool(
-            self.authorized_additional_service_start_events
+        if self.second_recovery_overlay_sha256 is not None:
+            if (
+                self.retry_amendment_sha256 is None
+                or self.recovery_service_start_event_ids
+                != SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS
+            ):
+                raise ValueError(
+                    "second recovery must bind the exact ordered v3+v4 service starts"
+                )
+        elif (
+            len(self.recovery_service_start_event_ids) > 1
+            or bool(self.retry_amendment_sha256)
+            != bool(self.authorized_additional_service_start_events)
         ):
-            raise ValueError("recovery service-start overlay lacks its amendment hash")
+            raise ValueError("ordinary recovery must bind at most one service start")
         if len(set(self.recovery_service_start_event_ids)) != len(
             self.recovery_service_start_event_ids
         ) or any(
@@ -454,6 +471,7 @@ class DevelopmentAssessmentBundle(ImmutableRecord):
 
 
 __all__ = [
+    "SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS",
     "DevelopmentAssessmentBundle",
     "DevelopmentCPUProjectionReceipt",
     "DevelopmentCallAuditReceipt",

@@ -8,6 +8,7 @@ the lineage outside the immutable benchmark tree.
 
 from __future__ import annotations
 
+import hashlib
 import os
 import stat
 from collections.abc import Mapping, Sequence
@@ -15,7 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Literal, Self
 
-from pydantic import AwareDatetime, model_validator
+from pydantic import AwareDatetime, Field, model_validator
 
 from story_projection_onto.contracts import (
     GoldAdjudicationStatus,
@@ -51,6 +52,9 @@ from story_projection_onto.synthetic_benchmark import (
 DEFAULT_BENCHMARK_ROOT = Path("data/synthetic")
 DEFAULT_COMPLETION_ROOT = Path(
     "artifacts/restricted/scorer_only/independent_review"
+)
+DEFAULT_PUBLIC_REVIEWED_GOLD_ROOT = Path(
+    "artifacts/public/scorer_only/final_reviewed_gold"
 )
 
 
@@ -150,6 +154,67 @@ class IndependentReviewCompletionManifest(ImmutableRecord):
         return self
 
 
+class PublicReviewedArtifactManifestEntry(ImmutableRecord):
+    """Public file and semantic lineage for one finalized reviewed projection."""
+
+    blind_projection_id: Identifier
+    world_id: Identifier
+    query_id: Identifier
+    artifact_file: Identifier
+    artifact_file_sha256: Sha256Digest
+    artifact_hash: Sha256Digest
+    source_gold_projection_hash: Sha256Digest
+    source_alternative_set_hash: Sha256Digest
+    source_semantic_hash: Sha256Digest
+    final_semantic_hash: Sha256Digest
+    gold_projection_hash: Sha256Digest
+    alternative_set_hash: Sha256Digest
+    amended: bool
+
+    @model_validator(mode="after")
+    def path_and_amendment_are_derived(self) -> Self:
+        if self.artifact_file != f"reviewed/{self.blind_projection_id}.json":
+            raise ValueError("public reviewed artifact path must derive from its blind ID")
+        if self.amended != (self.source_semantic_hash != self.final_semantic_hash):
+            raise ValueError("public reviewed artifact amendment flag is not derived")
+        return self
+
+
+class PublicReviewedGoldPublicationManifest(ImmutableRecord):
+    """Public-safe proof that the released gold is the completed reviewed gold."""
+
+    manifest_id: Identifier
+    lifecycle_state: Literal["final_reviewed_gold_publication"] = (
+        "final_reviewed_gold_publication"
+    )
+    source_completion_manifest_hash: Sha256Digest
+    source_completion_manifest_file_sha256: Sha256Digest
+    draft_seal_hash: Sha256Digest
+    package_hash: Sha256Digest
+    binding_manifest_hash: Sha256Digest
+    final_seal_hash: Sha256Digest
+    final_seal_file: Literal["final_seal.json"] = "final_seal.json"
+    final_seal_file_sha256: Sha256Digest
+    reviewed_artifacts: tuple[PublicReviewedArtifactManifestEntry, ...]
+    review_item_count: Literal[72] = 72
+    reviewed_projection_count: Literal[9] = 9
+    amendment_count: int = Field(ge=0, le=9)
+    held_out_launch_authorized: Literal[True] = True
+    condition_outputs_generated_before_review: Literal[False] = False
+    release_class: Literal[ReleaseClass.PUBLIC] = ReleaseClass.PUBLIC
+
+    @model_validator(mode="after")
+    def exact_public_inventory(self) -> Self:
+        if len(self.reviewed_artifacts) != 9:
+            raise ValueError("public reviewed-gold manifest requires exactly nine artifacts")
+        identifiers = tuple(item.blind_projection_id for item in self.reviewed_artifacts)
+        if identifiers != tuple(sorted(set(identifiers))):
+            raise ValueError("public reviewed-gold artifacts must be unique and sorted")
+        if self.amendment_count != sum(item.amended for item in self.reviewed_artifacts):
+            raise ValueError("public reviewed-gold amendment count is not derived")
+        return self
+
+
 @dataclass(frozen=True)
 class ReviewCompletion:
     package: BlindIndependentReviewPackage
@@ -160,6 +225,13 @@ class ReviewCompletion:
     reviewed_artifacts: tuple[ReviewedProjectionArtifact, ...]
     final_seal: FinalReviewedSeal
     manifest: IndependentReviewCompletionManifest
+
+
+@dataclass(frozen=True)
+class PublicReviewedGoldPublication:
+    manifest: PublicReviewedGoldPublicationManifest
+    reviewed_artifacts: tuple[ReviewedProjectionArtifact, ...]
+    final_seal: FinalReviewedSeal
 
 
 def _assert_no_symlink(path: Path, *, must_exist: bool) -> None:
@@ -654,6 +726,251 @@ def load_completed_review(
     )
 
 
+def prepare_public_reviewed_gold_publication(
+    completion: ReviewCompletion,
+) -> PublicReviewedGoldPublication:
+    """Derive the public finalized-gold tree from a fully reproduced completion."""
+
+    try:
+        require_independent_review_complete(
+            completion.draft,
+            completion.package,
+            completion.bindings,
+            completion.response,
+            completion.adjudication,
+            completion.reviewed_artifacts,
+            completion.final_seal,
+        )
+    except IndependentReviewGateError as error:
+        raise ReviewCompletionError(
+            f"cannot publish unreproduced reviewed gold: {error}"
+        ) from error
+    if (
+        completion.manifest.final_seal_hash != completion.final_seal.content_hash
+        or completion.manifest.package_hash != completion.package.content_hash
+        or completion.manifest.binding_manifest_hash != completion.bindings.content_hash
+        or completion.manifest.draft_seal_hash != completion.draft.content_hash
+        or completion.manifest.response_hash != completion.response.content_hash
+        or completion.manifest.adjudication_hash != completion.adjudication.content_hash
+    ):
+        raise ReviewCompletionError(
+            "cannot publish reviewed gold from a mismatched completion manifest"
+        )
+
+    artifacts_by_blind = {
+        item.blind_projection_id: item for item in completion.reviewed_artifacts
+    }
+    completion_entries = {
+        item.blind_projection_id: item for item in completion.manifest.reviewed_artifacts
+    }
+    if len(artifacts_by_blind) != 9 or set(artifacts_by_blind) != set(completion_entries):
+        raise ReviewCompletionError(
+            "public reviewed-gold publication requires the exact completion inventory"
+        )
+    public_entries: list[PublicReviewedArtifactManifestEntry] = []
+    ordered_artifacts: list[ReviewedProjectionArtifact] = []
+    for binding in sorted(
+        completion.bindings.entries, key=lambda item: item.blind_projection_id
+    ):
+        artifact = artifacts_by_blind[binding.blind_projection_id]
+        completion_entry = completion_entries[binding.blind_projection_id]
+        artifact_payload = artifact.to_canonical_json().encode("utf-8") + b"\n"
+        if (
+            completion_entry.world_id != binding.world_id
+            or completion_entry.query_id != binding.query_id
+            or completion_entry.artifact_hash != artifact.content_hash
+            or completion_entry.source_gold_projection_hash
+            != binding.source_gold_projection_hash
+            or completion_entry.source_alternative_set_hash
+            != binding.source_alternative_set_hash
+            or completion_entry.final_semantic_hash != artifact.final_semantic_hash
+        ):
+            raise ReviewCompletionError(
+                "public reviewed-gold entry differs from its completion lineage"
+            )
+        public_entries.append(
+            PublicReviewedArtifactManifestEntry(
+                blind_projection_id=binding.blind_projection_id,
+                world_id=binding.world_id,
+                query_id=binding.query_id,
+                artifact_file=f"reviewed/{binding.blind_projection_id}.json",
+                artifact_file_sha256=hashlib.sha256(artifact_payload).hexdigest(),
+                artifact_hash=artifact.content_hash,
+                source_gold_projection_hash=binding.source_gold_projection_hash,
+                source_alternative_set_hash=binding.source_alternative_set_hash,
+                source_semantic_hash=binding.source_semantic_hash,
+                final_semantic_hash=artifact.final_semantic_hash,
+                gold_projection_hash=artifact.gold_projection.content_hash,
+                alternative_set_hash=artifact.alternatives.content_hash,
+                amended=artifact.final_semantic_hash != binding.source_semantic_hash,
+            )
+        )
+        ordered_artifacts.append(artifact)
+
+    completion_manifest_payload = (
+        completion.manifest.to_canonical_json().encode("utf-8") + b"\n"
+    )
+    final_seal_payload = completion.final_seal.to_canonical_json().encode("utf-8") + b"\n"
+    manifest = PublicReviewedGoldPublicationManifest(
+        manifest_id=f"public-reviewed-gold-{completion.final_seal.content_hash[:24]}",
+        source_completion_manifest_hash=completion.manifest.content_hash,
+        source_completion_manifest_file_sha256=hashlib.sha256(
+            completion_manifest_payload
+        ).hexdigest(),
+        draft_seal_hash=completion.draft.content_hash,
+        package_hash=completion.package.content_hash,
+        binding_manifest_hash=completion.bindings.content_hash,
+        final_seal_hash=completion.final_seal.content_hash,
+        final_seal_file_sha256=hashlib.sha256(final_seal_payload).hexdigest(),
+        reviewed_artifacts=tuple(public_entries),
+        amendment_count=sum(item.amended for item in public_entries),
+    )
+    return PublicReviewedGoldPublication(
+        manifest=manifest,
+        reviewed_artifacts=tuple(ordered_artifacts),
+        final_seal=completion.final_seal,
+    )
+
+
+def _public_reviewed_gold_payloads(
+    publication: PublicReviewedGoldPublication,
+) -> dict[str, bytes]:
+    artifacts_by_blind = {
+        item.blind_projection_id: item for item in publication.reviewed_artifacts
+    }
+    if len(artifacts_by_blind) != 9:
+        raise ReviewCompletionError("public reviewed-gold payload inventory is incomplete")
+    payloads = {
+        "publication_manifest.json": (
+            publication.manifest.to_canonical_json().encode("utf-8") + b"\n"
+        ),
+        "final_seal.json": publication.final_seal.to_canonical_json().encode("utf-8")
+        + b"\n",
+    }
+    for entry in publication.manifest.reviewed_artifacts:
+        artifact = artifacts_by_blind.get(entry.blind_projection_id)
+        if artifact is None:
+            raise ReviewCompletionError(
+                "public reviewed-gold manifest names an absent reviewed artifact"
+            )
+        payload = artifact.to_canonical_json().encode("utf-8") + b"\n"
+        if (
+            artifact.content_hash != entry.artifact_hash
+            or artifact.gold_projection.content_hash != entry.gold_projection_hash
+            or artifact.alternatives.content_hash != entry.alternative_set_hash
+            or hashlib.sha256(payload).hexdigest() != entry.artifact_file_sha256
+        ):
+            raise ReviewCompletionError(
+                "public reviewed-gold artifact bytes differ from their manifest"
+            )
+        payloads[entry.artifact_file] = payload
+    if (
+        publication.final_seal.content_hash != publication.manifest.final_seal_hash
+        or hashlib.sha256(payloads["final_seal.json"]).hexdigest()
+        != publication.manifest.final_seal_file_sha256
+    ):
+        raise ReviewCompletionError("public reviewed-gold final seal differs from its manifest")
+    return payloads
+
+
+def _scan_public_reviewed_gold_tree(root: Path, payloads: Mapping[str, bytes]) -> None:
+    from story_projection_onto.public_release import PublicEntry, scan_public_entries
+
+    scan_public_entries(
+        root,
+        tuple(
+            PublicEntry(
+                source_relative_path=relative,
+                bundle_relative_path=relative,
+                sha256=hashlib.sha256(payload).hexdigest(),
+                release_class=ReleaseClass.PUBLIC.value,
+            )
+            for relative, payload in sorted(payloads.items())
+        ),
+    )
+
+
+def materialize_public_reviewed_gold(
+    publication: PublicReviewedGoldPublication,
+    output_root: Path = DEFAULT_PUBLIC_REVIEWED_GOLD_ROOT,
+) -> Literal["created", "already_exact"]:
+    """Write an append-only, scanner-validated public finalized-gold tree."""
+
+    output_root = output_root.absolute()
+    _assert_no_symlink(output_root, must_exist=False)
+    payloads = _public_reviewed_gold_payloads(publication)
+    if output_root.exists():
+        if not output_root.is_dir():
+            raise ReviewCompletionError(
+                "public reviewed-gold output exists but is not a directory"
+            )
+        if _existing_files(output_root) != set(payloads):
+            raise ReviewCompletionError(
+                "existing public reviewed-gold tree is partial or unexpected"
+            )
+        for relative, expected in payloads.items():
+            if (output_root / relative).read_bytes() != expected:
+                raise ReviewCompletionError(
+                    f"existing public reviewed-gold artifact drift: {relative}"
+                )
+        _scan_public_reviewed_gold_tree(output_root, payloads)
+        return "already_exact"
+
+    output_root.parent.mkdir(parents=True, exist_ok=True)
+    staging = output_root.parent / (
+        f".{output_root.name}.staging-{publication.manifest.content_hash[:16]}"
+    )
+    if staging.exists() or staging.is_symlink():
+        raise ReviewCompletionError(
+            f"unexpected public reviewed-gold staging path exists: {staging}"
+        )
+    staging.mkdir(mode=0o755)
+    (staging / "reviewed").mkdir(mode=0o755)
+    for relative, payload in sorted(payloads.items()):
+        destination = staging / relative
+        descriptor = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+    _scan_public_reviewed_gold_tree(staging, payloads)
+    os.rename(staging, output_root)
+    directory = os.open(output_root.parent, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(directory)
+    finally:
+        os.close(directory)
+    return "created"
+
+
+def load_public_reviewed_gold_publication(
+    *,
+    completion: ReviewCompletion,
+    output_root: Path = DEFAULT_PUBLIC_REVIEWED_GOLD_ROOT,
+) -> PublicReviewedGoldPublication:
+    """Reproduce a public finalized-gold tree from its restricted completion."""
+
+    output_root = output_root.absolute()
+    _assert_no_symlink(output_root, must_exist=False)
+    if not output_root.is_dir():
+        raise ReviewCompletionError("public reviewed-gold publication is missing")
+    expected = prepare_public_reviewed_gold_publication(completion)
+    payloads = _public_reviewed_gold_payloads(expected)
+    if _existing_files(output_root) != set(payloads):
+        raise ReviewCompletionError(
+            "public reviewed-gold publication inventory is partial or unexpected"
+        )
+    for relative, expected_payload in payloads.items():
+        path = output_root / relative
+        _assert_no_symlink(path, must_exist=True)
+        if path.read_bytes() != expected_payload:
+            raise ReviewCompletionError(
+                f"public reviewed-gold publication drift: {relative}"
+            )
+    _scan_public_reviewed_gold_tree(output_root, payloads)
+    return expected
+
+
 def require_materialized_independent_review_complete(
     *, benchmark_root: Path = DEFAULT_BENCHMARK_ROOT, output_root: Path = DEFAULT_COMPLETION_ROOT
 ) -> None:
@@ -672,14 +989,21 @@ def require_materialized_independent_review_complete(
 __all__ = [
     "DEFAULT_BENCHMARK_ROOT",
     "DEFAULT_COMPLETION_ROOT",
+    "DEFAULT_PUBLIC_REVIEWED_GOLD_ROOT",
     "AmendedProjectionSubmission",
     "IndependentReviewCompletionManifest",
     "MethodologicalAmendmentRequired",
+    "PublicReviewedArtifactManifestEntry",
+    "PublicReviewedGoldPublication",
+    "PublicReviewedGoldPublicationManifest",
     "ReviewAmendmentBundle",
     "ReviewCompletion",
     "ReviewCompletionError",
     "load_completed_review",
+    "load_public_reviewed_gold_publication",
+    "materialize_public_reviewed_gold",
     "materialize_review_completion",
+    "prepare_public_reviewed_gold_publication",
     "prepare_review_completion",
     "require_materialized_independent_review_complete",
 ]

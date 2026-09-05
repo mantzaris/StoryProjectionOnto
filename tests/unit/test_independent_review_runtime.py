@@ -13,7 +13,10 @@ from story_projection_onto.independent_review_runtime import (
     ReviewAmendmentBundle,
     ReviewCompletionError,
     load_completed_review,
+    load_public_reviewed_gold_publication,
+    materialize_public_reviewed_gold,
     materialize_review_completion,
+    prepare_public_reviewed_gold_publication,
     prepare_review_completion,
     require_materialized_independent_review_complete,
 )
@@ -27,6 +30,7 @@ from story_projection_onto.synthetic_benchmark import (
     ReviewAdjudicationItem,
     ReviewDisposition,
     ReviewProjectionBindingManifest,
+    reviewed_artifact_from_original,
     reviewed_semantic_hash,
 )
 
@@ -95,6 +99,7 @@ def _external_records(
     adjudication = ReviewAdjudication(
         package_hash=package.content_hash,
         response_hash=response.content_hash,
+        adjudicator_pseudonym="test-fixture-adjudicator",
         adjudicated_at=response.reviewed_at + timedelta(hours=1),
         items=(
             (
@@ -147,6 +152,36 @@ def test_all_agree_fixture_materializes_idempotently_and_reproduces_seal(
     manifest_text = (output / "completion_manifest.json").read_text()
     assert "test-fixture-external-reviewer" not in manifest_text
     assert "TEST FIXTURE" not in manifest_text
+
+    publication = prepare_public_reviewed_gold_publication(loaded)
+    public_output = tmp_path / "public-reviewed-gold"
+    assert materialize_public_reviewed_gold(publication, public_output) == "created"
+    assert materialize_public_reviewed_gold(publication, public_output) == "already_exact"
+    reproduced = load_public_reviewed_gold_publication(
+        completion=loaded,
+        output_root=public_output,
+    )
+    assert reproduced.manifest.content_hash == publication.manifest.content_hash
+    assert reproduced.final_seal.content_hash == loaded.final_seal.content_hash
+    assert len(reproduced.reviewed_artifacts) == 9
+    published_paths = {
+        path.relative_to(public_output).as_posix()
+        for path in public_output.rglob("*")
+    }
+    assert published_paths == {
+        "final_seal.json",
+        "publication_manifest.json",
+        "reviewed",
+        *{
+            f"reviewed/{item.blind_projection_id}.json"
+            for item in reproduced.reviewed_artifacts
+        },
+    }
+    public_bytes = b"".join(
+        path.read_bytes() for path in public_output.rglob("*") if path.is_file()
+    )
+    assert b"test-fixture-external-reviewer" not in public_bytes
+    assert b"TEST FIXTURE" not in public_bytes
 
 
 def test_disagreement_retain_preserves_sealed_semantics(tmp_path: Path) -> None:
@@ -218,6 +253,44 @@ def test_amendment_requires_explicit_reproducible_semantics(tmp_path: Path) -> N
     )
     assert completion.reviewed_artifacts[0].final_semantic_hash == semantic_hash
     assert semantic_hash != binding.source_semantic_hash
+
+    restricted_output = tmp_path / "restricted-completion"
+    materialize_review_completion(completion, restricted_output)
+    loaded = load_completed_review(
+        benchmark_root=BENCHMARK,
+        output_root=restricted_output,
+    )
+    publication = prepare_public_reviewed_gold_publication(loaded)
+    assert publication.manifest.amendment_count == 1
+    amended_entry = next(
+        item
+        for item in publication.manifest.reviewed_artifacts
+        if item.blind_projection_id == binding.blind_projection_id
+    )
+    assert amended_entry.amended is True
+    assert amended_entry.final_semantic_hash == semantic_hash
+    public_output = tmp_path / "public-reviewed-gold"
+    materialize_public_reviewed_gold(publication, public_output)
+    load_public_reviewed_gold_publication(completion=loaded, output_root=public_output)
+
+    stale_original = reviewed_artifact_from_original(
+        binding=binding,
+        package=package,
+        response=response,
+        adjudication=adjudication,
+        gold=GoldContextualProjection.model_validate(gold_raw),
+        alternatives=GoldAlternativeSet.model_validate(alt_raw),
+    )
+    assert stale_original.final_semantic_hash == binding.source_semantic_hash
+    (public_output / amended_entry.artifact_file).write_text(
+        stale_original.to_canonical_json() + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ReviewCompletionError, match="publication drift"):
+        load_public_reviewed_gold_publication(
+            completion=loaded,
+            output_root=public_output,
+        )
 
 
 def test_exclude_requires_methodological_amendment(tmp_path: Path) -> None:

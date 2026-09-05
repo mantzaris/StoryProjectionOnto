@@ -49,11 +49,16 @@ from story_projection_onto.store import (
     ArtifactStore,
     AttemptKind,
     BlobStore,
+    CommitmentCheckStatus,
+    EvidenceSupportStatus,
     GpuEventKind,
     Ledger,
     ModelBackend,
     ReleaseClass,
+    SemanticAssessmentScope,
     StoreError,
+    TemporalValidationStatus,
+    ValidationStatus,
 )
 
 DEFAULT_HELD_OUT_RUNTIME_BINDING_PATH = Path(
@@ -384,6 +389,14 @@ def capture_development_predecessor_ledger(
             or any(
                 item.job_id != model_call.job_id
                 or item.attempt_id != model_call.attempt_id
+                or item.validation_status is not ValidationStatus.ACCEPTED
+                or item.semantic_assessment_scope
+                is not SemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED
+                or item.evidence_support_status
+                is not EvidenceSupportStatus.NOT_APPLICABLE
+                or item.temporal_status is not TemporalValidationStatus.NOT_APPLICABLE
+                or item.commitment_status
+                is not CommitmentCheckStatus.NOT_APPLICABLE
                 for item in validations
             )
         ):

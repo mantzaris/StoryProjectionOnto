@@ -24,7 +24,6 @@ from story_projection_onto.conditions.base import (
 )
 from story_projection_onto.contracts import (
     BudgetAccounting,
-    CommitmentCheckStatus,
     ConditionName,
     ConstructionCapabilities,
     ConstructionOperator,
@@ -32,9 +31,9 @@ from story_projection_onto.contracts import (
     Entity,
     Event,
     EvidenceRecord,
-    EvidenceSupportStatus,
     InstanceGraph,
     OntologyDecision,
+    OntologyDraft,
     OntologyProjection,
     OutputBudgets,
     PreconstructionRequest,
@@ -42,16 +41,20 @@ from story_projection_onto.contracts import (
     QualifiedAssertion,
     RunOutcome,
     RuntimeIdentifiers,
-    TemporalDeterminationStatus,
+    SpoilerHorizon,
     TemporalKind,
     UpperOntology,
     ValidatedGeneration,
-    ValidationRecord,
-    ValidationStatus,
     canonical_sha256,
+    projection_validation_target_hash,
+    runtime_structural_acceptance_record,
     to_model_visible_evidence,
 )
-from story_projection_onto.validate import validate_draft_structure, validate_projection_lineage
+from story_projection_onto.validate import (
+    close_projection_dependencies,
+    validate_draft_structure,
+    validate_projection_lineage,
+)
 
 _TOKEN = re.compile(r"[A-Za-z][A-Za-z'-]*")
 
@@ -65,6 +68,7 @@ def build_c1_preconstruction_request(
     *,
     snapshot_hash: str,
     snapshot_sealed_at: datetime,
+    sealed_horizon: SpoilerHorizon,
     ordered_snapshot_evidence_ids: Sequence[str],
     evidence: Sequence[EvidenceRecord],
     upper_ontology: UpperOntology,
@@ -81,6 +85,7 @@ def build_c1_preconstruction_request(
     return PreconstructionRequest(
         request_id=_identifier("c1-pre-request", snapshot_hash, runtime.content_hash),
         snapshot_hash=snapshot_hash,
+        sealed_horizon=sealed_horizon,
         evidence=tuple(to_model_visible_evidence(item) for item in evidence),
         upper_ontology=upper_ontology,
         budgets=preconstruction_budgets,
@@ -99,6 +104,9 @@ def seal_c1_preconstruction(
 ) -> ConditionPreparation:
     """Seal exactly one complete C1 graph for reuse across its world's contexts."""
 
+    sealed_horizon = request.sealed_horizon
+    if sealed_horizon is None:
+        raise ConditionIntegrityError("live C1 sealing requires its trusted sealed horizon")
     if generation.condition is not ConditionName.C1_LLM_PRE:
         raise ConditionIntegrityError("C1 sealer received another condition's generation")
     if generation.request_hash != request.content_hash:
@@ -119,6 +127,7 @@ def seal_c1_preconstruction(
         draft=draft,
         upper_ontology=request.upper_ontology,
         evidence=request.evidence,
+        horizon=sealed_horizon,
         budgets=request.budgets,
         capabilities=request.capabilities,
     )
@@ -203,7 +212,6 @@ def project_sealed_c1(
     entities = {item.entity_id: item for item in graph.entities}
     events = {item.event_id: item for item in graph.events}
     nodes: dict[str, Entity | Event] = {**entities, **events}
-    assertions = {item.assertion_id: item for item in graph.assertions}
     query_terms = _terms(
         " ".join((inputs.context.wording, inputs.context.lens, inputs.context.target))
     )
@@ -232,23 +240,11 @@ def project_sealed_c1(
     chosen_nodes: set[str] = set()
 
     def closure(assertion_id: str) -> tuple[set[str], set[str]]:
-        needed_assertions = {assertion_id}
-        needed_nodes: set[str] = set()
-        changed = True
-        while changed:
-            changed = False
-            for needed_id in tuple(needed_assertions):
-                for node_id in _endpoint_ids(assertions[needed_id]):
-                    if node_id not in nodes:
-                        continue
-                    if node_id not in needed_nodes:
-                        needed_nodes.add(node_id)
-                        changed = True
-                    for support_id in nodes[node_id].description_assertion_ids:
-                        if support_id in assertions and support_id not in needed_assertions:
-                            needed_assertions.add(support_id)
-                            changed = True
-        return needed_assertions, needed_nodes
+        required = close_projection_dependencies(
+            graph,
+            seed_assertion_ids=(assertion_id,),
+        )
+        return set(required.assertion_ids), set(required.node_ids)
 
     while ordered:
         ordered.sort(
@@ -267,20 +263,24 @@ def project_sealed_c1(
             continue
         chosen_assertions, chosen_nodes = next_assertions, next_nodes
 
+    final_closure = close_projection_dependencies(
+        graph,
+        seed_assertion_ids=chosen_assertions,
+    )
+    if (
+        final_closure.assertion_ids != frozenset(chosen_assertions)
+        or final_closure.node_ids != frozenset(chosen_nodes)
+    ):
+        raise ConditionIntegrityError("C1 dependency closure changed after selection")
     selected_assertions = tuple(
         item for item in graph.assertions if item.assertion_id in chosen_assertions
     )
     selected_entities = tuple(item for item in graph.entities if item.entity_id in chosen_nodes)
     selected_events = tuple(item for item in graph.events if item.event_id in chosen_nodes)
-    selected_proposition_ids = {
-        item.proposition_content_id
-        for item in selected_assertions
-        if item.proposition_content_id is not None
-    }
     selected_propositions: tuple[PropositionContent, ...] = tuple(
         item
         for item in graph.proposition_contents
-        if item.proposition_content_id in selected_proposition_ids
+        if item.proposition_content_id in final_closure.proposition_content_ids
     )
     selected_ids = {
         *(item.entity_id for item in selected_entities),
@@ -315,17 +315,54 @@ def project_sealed_c1(
         input_tokens=0,
         output_tokens=0,
     )
+    instance_graph = InstanceGraph(
+        entities=selected_entities,
+        events=selected_events,
+        proposition_contents=selected_propositions,
+        assertions=selected_assertions,
+    )
+    final_draft = OntologyDraft(
+        contextual_interpretation=(
+            "Deterministic selection from the sealed query-blind C1 ontology."
+        ),
+        local_schema=preontology.draft.local_schema,
+        instance_graph=instance_graph,
+        decisions=(decision,),
+        budget_accounting=accounting,
+    )
+    structural_report = validate_draft_structure(
+        draft=final_draft,
+        upper_ontology=preontology.upper_ontology,
+        evidence=tuple(to_model_visible_evidence(item) for item in inputs.packet.evidence),
+        horizon=inputs.snapshot.horizon,
+        budgets=inputs.context.budgets,
+        capabilities=ConstructionCapabilities.fixed_selection(),
+    )
+    if not structural_report.accepted:
+        raise ConditionIntegrityError(
+            "C1 selected projection failed deterministic structural validation"
+        )
     projection_id = _identifier(
         "c1-projection", preontology.content_hash, inputs.context.content_hash
     )
-    validation = ValidationRecord(
-        validation_id=_identifier("c1-validation", projection_id),
-        target_id=projection_id,
-        validation_status=ValidationStatus.ACCEPTED,
-        evidence_support_status=EvidenceSupportStatus.SUPPORTED,
-        temporal_status=TemporalDeterminationStatus.VALID,
-        commitment_status=CommitmentCheckStatus.VALID,
+    validation_target = projection_validation_target_hash(
+        condition=ConditionName.C1_LLM_PRE,
+        snapshot_hash=inputs.snapshot.content_hash,
+        packet_hash=inputs.packet.content_hash,
+        context_hash=inputs.context.content_hash,
+        upper_ontology=preontology.upper_ontology,
+        local_schema=preontology.draft.local_schema,
+        instance_graph=instance_graph,
+        decisions=(decision,),
+        omissions=(),
+        budget_accounting=accounting,
+        budgets=inputs.context.budgets,
+    )
+    validation = runtime_structural_acceptance_record(
+        validation_id=_identifier("c1-validation", projection_id, validation_target),
+        target_id=validation_target,
         validated_at=inputs.query_processing_started_at,
+        diagnostics=(f"structural_report_sha256:{structural_report.content_hash}",),
     )
     generation = preontology.validated_generation
     if generation is None:
@@ -343,12 +380,7 @@ def project_sealed_c1(
         validation_bundle_hash=canonical_sha256((validation,)),
         upper_ontology=preontology.upper_ontology,
         local_schema=preontology.draft.local_schema,
-        instance_graph=InstanceGraph(
-            entities=selected_entities,
-            events=selected_events,
-            proposition_contents=selected_propositions,
-            assertions=selected_assertions,
-        ),
+        instance_graph=instance_graph,
         decisions=(decision,),
         validation_records=(validation,),
         budget_accounting=accounting,

@@ -27,6 +27,27 @@ materialized selected-model freeze. These attestations are evidence of work
 performed elsewhere; the compiler never manufactures or silently marks a gate
 passed.
 
+The eight gate files must implement the typed semantic records in
+`case_study_runtime.py`. Before attestation, run
+`scripts/prepare_case_study_run.py semantic-admission-bundle`; it rejects drift
+among the held-out closure, benchmark, output inventory, selected model, metric
+tables, cumulative ledger, GPU inventory/time total, storage snapshot, and
+release scan. The attestation binds this bundle's canonical hash, so bare hashes
+plus asserted pass booleans cannot admit the narrative phase.
+The command also requires `--evidence-root`, the live `--ledger`, and a
+restricted `--native-artifact-map` naming the exact role-to-path inventory.
+Compilation replays the native benchmark, held-out journal, analysis/review,
+firewall, feedback, storage, GPU, and release artifacts; placeholder hashes fail.
+The exact native map also includes the completed descriptive community rubric under
+the roles `blinded_community_rubric_template`,
+`blinded_community_source_manifest`, `blinded_community_package`,
+`blinded_community_rejoin`, `blinded_community_completion`,
+`blinded_community_finalization`, and `blinded_community_table`. The source,
+review package, and final bundle must retain their content-addressed canonical
+layouts. Admission replays all producer bytes, the 12 condition-blind panels, the
+four-condition paired design, all three registered Leiden resolutions, and the
+C0-unseeded/LLM-seed-1 rule before accepting the narrative phase.
+
 `configs/study/model.json` intentionally remains the original primary-model
 runtime template because the common launcher validates that provenance even
 when its allowlisted `model_candidate=fallback` switch is active. It is not the
@@ -55,6 +76,26 @@ projections, the FTS index, packets, and paths remain restricted. Public output
 is limited to hashes/counts and separately reviewed high-level paraphrases with
 opaque evidence identifiers.
 
+After all 25 ITT outputs terminate, a named human must populate the typed
+`CaseStudyCompletedReview`. Validation requires all five dimensions for C0, C1,
+and C2 in each of eight bounded contexts, detailed count-based matching in the
+four preregistered contexts, and exact output hashes. Optional second-reader
+disagreement is retained only for declared paper examples. Then
+`scripts/compile_case_study_analysis.py` emits the canonical `novel_case` CSV:
+descriptive scores/counts only, with the full-index query explicitly noncausal.
+It cannot run without the lawful index, terminal model outputs, and real human
+judgments, and it exports neither prose nor reconstructive offsets.
+The CSV uses only a restricted `CaseStudyPublicAliasManifest` mechanically
+derived from the identifiers sealed in the pre-query execution plan. The
+mapping is sorted and versioned, and therefore offers no post-output alias
+selection discretion.
+It is written to the restricted target first and remains
+`restricted_pending_canaries` unless an exact protected-prose canary manifest
+is supplied, its corpus hash and every canary are verified against the exact
+restricted source named by the sealed index manifest, and the public payload
+passes the release scanner. Alias assignment is the deterministic ordering of
+the plan's private identifiers, so it cannot be relabeled after outputs exist.
+
 The executable controller boundary, concrete fail-closed GPU adapter/factory,
 cumulative-ledger rule, one-load lifecycle, and still-required lawful restricted
 run inputs are documented in `docs/PHASE6_EXECUTION.md`.
@@ -63,8 +104,15 @@ Once the eight admitted pre-case gate files exist,
 `scripts/prepare_case_study_run.py stage-admission-evidence` copies their validated
 JSON values into the same cumulative restricted CAS and writes a path-free typed
 bundle/reference under the restricted root. This staging step performs no GPU work.
-The ledger SHA supplied to the production controller is measured only after staging.
-The cumulative ledger, CAS, and runtime directory must all be real, non-symlinked
-descendants of that explicit restricted root. Production activation and shutdown
-intents are path-free immutable records; pointer histories and the service journal
-make the one-load lifecycle recoverable across interruption boundaries.
+It requires the compiled plan and an explicit restricted transition directory. An
+H0 snapshot captures the complete checkpointed predecessor ledger and shared-CAS
+inventory before any write; an H1 receipt then proves an exact nine-payload delta
+(the eight gates plus their bundle), with no mutation of predecessor rows or blobs.
+Execution replays semantic admission against H0 and requires the live ledger to
+equal H1. The shared CAS must be a real directory below the repository's ignored
+`artifacts/blobs/` namespace; the ledger, transition records, and runtime directory
+must be real, non-symlinked descendants of the explicit restricted root. A
+process-scoped runtime lock rejects duplicate controllers before either can open the
+ledger or construct a model service. Production activation and shutdown intents are
+path-free immutable records; pointer histories and the service journal make the
+one-load lifecycle recoverable across interruption boundaries.

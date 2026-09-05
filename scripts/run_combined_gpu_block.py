@@ -303,6 +303,7 @@ def main(argv: list[str] | None = None) -> int:
             provider=bundle.provider,
             lifecycle_owner=bundle.lifecycle_owner,
             artifacts=bundle.artifacts,
+            phase5_storage_preflight=bundle.phase5_storage_preflight,
             output_root=output_root,
             public_summary_path=public_summary,
         ).run()

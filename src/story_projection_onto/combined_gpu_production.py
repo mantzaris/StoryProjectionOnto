@@ -74,7 +74,9 @@ from story_projection_onto.phase5_execution import (
     PrimaryHeldOutResultsGate,
     SQLiteFeedbackLedgerVerifier,
     execute_phase5,
+    materialize_phase5_cpu_ledger,
     validate_phase5_inputs,
+    validate_phase5_ledger_preflight,
 )
 from story_projection_onto.phase5_production import (
     Phase5OwnedServiceIdentity,
@@ -2769,6 +2771,7 @@ class CombinedGpuController:
         provider: CombinedInputProvider,
         lifecycle_owner: CombinedLifecycleOwner,
         artifacts: ArtifactStore,
+        phase5_storage_preflight: Callable[[], None],
         output_root: Path,
         public_summary_path: Path | None = None,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
@@ -2784,6 +2787,7 @@ class CombinedGpuController:
         self.provider = provider
         self.lifecycle_owner = lifecycle_owner
         self.artifacts = artifacts
+        self.phase5_storage_preflight = phase5_storage_preflight
         repository = _repository_from_frozen_output(configuration, output_root)
         restricted_root = repository / "artifacts" / "restricted"
         public_root = repository / "artifacts" / "public"
@@ -2821,7 +2825,7 @@ class CombinedGpuController:
         self.clock = clock
 
     def _validate_gate(self) -> tuple[CombinedCallSpec, ...]:
-        return validate_combined_execution_inputs(
+        phase5_calls = validate_combined_execution_inputs(
             configuration=self.configuration,
             manifest=self.manifest,
             runtime=self.runtime,
@@ -2830,6 +2834,30 @@ class CombinedGpuController:
             phase5_protocol=self.phase5_protocol,
             phase5_prerequisites=self.phase5_prerequisites,
         )
+        # This execution owns a distinct append-only job namespace.  Register
+        # its exact frozen protocol/code/configuration identity before any job
+        # link or Phase 5 preflight; never alias combined jobs into the held-out
+        # predecessor study.
+        self.artifacts.ledger.register_study(
+            study_id=self.run_id,
+            protocol_hash=self.manifest.content_hash,
+            code_manifest_hash=self.runtime.source_tree_association_hash,
+            configuration_hash=self.configuration.content_hash,
+            release_class=StoreReleaseClass.RESTRICTED,
+            created_at=self.manifest.created_at,
+        )
+        materialize_phase5_cpu_ledger(
+            inputs=self.phase5_inputs,
+            protocol=self.phase5_protocol,
+            artifacts=self.artifacts,
+            ledger_study_id=self.run_id,
+        )
+        validate_phase5_ledger_preflight(
+            inputs=self.phase5_inputs,
+            artifacts=self.artifacts,
+            ledger_study_id=self.run_id,
+        )
+        return phase5_calls
 
     def _activation_slot(self) -> tuple[CombinedActivationSlot, bool]:
         path = Path("activation_slot.json")
@@ -3216,6 +3244,7 @@ class CombinedGpuController:
         if self.journal.exists(phase5_path):
             phase5_index = self.journal.load(phase5_path, Phase5JournalIndex)
         else:
+            self.phase5_storage_preflight()
             phase5_view = _CombinedPhase5ServiceView(
                 service=service,
                 identity=identity,
@@ -3240,6 +3269,8 @@ class CombinedGpuController:
                 ledger_verifier=SQLiteFeedbackLedgerVerifier(self.artifacts.ledger.path),
                 output_root=self.journal.root / "phase5",
                 completed_at=self.clock,
+                artifacts=self.artifacts,
+                ledger_study_id=self.run_id,
             )
             self.journal.append(phase5_path, phase5_index)
         phase5_results = _validate_phase5_claims(

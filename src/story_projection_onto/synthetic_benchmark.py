@@ -1802,6 +1802,10 @@ def _make_evidence(
         evidence_id=evidence_id,
         extraction_method=f"synthetic-renderer/{_opaque('style', spec.surface_renderer)}",
         locator=f"synthetic:{_opaque('loc', evidence_id)}",
+        # A synthetic passage is its own immutable source artifact.  Binding the
+        # exact rendered UTF-8 bytes supplies a real provenance ceiling without
+        # importing scorer-only facts or query-derived semantics.
+        source_artifact_hash=_sha_text(text),
         confidence=1.0,
     )
     return EvidenceRecord(
@@ -2866,7 +2870,7 @@ def _fact_assertion(
         narrative_commitment=commitment,
         confidence=(0.72 if fact.conflict_group else 0.97),
         evidence_ids=evidence_ids,
-        provenance=tuple(evidence_by_id[item].provenance for item in evidence_ids),
+        provenance=_frozen_scorer_provenance(evidence_ids, evidence_by_id),
         contextual_relevance=(0.95 if active and lens_relevant else 0.1),
         why_matters=(
             "This supported assertion bears on the requested answer."
@@ -2876,6 +2880,30 @@ def _fact_assertion(
         why_matters_evidence_ids=evidence_ids,
     )
     return assertion, relation
+
+
+def _frozen_scorer_provenance(
+    evidence_ids: Sequence[str],
+    evidence_by_id: Mapping[str, EvidenceRecord],
+) -> tuple[ProvenanceReference, ...]:
+    """Keep scorer-only gold bytes stable while evidence lineage is hardened.
+
+    The query-blind index now carries the exact hash of each rendered synthetic
+    passage.  That administrative source binding belongs in neutral and
+    model-visible evidence artifacts; copying it into preregistered gold
+    assertions would silently rewrite the scorer after its freeze.  Gold remains
+    bound to the same exact evidence IDs, while runtime grounding uses the
+    strengthened evidence record.
+    """
+
+    frozen: list[ProvenanceReference] = []
+    for evidence_id in evidence_ids:
+        payload = evidence_by_id[evidence_id].provenance.model_dump(
+            mode="python",
+            exclude={"content_hash", "source_artifact_hash"},
+        )
+        frozen.append(ProvenanceReference(**payload, source_artifact_hash=None))
+    return tuple(frozen)
 
 
 def _rebuild_gold_with_delta(
@@ -3009,7 +3037,7 @@ def compile_gold_projection(
                 narrative_commitment=NarrativeCommitment.WORLD_COMMITTED,
                 confidence=0.98,
                 evidence_ids=evidence_ids,
-                provenance=tuple(evidence_by_id[item].provenance for item in evidence_ids),
+                provenance=_frozen_scorer_provenance(evidence_ids, evidence_by_id),
                 contextual_relevance=(
                     0.97
                     if active and effective_lens is LensFamily.CAUSAL_CONSEQUENCE
@@ -3089,7 +3117,7 @@ def compile_gold_projection(
                 narrative_commitment=NarrativeCommitment.WORLD_COMMITTED,
                 confidence=0.99,
                 evidence_ids=evidence_ids,
-                provenance=tuple(evidence_by_id[item].provenance for item in evidence_ids),
+                provenance=_frozen_scorer_provenance(evidence_ids, evidence_by_id),
                 contextual_relevance=(
                     0.96
                     if active and effective_lens is LensFamily.MOVEMENT_TIME
@@ -3842,6 +3870,7 @@ class ReviewAdjudicationItem(ImmutableRecord):
 class ReviewAdjudication(ImmutableRecord):
     package_hash: Sha256Digest
     response_hash: Sha256Digest
+    adjudicator_pseudonym: Identifier
     adjudicated_at: AwareDatetime
     items: tuple[ReviewAdjudicationItem, ...]
 
@@ -3986,6 +4015,10 @@ def validate_adjudication(
     adjudication: ReviewAdjudication,
 ) -> None:
     response_items = bind_review_response(package, response)
+    if adjudication.adjudicator_pseudonym.casefold() == response.reviewer_pseudonym.casefold():
+        raise ReviewLifecycleError(
+            "adjudicator pseudonym must identify a person distinct from the external reviewer"
+        )
     if (
         adjudication.package_hash != package.content_hash
         or adjudication.response_hash != response.content_hash
@@ -4864,6 +4897,13 @@ def _semantic_leaf_signatures(value: Any, path: str = "root") -> frozenset[str]:
         for key in sorted(value):
             if key in _REVIEW_WORKFLOW_FIELDS or key in {"compiled_at", "created_at"}:
                 continue
+            if key == "source_artifact_hash":
+                # Passage-byte lineage was added after the mutation oracle was
+                # frozen.  Normalize this administrative value to its historical
+                # null representation so the oracle continues to describe only
+                # the registered semantic mutation, including added records.
+                leaves.update(_semantic_leaf_signatures(None, f"{path}.{key}"))
+                continue
             leaves.update(_semantic_leaf_signatures(value[key], f"{path}.{key}"))
         return frozenset(leaves)
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
@@ -4916,6 +4956,42 @@ def _regenerated_bundle_payload(
         "answers": tuple(item.answer_signature for item in products),
         "rare_support_paths": tuple(item.rare_support_path for item in products),
     }
+
+
+def _registered_mutation_bundle_hash(bundle: Mapping[str, Any]) -> str:
+    """Hash the preregistered semantic bundle using its frozen evidence view.
+
+    Mutation proofs predate the administrative passage-byte binding now carried
+    by neutral evidence.  Reconstructing only each evidence provenance/record
+    content hash with that field set to its historical null value prevents a
+    provenance hardening correction from masquerading as a semantic mutation.
+    """
+
+    evidence = bundle.get("evidence")
+    if not isinstance(evidence, Sequence):
+        raise TypeError("mutation bundle evidence must be a sequence")
+    frozen_evidence: list[EvidenceRecord] = []
+    for record in evidence:
+        if not isinstance(record, EvidenceRecord):
+            raise TypeError("mutation bundle contains a non-evidence record")
+        provenance_payload = record.provenance.model_dump(
+            mode="python",
+            exclude={"content_hash", "source_artifact_hash"},
+        )
+        frozen_provenance = ProvenanceReference(
+            **provenance_payload,
+            source_artifact_hash=None,
+        )
+        record_payload = record.model_dump(
+            mode="python",
+            exclude={"content_hash", "provenance"},
+        )
+        frozen_evidence.append(
+            EvidenceRecord(**record_payload, provenance=frozen_provenance)
+        )
+    frozen_bundle = dict(bundle)
+    frozen_bundle["evidence"] = tuple(frozen_evidence)
+    return canonical_sha256(frozen_bundle)
 
 
 def build_mutation_manifest(
@@ -5061,8 +5137,12 @@ def build_mutation_manifest(
                     impact_kind=scorer.world_spec.rare_impact_kind,
                     before_answer_hash=before.content_hash,
                     after_answer_hash=after.content_hash,
-                    before_regenerated_bundle_hash=canonical_sha256(before_bundle),
-                    after_regenerated_bundle_hash=canonical_sha256(after_bundle),
+                    before_regenerated_bundle_hash=_registered_mutation_bundle_hash(
+                        before_bundle
+                    ),
+                    after_regenerated_bundle_hash=_registered_mutation_bundle_hash(
+                        after_bundle
+                    ),
                     changed_components=changed_components,
                 )
             )

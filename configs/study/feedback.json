@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "protocol_id": "phase5-feedback-v1",
-  "benchmark_draft_seal_hash": "0eab7ee81dca99c74681ff991b28c9aa8f9c91986055683e8e20f4eb4947c001",
+  "benchmark_draft_seal_hash": "01c6f32cb584cd127fb3184b2fa24e505a403cdb3732204f69e8e5340056d244",
   "selection_rule": "Before condition output inspection, select two scripted contexts per difficulty and one trace context per difficulty from distinct held-out worlds; scripts are balanced three REFINE_CONTEXT and three REQUEST_MERGE_SPLIT actions.",
   "seed_manifest_hash": "686e53aba40973b053bd6acee64367afeeffa6c829eb6ae752b695b11bdfc1ca",
   "llm_seed_entry_hash": "67cc826bab3eb3f69428ca58ca65b1a5c98d16e32dfbd7a83664167617f22a9f",

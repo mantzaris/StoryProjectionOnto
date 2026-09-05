@@ -24,6 +24,7 @@ def parser() -> argparse.ArgumentParser:
         )
     )
     command.add_argument("--source-manifest", type=Path, required=True)
+    command.add_argument("--script-commitment", type=Path, required=True)
     command.add_argument("--primary-results-gate", type=Path, required=True)
     command.add_argument("--ledger", type=Path, required=True)
     command.add_argument("--artifact-root", type=Path, required=True)
@@ -65,6 +66,7 @@ def main(argv: list[str] | None = None) -> int:
         receipt = materialize_phase5_inputs_to_directory(
             source=source,
             protocol=protocol,
+            script_commitment_path=options.script_commitment,
             primary_results_gate_path=options.primary_results_gate,
             benchmark_root=options.benchmark_root,
             review_completion_root=options.review_completion_root,

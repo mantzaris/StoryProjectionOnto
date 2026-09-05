@@ -21,9 +21,11 @@ from story_projection_onto.case_study_execution import (
     CaseGpuCallAuditReceipt,
     CaseStudyAdmissionError,
     CaseStudyProductionController,
+    PreparedCaseC1Requests,
     _parse_record,
 )
 from story_projection_onto.case_study_gpu import (
+    CaseGpuAdapterError,
     CaseGpuShutdownReceipt,
     ProductionCaseStudyGpuAdapter,
     build_production_case_study_gpu_adapter,
@@ -38,6 +40,7 @@ from story_projection_onto.case_study_runtime import (
 from story_projection_onto.contracts import (
     AbstractionLevel,
     ConditionName,
+    PreconstructionRequest,
     RunOutcome,
     canonical_json,
     canonical_sha256,
@@ -434,6 +437,7 @@ def _setup(tmp_path: Path) -> tuple[Any, ...]:
         repository=repository,
         state_pointer_path=fixture.restricted_root / "state/gpu.json",
         model_manifest_hash=model_manifest_hash,
+        restricted_index_manifest=loaded.manifest,
         process_start_ticks=lambda pid: 77 if pid == 4242 else 0,
         clock=clock,
     )
@@ -588,8 +592,14 @@ def test_production_adapter_runs_real_guided_4_8_1_and_one_repair(
     source_sentence = (
         b"An invented amber courier crosses a painted bridge in this artificial fixture."
     )
+    protected_artifacts = []
     for path in (fixture.restricted_root / "blobs").rglob("*.jsonl.gz"):
-        assert source_sentence not in gzip.decompress(path.read_bytes())
+        if source_sentence not in gzip.decompress(path.read_bytes()):
+            continue
+        artifact = ledger.get_artifact(path.name.removesuffix(".jsonl.gz"))
+        assert artifact.release_class is ReleaseClass.RESTRICTED
+        protected_artifacts.append(artifact.content_hash)
+    assert protected_artifacts
 
     replayed = controller.run(admission_reference)
     assert replayed.status.complete
@@ -706,6 +716,85 @@ def test_terminal_active_call_is_reconstructed_without_second_inference(
     assert adapter._state().active_call_id is None
     adapter.shutdown()
     assert service.shutdown_count == 1
+
+
+def test_case_c1_resume_rejects_legacy_request_without_horizon_before_generation(
+    tmp_path: Path,
+) -> None:
+    (
+        fixture,
+        loaded,
+        plan,
+        admission,
+        _ledger,
+        artifacts,
+        repository,
+        service,
+        adapter,
+        execution_module,
+        clock,
+    ) = _setup(tmp_path)
+    admission_reference = _admission_reference(admission, artifacts, clock)
+    controller = CaseStudyProductionController(
+        root=ROOT,
+        plan=plan,
+        loaded=loaded,
+        admission=admission,
+        repository=repository,
+        ledger=artifacts.ledger,
+        artifacts=artifacts,
+        classical=execution_module._FixtureClassicalAdapter(plan),
+        gpu=adapter,
+        token_counter=lambda value: len(value.split()),
+        service_checkpoint_path=fixture.restricted_root / "state/service.json",
+        reveal_waiter=clock.advance_past,
+        clock=clock,
+    )
+    controller._materialize_bounded_packets(repository.initialize(admission_reference))
+    prepared = adapter.preflight(plan=plan, bounded_packets=controller._bounded)
+    assert adapter._prepared is not None
+    call = plan.gpu_call_slots[0]
+    semantic = adapter._prepared.semantic_requests[call.call_id]
+    assert isinstance(semantic, PreconstructionRequest)
+    legacy = PreconstructionRequest.model_validate(
+        semantic.model_dump(
+            mode="python",
+            exclude={"content_hash", "sealed_horizon"},
+        )
+    )
+    requests = dict(adapter._prepared.semantic_requests)
+    requests[call.call_id] = legacy
+    adapter._prepared = PreparedCaseC1Requests(
+        receipt=prepared,
+        receipt_reference=adapter._prepared.receipt_reference,
+        semantic_requests=requests,
+        guided_requests=adapter._prepared.guided_requests,
+    )
+    adapter.start_once(
+        execution_id=plan.execution_id,
+        remaining_required_seconds=float(
+            sum(item.watchdog_seconds for item in plan.gpu_call_slots) + 240
+        ),
+    )
+    window = plan.windows[0]
+    protected_packet = controller._bounded[window.window_id]
+    envelope = CaseC1RequestEnvelope(
+        execution_plan_hash=plan.content_hash,
+        call_slot_hash=call.content_hash,
+        evidence_binding_hash=window.evidence_binding_hash,
+        snapshot_hash=protected_packet.snapshot_assembly.snapshot.content_hash,
+        packet_hash=protected_packet.packet.content_hash,
+    )
+
+    with pytest.raises(CaseGpuAdapterError, match="trusted sealed horizon"):
+        adapter.preconstruct_c1(
+            call=call,
+            envelope=envelope,
+            protected_packet=protected_packet,
+        )
+
+    assert service.generate_count == 0
+    adapter.shutdown()
 
 
 def test_activation_intent_recovers_live_lease_before_identity_or_checkpoint(

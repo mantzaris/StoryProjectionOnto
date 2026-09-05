@@ -35,6 +35,7 @@ from story_projection_onto.store import (
     ReleaseClass,
     ReleaseViolationError,
     RetryClass,
+    SemanticAssessmentScope,
     StorageBudgetExceeded,
     StoragePreflight,
     TemporalValidationStatus,
@@ -95,6 +96,192 @@ def test_job_state_is_append_only_strict_and_resumable(ledger: Ledger) -> None:
 
     with pytest.raises(DuplicateConflictError):
         ledger.create_or_resume_job(identity, release_class=ReleaseClass.RESTRICTED)
+
+
+@pytest.mark.parametrize(
+    "condition",
+    ["C2", "A-FixedSelect", "A-NoContext", "feedback"],
+)
+def test_only_typed_query_blind_prebuild_can_skip_query_reveal(
+    ledger: Ledger, condition: str
+) -> None:
+    job = ledger.create_or_resume_job(
+        {
+            "condition": condition,
+            "lifecycle_kind": "query_time_generation",
+            "run": f"query-time-{condition}",
+        },
+        release_class=ReleaseClass.PUBLIC,
+        created_at=T0,
+    )
+    ledger.transition_job(job.job_id, JobState.PREQUERY_SEALED, occurred_at=T1)
+    with pytest.raises(InvalidTransitionError, match="query-blind prebuild"):
+        ledger.transition_job(job.job_id, JobState.GENERATED, occurred_at=T2)
+
+
+def test_query_blind_prebuild_branch_and_lifecycle_replay_are_append_only(
+    ledger: Ledger,
+) -> None:
+    job = ledger.create_or_resume_job(
+        {
+            "condition": "C1",
+            "lifecycle_kind": "query_blind_prebuild",
+            "run": "query-blind-c1",
+        },
+        release_class=ReleaseClass.PUBLIC,
+        created_at=T0,
+    )
+    first = ledger.advance_job_lifecycle(
+        job.job_id,
+        (
+            (JobState.PREQUERY_SEALED, T1),
+            (JobState.GENERATED, T2),
+            (JobState.VALIDATED, T3),
+        ),
+    )
+    replay = ledger.advance_job_lifecycle(
+        job.job_id,
+        (
+            (JobState.PREQUERY_SEALED, "2030-01-01T00:00:00Z"),
+            (JobState.GENERATED, "2030-01-01T00:00:01Z"),
+        ),
+    )
+    assert replay == first
+    assert [item.to_state for item in replay] == [
+        JobState.PLANNED,
+        JobState.PREQUERY_SEALED,
+        JobState.GENERATED,
+        JobState.VALIDATED,
+    ]
+
+
+def test_only_exact_frozen_v3_failure_can_use_legacy_query_blind_retry_branch(
+    ledger: Ledger,
+) -> None:
+    identity = {
+        "run_id": "fallback-qwen3-8b-awq-development-v3",
+        "call_id": "fallback-c1-01",
+        "plan_hash": "24bd99189fdf5157d6de1c3c13edaa0a86749c97b1b4957b220e7a62de9aa200",
+    }
+    job = ledger.create_or_resume_job(
+        identity,
+        release_class=ReleaseClass.PUBLIC,
+        created_at=T0,
+    )
+    assert job.job_id == "f5646ba427f98e76afc07fabcb6c53f65d73d255856493ac94bf9d0c642f444f"
+    attempt_id = "fallback-qwen3-8b-awq-development-v3-fallback-c1-01-attempt"
+    model_call_id = "fallback-qwen3-8b-awq-development-v3-fallback-c1-01"
+    event_id = f"{model_call_id}-gpu"
+    request_hash = "1cc73c5525e096a4df830892f37cdc8062899363a0b75835bb2f04b3a14a0d44"
+    ledger.record_attempt(
+        attempt_id=attempt_id,
+        job_id=job.job_id,
+        attempt_kind=AttemptKind.BASE,
+        input_hash=request_hash,
+        config_hash=HASH_B,
+        seed=0,
+        created_at=T1,
+    )
+    ledger.record_gpu_event(
+        event_id=event_id,
+        event_kind=GpuEventKind.FAILURE,
+        allocated_seconds=0.852878,
+        started_at=T1,
+        ended_at="2026-09-03T12:00:01.852878Z",
+        succeeded=False,
+        job_id=job.job_id,
+        attempt_id=attempt_id,
+        details={
+            "reserve_call_class": "reserve_long",
+            "reserve_reservation_id": (
+                "fallback-qwen3-8b-awq-development-v3:fallback-c1-01"
+            ),
+        },
+    )
+    ledger.record_model_call(
+        model_call_id=model_call_id,
+        job_id=job.job_id,
+        attempt_id=attempt_id,
+        gpu_event_id=event_id,
+        backend=ModelBackend.VLLM_GPU,
+        call_role=ModelCallRole.PILOT,
+        retry_class=RetryClass.LONG,
+        model_manifest_hash=HASH_A,
+        decoding_manifest_hash=HASH_B,
+        request_hash=request_hash,
+        response_artifact_hash=None,
+        construction_unit_hash=(
+            "c91e2eeb87d9f9c05713396b3403ddab702573da73c14893eb7ed0c7158e6317"
+        ),
+        served_context_count=1,
+        prompt_tokens=0,
+        completion_tokens=0,
+        allocated_gpu_seconds=0.852878,
+        successful=False,
+        created_at=T1,
+    )
+    ledger.record_failure(
+        attempt_id=attempt_id,
+        failure_kind=FailureKind.SERVICE,
+        message="Fallback micro-pilot model call failed",
+        details={
+            "call_id": "fallback-c1-01",
+            "exception_type": "RuntimeTransportError",
+        },
+        occurred_at=T1,
+    )
+    assert ledger.is_frozen_legacy_fallback_c1_retry_prebuild(job.job_id)
+    ledger.transition_job(job.job_id, JobState.PREQUERY_SEALED, occurred_at=T2)
+    ledger.transition_job(
+        job.job_id,
+        JobState.GENERATED,
+        occurred_at=T3,
+        frozen_legacy_fallback_c1_retry=True,
+    )
+    assert ledger.get_job(job.job_id).state is JobState.GENERATED
+
+    generic = ledger.create_or_resume_job(
+        {**identity, "run_id": "fallback-qwen3-8b-awq-development-v3-mutated"},
+        release_class=ReleaseClass.PUBLIC,
+        created_at=T0,
+    )
+    ledger.transition_job(generic.job_id, JobState.PREQUERY_SEALED, occurred_at=T2)
+    with pytest.raises(InvalidTransitionError, match="query-blind prebuild"):
+        ledger.transition_job(
+            generic.job_id,
+            JobState.GENERATED,
+            occurred_at=T3,
+            frozen_legacy_fallback_c1_retry=True,
+        )
+    with pytest.raises(InvalidTransitionError, match="requested replay prefix"):
+        ledger.advance_job_lifecycle(
+            job.job_id,
+            (
+                (JobState.PREQUERY_SEALED, T1),
+                (JobState.QUERY_REVEALED, T2),
+            ),
+        )
+
+
+def test_query_reveal_must_strictly_follow_prequery_seal(ledger: Ledger) -> None:
+    job = ledger.create_or_resume_job(
+        {
+            "condition": "C2",
+            "lifecycle_kind": "query_time_projection",
+            "run": "strict-query-boundary",
+        },
+        release_class=ReleaseClass.PUBLIC,
+        created_at=T0,
+    )
+    ledger.transition_job(job.job_id, JobState.PREQUERY_SEALED, occurred_at=T1)
+
+    with pytest.raises(InvalidTransitionError, match="strictly follow"):
+        ledger.transition_job(job.job_id, JobState.QUERY_REVEALED, occurred_at=T1)
+
+    revealed = ledger.transition_job(
+        job.job_id, JobState.QUERY_REVEALED, occurred_at=T2
+    )
+    assert revealed.occurred_at == "2026-09-03T12:00:02.000000Z"
 
 
 def test_sqlite_triggers_reject_update_and_delete(tmp_path: Path) -> None:
@@ -785,6 +972,97 @@ def test_storage_measurement_deduplicates_hardlinks(tmp_path: Path) -> None:
     assert occupied == allocated_once
 
 
+def test_storage_preflight_allows_missing_future_path_on_quota_device(
+    tmp_path: Path,
+) -> None:
+    future_output = tmp_path / "future" / "nested" / "result.json"
+
+    preflight = StoragePreflight(
+        tmp_path,
+        controlled_paths=(future_output,),
+    )
+
+    assert preflight.controlled_paths == (future_output,)
+    assert preflight.measure_occupied_bytes() == 0
+
+
+def test_storage_preflight_rejects_controlled_ancestor_on_another_device(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    foreign_ancestor = tmp_path / "external-mount"
+    foreign_ancestor.mkdir()
+    controlled = foreign_ancestor / "future" / "result.json"
+    original_stat = Path.stat
+
+    def device_overridden_stat(path: Path, *args: object, **kwargs: object):
+        observed = original_stat(path, *args, **kwargs)
+        if path == foreign_ancestor:
+            fields = list(observed)
+            fields[2] = observed.st_dev + 1
+            return os.stat_result(fields)
+        return observed
+
+    monkeypatch.setattr(Path, "stat", device_overridden_stat)
+
+    with pytest.raises(ValueError, match="different device from quota_root"):
+        StoragePreflight(tmp_path, controlled_paths=(controlled,))
+
+
+def test_storage_override_cannot_bypass_late_cross_device_mount(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    controlled = tmp_path / "future" / "result.json"
+    preflight = StoragePreflight(tmp_path, controlled_paths=(controlled,))
+    foreign_ancestor = controlled.parent
+    foreign_ancestor.mkdir()
+    original_stat = Path.stat
+
+    def device_overridden_stat(path: Path, *args: object, **kwargs: object):
+        observed = original_stat(path, *args, **kwargs)
+        if path == foreign_ancestor:
+            fields = list(observed)
+            fields[2] = observed.st_dev + 1
+            return os.stat_result(fields)
+        return observed
+
+    monkeypatch.setattr(Path, "stat", device_overridden_stat)
+
+    with pytest.raises(ValueError, match="different device from quota_root"):
+        preflight.check(
+            current_occupied_bytes=0,
+            filesystem_free_bytes=30_000_000_000,
+        )
+
+
+def test_storage_measurement_fails_closed_on_traversal_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    preflight = StoragePreflight(tmp_path)
+
+    def failed_walk(
+        _root: Path,
+        *,
+        followlinks: bool,
+        onerror,
+    ) -> tuple[()]:
+        assert followlinks is False
+        assert onerror is not None
+        onerror(PermissionError("synthetic unreadable subtree"))
+        return ()
+
+    monkeypatch.setattr(store_module.os, "walk", failed_walk)
+
+    with pytest.raises(
+        OSError,
+        match="cannot completely traverse project-controlled storage",
+    ) as error:
+        preflight.measure_occupied_bytes()
+    assert isinstance(error.value.__cause__, PermissionError)
+
+
 def test_phase_one_metadata_families_are_typed_deduplicated_and_append_only(
     tmp_path: Path,
 ) -> None:
@@ -940,13 +1218,75 @@ def test_phase_one_metadata_families_are_typed_deduplicated_and_append_only(
             evidence_support_status=EvidenceSupportStatus.SUPPORTED,
             temporal_status=TemporalValidationStatus.VALID,
             commitment_status=CommitmentCheckStatus.VALID,
+            semantic_assessment_scope=(
+                SemanticAssessmentScope.POSTHOC_SCORER_OR_REVIEWER
+            ),
             diagnostics_artifact_hash=diagnostics_artifact.content_hash,
             created_at=T2,
+        )
+        assert validation.semantic_assessment_scope is (
+            SemanticAssessmentScope.POSTHOC_SCORER_OR_REVIEWER
+        )
+        with pytest.raises(ValueError, match="runtime structural-only"):
+            ledger.record_validation(
+                validation_id="invalid-runtime-semantic-claim",
+                job_id=job.job_id,
+                attempt_id=attempt.attempt_id,
+                input_artifact_hash=response_artifact.content_hash,
+                validator_manifest_hash=HASH_A,
+                validation_status=ValidationStatus.ACCEPTED,
+            evidence_support_status=EvidenceSupportStatus.SUPPORTED,
+            temporal_status=TemporalValidationStatus.NOT_APPLICABLE,
+            commitment_status=CommitmentCheckStatus.NOT_APPLICABLE,
+            semantic_assessment_scope=(
+                SemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED
+            ),
+            created_at=T2,
+            )
+        with pytest.raises(ValueError, match="migration provenance"):
+            ledger.record_validation(
+                validation_id="invalid-new-legacy-scope",
+                job_id=job.job_id,
+                attempt_id=attempt.attempt_id,
+                input_artifact_hash=response_artifact.content_hash,
+                validator_manifest_hash=HASH_A,
+                validation_status=ValidationStatus.ACCEPTED,
+                evidence_support_status=EvidenceSupportStatus.NOT_APPLICABLE,
+                temporal_status=TemporalValidationStatus.NOT_APPLICABLE,
+                commitment_status=CommitmentCheckStatus.NOT_APPLICABLE,
+                semantic_assessment_scope=SemanticAssessmentScope.LEGACY_UNSPECIFIED,
+                created_at=T2,
+            )
+        projection_validation = ledger.record_validation(
+            validation_id="projection-validation-1",
+            job_id=job.job_id,
+            attempt_id=attempt.attempt_id,
+            input_artifact_hash=response_artifact.content_hash,
+            validator_manifest_hash=HASH_A,
+            validation_status=ValidationStatus.ACCEPTED,
+            evidence_support_status=EvidenceSupportStatus.NOT_APPLICABLE,
+            temporal_status=TemporalValidationStatus.NOT_APPLICABLE,
+            commitment_status=CommitmentCheckStatus.NOT_APPLICABLE,
+            semantic_assessment_scope=(
+                SemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED
+            ),
+            diagnostics_artifact_hash=diagnostics_artifact.content_hash,
+            created_at=T2,
+        )
+        ledger.advance_job_lifecycle(
+            job.job_id,
+            (
+                (JobState.PREQUERY_SEALED, T0),
+                (JobState.QUERY_REVEALED, T1),
+                (JobState.GENERATED, T1),
+                (JobState.VALIDATED, T2),
+                (JobState.FINALIZED, T2),
+            ),
         )
         projection = ledger.record_projection(
             projection_id="projection-1",
             job_id=job.job_id,
-            validation_id=validation.validation_id,
+            validation_id=projection_validation.validation_id,
             snapshot_id=snapshot.snapshot_id,
             packet_input_id=packet_input.input_id,
             condition_id="C2",
@@ -954,9 +1294,72 @@ def test_phase_one_metadata_families_are_typed_deduplicated_and_append_only(
             upper_ontology_hash=HASH_B,
             construction_certificate_hash=HASH_A,
             projection_artifact_hash=projection_artifact.content_hash,
+            projection_semantic_hash=HASH_B,
             release_class=ReleaseClass.PUBLIC,
             finalized_at=T2,
         )
+        owner, resolved_projection = ledger.resolve_projection_artifact_owner(
+            projection_artifact_hash=projection.projection_artifact_hash,
+            projection_semantic_hash=projection.projection_semantic_hash,
+            condition_id=projection.condition_id,
+            context_hash=projection.context_hash,
+        )
+        assert owner == study
+        assert resolved_projection == projection
+        with pytest.raises(ValueError, match="accepted runtime structural-only"):
+            ledger.record_projection(
+                projection_id="projection-with-posthoc-validation",
+                job_id=job.job_id,
+                validation_id=validation.validation_id,
+                snapshot_id=snapshot.snapshot_id,
+                packet_input_id=packet_input.input_id,
+                condition_id="C2",
+                context_hash=HASH_A,
+                upper_ontology_hash=HASH_B,
+                construction_certificate_hash=HASH_A,
+                projection_artifact_hash=projection_artifact.content_hash,
+                projection_semantic_hash=HASH_B,
+                release_class=ReleaseClass.PUBLIC,
+                finalized_at=T2,
+            )
+        with pytest.raises(ValueError, match="after projection"):
+            ledger.record_feedback(
+                feedback_id="feedback-applied-without-projection",
+                study_id=study.study_id,
+                job_id=job.job_id,
+                feedback_kind=FeedbackKind.CONDITION_RESOLUTION,
+                action=FeedbackAction.REFINE_CONTEXT,
+                revision_hash=HASH_A,
+                anchor_manifest_hash=HASH_B,
+                before_context_hash=HASH_A,
+                after_context_hash=HASH_B,
+                receiving_condition="C2",
+                before_projection_id=projection.projection_id,
+                after_projection_id=None,
+                resolution_status=FeedbackResolutionStatus.APPLIED,
+                resolution_artifact_hash=diagnostics_artifact.content_hash,
+                release_class=ReleaseClass.PUBLIC,
+                created_at=T3,
+            )
+        with pytest.raises(ValueError, match="status/artifact"):
+            ledger.record_feedback(
+                feedback_id="feedback-resolution-without-artifact",
+                study_id=study.study_id,
+                job_id=job.job_id,
+                feedback_kind=FeedbackKind.CONDITION_RESOLUTION,
+                action=FeedbackAction.REQUEST_MERGE_SPLIT,
+                revision_hash=HASH_A,
+                anchor_manifest_hash=HASH_B,
+                before_context_hash=HASH_A,
+                after_context_hash=HASH_B,
+                receiving_condition="C2",
+                before_projection_id=projection.projection_id,
+                after_projection_id=None,
+                resolution_status=FeedbackResolutionStatus.CAPABILITY_LIMITED,
+                resolution_artifact_hash=None,
+                release_class=ReleaseClass.PUBLIC,
+                created_at=T3,
+            )
         feedback = ledger.record_feedback(
             feedback_id="feedback-resolution-1",
             study_id=study.study_id,
@@ -980,6 +1383,7 @@ def test_phase_one_metadata_families_are_typed_deduplicated_and_append_only(
         metric = ledger.record_metric(
             metric_id="metric-1",
             study_id=study.study_id,
+            job_id=job.job_id,
             projection_id=projection.projection_id,
             unit_hash=HASH_A,
             metric_name="strict_qualified_assertion_f1",
@@ -997,13 +1401,24 @@ def test_phase_one_metadata_families_are_typed_deduplicated_and_append_only(
             visualization_id="visualization-1",
             projection_id=projection.projection_id,
             renderer_configuration_hash=HASH_A,
-            semantic_hash=projection.projection_artifact_hash,
+            semantic_hash=HASH_B,
             visualization_artifact_hash=visualization_artifact.content_hash,
             layout_seed=91,
             release_class=ReleaseClass.PUBLIC,
             created_at=T3,
         )
-        assert visualization.semantic_hash == projection.projection_artifact_hash
+        assert visualization.semantic_hash == projection.projection_semantic_hash
+        with pytest.raises(ValueError, match="exact projection content"):
+            ledger.record_visualization(
+                visualization_id="visualization-wrong-semantic-hash",
+                projection_id=projection.projection_id,
+                renderer_configuration_hash=HASH_A,
+                semantic_hash=HASH_A,
+                visualization_artifact_hash=visualization_artifact.content_hash,
+                layout_seed=91,
+                release_class=ReleaseClass.PUBLIC,
+                created_at=T3,
+            )
         resource = ledger.record_resource_sample(
             sample_id="resource-sample-1",
             job_id=job.job_id,
@@ -1023,7 +1438,7 @@ def test_phase_one_metadata_families_are_typed_deduplicated_and_append_only(
             "inputs": 2,
             "evidence_snapshots": 1,
             "model_calls": 1,
-            "validations": 1,
+            "validations": 2,
             "projections": 1,
             "feedback": 1,
             "metrics": 1,
@@ -1091,6 +1506,21 @@ def test_v2_ledger_migrates_additively_without_rewriting_existing_rows(
                 occurred_at TEXT NOT NULL,
                 UNIQUE(job_id, sequence)
             );
+            CREATE TABLE validations (
+                validation_id TEXT PRIMARY KEY,
+                job_id TEXT NOT NULL,
+                attempt_id TEXT NOT NULL,
+                input_artifact_hash TEXT NOT NULL,
+                validator_manifest_hash TEXT NOT NULL,
+                validation_status TEXT NOT NULL,
+                evidence_support_status TEXT NOT NULL,
+                temporal_status TEXT NOT NULL,
+                commitment_status TEXT NOT NULL,
+                diagnostics_artifact_hash TEXT,
+                parent_validation_id TEXT,
+                repair_attempt_id TEXT,
+                created_at TEXT NOT NULL
+            );
             """
         )
         legacy.execute(
@@ -1109,6 +1539,14 @@ def test_v2_ledger_migrates_additively_without_rewriting_existing_rows(
             "INSERT INTO job_transitions VALUES (1, ?, 0, NULL, 'planned', ?)",
             (HASH_A, T0),
         )
+        legacy.execute(
+            """INSERT INTO validations VALUES (
+                   'legacy-validation', ?, 'legacy-attempt', ?, ?,
+                   'accepted', 'supported', 'valid', 'valid',
+                   NULL, NULL, NULL, ?
+               )""",
+            (HASH_A, HASH_A, HASH_B, T0),
+        )
         legacy.commit()
     finally:
         legacy.close()
@@ -1116,6 +1554,9 @@ def test_v2_ledger_migrates_additively_without_rewriting_existing_rows(
     with Ledger(database) as migrated:
         assert migrated.schema_versions() == (1, 2, store_module.SCHEMA_VERSION)
         assert migrated.get_job(HASH_A).state is JobState.PLANNED
+        assert migrated.get_validation(
+            "legacy-validation"
+        ).semantic_assessment_scope is SemanticAssessmentScope.LEGACY_UNSPECIFIED
         expected_new_tables = {
             "studies",
             "study_jobs",

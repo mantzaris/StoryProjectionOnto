@@ -13,7 +13,11 @@ from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
 
-from story_projection_onto.case_study_factory import stage_case_admission_evidence
+from story_projection_onto.case_study_factory import (
+    compile_case_study_semantic_admission_bundle,
+    replay_case_study_semantic_admission,
+    stage_case_admission_evidence,
+)
 from story_projection_onto.case_study_runtime import (
     CaseStudyRuntimePolicy,
     audit_case_study_resume,
@@ -26,6 +30,8 @@ from story_projection_onto.case_study_runtime import (
     load_case_study_admission_attestation,
     load_case_study_execution_plan,
     load_case_study_resume_manifest,
+    load_case_study_semantic_admission_bundle,
+    validate_case_study_semantic_admission,
     write_case_resume_manifest,
     write_restricted_case_record,
 )
@@ -58,6 +64,10 @@ def parse_args(arguments: Sequence[str] | None = None) -> argparse.Namespace:
     compile_plan.add_argument("--preregistration", type=Path, required=True)
     compile_plan.add_argument("--input-attestation", type=Path, required=True)
     compile_plan.add_argument("--admission-attestation", type=Path, required=True)
+    compile_plan.add_argument("--semantic-gate-bundle", type=Path, required=True)
+    compile_plan.add_argument("--semantic-evidence-root", type=Path, required=True)
+    compile_plan.add_argument("--ledger", type=Path, required=True)
+    compile_plan.add_argument("--artifact-root", type=Path, required=True)
     compile_plan.add_argument("--selected-model-freeze", type=Path, required=True)
     compile_plan.add_argument("--policy", type=Path, required=True)
     compile_plan.add_argument("--output", type=Path, required=True)
@@ -66,9 +76,13 @@ def parse_args(arguments: Sequence[str] | None = None) -> argparse.Namespace:
 
     stage_admission = subcommands.add_parser("stage-admission-evidence")
     stage_admission.add_argument("--restricted-root", type=Path, required=True)
+    stage_admission.add_argument("--plan", type=Path, required=True)
     stage_admission.add_argument("--admission-attestation", type=Path, required=True)
+    stage_admission.add_argument("--semantic-gate-bundle", type=Path, required=True)
+    stage_admission.add_argument("--semantic-evidence-root", type=Path, required=True)
     stage_admission.add_argument("--ledger", type=Path, required=True)
     stage_admission.add_argument("--artifact-root", type=Path, required=True)
+    stage_admission.add_argument("--transition-directory", type=Path, required=True)
     stage_admission.add_argument("--synthetic-run-closure", type=Path, required=True)
     stage_admission.add_argument("--timing-lineage-audit", type=Path, required=True)
     stage_admission.add_argument("--gold-firewall-audit", type=Path, required=True)
@@ -81,6 +95,25 @@ def parse_args(arguments: Sequence[str] | None = None) -> argparse.Namespace:
     stage_admission.add_argument("--reference-output", type=Path, required=True)
     stage_admission.add_argument("--staged-at", type=_aware_datetime, required=True)
     stage_admission.set_defaults(handler=_stage_admission_evidence)
+
+    semantic = subcommands.add_parser("semantic-admission-bundle")
+    semantic.add_argument("--restricted-root", type=Path, required=True)
+    semantic.add_argument("--evidence-root", type=Path, required=True)
+    semantic.add_argument("--native-artifact-map", type=Path, required=True)
+    semantic.add_argument("--ledger", type=Path, required=True)
+    semantic.add_argument("--artifact-root", type=Path, required=True)
+    semantic.add_argument("--synthetic-run-closure", type=Path, required=True)
+    semantic.add_argument("--timing-lineage-audit", type=Path, required=True)
+    semantic.add_argument("--gold-firewall-audit", type=Path, required=True)
+    semantic.add_argument("--registered-metric-regeneration", type=Path, required=True)
+    semantic.add_argument("--blinded-error-review", type=Path, required=True)
+    semantic.add_argument("--storage-preflight", type=Path, required=True)
+    semantic.add_argument("--gpu-schedule-admission", type=Path, required=True)
+    semantic.add_argument("--public-release-scan", type=Path, required=True)
+    semantic.add_argument("--bundle-id", required=True)
+    semantic.add_argument("--frozen-at", type=_aware_datetime, required=True)
+    semantic.add_argument("--output", type=Path, required=True)
+    semantic.set_defaults(handler=_semantic_admission_bundle)
 
     review = subcommands.add_parser("review-template")
     _restricted_input_arguments(review)
@@ -116,6 +149,17 @@ def _compile_plan(options: argparse.Namespace) -> int:
     admission = load_case_study_admission_attestation(
         options.admission_attestation,
         restricted_root=options.restricted_root,
+    )
+    semantic_bundle = load_case_study_semantic_admission_bundle(
+        options.semantic_gate_bundle,
+        restricted_root=options.restricted_root,
+    )
+    validate_case_study_semantic_admission(admission, semantic_bundle)
+    replay_case_study_semantic_admission(
+        bundle=semantic_bundle,
+        evidence_root=options.semantic_evidence_root,
+        ledger_path=options.ledger,
+        blob_root=options.artifact_root,
     )
     selected_model_freeze = load_attested_selected_model_freeze(
         restricted_root=options.restricted_root,
@@ -156,9 +200,12 @@ def _compile_plan(options: argparse.Namespace) -> int:
 
 
 def _stage_admission_evidence(options: argparse.Namespace) -> int:
-    bundle, reference = stage_case_admission_evidence(
+    bundle, reference, transition = stage_case_admission_evidence(
         restricted_root=options.restricted_root,
+        semantic_evidence_root=options.semantic_evidence_root,
+        execution_plan_path=options.plan,
         admission_attestation_path=options.admission_attestation,
+        semantic_gate_bundle_path=options.semantic_gate_bundle,
         gate_paths={
             "synthetic_run_closure_hash": options.synthetic_run_closure,
             "timing_lineage_audit_hash": options.timing_lineage_audit,
@@ -171,6 +218,7 @@ def _stage_admission_evidence(options: argparse.Namespace) -> int:
         },
         ledger_path=options.ledger,
         artifact_root=options.artifact_root,
+        transition_directory=options.transition_directory,
         bundle_output_path=options.bundle_output,
         reference_output_path=options.reference_output,
         staged_at=options.staged_at,
@@ -183,6 +231,49 @@ def _stage_admission_evidence(options: argparse.Namespace) -> int:
                 "bundle_hash": bundle.content_hash,
                 "gate_count": len(bundle.evidence),
                 "release_class": "restricted",
+                "staging_h1_ledger_sha256": transition.h1_ledger.file_sha256,
+                "staging_transition_receipt_hash": transition.content_hash,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0
+
+
+def _semantic_admission_bundle(options: argparse.Namespace) -> int:
+    native_payload = json.loads(options.native_artifact_map.read_text(encoding="utf-8"))
+    if not isinstance(native_payload, dict) or not all(
+        isinstance(key, str) and isinstance(value, str)
+        for key, value in native_payload.items()
+    ):
+        raise ValueError("native artifact map must be one string-to-string JSON object")
+    bundle = compile_case_study_semantic_admission_bundle(
+        restricted_root=options.restricted_root,
+        evidence_root=options.evidence_root,
+        gate_paths={
+            "synthetic_run_closure_hash": options.synthetic_run_closure,
+            "timing_lineage_audit_hash": options.timing_lineage_audit,
+            "gold_firewall_audit_hash": options.gold_firewall_audit,
+            "registered_metric_regeneration_hash": options.registered_metric_regeneration,
+            "blinded_error_review_hash": options.blinded_error_review,
+            "storage_preflight_hash": options.storage_preflight,
+            "gpu_schedule_admission_hash": options.gpu_schedule_admission,
+            "public_release_scan_hash": options.public_release_scan,
+        },
+        native_artifact_paths={key: Path(value) for key, value in native_payload.items()},
+        ledger_path=options.ledger,
+        blob_root=options.artifact_root,
+        output_path=options.output,
+        bundle_id=options.bundle_id,
+        frozen_at=options.frozen_at,
+    )
+    print(
+        json.dumps(
+            {
+                "bundle_hash": bundle.content_hash,
+                "gate_count": 8,
+                "state": "semantically_validated",
             },
             indent=2,
             sort_keys=True,

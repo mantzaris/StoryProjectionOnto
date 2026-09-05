@@ -80,11 +80,9 @@ from story_projection_onto.conditions.c2 import (
     finalize_c2_draft,
 )
 from story_projection_onto.contracts import (
-    CommitmentCheckStatus,
     ConditionName,
     ConstructionRequest,
     EvidencePacket,
-    EvidenceSupportStatus,
     ImmutableRecord,
     OntologyDraft,
     PreconstructionRequest,
@@ -92,13 +90,12 @@ from story_projection_onto.contracts import (
     ReleaseClass,
     RunOutcome,
     Sha256Digest,
-    TemporalDeterminationStatus,
+    SpoilerHorizon,
     ValidatedGeneration,
-    ValidationRecord,
-    ValidationStatus,
     canonical_json,
     canonical_sha256,
     normalize_generation_metadata,
+    runtime_structural_acceptance_record,
     to_model_visible_query,
 )
 from story_projection_onto.development_adapter import (
@@ -121,14 +118,17 @@ from story_projection_onto.gpu_runtime import (
 )
 from story_projection_onto.llm import CapabilityManifest, PackingReport, PackingSection
 from story_projection_onto.manifest import build_source_manifest
-from story_projection_onto.novel_case import WindowEvidenceBundle
+from story_projection_onto.novel_case import RestrictedNovelIndexManifest, WindowEvidenceBundle
 from story_projection_onto.store import (
     ArtifactStore,
     AttemptKind,
     FailureKind,
+    InputKind,
+    JobState,
     ModelBackend,
     ModelCallRole,
     RetryClass,
+    SemanticAssessmentScope,
 )
 from story_projection_onto.store import (
     CommitmentCheckStatus as LedgerCommitmentCheckStatus,
@@ -297,6 +297,9 @@ class CaseGpuShutdownReceipt(ImmutableRecord):
 @dataclass(frozen=True, slots=True)
 class _OperationalSnapshot:
     content_hash: str
+    manifest: RestrictedNovelIndexManifest
+    sealed_at: datetime
+    horizon: SpoilerHorizon
 
 
 @dataclass(frozen=True, slots=True)
@@ -518,6 +521,10 @@ class ProductionCaseStudyGpuAdapter:
     service_start_watchdog_seconds: int = CASE_SERVICE_START_WATCHDOG_SECONDS
     process_start_ticks: Callable[[int], int] = _process_start_ticks
     clock: Callable[[], datetime] = lambda: datetime.now(UTC)
+    restricted_index_manifest: RestrictedNovelIndexManifest | None = field(
+        default=None,
+        repr=False,
+    )
     backend: Literal["vllm_gpu"] = "vllm_gpu"
     _prepared: PreparedCaseC1Requests | None = field(default=None, init=False, repr=False)
     _bounded_packets: dict[str, WindowEvidenceBundle] = field(
@@ -1413,10 +1420,19 @@ class ProductionCaseStudyGpuAdapter:
             if isinstance(semantic, PreconstructionRequest)
             else semantic.packet.evidence
         )
+        if isinstance(semantic, PreconstructionRequest):
+            horizon = semantic.sealed_horizon
+            if horizon is None:
+                raise CaseGpuAdapterError(
+                    "case C1 generation lacks its trusted sealed horizon"
+                )
+        else:
+            horizon = semantic.context.spoiler_horizon
         boundary = validate_draft_structure(
             draft=normalized,
             upper_ontology=semantic.upper_ontology,
             evidence=evidence,
+            horizon=horizon,
             budgets=semantic.budgets,
             capabilities=semantic.capabilities,
         )
@@ -1434,14 +1450,11 @@ class ProductionCaseStudyGpuAdapter:
             )
             preservation.raise_for_errors()
         validated_at = _strictly_after(self.clock, completed)
-        validation = ValidationRecord(
+        validation = runtime_structural_acceptance_record(
             validation_id=f"case-validation-{call.call_id}-{raw_hash[:16]}",
             target_id=normalized.content_hash,
-            validation_status=ValidationStatus.ACCEPTED,
-            evidence_support_status=EvidenceSupportStatus.SUPPORTED,
-            temporal_status=TemporalDeterminationStatus.VALID,
-            commitment_status=CommitmentCheckStatus.VALID,
-            diagnostics=("deterministic case boundary checks accepted",),
+            repair_parent_hash=repair_parent_hash,
+            repair_attempt=1 if repair_parent_hash is not None else 0,
             validated_at=validated_at,
         )
         generation = ValidatedGeneration(
@@ -1556,10 +1569,15 @@ class ProductionCaseStudyGpuAdapter:
         input_artifact_hash: str,
         accepted: bool,
         diagnostics: BoundaryValidationReport | Mapping[str, object],
+        error: BaseException | None = None,
         parent_validation_id: str | None = None,
         repair_attempt_id: str | None = None,
         created_at: datetime,
     ) -> str:
+        if accepted == (error is not None):
+            raise CaseGpuAdapterError(
+                "case validation must pair rejection with its exact failure"
+            )
         diagnostics_ref = (
             _persist_record(
                 self.artifacts,
@@ -1586,27 +1604,177 @@ class ProductionCaseStudyGpuAdapter:
             validation_status=(
                 LedgerValidationStatus.ACCEPTED if accepted else LedgerValidationStatus.REJECTED
             ),
-            evidence_support_status=(
-                LedgerEvidenceSupportStatus.SUPPORTED
-                if accepted
-                else LedgerEvidenceSupportStatus.UNSUPPORTED
-            ),
-            temporal_status=(
-                LedgerTemporalValidationStatus.VALID
-                if accepted
-                else LedgerTemporalValidationStatus.UNDERDETERMINED
-            ),
-            commitment_status=(
-                LedgerCommitmentCheckStatus.VALID
-                if accepted
-                else LedgerCommitmentCheckStatus.INVALID
+            evidence_support_status=LedgerEvidenceSupportStatus.NOT_APPLICABLE,
+            temporal_status=LedgerTemporalValidationStatus.NOT_APPLICABLE,
+            commitment_status=LedgerCommitmentCheckStatus.NOT_APPLICABLE,
+            semantic_assessment_scope=(
+                SemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED
             ),
             diagnostics_artifact_hash=diagnostics_ref.artifact_hash,
             parent_validation_id=parent_validation_id,
             repair_attempt_id=repair_attempt_id,
             created_at=created_at,
         )
+        if error is not None:
+            self.artifacts.ledger.record_failure(
+                attempt_id=attempt_id,
+                failure_kind=_failure_kind(error),
+                message="Case model attempt failed deterministic validation",
+                details={
+                    "call_id": call.call_id,
+                    "execution_plan_hash": self.plan.content_hash,
+                    "exception_type": type(error).__name__,
+                    "repair": repair_attempt_id is not None,
+                },
+                artifact_hash=diagnostics_ref.artifact_hash,
+                occurred_at=created_at,
+            )
         return validation_id
+
+    def _finalize_job_lifecycle(self, job_id: str, *, completed_at: datetime) -> None:
+        state = self.artifacts.ledger.get_job(job_id).state
+        if state in {JobState.GENERATED, JobState.REPAIRED}:
+            self.artifacts.ledger.transition_job(
+                job_id,
+                JobState.VALIDATED,
+                occurred_at=completed_at,
+            )
+            state = JobState.VALIDATED
+        if state is JobState.VALIDATED:
+            self.artifacts.ledger.transition_job(
+                job_id,
+                JobState.FINALIZED,
+                occurred_at=completed_at,
+            )
+            state = JobState.FINALIZED
+        if state is not JobState.FINALIZED:
+            raise CaseGpuAdapterError(
+                "case call cannot finalize from its durable lifecycle state"
+            )
+
+    def _register_projection_inputs(
+        self,
+        *,
+        snapshot: object,
+        packet: EvidencePacket,
+        context: QueryContext,
+    ) -> tuple[str, str]:
+        study_id = self.plan.execution_id
+        snapshot_value = cast(Any, snapshot)
+        snapshot_hash = cast(str, snapshot_value.content_hash)
+        if isinstance(snapshot, ImmutableRecord):
+            snapshot_record = snapshot
+            snapshot_created_at = cast(datetime, snapshot_value.created_at)
+            sealed_at = cast(datetime, snapshot_value.sealed_at)
+            eligible_count = len(cast(tuple[str, ...], snapshot_value.eligible_evidence_ids))
+            index_hash = cast(str, snapshot_value.index_config_hash)
+            horizon_hash = cast(str, snapshot_value.horizon.content_hash)
+            evidence_manifest_hash = canonical_sha256(
+                tuple(item.content_hash for item in packet.evidence)
+            )
+        elif isinstance(snapshot, _OperationalSnapshot):
+            snapshot_record = snapshot.manifest
+            snapshot_created_at = snapshot.manifest.built_at
+            sealed_at = snapshot.sealed_at
+            eligible_count = snapshot.manifest.passage_count
+            index_hash = snapshot.manifest.index_config_hash
+            horizon_hash = context.spoiler_horizon.content_hash
+            evidence_manifest_hash = snapshot.manifest.content_hash
+        else:
+            raise CaseGpuAdapterError("case projection snapshot record is unavailable")
+        if (
+            snapshot_record.content_hash != snapshot_hash
+            or snapshot_created_at > sealed_at
+            or sealed_at >= context.revealed_at
+            or packet.snapshot_hash != snapshot_hash
+        ):
+            raise CaseGpuAdapterError("case projection input chronology/hash changed")
+        snapshot_reference = _persist_record(
+            self.artifacts,
+            snapshot_record,
+            object_kind="case_projection_evidence_snapshot",
+            created_at=snapshot_created_at,
+        )
+        snapshot_key = canonical_sha256((study_id, snapshot_hash))[:32]
+        snapshot_input_id = f"case-projection-snapshot-input-{snapshot_key}"
+        snapshot_id = f"case-projection-snapshot-{snapshot_key}"
+        self.artifacts.ledger.register_input(
+            input_id=snapshot_input_id,
+            study_id=study_id,
+            input_kind=InputKind.EVIDENCE_SNAPSHOT,
+            content_hash=snapshot_hash,
+            artifact_hash=snapshot_reference.artifact_hash,
+            release_class=LedgerReleaseClass.RESTRICTED,
+            created_at=snapshot_created_at,
+        )
+        self.artifacts.ledger.register_evidence_snapshot(
+            snapshot_id=snapshot_id,
+            input_id=snapshot_input_id,
+            horizon_hash=horizon_hash,
+            evidence_manifest_hash=evidence_manifest_hash,
+            index_configuration_hash=index_hash,
+            prequery_seal_hash=snapshot_hash,
+            eligible_evidence_count=eligible_count,
+            created_at=sealed_at,
+        )
+        packet_reference = _persist_record(
+            self.artifacts,
+            packet,
+            object_kind="case_projection_evidence_packet",
+            created_at=packet.created_at,
+        )
+        packet_key = canonical_sha256((study_id, packet.content_hash))[:32]
+        packet_input_id = f"case-projection-packet-input-{packet_key}"
+        self.artifacts.ledger.register_input(
+            input_id=packet_input_id,
+            study_id=study_id,
+            input_kind=InputKind.EVIDENCE_PACKET,
+            content_hash=packet.content_hash,
+            artifact_hash=packet_reference.artifact_hash,
+            release_class=LedgerReleaseClass.RESTRICTED,
+            created_at=packet.created_at,
+        )
+        return snapshot_id, packet_input_id
+
+    def _record_projection(
+        self,
+        *,
+        job_id: str,
+        attempt_id: str,
+        validation_id: str,
+        condition: ConditionName,
+        projection: Any,
+        projection_artifact_hash: str,
+        snapshot: object,
+        packet: EvidencePacket,
+        context: QueryContext,
+        finalized_at: datetime,
+    ) -> str:
+        certificate = projection.construction_certificate or projection.construction_seal
+        if certificate is None:
+            raise CaseGpuAdapterError("case projection lacks construction lineage")
+        snapshot_id, packet_input_id = self._register_projection_inputs(
+            snapshot=snapshot,
+            packet=packet,
+            context=context,
+        )
+        projection_id = f"{attempt_id}-projection"
+        self.artifacts.ledger.record_projection(
+            projection_id=projection_id,
+            job_id=job_id,
+            validation_id=validation_id,
+            snapshot_id=snapshot_id,
+            packet_input_id=packet_input_id,
+            condition_id=condition.value,
+            context_hash=context.content_hash,
+            upper_ontology_hash=projection.upper_ontology.content_hash,
+            construction_certificate_hash=certificate.content_hash,
+            projection_artifact_hash=projection_artifact_hash,
+            projection_semantic_hash=projection.content_hash,
+            release_class=LedgerReleaseClass.RESTRICTED,
+            finalized_at=finalized_at,
+        )
+        return projection_id
 
     def _raw_or_failure_artifact(
         self,
@@ -1708,26 +1876,46 @@ class ProductionCaseStudyGpuAdapter:
         stage_hash: str,
         query_access_hash: str | None,
         barrier_hash: str | None,
+        prequery_sealed_at: datetime,
+        query_revealed_at: datetime | None,
     ) -> _AttemptResult:
         state = self._state()
         if state.active_call_id not in {None, call.call_id}:
             raise CaseGpuAdapterError("another case GPU call remains active")
         recovering_active = state.active_call_id == call.call_id
         created_at = self._now()
+        query_blind = isinstance(semantic, PreconstructionRequest)
+        if query_blind != (call.condition is ConditionName.C1_LLM_PRE):
+            raise CaseGpuAdapterError("case lifecycle condition/request shape changed")
+        if query_blind == (query_revealed_at is not None):
+            raise CaseGpuAdapterError(
+                "only query-time case construction may carry query reveal time"
+            )
         job = self.artifacts.ledger.create_or_resume_job(
             {
                 "execution_id": self.plan.execution_id,
                 "execution_plan_hash": self.plan.content_hash,
                 "call_slot_hash": call.content_hash,
+                "call_id": call.call_id,
+                "condition": call.condition.value,
+                "lifecycle_kind": (
+                    "query_blind_prebuild" if query_blind else "query_time_generation"
+                ),
             },
             release_class=LedgerReleaseClass.RESTRICTED,
-            created_at=created_at,
+            created_at=prequery_sealed_at,
         )
         self.artifacts.ledger.link_job_to_study(
             study_id=self.plan.execution_id,
             job_id=job.job_id,
-            created_at=created_at,
+            created_at=prequery_sealed_at,
         )
+        prefix: list[tuple[JobState, datetime]] = [
+            (JobState.PREQUERY_SEALED, prequery_sealed_at)
+        ]
+        if query_revealed_at is not None:
+            prefix.append((JobState.QUERY_REVEALED, query_revealed_at))
+        self.artifacts.ledger.advance_job_lifecycle(job.job_id, prefix)
         attempt_id = f"{self.plan.execution_id}-{call.call_id}-base"
         self.artifacts.ledger.record_attempt(
             attempt_id=attempt_id,
@@ -1754,6 +1942,11 @@ class ProductionCaseStudyGpuAdapter:
             generated,
             transport_error,
             created_at=_parse_timestamp(event.ended_at),
+        )
+        generated_at = _parse_timestamp(event.ended_at)
+        self.artifacts.ledger.advance_job_lifecycle(
+            job.job_id,
+            (*prefix, (JobState.GENERATED, generated_at)),
         )
         alias_manifest = encode_development_semantic_request(semantic).alias_manifest
         base_error = transport_error
@@ -1833,6 +2026,7 @@ class ProductionCaseStudyGpuAdapter:
             input_artifact_hash=raw_hash,
             accepted=False,
             diagnostics=rejected_report,
+            error=base_error,
             created_at=_strictly_after(self.clock, _parse_timestamp(event.ended_at)),
         )
         if generated is None or not invalid or config.repair_attempt_budget != 1:
@@ -1923,6 +2117,15 @@ class ProductionCaseStudyGpuAdapter:
             repair_error,
             created_at=_parse_timestamp(repair_event.ended_at),
         )
+        repaired_at = _parse_timestamp(repair_event.ended_at)
+        self.artifacts.ledger.advance_job_lifecycle(
+            job.job_id,
+            (
+                *prefix,
+                (JobState.GENERATED, generated_at),
+                (JobState.REPAIRED, repaired_at),
+            ),
+        )
         repair_aliases = encode_development_semantic_request(repair_semantic).alias_manifest
         repair_generation = None
         repair_boundary = None
@@ -1957,6 +2160,12 @@ class ProductionCaseStudyGpuAdapter:
             repair=True,
             created_at=_parse_timestamp(repair_event.ended_at),
         )
+        terminal_repair_error = (
+            None
+            if repair_generation is not None
+            else repair_error
+            or CaseGpuAdapterError("repair output was not structurally accepted")
+        )
         repair_validation_id = self._record_validation(
             call=call,
             job_id=job.job_id,
@@ -1968,12 +2177,12 @@ class ProductionCaseStudyGpuAdapter:
                 if repair_generation is not None
                 else {
                     "accepted": False,
-                    "exception_type": type(repair_error).__name__,
+                    "exception_type": type(terminal_repair_error).__name__,
                     "parent_validation_id": base_validation_id,
                     "diagnostics": [
                         item.model_dump(mode="json")
                         for item in self._diagnostics_for(
-                            cast(BaseException, repair_error),
+                            cast(BaseException, terminal_repair_error),
                             invalid=(
                                 dict(repaired.parsed_object)
                                 if repaired is not None
@@ -1984,6 +2193,7 @@ class ProductionCaseStudyGpuAdapter:
                     ],
                 }
             ),
+            error=terminal_repair_error,
             parent_validation_id=base_validation_id,
             repair_attempt_id=repair_attempt_id,
             created_at=_strictly_after(self.clock, _parse_timestamp(repair_event.ended_at)),
@@ -2069,17 +2279,6 @@ class ProductionCaseStudyGpuAdapter:
             },
             object_kind="case_gpu_failure_lineage",
             created_at=created_at,
-        )
-        self.artifacts.ledger.record_failure(
-            attempt_id=attempt_id,
-            failure_kind=_failure_kind(error),
-            message="case model attempt did not pass deterministic validation",
-            details={
-                "call_id": call.call_id,
-                "execution_plan_hash": self.plan.content_hash,
-            },
-            artifact_hash=reference.artifact_hash,
-            occurred_at=created_at,
         )
         return reference.logical_content_hash
 
@@ -2271,6 +2470,7 @@ class ProductionCaseStudyGpuAdapter:
             ),
             created_at=created_at,
         )
+        self._finalize_job_lifecycle(attempt.job_id, completed_at=created_at)
         state = self._state()
         if state.active_call_id != call.call_id:
             raise CaseGpuAdapterError("case call lost its durable active marker")
@@ -2352,6 +2552,10 @@ class ProductionCaseStudyGpuAdapter:
         guided = self._prepared.guided_requests.get(call.call_id)
         if not isinstance(semantic, PreconstructionRequest) or guided is None:
             raise CaseGpuAdapterError("case C1 preflight omitted its request")
+        if semantic.sealed_horizon is None:
+            raise CaseGpuAdapterError("case C1 preflight lacks its trusted sealed horizon")
+        if semantic.sealed_horizon != snapshot.horizon:
+            raise CaseGpuAdapterError("case C1 preflight horizon differs from its snapshot")
         config = self._run_config(
             call_id=call.call_id,
             condition=ConditionName.C1_LLM_PRE,
@@ -2371,6 +2575,8 @@ class ProductionCaseStudyGpuAdapter:
             stage_hash=envelope.content_hash,
             query_access_hash=None,
             barrier_hash=None,
+            prequery_sealed_at=snapshot.sealed_at,
+            query_revealed_at=None,
         )
         started_at = _parse_timestamp(
             _gpu_event(self.artifacts.ledger, attempt.base_event_id).started_at
@@ -2547,6 +2753,51 @@ class ProductionCaseStudyGpuAdapter:
             or query_access.snapshot_hash != snapshot.content_hash
         ):
             raise CaseGpuAdapterError("case C1 fixed projection lineage changed")
+        config = self._run_config(
+            call_id=job_id,
+            condition=ConditionName.C1_LLM_PRE,
+            budgets=protected_query.budgets,
+        )
+        ledger_job = self.artifacts.ledger.create_or_resume_job(
+            {
+                "execution_id": self.plan.execution_id,
+                "execution_plan_hash": self.plan.content_hash,
+                "projection_job_id": job_id,
+                "condition": ConditionName.C1_LLM_PRE.value,
+                "lifecycle_kind": "query_time_projection",
+                "query_access_receipt_hash": query_access.content_hash,
+            },
+            release_class=LedgerReleaseClass.RESTRICTED,
+            created_at=prequery_barrier.sealed_at,
+        )
+        self.artifacts.ledger.link_job_to_study(
+            study_id=self.plan.execution_id,
+            job_id=ledger_job.job_id,
+            created_at=prequery_barrier.sealed_at,
+        )
+        self.artifacts.ledger.advance_job_lifecycle(
+            ledger_job.job_id,
+            (
+                (JobState.PREQUERY_SEALED, prequery_barrier.sealed_at),
+                (JobState.QUERY_REVEALED, query_access.accessed_at),
+            ),
+        )
+        attempt_id = f"{self.plan.execution_id}-{job_id}-cpu"
+        self.artifacts.ledger.record_attempt(
+            attempt_id=attempt_id,
+            job_id=ledger_job.job_id,
+            attempt_kind=AttemptKind.BASE,
+            input_hash=canonical_sha256(
+                {
+                    "preparation_receipt": source_receipt.content_hash,
+                    "packet": packet.content_hash,
+                    "context": protected_query.content_hash,
+                }
+            ),
+            config_hash=config.content_hash,
+            seed=1,
+            created_at=query_access.accessed_at,
+        )
         if source_receipt.terminal_outcome is not RunOutcome.SUCCEEDED:
             completed = _strictly_after(self.clock, query_access.accessed_at)
             failure = _persist_mapping(
@@ -2557,6 +2808,39 @@ class ProductionCaseStudyGpuAdapter:
                     "reason": "c1_preconstruction_not_successful",
                 },
                 object_kind="case_c1_projection_dependency_failure",
+                created_at=completed,
+            )
+            self.artifacts.ledger.advance_job_lifecycle(
+                ledger_job.job_id,
+                (
+                    (JobState.PREQUERY_SEALED, prequery_barrier.sealed_at),
+                    (JobState.QUERY_REVEALED, query_access.accessed_at),
+                    (JobState.GENERATED, completed),
+                ),
+            )
+            self.artifacts.ledger.record_failure(
+                attempt_id=attempt_id,
+                failure_kind=FailureKind.OTHER,
+                message="Case C1 projection unavailable because preconstruction failed",
+                details={"projection_job_id": job_id},
+                artifact_hash=failure.artifact_hash,
+                occurred_at=completed,
+            )
+            validation_id = f"{attempt_id}-validation"
+            self.artifacts.ledger.record_validation(
+                validation_id=validation_id,
+                job_id=ledger_job.job_id,
+                attempt_id=attempt_id,
+                input_artifact_hash=failure.artifact_hash,
+                validator_manifest_hash=self.plan.model_runtime.validator_hash,
+                validation_status=LedgerValidationStatus.REJECTED,
+                evidence_support_status=LedgerEvidenceSupportStatus.NOT_APPLICABLE,
+                temporal_status=LedgerTemporalValidationStatus.NOT_APPLICABLE,
+                commitment_status=LedgerCommitmentCheckStatus.NOT_APPLICABLE,
+                semantic_assessment_scope=(
+                    SemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED
+                ),
+                diagnostics_artifact_hash=failure.artifact_hash,
                 created_at=completed,
             )
             receipt = CaseOutputReceipt(
@@ -2580,6 +2864,7 @@ class ProductionCaseStudyGpuAdapter:
                 operational_only=False,
                 causal_comparison_eligible=True,
             )
+            self._finalize_job_lifecycle(ledger_job.job_id, completed_at=completed)
             self._persist_cpu_projection_state(job_id=job_id, receipt=receipt)
             return receipt
         preparation_ref = state.c1_preparations.get(window.window_id)
@@ -2592,11 +2877,6 @@ class ProductionCaseStudyGpuAdapter:
         assert preparation.sealed_preontology is not None
         if source_receipt.construction_seal != preparation.sealed_preontology.construction_seal:
             raise CaseGpuAdapterError("case C1 preparation and prequery seal differ")
-        config = self._run_config(
-            call_id=job_id,
-            condition=ConditionName.C1_LLM_PRE,
-            budgets=protected_query.budgets,
-        )
         inputs = self._query_inputs(
             condition=ConditionName.C1_LLM_PRE,
             preparation=preparation,
@@ -2618,6 +2898,53 @@ class ProductionCaseStudyGpuAdapter:
             created_at=_strictly_after(self.clock, query_access.accessed_at),
         )
         completed = _strictly_after(self.clock, query_access.accessed_at)
+        self.artifacts.ledger.advance_job_lifecycle(
+            ledger_job.job_id,
+            (
+                (JobState.PREQUERY_SEALED, prequery_barrier.sealed_at),
+                (JobState.QUERY_REVEALED, query_access.accessed_at),
+                (JobState.GENERATED, completed),
+            ),
+        )
+        diagnostic = _persist_mapping(
+            self.artifacts,
+            {
+                "accepted": True,
+                "assessment_scope": "runtime_structural_only",
+                "projection_hash": projection.content_hash,
+            },
+            object_kind="case_cpu_projection_validation",
+            created_at=completed,
+        )
+        validation_id = f"{attempt_id}-validation"
+        self.artifacts.ledger.record_validation(
+            validation_id=validation_id,
+            job_id=ledger_job.job_id,
+            attempt_id=attempt_id,
+            input_artifact_hash=projection_artifact.content_hash,
+            validator_manifest_hash=self.plan.model_runtime.validator_hash,
+            validation_status=LedgerValidationStatus.ACCEPTED,
+            evidence_support_status=LedgerEvidenceSupportStatus.NOT_APPLICABLE,
+            temporal_status=LedgerTemporalValidationStatus.NOT_APPLICABLE,
+            commitment_status=LedgerCommitmentCheckStatus.NOT_APPLICABLE,
+            semantic_assessment_scope=(
+                SemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED
+            ),
+            diagnostics_artifact_hash=diagnostic.artifact_hash,
+            created_at=completed,
+        )
+        self._record_projection(
+            job_id=ledger_job.job_id,
+            attempt_id=attempt_id,
+            validation_id=validation_id,
+            condition=ConditionName.C1_LLM_PRE,
+            projection=projection,
+            projection_artifact_hash=projection_artifact.content_hash,
+            snapshot=snapshot,
+            packet=packet,
+            context=protected_query,
+            finalized_at=completed,
+        )
         receipt = CaseOutputReceipt(
             receipt_id=f"receipt-{job_id}",
             execution_plan_hash=self.plan.content_hash,
@@ -2642,6 +2969,7 @@ class ProductionCaseStudyGpuAdapter:
             operational_only=False,
             causal_comparison_eligible=True,
         )
+        self._finalize_job_lifecycle(ledger_job.job_id, completed_at=completed)
         self._persist_cpu_projection_state(job_id=job_id, receipt=receipt)
         return receipt
 
@@ -2719,7 +3047,16 @@ class ProductionCaseStudyGpuAdapter:
         )
         snapshot: object
         if call.operational_only:
-            snapshot = _OperationalSnapshot(query_access.snapshot_hash)
+            if self.restricted_index_manifest is None:
+                raise CaseGpuAdapterError(
+                    "operational C2 projection lacks its restricted index manifest"
+                )
+            snapshot = _OperationalSnapshot(
+                query_access.snapshot_hash,
+                self.restricted_index_manifest,
+                prequery_barrier.sealed_at,
+                protected_query.spoiler_horizon,
+            )
         else:
             bundle = self._bounded_packets.get(cast(str, call.window_id))
             if bundle is None:
@@ -2773,6 +3110,8 @@ class ProductionCaseStudyGpuAdapter:
             stage_hash=inputs.query_access.stage_manifest_hash,
             query_access_hash=query_access.content_hash,
             barrier_hash=prequery_barrier.content_hash,
+            prequery_sealed_at=prequery_barrier.sealed_at,
+            query_revealed_at=query_access.accessed_at,
         )
         completed_at = self._now()
         condition_result = None
@@ -2843,6 +3182,23 @@ class ProductionCaseStudyGpuAdapter:
             operational_only=call.operational_only,
             causal_comparison_eligible=call.causal_comparison_eligible,
         )
+        if condition_result is not None:
+            projection = condition_result.projection
+            if projection is None or projection_hash is None:
+                raise CaseGpuAdapterError("successful C2 result lost its projection artifact")
+            terminal_attempt_id = attempt.repair_attempt_id or attempt.base_attempt_id
+            self._record_projection(
+                job_id=attempt.job_id,
+                attempt_id=terminal_attempt_id,
+                validation_id=attempt.validation_ids[-1],
+                condition=ConditionName.C2_LLM_QUERY,
+                projection=projection,
+                projection_artifact_hash=projection_hash,
+                snapshot=snapshot,
+                packet=protected_packet,
+                context=protected_query,
+                finalized_at=completed_at,
+            )
         self._persist_gpu_audit(
             call=call,
             base_semantic=semantic,
@@ -2917,6 +3273,7 @@ def build_production_case_study_gpu_adapter(
         service_start_watchdog_seconds=service_start_watchdog_seconds,
         process_start_ticks=process_start_ticks,
         clock=clock,
+        restricted_index_manifest=loaded.manifest,
     )
 
 

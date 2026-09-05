@@ -34,6 +34,7 @@ from story_projection_onto.ui import (
     RevisionInstruction,
     VisualizationBundle,
     VisualizationConfiguration,
+    VisualizationContentScope,
     VisualizationDiff,
     build_visualization_bundle,
     compare_visualizations,
@@ -448,6 +449,7 @@ def compile_feedback_execution(
         instruction.before_context,
         packet,
         visualization_config=visualization_config,
+        content_scope=VisualizationContentScope.REGISTERED_DISPLAY,
     )
     resolution = resolve_feedback_for_condition(
         instruction=instruction,
@@ -473,6 +475,7 @@ def compile_feedback_execution(
             instruction.after_context,
             effective_after_packet,
             visualization_config=visualization_config,
+            content_scope=VisualizationContentScope.REGISTERED_DISPLAY,
         )
         diff = compare_visualizations(before_bundle, after_bundle)
         expectation = FeedbackReplayExpectation(

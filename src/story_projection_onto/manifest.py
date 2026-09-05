@@ -41,6 +41,7 @@ EXCLUDED_PARTS = {
     "restricted",
     "tmp",
 }
+EXCLUDED_SUFFIXES = {".pyc", ".pyo"}
 
 
 def _canonical_json(value: object) -> bytes:
@@ -264,7 +265,10 @@ def iter_source_files(root: Path) -> Iterable[Path]:
             if not candidate.is_file() or candidate.is_symlink():
                 continue
             relative = candidate.relative_to(root)
-            if any(part in EXCLUDED_PARTS for part in relative.parts):
+            if (
+                any(part in EXCLUDED_PARTS for part in relative.parts)
+                or candidate.suffix.casefold() in EXCLUDED_SUFFIXES
+            ):
                 continue
             candidates.append(candidate)
     yield from sorted(set(candidates), key=lambda path: path.relative_to(root).as_posix())

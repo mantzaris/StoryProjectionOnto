@@ -1,10 +1,10 @@
 # StoryProjectionOnto: Conference-Study Results Report
 
-**Study status:** `incomplete` — The primary 14B pilot was rejected; fallback acceptance, development execution, independent review, held-out runs, and the lawful first-novel study remain incomplete.
+**Study status:** `incomplete` — Recovery interim through fallback v3: the primary 14B pilots and fallback attempts were rejected, no scientific generation was accepted, and fallback acceptance, development execution, independent review, held-out runs, and the lawful first-novel study remain incomplete.
 
-**Frozen input manifest:** `16a65d4bb31bd34c4c0f5564062f348388b4d7d841b1ae80e648e6e0577bc071`
+**Frozen input manifest:** `016232981064343020e0335a399d43744ba64f4f5c723978dc931f4326f2f255`
 
-**Code revision:** `e09f83eca015c194552c4e53a4138f6fa36befa2` (dirty worktree: `true`)
+**Code revision:** `cadfb25c39e4f0b1998ab15ad89dcc5e97d1fbf1` (dirty worktree: `true`)
 
 **Model:** not yet accepted/frozen
 
@@ -66,7 +66,7 @@ GPU time includes loading, warm-up, failures, repairs, restarts, and inference. 
 
 _Interim verified table. It is not a completed section outcome._
 
-### Machine-readable phase status at this build
+### Machine-readable phase status at this recovery-interim build
 
 <!-- table:study_status sha256:d1cae85a93158406ed710d39a7b6eb69cb4eee6d69bb91b3a32b7bc16051143d rows:7 -->
 | phase_id | status | reason |
@@ -81,19 +81,25 @@ _Interim verified table. It is not a completed section outcome._
 
 _Interim verified table. It is not a completed section outcome._
 
-### Verified resource accounting through the rejected primary pilot (not final)
+### Verified cumulative accounting through rejected fallback v3 (interim, not final)
 
-<!-- table:resource_accounting sha256:6d655ceb4c91d2875463be129cc766ac4230036f8286215d5cfe3e09d0c03927 rows:8 -->
+<!-- table:resource_accounting sha256:228538ad967640a7d4919d95b3c86e4a43ca6ae167b4fcfb5eb1dc72eb004e7b rows:8 -->
 | scope | metric | value | unit | status | source_note |
 | --- | --- | --- | --- | --- | --- |
-| primary_14b_pilot_to_date | actual_allocated_gpu_time | 212.281778 | seconds | observed | Includes both failed service-start allocations recorded in the cumulative ledger. |
-| primary_14b_pilot_to_date | actual_allocated_gpu_time | 0.058967161 | hours | observed | Derived exactly from cumulative allocated microseconds for display only. |
-| primary_14b_pilot_v2 | peak_gpu_vram | 10638852096 | bytes | observed | Maximum persisted resource sample in the rejected v2 run. |
-| primary_14b_pilot_v2 | peak_process_ram | 2432729088 | bytes | observed | Maximum persisted resource sample in the rejected v2 run. |
-| primary_14b_pilot_v2 | peak_project_storage | 13623907840 | bytes | observed | Maximum persisted resource sample in the rejected v2 run. |
-| study | current_vllm_service_stopped | true | boolean | observed | The rejected primary pilot result records that the service stopped. |
-| study | final_scheduled_gpu_forecast |  | hours | incomplete | Requires the accepted fallback micro-pilot plus exact development timing block. |
+| study_through_fallback_v3 | actual_allocated_gpu_time | 815.215409 | seconds | observed | Exact cumulative allocation through the rejected fallback-v3 attempt; includes all four service sessions and every failure, timeout, startup, and service-overhead event. |
+| study_through_fallback_v3 | actual_allocated_gpu_time | 0.226448725 | hours | observed | Derived exactly from cumulative allocated microseconds for display only. |
+| study_through_fallback_v3 | peak_gpu_vram | 22525509632 | bytes | observed | Recovered cumulative maximum authenticated by the fallback-v3 incident record. |
+| study_through_fallback_v3 | peak_process_ram | 2955644928 | bytes | observed | Recovered cumulative maximum authenticated by the fallback-v3 incident record. |
+| study_through_fallback_v3 | peak_project_storage | 13623907840 | bytes | observed | Recovered cumulative maximum authenticated by the fallback-v3 incident record. |
+| study | current_vllm_service_stopped | true | boolean | observed | The fallback-v3 terminal result and incident record both verify that the service stopped. |
+| study | final_scheduled_gpu_forecast |  | hours | incomplete | The v3 incident invalidates its published forecast; a corrected gate-admitted timing result is still required. |
 | study | final_total_runpod_wall_time |  | hours | incomplete | No final pod-session accounting artifact exists yet. |
+
+### Registered study phase status
+
+[Registered study phase status](figures/study_status.pdf)
+
+<!-- figure:phase_status sha256:generated-from-canonical-table -->
 
 ## 6. Primary C2 versus C1 results
 
@@ -185,28 +191,30 @@ Failures and invalid or unrepaired outputs remain visible and intention-to-treat
 
 _Interim verified table. It is not a completed section outcome._
 
-### Observed primary-model pilot failures (not final run accounting)
+### Observed incremental rejected-attempt allocations through fallback v3 (interim, not final)
 
-<!-- table:failure_accounting sha256:1a9b8a298001a0fb4bb0548bd749a349845b7eaac3331d70ad99196e364cec92 rows:2 -->
+<!-- table:failure_accounting sha256:339b205aa3ea22d6bca593b76fb0bd9ecf4a2641961b902d9b1ccee4452ef75a rows:4 -->
 | run_id | model_repository | immutable_revision | failure_type | completed_generation_calls | gate_passed | vllm_service_stopped | allocated_gpu_seconds | interpretation |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | phase1-qwen3-14b-awq-v1 | Qwen/Qwen3-14B-AWQ | 1a6fe1ecf891437a270cce11ad54d796c4f56ce0 | TypeError | 0 | false | true | 0.096330 | Rejected primary-model lifecycle start; not a scientific model output. |
 | phase1-qwen3-14b-awq-v2 | Qwen/Qwen3-14B-AWQ | 1a6fe1ecf891437a270cce11ad54d796c4f56ce0 | RuntimeWatchdogTimeout | 0 | false | true | 212.185448 | Rejected primary-model lifecycle start; not a scientific model output. |
+| fallback-qwen3-8b-awq-development-v1 | Qwen/Qwen3-8B-AWQ | 4da05a8edb55c6046cce958586c33b61da07bb79 | RuntimeWatchdogTimeout | 0 | false | true | 210.680208 | Rejected fallback-model watchdog start; not a scientific model output. |
+| fallback-qwen3-8b-awq-development-v3 | Qwen/Qwen3-8B-AWQ | 4da05a8edb55c6046cce958586c33b61da07bb79 | RuntimeTransportError | 0 | false | true | 392.253423 | Fallback-v3 request was rejected by decoder-schema validation before generation; no scientific model output was accepted. |
 
 _Interim verified table. It is not a completed section outcome._
 
-### Verified resource accounting through the rejected primary pilot (not final)
+### Verified cumulative accounting through rejected fallback v3 (interim, not final)
 
-<!-- table:resource_accounting sha256:6d655ceb4c91d2875463be129cc766ac4230036f8286215d5cfe3e09d0c03927 rows:8 -->
+<!-- table:resource_accounting sha256:228538ad967640a7d4919d95b3c86e4a43ca6ae167b4fcfb5eb1dc72eb004e7b rows:8 -->
 | scope | metric | value | unit | status | source_note |
 | --- | --- | --- | --- | --- | --- |
-| primary_14b_pilot_to_date | actual_allocated_gpu_time | 212.281778 | seconds | observed | Includes both failed service-start allocations recorded in the cumulative ledger. |
-| primary_14b_pilot_to_date | actual_allocated_gpu_time | 0.058967161 | hours | observed | Derived exactly from cumulative allocated microseconds for display only. |
-| primary_14b_pilot_v2 | peak_gpu_vram | 10638852096 | bytes | observed | Maximum persisted resource sample in the rejected v2 run. |
-| primary_14b_pilot_v2 | peak_process_ram | 2432729088 | bytes | observed | Maximum persisted resource sample in the rejected v2 run. |
-| primary_14b_pilot_v2 | peak_project_storage | 13623907840 | bytes | observed | Maximum persisted resource sample in the rejected v2 run. |
-| study | current_vllm_service_stopped | true | boolean | observed | The rejected primary pilot result records that the service stopped. |
-| study | final_scheduled_gpu_forecast |  | hours | incomplete | Requires the accepted fallback micro-pilot plus exact development timing block. |
+| study_through_fallback_v3 | actual_allocated_gpu_time | 815.215409 | seconds | observed | Exact cumulative allocation through the rejected fallback-v3 attempt; includes all four service sessions and every failure, timeout, startup, and service-overhead event. |
+| study_through_fallback_v3 | actual_allocated_gpu_time | 0.226448725 | hours | observed | Derived exactly from cumulative allocated microseconds for display only. |
+| study_through_fallback_v3 | peak_gpu_vram | 22525509632 | bytes | observed | Recovered cumulative maximum authenticated by the fallback-v3 incident record. |
+| study_through_fallback_v3 | peak_process_ram | 2955644928 | bytes | observed | Recovered cumulative maximum authenticated by the fallback-v3 incident record. |
+| study_through_fallback_v3 | peak_project_storage | 13623907840 | bytes | observed | Recovered cumulative maximum authenticated by the fallback-v3 incident record. |
+| study | current_vllm_service_stopped | true | boolean | observed | The fallback-v3 terminal result and incident record both verify that the service stopped. |
+| study | final_scheduled_gpu_forecast |  | hours | incomplete | The v3 incident invalidates its published forecast; a corrected gate-admitted timing result is still required. |
 | study | final_total_runpod_wall_time |  | hours | incomplete | No final pod-session accounting artifact exists yet. |
 
 ## 17. Error analysis, negative results, and limitations
@@ -258,9 +266,9 @@ The final report reserves distinct slots for the development tutorial, rare-pivo
 
 ## Machine-readable provenance
 
-Document source manifest SHA-256: `16a65d4bb31bd34c4c0f5564062f348388b4d7d841b1ae80e648e6e0577bc071`.
+Document source manifest SHA-256: `016232981064343020e0335a399d43744ba64f4f5c723978dc931f4326f2f255`.
 
-Verified ingestion receipt SHA-256: `138ace45558305eed38fc12929be67b158031abd097d11da7ad953ad3637b13a`.
+Verified ingestion receipt SHA-256: `004b2e7ace7c75d1fcabd3f59a7f5686e1f088c4038db1f07ef6a5fc6a25bfef`.
 
 Every displayed table carries its immutable CSV SHA-256 and row count in an HTML
 comment.

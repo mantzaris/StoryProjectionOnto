@@ -58,6 +58,21 @@ class RendererMetricConfiguration(ImmutableRecord):
             {"family": self.font_family, "base_px": self.base_font_px}
         )
 
+    @property
+    def viewport_hash(self) -> str:
+        """Hash the complete fixed metric viewport, not only its dimensions."""
+
+        return canonical_sha256(
+            {
+                "schema_version": "1.0.0",
+                "center_x": 0.0,
+                "center_y": 0.0,
+                "zoom": 1.0,
+                "width": self.viewport_width,
+                "height": self.viewport_height,
+            }
+        )
+
 
 class StudyMetricConfiguration(ImmutableRecord):
     """One frozen configuration used symmetrically for every condition."""

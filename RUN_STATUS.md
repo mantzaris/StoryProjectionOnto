@@ -1,130 +1,109 @@
 # Run status
 
-Updated: 2026-09-04 (fallback v3 terminal failure reconciled)
+Updated: 2026-09-05 14:15 UTC
 
 ## Verified durable state
 
-- Branch: `implementation/query-dependent-temporal-ontology`
-- Last pre-recovery commit: `568c61af0b29fe99f1c8dca513d88b4d0b724263`
-- Recovery checkpoint commit:
-  `8a77a3aafa0acc834a6563b0015b5fdff29151f8`.
-- The independently generated local and RunPod 288-file manifests are
-  byte-identical (file SHA-256
-  `47d249905194deca92eae9372e0392ee74d209323179be45dee825092f4fed0c`)
-  and bind source-tree SHA-256
-  `81edb1ba173458970e93b903efa27981a96fb3008a8b4ec221f5810f4c515b20`.
-  Source-association manifest SHA-256:
-  `1ce70d1c0796e5cc085d55ec535594b5b1e4d913eff3314b200562c5c095d4b4`.
-- Remote source snapshot at commit `6acf3077f2a33ebc1dc28cbc431034b9aafdfced`
-  was independently hashed and is byte-identical to the corresponding local Git
-  tree. Unique later remote manifests, ledgers, CAS blobs, checkpoints, failure
-  logs, and test logs were recovered without overwriting the local worktree.
-- The remote GPU is an NVIDIA RTX 4090 with 24,564 MiB reported memory. No
-  model server, study runner, download, `tmux`, or `screen` job survived the
-  interruption; vLLM is stopped.
-- The cumulative GPU ledger is internally consistent and fully closed at
-  422.961986 allocated seconds across three failed startup sessions. The
-  recoverable unattended-allocation uncertainty is zero seconds.
-- A refreshed 2026-09-04 22:01 UTC remote audit found the RTX 4090 idle at
-  1 MiB/0%, no vLLM or study runner, no `tmux`/`screen` session, and no listener
-  on port 8000. The live project directory occupied 9,959,306,622 bytes; vLLM
-  remains stopped.
-- One stale Python 2.7 bytecode file found outside the reconciled source
-  inventory was moved, without deletion, into the restricted recovery
-  quarantine before the final RunPod manifest was generated.
-- The validation-only v3 fallback controller preflight passed without loading
-  the model or allocating the GPU. Its manifest SHA-256 is
-  `121d042d0dc6647011454b6e4bb8a5f7d1526290c7cefff03dbb2cca9d996e6b`
-  (file SHA-256
-  `cf55e1ef833381cdc2d39d8f970ebe6ec42eae5f362b9a967109c909437c5eb4`).
-- The sole authorized v3 retry ran from 23:01:36Z through 23:09:49Z. Model
-  startup, controller restart, and live-service adoption succeeded, but the
-  first `fallback-c1-01` request was rejected before generation with a
-  `RuntimeTransportError`. No output was accepted and no development call ran.
-  The service lease is `stopped_verified`; the GPU is idle and port 8000 is
-  closed. Incident manifest:
-  `2e33bcca745dfd5e85b02e5f0f1039444cb082cd7bb88ed252677414f83e249a`.
-- Current project-controlled remote occupancy at recovery was 15,135,812,608
-  bytes. The maximum persisted ledger sample was 13,623,907,840 bytes; the
-  difference is retained recovery/source material rather than a larger study.
-
-## Phase state
-
-| Phase | State | Last verified evidence |
-|---|---|---|
-| 1 — contracts and GPU acceptance | Blocked before another allocation | Contracts, storage/GPU controls, ledger/CAS, schemas, primary rejection, pinned fallback, and the consumed v3 retry exist. v3 loaded successfully but its first decoder schema was rejected before generation; no further service start is currently authorized. |
-| 2 — synthetic benchmark | Blocked only at external review | Four development worlds, 12 held-out worlds, 36 held-out contexts, mutation checks, sealed stages, and the unchanged condition-blind three-world/nine-projection review package exist and hash-reproduce. The source-bound lineage was safely resealed after runtime-boundary hardening; no scientific payload changed. Independent reviewer decisions and adjudication are absent. |
-| 3 — conditions and primary run | In progress | C0/C1/C2/FixedSelect implementations and production control planes exist. The 24 development calls and all 168 held-out calls remain unexecuted. |
-| 4 — metrics and ablations | Software implemented; execution pending | Registered metric/statistical primitives exist. The 28 ablation calls and 12 paraphrase calls remain unexecuted. |
-| 5 — interface and feedback | Software implemented; execution pending | The minimal Cytoscape interface and revision contracts exist. Six scripted revisions and three researcher traces remain unexecuted. |
-| 6 — one-novel case study | Input pending | Restricted indexing/runtime software exists. No lawful novel path has been supplied and no narrative inference has run. |
-| 7 — results and release | Interim only | The report, table, figure, and public-release validation substrate exists; current outputs explicitly report an incomplete study and contain no fabricated efficacy result. |
+- Branch: `implementation/query-dependent-temporal-ontology`.
+- Last immutable predecessor commit: `cadfb25c39e4f0b1998ab15ad89dcc5e97d1fbf1`.
+- Recovery checkpoint: pending the immediate commit of this fully validated tree; its full
+  SHA will be recorded in a status-only follow-up commit before remote source association.
+- Local project: `/home/resort/Documents/repos/StoryProjectionOnto`.
+- Remote project: `/workspace/StoryProjectionOnto`.
+- The reconciled canonical Phase 1 ledger is schema v8, file SHA-256
+  `38775d1fe3c27cb93afbf78f3c692300a05ed52cb083cb4656d0378b0b94429f`.
+  Its read-only ledger/CAS audit passes with 17 artifacts, one failed attempt/model call,
+  five closed GPU events, four closed service sessions, and no unresolved allocation.
+- The stale 422.961986-second local ledger remains preserved in ignored recovery storage;
+  it was not discarded or used for admission.
+- Four interrupted remote quarantine directories were packed losslessly before their exact
+  unpacked copies were removed. The retained local and remote archive has 94,138 members,
+  file SHA-256
+  `617a13b5dabf7376f342550d217168d705ab328f0517cf44d663525c6562d721`,
+  and passed full decompression/member-count validation.
+- The latest read-only remote audit at 2026-09-05 14:08 UTC found one NVIDIA RTX 4090
+  (24,564 MiB), 1 MiB used, 0% utilization, no study/vLLM process, no `tmux` or `screen`
+  session, and no listener on port 8000. vLLM is stopped.
+- Current remote project-controlled occupancy is 16,111,649,792 bytes. This is
+  8,888,350,208 bytes below the 25 GB occupied limit and preserves more than the required
+  5 GB headroom inside the registered 30 GB allocation.
+- Pinned permitted fallback model: `Qwen/Qwen3-8B-AWQ`, exact revision
+  `4da05a8edb55c6046cce958586c33b61da07bb79`.
 
 ## Validation state
 
-- Definitive reconciled-tree gate: Ruff clean; 734 tests passed and one expected
-  system-browser wrapper skipped in 313.01 seconds on Python 3.12. The skipped
-  wrapper was exercised separately against real Chrome and passed rendering,
-  spoiler filtering, evidence inspection, `REFINE_CONTEXT`, and
-  `REQUEST_MERGE_SPLIT`.
-- Twenty-two JSON Schemas reproduce byte-for-byte; schema manifest
-  `6e2e91d574ec3414409083dac0e8923f9e6b991ba34ce9cac7bb249c5a7f3176`.
-- Synthetic benchmark verification, the full benchmark-to-report lineage,
-  report replay, and a fresh 29-entry public-bundle build pass. The benchmark
-  manifest is `22bd5e47245938724fc25d289e86e286f4f19e6a4ffd45468649e4e8f68acb78`;
-  the independent-review package and scorer bindings remain byte-identical.
-- The recovered ledger/CAS verifies with 17 artifacts, three closed GPU events,
-  three closed service sessions, zero model calls, zero attempts, zero unresolved
-  allocations, and exactly 422.961986 allocated GPU seconds.
-- After v3, the ledger/CAS again verifies with 17 artifacts, five closed GPU
-  events, four closed service sessions, one failed attempt/model call, zero
-  unresolved allocations, and exactly 815.215409 cumulative GPU seconds.
-  Peak v3 VRAM was 22,525,509,632 bytes; peak process RAM was 2,955,644,928
-  bytes; no resource limit was violated.
-- A CUDA-disabled reconstruction reproduced the exact failed request hash
-  `1cc73c5525e096a4df830892f37cdc8062899363a0b75835bb2f04b3a14a0d44`.
-  The pinned XGrammar converter rejects 22 empty-alternative `content_hash`
-  patterns while translating the schema; after those are removed, pinned vLLM
-  would separately reject the single string `date-time` format. The canonical
-  validation schema remains valid; only a decoder-compatibility projection is
-  required.
-- A final bounded adversarial audit found no remaining high- or medium-severity
-  duplicate-call, accounting, gold/query-boundary, TOCTOU, or public-path leak.
+- Complete collected test inventory: 1,089 tests.
+- Unit suite: 1,001 passed in 337.17 seconds.
+- Property suite: 16 passed in 47.74 seconds.
+- Integration suite: 69 passed and three expected environment skips across 72 tests.
+  The skipped local checks are two XGrammar checks (package absent locally) and one pinned
+  tokenizer-snapshot check (remote-only snapshot). The renderer, real-browser, and six API
+  interface tests were rerun with loopback access and all eight passed.
+- Aggregate verified result: 1,086 passed, three expected local-environment skips, zero
+  implementation failures.
+- Ruff, Python compilation, JSON parsing, `git diff --check`, package/CLI import smoke,
+  report ingestion replay, report replay, and public-release hash checks pass.
+- Twenty-two JSON Schemas reproduce byte-for-byte. Schema logical manifest SHA-256:
+  `ec99077520896fa0ded7bbeebd2a24bd0dc255f54e5e1765751e74130757a9f1`.
+- Synthetic benchmark verify-only and the semantic refresh guard pass. Benchmark logical
+  manifest SHA-256:
+  `c5bce978a9006b67f13c40701fca2d7b558d62239615c49a2c035221cd1b723f`.
+  Refresh receipt SHA-256:
+  `2396c3a7c308a964b348022a6811cde1dc0b0f1d4af05f3838c68a73bc6f9696`.
+- The report-ingestion receipt verifies at
+  `004b2e7ace7c75d1fcabd3f59a7f5686e1f088c4038db1f07ef6a5fc6a25bfef`.
+  The interim report remains explicitly incomplete and contains no fabricated efficacy
+  results. The current public bundle input manifest has 37/37 matching leaves and logical
+  SHA-256 `fbc729b15a3bf5118ecfc2caade545dc615e63464269d757786ca1dc91bb13d0`.
 
-## Remaining registered GPU inventory
+## Phase state
 
-- No GPU allocation is currently authorized. The single amended fallback v3
-  service start and one long-reserve failed request were consumed.
-- Remaining base scientific calls before repairs: 258 (four fallback
-  micro-pilot calls, 24 development calls, 168 held-out primary calls, 49
-  combined synthetic calls, and 13 case-study calls).
-- Actual allocated GPU time is now 815.215409 seconds. The v3 result's remaining
-  forecast is not valid admission evidence because it incorrectly uses the
-  0.852878-second failed transport duration as a successful C1 latency proxy.
-  Recompute the forecast from provisional C1 timing after fixing that defect and
-  before proposing any new amendment.
-- The preflight counted 287 effective accounting events and no more than 278
-  inference attempts. It projected 11,058,371,456 occupied bytes and
-  18,941,628,544 bytes of effective storage headroom.
+| Phase | State | Verified position |
+|---|---|---|
+| 1 — contracts and GPU acceptance | In progress | Contracts, ledgers/CAS, storage and GPU controls, evidence/ontology boundary, provenance bridge, decoder projection, restart guardian, and recovery validation are implemented. Fresh v4 source association and remote validation-only admission are next. |
+| 2 — synthetic benchmark | Software/data complete; independent review pending | Four development worlds, 12 held-out worlds, 36 primary contexts, contrastive pairs, rare-pivotal/temporal/epistemic gold, mutation tests, and the condition-blind 3-world/9-projection review package reproduce. |
+| 3 — conditions and primary run | Software complete; execution pending | C0, C1, C2, and A-FixedSelect pathways and timing/capability/equal-evidence gates pass. The 24 development and 168 held-out calls remain. |
+| 4 — metrics and ablations | Software complete; execution pending | Registered metrics, world-level inference, 4,096 sign flips, Holm correction, bootstrap sensitivity, community analysis, and three reduced ablations are implemented. |
+| 5 — interface and feedback | Software complete; execution pending | Cytoscape interface, two registered actions, six scripted revisions, three trace captures, fixed anchors, and provenance-aware before/after views pass local tests. |
+| 6 — one-novel case study | Software complete; lawful input pending | Query-blind indexing, window/C1/C2 control planes, restricted storage, and descriptive analysis are implemented. No novel inference has run. |
+| 7 — results and release | Interim only | Immutable-table reporting, visual inspection, accounting, and public-release controls pass. Final numerical outputs await registered execution. |
+
+## GPU and call accounting
+
+- Actual allocated GPU time consumed: 815.215409 seconds.
+- Recovered unattended-allocation uncertainty: zero seconds.
+- Peak recorded v3 GPU VRAM: 22,525,509,632 bytes.
+- Peak recorded v3 process RAM: 2,955,644,928 bytes.
+- Remaining registered scientific generations: 258: four fallback acceptance calls,
+  24 development calls, 168 held-out primary calls, 49 combined synthetic calls
+  (12 paraphrase, nine feedback/interface, 28 ablation), and 13 case-study calls.
+- Documentary v4 forecast pending fresh validation-only admission: 31,722.618681 seconds
+  remaining; 677.381319 seconds scheduled reserve and 4,217.381319 seconds hard
+  contingency. It must be reproduced from the checkpointed remote tree before launch.
+- No new GPU call is admitted merely because platform credit changed. The registered
+  9-hour scheduled ceiling and hard stop before 10 actual allocated hours remain binding.
 
 ## Gates and blockers
 
-- The v5 tree and preflight remain immutable evidence for the consumed v3 run.
-  Do not reuse them to authorize another call. A decoder-compatibility repair,
-  corrected forecast, complete CPU validation, fresh source association, a new
-  explicit service-start/inference amendment, and a fresh validation-only gate
-  are required before another GPU allocation.
-- Do not open held-out query payloads or start held-out inference until the
-  independent review completion reproduces.
-- Do not start the case-study phase until all synthetic pre-case gates pass and
-  an exact lawful local novel path is supplied.
-- No destructive cleanup, cache replacement, model download, model switch, or
-  additional service start is authorized.
+- Before any GPU service start: commit this tree, independently hash byte-identical local
+  and remote source trees, create the v4 association and authorized overlay, verify the
+  remote ledger/model/runtime/storage state, and pass the CPU-only v4 preflight.
+- Held-out inference is forbidden until the mandatory independent review and adjudication
+  reproduce. No second review has been fabricated.
+- Phase 6 requires the exact lawful local novel path only when synthetic work is complete.
+- No destructive cache replacement, model switch, hidden-ontology shortcut, held-out gold
+  access, or untracked foreground inference is authorized.
 
 ## Exact resume command
 
-Resume with CPU-only implementation and tests for decoder-schema compatibility,
-failed-transport diagnostics, and successful-only timing forecasts. Preserve the
-v3 result, ledger, CAS, checkpoints, lease, and logs. Do not run
-`run_fallback_gpu_acceptance.py --execute` or start vLLM: v3 is terminal and no
-additional service start or inference attempt is authorized.
+If interrupted before the checkpoint is recorded, rerun the complete local CPU gate:
+
+```bash
+PYTHONHASHSEED=0 /tmp/spo-refresh-venv/bin/python -m pytest -q tests/unit tests/property
+```
+
+Then rerun the 72 integration tests, granting loopback access only to the renderer,
+system-browser, and UI smoke files. On success, create the recovery checkpoint and follow
+`docs/FALLBACK_SECOND_RECOVERY.md` from “Complete validation and execution argument flow”
+using revision label `fallback-second-recovery-v4`. Do not execute the GPU launcher until
+the fresh validation-only preflight reports admission.

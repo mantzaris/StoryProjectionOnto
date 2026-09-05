@@ -57,6 +57,9 @@ class GroundingStatus(StrEnum):
     UNKNOWN = "unknown"
 
 
+QUALIFIED_GROUNDING_AUDIT_REVISION = "known-answer-qualified-evidence-support-v2"
+
+
 class TemporalExtentSignature(ImmutableRecord):
     """Essential temporal semantics; display labels and explanatory prose are excluded."""
 
@@ -645,6 +648,61 @@ def _structural_signature(signature: QualifiedAssertionSignature) -> tuple[objec
         signature.object_target_id,
         signature.roles,
     )
+
+
+def audit_qualified_assertion_grounding(
+    *,
+    plan: AlignmentPlan,
+    predicted_assertions: Sequence[PredictedAssertion],
+) -> tuple[tuple[str, GroundingStatus], ...]:
+    """Audit support using exact qualified semantics and relevant citations.
+
+    Grounding is deliberately stricter than packet-membership citation validity.  A
+    prediction is supported only when its complete qualified signature matches a
+    permissible gold alternative, every emitted citation is inside the admissible
+    evidence packet, and every emitted citation is registered as support for an
+    exact-signature alternative.  Thus a correct endpoint pair cannot mask a wrong
+    story time, validity interval, holder-relative attitude, or narrative
+    commitment, and an unrelated in-packet citation cannot ride along for free.
+
+    Equivalent permissible alternatives with the same signature contribute the
+    union of their reviewed support IDs.  The audit is assertion-local: duplicate
+    true statements remain grounded, while one-to-one cardinality is handled by the
+    registered fidelity matcher rather than by the grounding label.
+    """
+
+    prediction_ids = tuple(item.prediction_id for item in predicted_assertions)
+    if len(prediction_ids) != len(set(prediction_ids)):
+        raise AlignmentIntegrityError("qualified grounding audit requires unique prediction IDs")
+
+    support_by_signature: dict[str, set[str]] = defaultdict(set)
+    signature_by_hash: dict[str, QualifiedAssertionSignature] = {}
+    for target in plan.assertion_targets:
+        for alternative in target.alternatives:
+            signature_hash = alternative.signature.content_hash
+            existing = signature_by_hash.setdefault(signature_hash, alternative.signature)
+            if existing != alternative.signature:
+                raise AlignmentIntegrityError("qualified grounding signature hash collision")
+            support_by_signature[signature_hash].update(alternative.supporting_evidence_ids)
+
+    statuses: list[tuple[str, GroundingStatus]] = []
+    for prediction in predicted_assertions:
+        cited = frozenset(prediction.evidence_ids)
+        admissible_cited = frozenset(prediction.valid_evidence_ids)
+        reviewed_support = support_by_signature.get(prediction.signature.content_hash, set())
+        supported = (
+            bool(cited)
+            and cited == admissible_cited
+            and prediction.signature == signature_by_hash.get(prediction.signature.content_hash)
+            and cited.issubset(reviewed_support)
+        )
+        statuses.append(
+            (
+                prediction.prediction_id,
+                GroundingStatus.SUPPORTED if supported else GroundingStatus.UNSUPPORTED,
+            )
+        )
+    return tuple(sorted(statuses))
 
 
 def _align_assertions(

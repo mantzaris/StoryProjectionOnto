@@ -341,6 +341,7 @@ def preflight_case_c1_requests(
         semantic = build_c1_preconstruction_request(
             snapshot_hash=snapshot.content_hash,
             snapshot_sealed_at=snapshot.sealed_at,
+            sealed_horizon=snapshot.horizon,
             ordered_snapshot_evidence_ids=snapshot.eligible_evidence_ids,
             evidence=bundle.snapshot_assembly.admissible_evidence,
             upper_ontology=construction.upper_ontology,
@@ -930,7 +931,11 @@ def _gpu_inventory_hash(ledger: Ledger) -> str:
 
 
 def _total_allocated_seconds(ledger: Ledger) -> float:
-    return math.fsum(event.allocated_seconds for event in ledger.gpu_events())
+    # Allocation is the full model-service interval, not only classified calls.
+    # ``gpu_summary`` adds the non-overlapping session overhead persisted at
+    # shutdown/recovery, so admission and published before/after totals use the
+    # same conservative quantity as every runtime capacity gate.
+    return ledger.gpu_summary().total_allocated_seconds
 
 
 def validate_case_admission_evidence(

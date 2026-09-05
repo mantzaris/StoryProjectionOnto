@@ -73,10 +73,8 @@ from story_projection_onto.conditions.c2 import (
     finalize_c2_draft,
 )
 from story_projection_onto.contracts import (
-    CommitmentCheckStatus,
     ConditionName,
     EvidencePacket,
-    EvidenceSupportStatus,
     ImmutableRecord,
     NoTemporalEpistemicOntologyDraft,
     PacketMaterializationEvent,
@@ -85,12 +83,10 @@ from story_projection_onto.contracts import (
     ReleaseClass,
     RunOutcome,
     RuntimeIdentifiers,
-    TemporalDeterminationStatus,
     ValidatedGeneration,
-    ValidationRecord,
-    ValidationStatus,
     canonical_sha256,
     normalize_generation_metadata,
+    runtime_structural_acceptance_record,
     to_model_visible_query,
 )
 from story_projection_onto.development_adapter import (
@@ -102,7 +98,11 @@ from story_projection_onto.development_adapter import (
     restore_model_output_source_aliases,
 )
 from story_projection_onto.development_continuation import development_validator_hash
-from story_projection_onto.experiment import AllocatedGPUMeter, ResourceLimits
+from story_projection_onto.experiment import (
+    AllocatedGPUMeter,
+    ResourceLimits,
+    StorageAllocationPlan,
+)
 from story_projection_onto.fallback_acceptance import validate_source_association
 from story_projection_onto.feedback_runtime import FeedbackAttemptStatus
 from story_projection_onto.gpu_runtime import (
@@ -136,6 +136,7 @@ from story_projection_onto.phase5_execution import (
     PrimaryHeldOutResultsGate,
 )
 from story_projection_onto.phase5_production import (
+    Phase5CASReference,
     Phase5OwnedServiceIdentity,
     Phase5OwnedServiceResult,
     persist_phase5_record,
@@ -145,7 +146,9 @@ from story_projection_onto.store import (
     AttemptKind,
     BlobStore,
     Compression,
+    FailureKind,
     GpuEventKind,
+    JobState,
     Ledger,
     ModelBackend,
     ModelCallRole,
@@ -154,6 +157,7 @@ from story_projection_onto.store import (
     RetryClass,
     StorageBudget,
     StoragePreflight,
+    StorageReport,
 )
 from story_projection_onto.validate import (
     validate_draft_structure,
@@ -163,6 +167,58 @@ from story_projection_onto.validate import (
 
 class CombinedFactoryError(CombinedProductionError):
     """A production dependency differs from the frozen combined runtime."""
+
+
+def _registered_combined_storage_preflights(
+    repository: Path,
+    storage: StoragePreflight,
+) -> tuple[tuple[str, StorageReport], ...]:
+    plan = StorageAllocationPlan.load(
+        repository / "configs/study/storage_phase_allocations.json"
+    )
+    return tuple(
+        (
+            phase,
+            storage.check(**plan.reservation_for(phase).preflight_arguments()),
+        )
+        for phase in ("phase_4", "phase_5")
+    )
+
+
+def _require_registered_combined_storage_preflights(
+    repository: Path,
+    storage: StoragePreflight,
+    ledger: Ledger,
+) -> tuple[tuple[str, StorageReport], ...]:
+    reports = _registered_combined_storage_preflights(repository, storage)
+    for phase, report in reports:
+        ledger.record_storage_sample(
+            report,
+            phase=f"{phase}:combined_gpu_block:factory",
+        )
+    if any(not report.allowed for _phase, report in reports):
+        raise CombinedFactoryError("combined storage preflight failed")
+    return reports
+
+
+def _require_registered_phase_five_transition_storage_preflight(
+    repository: Path,
+    storage: StoragePreflight,
+    ledger: Ledger,
+) -> StorageReport:
+    plan = StorageAllocationPlan.load(
+        repository / "configs/study/storage_phase_allocations.json"
+    )
+    report = storage.check(
+        **plan.reservation_for("phase_5").preflight_arguments()
+    )
+    ledger.record_storage_sample(
+        report,
+        phase="phase_5:combined_gpu_block:transition",
+    )
+    if not report.allowed:
+        raise CombinedFactoryError("combined Phase 5 storage preflight failed")
+    return report
 
 
 class _SemanticIntent(ImmutableRecord):
@@ -289,6 +345,7 @@ class CombinedProductionBundle:
     provider: CASCombinedInputProvider
     lifecycle_owner: CombinedLifecycleOwner
     artifacts: ArtifactStore
+    phase5_storage_preflight: Callable[[], None]
 
 
 def _safe_file(path: Path, label: str) -> Path:
@@ -743,6 +800,7 @@ class _CombinedSemanticExecutor:
         repair_parent_raw_hash: str | None,
         base_invalid: Mapping[str, object] | None = None,
         diagnosed_paths: tuple[str, ...] = (),
+        validated_at_override: datetime | None = None,
     ) -> ValidatedGeneration:
         if call.condition is not ConditionName.A_NO_TEMPORAL_EPISTEMIC:
             return self.helper._validate_generation(
@@ -754,6 +812,7 @@ class _CombinedSemanticExecutor:
                 repair_parent_raw_hash=repair_parent_raw_hash,
                 base_invalid=base_invalid,
                 diagnosed_paths=diagnosed_paths,
+                validated_at_override=validated_at_override,
             )
         generated = attempt.generated
         raw = attempt.raw_reference
@@ -791,6 +850,7 @@ class _CombinedSemanticExecutor:
             draft=normalized,
             upper_ontology=attempt.semantic.upper_ontology,
             evidence=attempt.semantic.packet.evidence,
+            horizon=inputs.snapshot.horizon,
             budgets=attempt.semantic.budgets,
             capabilities=attempt.semantic.capabilities,
         )
@@ -806,20 +866,26 @@ class _CombinedSemanticExecutor:
             )
             preservation.raise_for_errors()
             report_hashes.append(preservation.content_hash)
-        validated_at = _strictly_after(completed_at)
-        validation = ValidationRecord(
+        validated_at = (
+            _strictly_after(completed_at)
+            if validated_at_override is None
+            else validated_at_override.astimezone(UTC)
+        )
+        if validated_at <= completed_at:
+            raise CombinedFactoryError(
+                "validation timestamp must follow generation completion"
+            )
+        validation = runtime_structural_acceptance_record(
             validation_id=(
                 "combined-validation-"
                 + canonical_sha256((call.call_id, raw.artifact_hash))[:20]
             ),
             target_id=normalized.content_hash,
-            validation_status=ValidationStatus.ACCEPTED,
-            evidence_support_status=EvidenceSupportStatus.SUPPORTED,
-            temporal_status=TemporalDeterminationStatus.VALID,
-            commitment_status=CommitmentCheckStatus.VALID,
             diagnostics=(
-                "deterministic boundary and ablation normalization accepted",
+                "registered ablation normalization accepted",
             ),
+            repair_parent_hash=repair_parent_raw_hash,
+            repair_attempt=repair_attempt,
             validated_at=validated_at,
         )
         return ValidatedGeneration(
@@ -889,6 +955,8 @@ class _CombinedSemanticExecutor:
         parent_attempt_id: str | None,
         public_request_hash: str,
         remaining_required_seconds: float,
+        prequery_sealed_at: datetime,
+        query_revealed_at: datetime,
     ) -> Any:
         """Persist one honest guided request while retaining Phase 5's wrapper hash."""
 
@@ -910,14 +978,23 @@ class _CombinedSemanticExecutor:
                 "execution_id": self.run_id,
                 "call_id": call.call_id,
                 "manifest_hash": self.manifest.content_hash,
+                "condition": call.condition.value,
+                "lifecycle_kind": "query_time_generation",
             },
             release_class=ReleaseClass.RESTRICTED,
-            created_at=created_at,
+            created_at=prequery_sealed_at,
         )
         self.artifacts.ledger.link_job_to_study(
             study_id=self.run_id,
             job_id=job.job_id,
             created_at=created_at,
+        )
+        self.artifacts.ledger.advance_job_lifecycle(
+            job.job_id,
+            (
+                (JobState.PREQUERY_SEALED, prequery_sealed_at),
+                (JobState.QUERY_REVEALED, query_revealed_at),
+            ),
         )
         suffix = "repair" if repair else "base"
         attempt_id = f"{self.run_id}-{call.call_id}-{suffix}"
@@ -1000,8 +1077,15 @@ class _CombinedSemanticExecutor:
             successful=generated is not None and failure is None,
             created_at=datetime.now(UTC),
         )
+        self.helper._advance_state(
+            job.job_id,
+            JobState.REPAIRED if repair else JobState.GENERATED,
+            _as_utc(event.ended_at),
+        )
         model_call = self.artifacts.ledger.get_model_call(model_call_id)
         return SimpleNamespace(
+            job_id=job.job_id,
+            attempt_id=attempt_id,
             semantic=semantic,
             guided=guided,
             semantic_reference=semantic_reference,
@@ -1061,6 +1145,8 @@ class _CombinedSemanticExecutor:
                 repair=False,
                 remaining_required_seconds=remaining_required_seconds,
                 parent_attempt_id=None,
+                prequery_sealed_at=inputs.prequery_barrier.sealed_at,
+                query_revealed_at=inputs.query_access.accessed_at,
             )
         else:
             base = self._persist_phase5_attempt(
@@ -1073,11 +1159,14 @@ class _CombinedSemanticExecutor:
                 parent_attempt_id=None,
                 public_request_hash=phase5_request_hash,
                 remaining_required_seconds=remaining_required_seconds,
+                prequery_sealed_at=inputs.prequery_barrier.sealed_at,
+                query_revealed_at=inputs.query_access.accessed_at,
             )
         generation = None
         final_attempt = base
         final_inputs = inputs
         failure: BaseException | None = base.failure
+        base_validation_id: str | None = None
         invalid = cast(Mapping[str, object], base.generated.parsed_object) if base.generated else {}
         diagnosed_paths: tuple[str, ...] = ()
         if failure is None:
@@ -1089,6 +1178,10 @@ class _CombinedSemanticExecutor:
                     inputs=inputs,
                     repair_attempt=0,
                     repair_parent_raw_hash=None,
+                    validated_at_override=(
+                        _as_utc(_event(self.artifacts, base.event_id).ended_at)
+                        + timedelta(microseconds=1)
+                    ),
                 )
             except BaseException as error:
                 failure = error
@@ -1099,6 +1192,21 @@ class _CombinedSemanticExecutor:
                     )
                 if not diagnosed_paths:
                     diagnosed_paths = ("/draft",)
+
+        base_checked_at = (
+            _as_utc(_event(self.artifacts, base.event_id).ended_at)
+            + timedelta(microseconds=1)
+        )
+        base_validation_id = self.helper._record_attempt_validation(
+            call=self._fake_call(call, repair=False),
+            attempt=base,
+            accepted=generation is not None and failure is None,
+            checked_at=base_checked_at,
+            error=failure,
+            generation=generation,
+            repair=False,
+            terminal=failure is None,
+        )
         attempts = [base]
         if failure is not None and base.generated is not None:
             repair_semantic, repair_config = self.helper._repair_request(
@@ -1125,15 +1233,19 @@ class _CombinedSemanticExecutor:
                 repair_trace_exists=repair_exists,
             )
             if disposition.decision == "reserve_exhausted":
-                return (
-                    failed_c2_attempt(
-                        inputs,
-                        outcome=_condition_outcome(failure),
-                        failure_code=f"combined_{type(failure).__name__.casefold()}",
-                        raw_output_hash=base.raw_reference.artifact_hash,
-                    ),
-                    tuple(attempts),
+                failed = failed_c2_attempt(
+                    inputs,
+                    outcome=_condition_outcome(failure),
+                    failure_code=f"combined_{type(failure).__name__.casefold()}",
+                    raw_output_hash=base.raw_reference.artifact_hash,
                 )
+                self.helper._advance_state(
+                    base.job_id, JobState.VALIDATED, disposition.decided_at
+                )
+                self.helper._advance_state(
+                    base.job_id, JobState.FINALIZED, disposition.decided_at
+                )
+                return failed, tuple(attempts)
             if repair_exists:
                 repair = self._restore_terminal_attempt(
                     call=call,
@@ -1142,6 +1254,7 @@ class _CombinedSemanticExecutor:
                     config=repair_config,
                     repair=True,
                     phase5_request_hash=phase5_request_hash,
+                    inputs=inputs,
                 )
             elif phase5_request_hash is None:
                 repair = self.helper._persist_attempt(
@@ -1153,6 +1266,8 @@ class _CombinedSemanticExecutor:
                     repair=True,
                     remaining_required_seconds=remaining_required_seconds,
                     parent_attempt_id=f"{self.run_id}-{call.call_id}-base",
+                    prequery_sealed_at=inputs.prequery_barrier.sealed_at,
+                    query_revealed_at=inputs.query_access.accessed_at,
                 )
             else:
                 repair = self._persist_phase5_attempt(
@@ -1165,6 +1280,8 @@ class _CombinedSemanticExecutor:
                     parent_attempt_id=f"{self.run_id}-{call.call_id}-base",
                     public_request_hash=repair_guided.request_hash,
                     remaining_required_seconds=remaining_required_seconds,
+                    prequery_sealed_at=inputs.prequery_barrier.sealed_at,
+                    query_revealed_at=inputs.query_access.accessed_at,
                 )
             attempts.append(repair)
             final_attempt = repair
@@ -1189,9 +1306,39 @@ class _CombinedSemanticExecutor:
                         ),
                         base_invalid=invalid,
                         diagnosed_paths=diagnosed_paths,
+                        validated_at_override=(
+                            _as_utc(_event(self.artifacts, repair.event_id).ended_at)
+                            + timedelta(microseconds=1)
+                        ),
                     )
                 except BaseException as error:
                     failure = error
+            repair_checked_at = (
+                _as_utc(_event(self.artifacts, repair.event_id).ended_at)
+                + timedelta(microseconds=1)
+            )
+            if failure is not None:
+                self.helper._record_attempt_validation(
+                    call=self._fake_call(call, repair=True),
+                    attempt=repair,
+                    accepted=False,
+                    checked_at=repair_checked_at,
+                    error=failure,
+                    parent_validation_id=base_validation_id,
+                    repair=True,
+                    terminal=True,
+                )
+            elif generation is not None:
+                base_validation_id = self.helper._record_attempt_validation(
+                    call=self._fake_call(call, repair=True),
+                    attempt=repair,
+                    accepted=True,
+                    checked_at=generation.validated_at,
+                    generation=generation,
+                    parent_validation_id=base_validation_id,
+                    repair=True,
+                    terminal=True,
+                )
         result_object = None
         if generation is not None and failure is None:
             try:
@@ -1202,7 +1349,25 @@ class _CombinedSemanticExecutor:
                 )
             except BaseException as error:
                 failure = error
+        terminal_at = _strictly_after(
+            _as_utc(_event(self.artifacts, final_attempt.event_id).ended_at)
+        )
         if result_object is not None and failure is None:
+            if result_object.projection is None or base_validation_id is None:
+                raise CombinedFactoryError(
+                    "successful combined output lacks canonical validation lineage"
+                )
+            self.helper._record_projection(
+                call=self._fake_call(call, repair=final_attempt is not base),
+                attempt=final_attempt,
+                inputs=final_inputs,
+                projection=result_object.projection,
+                validation_id=base_validation_id,
+                finalized_at=terminal_at,
+            )
+            self.helper._advance_state(
+                final_attempt.job_id, JobState.FINALIZED, terminal_at
+            )
             return result_object, tuple(attempts)
         terminal_error = failure or CombinedFactoryError("missing terminal output")
         raw_hash = (
@@ -1215,6 +1380,27 @@ class _CombinedSemanticExecutor:
             outcome=_condition_outcome(terminal_error),
             failure_code=f"combined_{type(terminal_error).__name__.casefold()}",
             raw_output_hash=raw_hash,
+        )
+        self.helper._advance_state(
+            final_attempt.job_id, JobState.VALIDATED, terminal_at
+        )
+        if not any(
+            item.attempt_id == final_attempt.attempt_id
+            for item in self.artifacts.ledger.failures_for_lineage(final_attempt.attempt_id)
+        ):
+            self.artifacts.ledger.record_failure(
+                attempt_id=final_attempt.attempt_id,
+                failure_kind=FailureKind.VALIDATION,
+                message="Combined output finalization failed; inspect restricted lineage",
+                details={
+                    "call_id": call.call_id,
+                    "exception_type": type(terminal_error).__name__,
+                },
+                artifact_hash=raw_hash,
+                occurred_at=terminal_at,
+            )
+        self.helper._advance_state(
+            final_attempt.job_id, JobState.FINALIZED, terminal_at
         )
         return failed, tuple(attempts)
 
@@ -1340,6 +1526,7 @@ class _CombinedSemanticExecutor:
         config: RunConditionConfig,
         repair: bool,
         phase5_request_hash: str | None,
+        inputs: HeldOutProduceInputs,
     ) -> Any:
         """Rebuild one attempt only from a complete immutable GPU/model/CAS lineage."""
 
@@ -1428,6 +1615,27 @@ class _CombinedSemanticExecutor:
             raise CombinedFactoryError(
                 f"terminal combined {suffix} GPU/model/attempt lineage changed"
             )
+        self.artifacts.ledger.advance_job_lifecycle(
+            attempt.job_id,
+            (
+                (JobState.PREQUERY_SEALED, inputs.prequery_barrier.sealed_at),
+                (JobState.QUERY_REVEALED, inputs.query_access.accessed_at),
+            ),
+        )
+        if repair:
+            base_event = _event(
+                self.artifacts, f"{self.run_id}-{call.call_id}-base-gpu"
+            )
+            self.helper._advance_state(
+                attempt.job_id,
+                JobState.GENERATED,
+                _as_utc(base_event.ended_at),
+            )
+        self.helper._advance_state(
+            attempt.job_id,
+            JobState.REPAIRED if repair else JobState.GENERATED,
+            _as_utc(event.ended_at),
+        )
 
         generated: GenerationResult | None = None
         raw_reference = None
@@ -1487,6 +1695,8 @@ class _CombinedSemanticExecutor:
                 else RuntimeError("recovered terminal vLLM failure")
             )
         return SimpleNamespace(
+            job_id=attempt.job_id,
+            attempt_id=attempt_id,
             semantic=semantic,
             guided=guided,
             raw_reference=raw_reference,
@@ -1527,6 +1737,7 @@ class _CombinedSemanticExecutor:
             config=config,
             repair=False,
             phase5_request_hash=phase5_request_hash,
+            inputs=inputs,
         )
         attempts = [base]
         generation = None
@@ -1542,6 +1753,10 @@ class _CombinedSemanticExecutor:
                     inputs=inputs,
                     repair_attempt=0,
                     repair_parent_raw_hash=None,
+                    validated_at_override=(
+                        _as_utc(_event(self.artifacts, base.event_id).ended_at)
+                        + timedelta(microseconds=1)
+                    ),
                 )
             except BaseException as error:
                 failure = error
@@ -1552,6 +1767,21 @@ class _CombinedSemanticExecutor:
                     )
                 if not diagnosed_paths:
                     diagnosed_paths = ("/draft",)
+
+        base_checked_at = (
+            _as_utc(_event(self.artifacts, base.event_id).ended_at)
+            + timedelta(microseconds=1)
+        )
+        base_validation_id = self.helper._record_attempt_validation(
+            call=self._fake_call(call, repair=False),
+            attempt=base,
+            accepted=generation is not None and failure is None,
+            checked_at=base_checked_at,
+            error=failure,
+            generation=generation,
+            repair=False,
+            terminal=failure is None,
+        )
 
         final_attempt = base
         final_inputs = inputs
@@ -1594,6 +1824,7 @@ class _CombinedSemanticExecutor:
                         config=repair_config,
                         repair=True,
                         phase5_request_hash=phase5_request_hash,
+                        inputs=inputs,
                     )
                 else:
                     if (
@@ -1613,6 +1844,8 @@ class _CombinedSemanticExecutor:
                             repair=True,
                             remaining_required_seconds=remaining_required_seconds,
                             parent_attempt_id=f"{self.run_id}-{call.call_id}-base",
+                            prequery_sealed_at=inputs.prequery_barrier.sealed_at,
+                            query_revealed_at=inputs.query_access.accessed_at,
                         )
                     else:
                         repair = self._persist_phase5_attempt(
@@ -1625,6 +1858,8 @@ class _CombinedSemanticExecutor:
                             parent_attempt_id=f"{self.run_id}-{call.call_id}-base",
                             public_request_hash=repair_guided.request_hash,
                             remaining_required_seconds=remaining_required_seconds,
+                            prequery_sealed_at=inputs.prequery_barrier.sealed_at,
+                            query_revealed_at=inputs.query_access.accessed_at,
                         )
                 attempts.append(repair)
                 final_attempt = repair
@@ -1644,9 +1879,28 @@ class _CombinedSemanticExecutor:
                             repair_parent_raw_hash=base.raw_reference.artifact_hash,
                             base_invalid=invalid,
                             diagnosed_paths=diagnosed_paths,
+                            validated_at_override=(
+                                _as_utc(_event(self.artifacts, repair.event_id).ended_at)
+                                + timedelta(microseconds=1)
+                            ),
                         )
                     except BaseException as error:
                         failure = error
+                repair_checked_at = (
+                    _as_utc(_event(self.artifacts, repair.event_id).ended_at)
+                    + timedelta(microseconds=1)
+                )
+                base_validation_id = self.helper._record_attempt_validation(
+                    call=self._fake_call(call, repair=True),
+                    attempt=repair,
+                    accepted=generation is not None and failure is None,
+                    checked_at=repair_checked_at,
+                    error=failure,
+                    generation=generation,
+                    parent_validation_id=base_validation_id,
+                    repair=True,
+                    terminal=True,
+                )
         elif failure is not None and repair_exists:
             raise CombinedFactoryError("failed base call unexpectedly has repair lineage")
 
@@ -1660,9 +1914,53 @@ class _CombinedSemanticExecutor:
                 )
             except BaseException as error:
                 failure = error
+        terminal_event = _event(self.artifacts, final_attempt.event_id)
+        terminal_at = _as_utc(terminal_event.ended_at) + timedelta(microseconds=2)
         if result_object is not None and failure is None:
+            if result_object.projection is None:
+                raise CombinedFactoryError(
+                    "recovered successful output lacks its ontology projection"
+                )
+            self.helper._record_projection(
+                call=self._fake_call(call, repair=final_attempt is not base),
+                attempt=final_attempt,
+                inputs=final_inputs,
+                projection=result_object.projection,
+                validation_id=base_validation_id,
+                finalized_at=terminal_at,
+            )
+            self.helper._advance_state(
+                final_attempt.job_id, JobState.FINALIZED, terminal_at
+            )
             return result_object, tuple(attempts)
         terminal_error = failure or CombinedFactoryError("missing recovered terminal output")
+        self.helper._advance_state(
+            final_attempt.job_id, JobState.VALIDATED, terminal_at
+        )
+        if not any(
+            item.attempt_id == final_attempt.attempt_id
+            for item in self.artifacts.ledger.failures_for_lineage(
+                final_attempt.attempt_id
+            )
+        ):
+            self.artifacts.ledger.record_failure(
+                attempt_id=final_attempt.attempt_id,
+                failure_kind=FailureKind.VALIDATION,
+                message="Recovered combined finalization failed; inspect restricted lineage",
+                details={
+                    "call_id": call.call_id,
+                    "exception_type": type(terminal_error).__name__,
+                },
+                artifact_hash=(
+                    None
+                    if final_attempt.raw_reference is None
+                    else final_attempt.raw_reference.artifact_hash
+                ),
+                occurred_at=terminal_at,
+            )
+        self.helper._advance_state(
+            final_attempt.job_id, JobState.FINALIZED, terminal_at
+        )
         return (
             failed_c2_attempt(
                 inputs,
@@ -2329,17 +2627,19 @@ class _CombinedSemanticExecutor:
         if attempt.outcome is RunOutcome.SUCCEEDED:
             if attempt.projection is None:
                 raise CombinedFactoryError("successful Phase 5 completion lacks a projection")
-            projection_reference = persist_phase5_record(
-                self.artifacts,
+            # The semantic executor has already persisted the exact projection
+            # and packet while recording their ledger lineage.  Their CAS
+            # address is a hash of the bytes, so attempting to persist those
+            # same bytes again under Phase 5-specific media types would either
+            # create conflicting metadata or obscure the authoritative source
+            # record.  Reuse and verify the existing immutable bytes instead.
+            projection_reference = self._phase5_existing_record_reference(
                 attempt.projection,
                 object_kind="phase5_after_projection",
-                created_at=completion.completed_at,
             )
-            packet_reference = persist_phase5_record(
-                self.artifacts,
+            packet_reference = self._phase5_existing_record_reference(
                 after_packet,
                 object_kind="phase5_after_packet",
-                created_at=completion.completed_at,
             )
         else:
             failure_reference = persist_phase5_record(
@@ -2367,6 +2667,41 @@ class _CombinedSemanticExecutor:
             checked_at=completion.completed_at,
             cumulative_gpu_seconds_before=completion.cumulative_gpu_seconds_before,
             cumulative_gpu_seconds_after=completion.cumulative_gpu_seconds_after,
+        )
+
+    def _phase5_existing_record_reference(
+        self,
+        value: ImmutableRecord,
+        *,
+        object_kind: Literal["phase5_after_projection", "phase5_after_packet"],
+    ) -> Phase5CASReference:
+        """Bind an exact already-persisted semantic output under its Phase 5 role."""
+
+        payload = (value.to_canonical_json() + "\n").encode("utf-8")
+        artifact_hash = hashlib.sha256(payload).hexdigest()
+        try:
+            artifact = self.artifacts.ledger.get_artifact(artifact_hash)
+        except KeyError as error:
+            raise CombinedFactoryError(
+                f"successful {object_kind} lacks its authoritative CAS artifact"
+            ) from error
+        if artifact.release_class.value != ReleaseClass.RESTRICTED.value:
+            raise CombinedFactoryError(
+                f"successful {object_kind} artifact is not restricted"
+            )
+        if (
+            artifact.content_hash != artifact_hash
+            or self.artifacts.blobs.read_bytes(artifact, allow_restricted=True) != payload
+        ):
+            raise CombinedFactoryError(
+                f"successful {object_kind} CAS bytes changed"
+            )
+        return Phase5CASReference(
+            artifact_hash=artifact.content_hash,
+            logical_content_hash=value.content_hash,
+            object_kind=object_kind,
+            media_type=artifact.media_type,
+            release_class=ReleaseClass(artifact.release_class.value),
         )
 
     def execute_phase5(
@@ -3187,10 +3522,11 @@ def create_frozen_production_combined_bundle(
                 min_headroom_bytes=limits.minimum_storage_headroom_bytes,
             ),
         )
-        report = storage.check()
-        ledger.record_storage_sample(report, phase="combined_gpu_block:factory")
-        if not report.allowed:
-            raise CombinedFactoryError("combined storage preflight failed")
+        _require_registered_combined_storage_preflights(
+            repository,
+            storage,
+            ledger,
+        )
         if not math.isclose(
             ledger.gpu_summary().total_allocated_seconds,
             upstream_gate.actual_allocated_gpu_seconds_before_block,
@@ -3353,10 +3689,19 @@ def create_frozen_production_combined_bundle(
             service_factory=service_factory,
             semantic=semantic,
         )
+
+        def phase5_storage_preflight() -> None:
+            _require_registered_phase_five_transition_storage_preflight(
+                repository,
+                storage,
+                ledger,
+            )
+
         return CombinedProductionBundle(
             provider=provider,
             lifecycle_owner=lifecycle,
             artifacts=artifacts,
+            phase5_storage_preflight=phase5_storage_preflight,
         )
     except BaseException:
         ledger.close()

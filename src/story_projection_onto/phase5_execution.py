@@ -13,7 +13,8 @@ import os
 import sqlite3
 from collections import Counter
 from collections.abc import Callable
-from datetime import datetime
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal, Protocol, Self, runtime_checkable
 
@@ -22,6 +23,7 @@ from pydantic import AwareDatetime, Field, model_validator
 from story_projection_onto.contracts import (
     CONSTRUCTIVE_OPERATORS,
     ConditionName,
+    ConstructionOperator,
     EvidencePacket,
     FeedbackAction,
     FeedbackResolutionStatus,
@@ -32,6 +34,7 @@ from story_projection_onto.contracts import (
     canonical_sha256,
     to_model_visible_packet,
 )
+from story_projection_onto.feedback_provenance import ResearcherTraceSubmissionReceipt
 from story_projection_onto.feedback_runtime import (
     FeedbackAttemptStatus,
     FeedbackEpisodeExecution,
@@ -48,7 +51,40 @@ from story_projection_onto.held_out_controller import (
     ScorerBridgeAuthorization,
 )
 from story_projection_onto.independent_review_runtime import load_completed_review
-from story_projection_onto.ui import FeedbackEpisodeKind, RevisionInstruction
+from story_projection_onto.store import (
+    ArtifactStore,
+    AttemptKind,
+    CommitmentCheckStatus,
+    EvidenceSupportStatus,
+    FailureKind,
+    InputKind,
+    JobRecord,
+    JobState,
+    ProjectionRecord,
+    SemanticAssessmentScope,
+    StoreError,
+    StudyRecord,
+    TemporalValidationStatus,
+    ValidationStatus,
+)
+from story_projection_onto.store import (
+    FeedbackAction as LedgerFeedbackAction,
+)
+from story_projection_onto.store import (
+    FeedbackKind as LedgerFeedbackKind,
+)
+from story_projection_onto.store import (
+    FeedbackResolutionStatus as LedgerFeedbackResolutionStatus,
+)
+from story_projection_onto.store import (
+    ReleaseClass as LedgerReleaseClass,
+)
+from story_projection_onto.ui import (
+    FeedbackEpisodeKind,
+    RevisionInstruction,
+    VisualizationBundle,
+    load_visualization_configuration,
+)
 
 CPU_CONDITIONS = (ConditionName.C0_CLASSICAL_PRE, ConditionName.C1_LLM_PRE)
 DEFAULT_PHASE5_OUTPUT_ROOT = Path("artifacts/restricted/phase5_feedback")
@@ -67,6 +103,18 @@ class Phase5PrerequisiteError(Phase5ExecutionError):
 
 class InterruptedFeedbackCallRecoveryRequired(Phase5ExecutionError):
     """A durable C2 slot exists but its immutable ledger result is unavailable."""
+
+
+class Phase5LedgerPreflightError(Phase5ExecutionError):
+    """The production ledger lacks an exact, already-persisted Phase 5 binding."""
+
+
+class Phase5LedgerPersistenceError(Phase5ExecutionError):
+    """A fully resolved Phase 5 ledger write could not be replayed exactly."""
+
+
+class Phase5CpuLedgerMaterializationError(Phase5LedgerPersistenceError):
+    """A frozen CPU feedback result could not be materialized without invention."""
 
 
 class Phase5RunnerConfiguration(ImmutableRecord):
@@ -148,6 +196,9 @@ class CpuReprojectionInput(ImmutableRecord):
     condition: ConditionName
     before_projection: OntologyProjection
     after_projection: OntologyProjection | None = None
+    instruction_hash: Sha256Digest
+    source_query_stage_hash: Sha256Digest
+    source_preparation_hash: Sha256Digest
     resolver_hash: Sha256Digest
     started_at: AwareDatetime
     completed_at: AwareDatetime
@@ -239,6 +290,28 @@ class ScriptedFeedbackInput(ImmutableRecord):
             raise ValueError("script scorer bindings require exactly C0, C1, and C2")
         if any(item.episode_id != self.episode_id for item in self.scorer_bindings):
             raise ValueError("script scorer binding belongs to another episode")
+        if any(
+            item.instruction_hash != self.instruction.content_hash
+            for item in self.cpu_inputs
+        ):
+            raise ValueError("CPU input does not bind the exact scripted instruction")
+        cpu_after = tuple(item.after_projection for item in self.cpu_inputs)
+        if self.instruction.revision.action is FeedbackAction.REFINE_CONTEXT:
+            if any(item is None for item in cpu_after):
+                raise ValueError("REFINE_CONTEXT requires both same-seal CPU reprojections")
+            for item in cpu_after:
+                assert item is not None
+                if (
+                    item.context_hash != self.instruction.after_context.content_hash
+                    or not item.decisions
+                    or any(
+                        decision.operator is not ConstructionOperator.SELECTION
+                        for decision in item.decisions
+                    )
+                ):
+                    raise ValueError("CPU context refinement must remain selection-only")
+        elif any(item is not None for item in cpu_after):
+            raise ValueError("CPU merge/split feedback must be capability_limited")
         gold_targets = {
             (
                 item.before_gold_projection_hash,
@@ -266,6 +339,7 @@ class ScriptedFeedbackInput(ImmutableRecord):
 class ResearcherTraceInput(ImmutableRecord):
     episode_id: Identifier
     instruction: RevisionInstruction
+    submission_receipt: ResearcherTraceSubmissionReceipt
     packet: EvidencePacket
     c2_before_projection: OntologyProjection
 
@@ -273,6 +347,16 @@ class ResearcherTraceInput(ImmutableRecord):
     def c2_only(self) -> Self:
         if self.c2_before_projection.condition is not ConditionName.C2_LLM_QUERY:
             raise ValueError("researcher trace input must be C2")
+        receipt = self.submission_receipt
+        if (
+            receipt.episode_id != self.episode_id
+            or receipt.action is not self.instruction.revision.action
+            or receipt.requested_at != self.instruction.revision.created_at
+            or receipt.instruction_hash != self.instruction.content_hash
+            or receipt.before_projection_id != self.c2_before_projection.projection_id
+            or receipt.before_projection_hash != self.c2_before_projection.content_hash
+        ):
+            raise ValueError("researcher trace input differs from its UI submission receipt")
         certificate = self.c2_before_projection.construction_certificate
         if certificate is None or certificate.completed_at >= self.instruction.revision.created_at:
             raise ValueError("the C2 parent projection must complete before its feedback revision")
@@ -282,6 +366,7 @@ class ResearcherTraceInput(ImmutableRecord):
 class Phase5ExecutionInputManifest(ImmutableRecord):
     run_id: Identifier
     protocol_hash: Sha256Digest
+    script_commitment_manifest_hash: Sha256Digest
     primary_results_gate_hash: Sha256Digest
     final_reviewed_seal_hash: Sha256Digest
     source_manifest_hash: Sha256Digest
@@ -318,6 +403,11 @@ class Phase5ExecutionInputManifest(ImmutableRecord):
         instructions.extend(item.instruction for item in self.researcher_trace_inputs)
         if any(item.revision.created_at > self.frozen_at for item in instructions):
             raise ValueError("input manifest freeze predates a feedback instruction")
+        if any(
+            item.submission_receipt.recorded_at > self.frozen_at
+            for item in self.researcher_trace_inputs
+        ):
+            raise ValueError("input manifest freeze predates a UI submission receipt")
         return self
 
 
@@ -880,6 +970,902 @@ def validate_phase5_inputs(
             raise Phase5ExecutionError("researcher trace differs from its frozen slot")
 
 
+_TERMINAL_LEDGER_JOB_STATES = frozenset(
+    {JobState.FINALIZED, JobState.SCORED, JobState.RENDERED}
+)
+
+
+@dataclass(frozen=True)
+class _Phase5LedgerResolutionBinding:
+    record: FeedbackExecutionRecord
+    before_projection: ProjectionRecord
+    receiving_job: JobRecord
+    after_projection: ProjectionRecord | None
+
+
+def _canonical_record_payload(value: ImmutableRecord) -> bytes:
+    return (value.to_canonical_json() + "\n").encode("utf-8")
+
+
+def _projection_artifact_hash(projection: OntologyProjection) -> str:
+    return hashlib.sha256(_canonical_record_payload(projection)).hexdigest()
+
+
+def _resolve_exact_ledger_projection(
+    *,
+    artifacts: ArtifactStore,
+    projection: OntologyProjection,
+) -> tuple[StudyRecord, ProjectionRecord]:
+    """Resolve a semantic projection through its exact immutable CAS bytes."""
+
+    payload = _canonical_record_payload(projection)
+    artifact_hash = _projection_artifact_hash(projection)
+    artifact = artifacts.ledger.get_artifact(artifact_hash)
+    if (
+        artifact.release_class.value != projection.release_class.value
+        or artifacts.blobs.read_bytes(
+            artifact,
+            allow_restricted=artifact.release_class is LedgerReleaseClass.RESTRICTED,
+        )
+        != payload
+    ):
+        raise Phase5LedgerPreflightError(
+            "projection CAS bytes or release class differ from the Phase 5 input"
+        )
+    return artifacts.ledger.resolve_projection_artifact_owner(
+        projection_artifact_hash=artifact_hash,
+        projection_semantic_hash=projection.content_hash,
+        condition_id=projection.condition.value,
+        context_hash=projection.context_hash,
+    )
+
+
+def phase5_cpu_receiving_job_identity(
+    *,
+    inputs: Phase5ExecutionInputManifest,
+    ledger_study_id: str,
+    script: ScriptedFeedbackInput,
+    cpu: CpuReprojectionInput,
+) -> dict[str, object]:
+    """Return the only accepted identity for an already-persisted CPU feedback job.
+
+    This function is resolve-only.  Phase 5 never creates the job from this identity;
+    the upstream CPU execution owner must have durably recorded and finalized it.
+    """
+
+    return {
+        "execution_id": ledger_study_id,
+        "phase5_run_id": inputs.run_id,
+        "episode_id": script.episode_id,
+        "condition": cpu.condition.value,
+        "lifecycle_kind": "phase5_cpu_reprojection",
+        "input_manifest_hash": inputs.content_hash,
+        "instruction_hash": script.instruction.content_hash,
+        "source_input_hash": cpu.content_hash,
+        "source_query_stage_hash": cpu.source_query_stage_hash,
+        "source_preparation_hash": cpu.source_preparation_hash,
+        "before_projection_hash": cpu.before_projection.content_hash,
+        "after_projection_hash": (
+            None if cpu.after_projection is None else cpu.after_projection.content_hash
+        ),
+        "resolver_hash": cpu.resolver_hash,
+    }
+
+
+def _phase5_cpu_ledger_id(prefix: str, payload: object) -> str:
+    return f"phase5-cpu-{prefix}-{canonical_sha256(payload)[:32]}"
+
+
+def _clone_cpu_projection_inputs(
+    *,
+    artifacts: ArtifactStore,
+    ledger_study_id: str,
+    source_study: StudyRecord,
+    source_projection: ProjectionRecord,
+    semantic_projection: OntologyProjection,
+) -> tuple[str, str]:
+    ledger = artifacts.ledger
+    source_snapshot = ledger.get_evidence_snapshot(source_projection.snapshot_id)
+    source_snapshot_input = ledger.get_input(source_snapshot.input_id)
+    source_packet_input = ledger.get_input(source_projection.packet_input_id)
+    if (
+        source_snapshot_input.study_id != source_study.study_id
+        or source_packet_input.study_id != source_study.study_id
+        or source_snapshot_input.input_kind is not InputKind.EVIDENCE_SNAPSHOT
+        or source_packet_input.input_kind is not InputKind.EVIDENCE_PACKET
+        or source_snapshot_input.content_hash != semantic_projection.snapshot_hash
+        or source_packet_input.content_hash != semantic_projection.packet_hash
+        or source_snapshot_input.artifact_hash is None
+        or source_packet_input.artifact_hash is None
+    ):
+        raise Phase5CpuLedgerMaterializationError(
+            "CPU source projection input metadata is incomplete or inconsistent"
+        )
+    # Resolve both artifacts before cloning their immutable references.  The aliases
+    # change only study-local identifiers; all scientific hashes remain byte-identical.
+    ledger.get_artifact(source_snapshot_input.artifact_hash)
+    ledger.get_artifact(source_packet_input.artifact_hash)
+    snapshot_key = canonical_sha256(
+        {
+            "study_id": ledger_study_id,
+            "source_study_id": source_study.study_id,
+            "source_snapshot_id": source_snapshot.snapshot_id,
+            "snapshot_hash": source_snapshot_input.content_hash,
+        }
+    )
+    packet_key = canonical_sha256(
+        {
+            "study_id": ledger_study_id,
+            "source_study_id": source_study.study_id,
+            "source_packet_input_id": source_packet_input.input_id,
+            "packet_hash": source_packet_input.content_hash,
+        }
+    )
+    snapshot_input_id = _phase5_cpu_ledger_id("snapshot-input", snapshot_key)
+    snapshot_id = _phase5_cpu_ledger_id("snapshot", snapshot_key)
+    packet_input_id = _phase5_cpu_ledger_id("packet-input", packet_key)
+    ledger.register_input(
+        input_id=snapshot_input_id,
+        study_id=ledger_study_id,
+        input_kind=InputKind.EVIDENCE_SNAPSHOT,
+        content_hash=source_snapshot_input.content_hash,
+        artifact_hash=source_snapshot_input.artifact_hash,
+        release_class=source_snapshot_input.release_class,
+        created_at=source_snapshot_input.created_at,
+    )
+    ledger.register_evidence_snapshot(
+        snapshot_id=snapshot_id,
+        input_id=snapshot_input_id,
+        horizon_hash=source_snapshot.horizon_hash,
+        evidence_manifest_hash=source_snapshot.evidence_manifest_hash,
+        index_configuration_hash=source_snapshot.index_configuration_hash,
+        prequery_seal_hash=source_snapshot.prequery_seal_hash,
+        eligible_evidence_count=source_snapshot.eligible_evidence_count,
+        created_at=source_snapshot.created_at,
+    )
+    ledger.register_input(
+        input_id=packet_input_id,
+        study_id=ledger_study_id,
+        input_kind=InputKind.EVIDENCE_PACKET,
+        content_hash=source_packet_input.content_hash,
+        artifact_hash=source_packet_input.artifact_hash,
+        release_class=source_packet_input.release_class,
+        created_at=source_packet_input.created_at,
+    )
+    return snapshot_id, packet_input_id
+
+
+def _verify_cpu_job_lifecycle(
+    *,
+    artifacts: ArtifactStore,
+    job: JobRecord,
+    sealed_at: datetime,
+    revealed_at: datetime,
+    completed_at: datetime,
+    checked_at: datetime,
+) -> None:
+    expected = (
+        (JobState.PLANNED, sealed_at),
+        (JobState.PREQUERY_SEALED, sealed_at),
+        (JobState.QUERY_REVEALED, revealed_at),
+        (JobState.GENERATED, completed_at),
+        (JobState.VALIDATED, checked_at),
+        (JobState.FINALIZED, checked_at),
+    )
+    observed = artifacts.ledger.transitions(job.job_id)
+    if len(observed) != len(expected) or any(
+        transition.to_state is not state
+        or _aware_datetime(transition.occurred_at) != timestamp.astimezone(UTC)
+        for transition, (state, timestamp) in zip(observed, expected, strict=True)
+    ):
+        raise Phase5CpuLedgerMaterializationError(
+            "CPU receiving job lifecycle differs from its frozen timestamps"
+        )
+    if _aware_datetime(job.created_at) != sealed_at.astimezone(UTC):
+        raise Phase5CpuLedgerMaterializationError(
+            "CPU receiving job creation predates or postdates its source seal"
+        )
+
+
+def materialize_phase5_cpu_ledger(
+    *,
+    inputs: Phase5ExecutionInputManifest,
+    protocol: FeedbackProtocolConfiguration,
+    artifacts: ArtifactStore,
+    ledger_study_id: str,
+) -> None:
+    """Persist the twelve frozen CPU executions without constructing semantics."""
+
+    validate_phase5_inputs(inputs, protocol)
+    try:
+        study = artifacts.ledger.get_study(ledger_study_id)
+        if study.release_class is not LedgerReleaseClass.RESTRICTED:
+            raise Phase5CpuLedgerMaterializationError(
+                "Phase 5 CPU receiving study must be restricted"
+            )
+        for script in inputs.scripted_inputs:
+            for cpu in script.cpu_inputs:
+                source_study, source_projection = _resolve_exact_ledger_projection(
+                    artifacts=artifacts,
+                    projection=cpu.before_projection,
+                )
+                if source_study.protocol_hash != inputs.held_out_call_manifest_hash:
+                    raise Phase5CpuLedgerMaterializationError(
+                        "CPU source projection belongs to another held-out protocol"
+                    )
+                after = cpu.after_projection
+                if after is not None and (
+                    after.snapshot_hash != cpu.before_projection.snapshot_hash
+                    or after.packet_hash != cpu.before_projection.packet_hash
+                ):
+                    raise Phase5CpuLedgerMaterializationError(
+                        "CPU reprojection changed its frozen snapshot or evidence packet"
+                    )
+                snapshot_id, packet_input_id = _clone_cpu_projection_inputs(
+                    artifacts=artifacts,
+                    ledger_study_id=ledger_study_id,
+                    source_study=source_study,
+                    source_projection=source_projection,
+                    semantic_projection=cpu.before_projection,
+                )
+                identity = phase5_cpu_receiving_job_identity(
+                    inputs=inputs,
+                    ledger_study_id=ledger_study_id,
+                    script=script,
+                    cpu=cpu,
+                )
+                seal = cpu.before_projection.construction_seal
+                if seal is None:
+                    raise Phase5CpuLedgerMaterializationError(
+                        "CPU receiving job lacks its source construction seal"
+                    )
+                job = artifacts.ledger.create_or_resume_job(
+                    identity,
+                    release_class=LedgerReleaseClass.RESTRICTED,
+                    created_at=seal.sealed_at,
+                )
+                artifacts.ledger.link_job_to_study(
+                    study_id=ledger_study_id,
+                    job_id=job.job_id,
+                    created_at=seal.sealed_at,
+                )
+                artifacts.ledger.advance_job_lifecycle(
+                    job.job_id,
+                    (
+                        (JobState.PREQUERY_SEALED, seal.sealed_at),
+                        (JobState.QUERY_REVEALED, script.instruction.revision.created_at),
+                    ),
+                )
+                identity_hash = canonical_sha256(identity)
+                attempt_id = _phase5_cpu_ledger_id("attempt", identity_hash)
+                artifacts.ledger.record_attempt(
+                    attempt_id=attempt_id,
+                    job_id=job.job_id,
+                    attempt_kind=AttemptKind.BASE,
+                    input_hash=cpu.content_hash,
+                    config_hash=canonical_sha256(
+                        {
+                            "protocol_hash": protocol.content_hash,
+                            "resolver_hash": cpu.resolver_hash,
+                            "source_query_stage_hash": cpu.source_query_stage_hash,
+                            "source_preparation_hash": cpu.source_preparation_hash,
+                        }
+                    ),
+                    seed=0,
+                    created_at=cpu.started_at,
+                )
+                artifacts.ledger.advance_job_lifecycle(
+                    job.job_id,
+                    (
+                        (JobState.PREQUERY_SEALED, seal.sealed_at),
+                        (JobState.QUERY_REVEALED, script.instruction.revision.created_at),
+                        (JobState.GENERATED, cpu.completed_at),
+                    ),
+                )
+                cpu_record = _cpu_record(
+                    inputs=inputs,
+                    script=script,
+                    cpu=cpu,
+                    protocol=protocol,
+                )
+                resolution = cpu_record.execution.resolution
+                resolution_artifact_hash = _persist_phase5_artifact(
+                    artifacts=artifacts,
+                    value=resolution,
+                    media_type=(
+                        "application/vnd.story-projection.feedback-resolution+json"
+                    ),
+                    created_at=resolution.resolved_at,
+                )
+                projection_artifact_hash = None
+                if after is not None:
+                    projection_artifact_hash = _persist_phase5_artifact(
+                        artifacts=artifacts,
+                        value=after,
+                        media_type=(
+                            "application/vnd.story-projection.ontology-projection+json"
+                        ),
+                        created_at=cpu.completed_at,
+                        release_class=LedgerReleaseClass(after.release_class.value),
+                    )
+                validation_id = _phase5_cpu_ledger_id("validation", identity_hash)
+                accepted = after is not None
+                artifacts.ledger.record_validation(
+                    validation_id=validation_id,
+                    job_id=job.job_id,
+                    attempt_id=attempt_id,
+                    input_artifact_hash=(
+                        projection_artifact_hash
+                        if projection_artifact_hash is not None
+                        else resolution_artifact_hash
+                    ),
+                    validator_manifest_hash=cpu.resolver_hash,
+                    validation_status=(
+                        ValidationStatus.ACCEPTED
+                        if accepted
+                        else ValidationStatus.REJECTED
+                    ),
+                    evidence_support_status=EvidenceSupportStatus.NOT_APPLICABLE,
+                    temporal_status=TemporalValidationStatus.NOT_APPLICABLE,
+                    commitment_status=CommitmentCheckStatus.NOT_APPLICABLE,
+                    semantic_assessment_scope=(
+                        SemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED
+                    ),
+                    diagnostics_artifact_hash=resolution_artifact_hash,
+                    created_at=cpu.checked_at,
+                )
+                if after is not None:
+                    after_seal = after.construction_seal
+                    if after_seal is None or projection_artifact_hash is None:
+                        raise Phase5CpuLedgerMaterializationError(
+                            "applied CPU feedback lacks its sealed result projection"
+                        )
+                    artifacts.ledger.record_projection(
+                        projection_id=_phase5_cpu_ledger_id("projection", identity_hash),
+                        job_id=job.job_id,
+                        validation_id=validation_id,
+                        snapshot_id=snapshot_id,
+                        packet_input_id=packet_input_id,
+                        condition_id=cpu.condition.value,
+                        context_hash=after.context_hash,
+                        upper_ontology_hash=after.upper_ontology.content_hash,
+                        construction_certificate_hash=after_seal.content_hash,
+                        projection_artifact_hash=projection_artifact_hash,
+                        projection_semantic_hash=after.content_hash,
+                        release_class=LedgerReleaseClass(after.release_class.value),
+                        finalized_at=cpu.checked_at,
+                    )
+                else:
+                    artifacts.ledger.record_failure(
+                        attempt_id=attempt_id,
+                        failure_kind=FailureKind.OTHER,
+                        message=(
+                            "CPU condition cannot apply query-time merge/split construction"
+                        ),
+                        details={
+                            "episode_id": script.episode_id,
+                            "condition": cpu.condition.value,
+                            "resolution_hash": resolution.content_hash,
+                            "resolution_status": resolution.status.value,
+                        },
+                        artifact_hash=resolution_artifact_hash,
+                        occurred_at=resolution.resolved_at,
+                    )
+                artifacts.ledger.advance_job_lifecycle(
+                    job.job_id,
+                    (
+                        (JobState.PREQUERY_SEALED, seal.sealed_at),
+                        (JobState.QUERY_REVEALED, script.instruction.revision.created_at),
+                        (JobState.GENERATED, cpu.completed_at),
+                        (JobState.VALIDATED, cpu.checked_at),
+                        (JobState.FINALIZED, cpu.checked_at),
+                    ),
+                )
+                _verify_cpu_job_lifecycle(
+                    artifacts=artifacts,
+                    job=artifacts.ledger.get_job(job.job_id),
+                    sealed_at=seal.sealed_at,
+                    revealed_at=script.instruction.revision.created_at,
+                    completed_at=cpu.completed_at,
+                    checked_at=cpu.checked_at,
+                )
+    except Phase5ExecutionError:
+        raise
+    except (KeyError, StoreError, ValueError, OSError) as error:
+        raise Phase5CpuLedgerMaterializationError(
+            f"Phase 5 CPU ledger materialization failed closed: {error}"
+        ) from error
+
+
+def _require_terminal_receiving_job(job: JobRecord, *, label: str) -> None:
+    if job.state not in _TERMINAL_LEDGER_JOB_STATES:
+        raise Phase5LedgerPreflightError(
+            f"{label} receiving job is not finalized (state={job.state.value})"
+        )
+
+
+def validate_phase5_ledger_preflight(
+    *,
+    inputs: Phase5ExecutionInputManifest,
+    artifacts: ArtifactStore,
+    ledger_study_id: str,
+) -> None:
+    """Prove every pre-existing Phase 5 ledger binding before GPU activation.
+
+    C2 result jobs and projections necessarily arrive after their registered calls, so
+    this gate checks their source projections and target study only.  CPU work is
+    already materialized in the frozen input and therefore must have its exact job and,
+    when applied, result projection in SQLite before production may start.
+    """
+
+    try:
+        target_study = artifacts.ledger.get_study(ledger_study_id)
+    except (KeyError, StoreError, ValueError) as error:
+        raise Phase5LedgerPreflightError(
+            f"Phase 5 receiving study {ledger_study_id!r} is absent from the ledger"
+        ) from error
+    if target_study.release_class is not LedgerReleaseClass.RESTRICTED:
+        raise Phase5LedgerPreflightError(
+            "Phase 5 receiving study must be restricted"
+        )
+
+    gaps: list[str] = []
+    source_study_ids: set[str] = set()
+
+    def bind_source(
+        episode_id: str,
+        condition: ConditionName,
+        projection: OntologyProjection,
+    ) -> None:
+        label = f"{episode_id}/{condition.value}"
+        try:
+            study, _projection = _resolve_exact_ledger_projection(
+                artifacts=artifacts,
+                projection=projection,
+            )
+            source_study_ids.add(study.study_id)
+            if study.protocol_hash != inputs.held_out_call_manifest_hash:
+                gaps.append(f"{label}: source projection belongs to another protocol")
+        except (KeyError, StoreError, ValueError, Phase5LedgerPreflightError) as error:
+            gaps.append(f"{label}: exact source projection is absent ({error})")
+
+    for script in inputs.scripted_inputs:
+        for cpu in script.cpu_inputs:
+            label = f"{script.episode_id}/{cpu.condition.value}"
+            bind_source(script.episode_id, cpu.condition, cpu.before_projection)
+            try:
+                job = artifacts.ledger.resolve_job_identity(
+                    phase5_cpu_receiving_job_identity(
+                        inputs=inputs,
+                        ledger_study_id=ledger_study_id,
+                        script=script,
+                        cpu=cpu,
+                    ),
+                    study_id=ledger_study_id,
+                )
+                _require_terminal_receiving_job(job, label=label)
+            except (KeyError, StoreError, ValueError, Phase5LedgerPreflightError) as error:
+                gaps.append(f"{label}: exact CPU receiving job is absent ({error})")
+                job = None
+            if cpu.after_projection is not None:
+                try:
+                    after_study, after = _resolve_exact_ledger_projection(
+                        artifacts=artifacts,
+                        projection=cpu.after_projection,
+                    )
+                    if after_study.study_id != ledger_study_id:
+                        raise Phase5LedgerPreflightError(
+                            "CPU result projection belongs to another study"
+                        )
+                    if job is not None and after.job_id != job.job_id:
+                        raise Phase5LedgerPreflightError(
+                            "CPU result projection belongs to another receiving job"
+                        )
+                except (
+                    KeyError,
+                    StoreError,
+                    ValueError,
+                    Phase5LedgerPreflightError,
+                ) as error:
+                    gaps.append(
+                        f"{label}: exact CPU receiving projection is absent ({error})"
+                    )
+        bind_source(
+            script.episode_id,
+            ConditionName.C2_LLM_QUERY,
+            script.c2_before_projection,
+        )
+    for trace in inputs.researcher_trace_inputs:
+        bind_source(
+            trace.episode_id,
+            ConditionName.C2_LLM_QUERY,
+            trace.c2_before_projection,
+        )
+    if len(source_study_ids) > 1:
+        gaps.append("held-out source projections cross multiple owning studies")
+    if gaps:
+        raise Phase5LedgerPreflightError(
+            "Phase 5 ledger preflight found unbound production lineage: "
+            + "; ".join(gaps)
+        )
+
+
+def _phase5_projection_models(
+    *,
+    inputs: Phase5ExecutionInputManifest,
+    record: FeedbackExecutionRecord,
+    results_root: Path,
+) -> tuple[OntologyProjection, OntologyProjection | None]:
+    episode_id = record.execution.episode_id
+    condition = record.execution.condition
+    scripts = {item.episode_id: item for item in inputs.scripted_inputs}
+    if episode_id in scripts:
+        script = scripts[episode_id]
+        if condition in CPU_CONDITIONS:
+            cpu = next(item for item in script.cpu_inputs if item.condition is condition)
+            return cpu.before_projection, cpu.after_projection
+        before = script.c2_before_projection
+    else:
+        traces = {item.episode_id: item for item in inputs.researcher_trace_inputs}
+        before = traces[episode_id].c2_before_projection
+    result = _read(results_root / f"{episode_id}.json", C2RegenerationResult)
+    if result.content_hash != record.c2_result_hash:
+        raise Phase5LedgerPersistenceError(
+            "Phase 5 C2 ledger persistence loaded another result"
+        )
+    return before, result.after_projection
+
+
+def _build_phase5_ledger_bindings(
+    *,
+    inputs: Phase5ExecutionInputManifest,
+    records: tuple[FeedbackExecutionRecord, ...],
+    results_root: Path,
+    artifacts: ArtifactStore,
+    ledger_study_id: str,
+) -> tuple[_Phase5LedgerResolutionBinding, ...]:
+    scripts = {item.episode_id: item for item in inputs.scripted_inputs}
+    bindings: list[_Phase5LedgerResolutionBinding] = []
+    for record in records:
+        execution = record.execution
+        before, after = _phase5_projection_models(
+            inputs=inputs,
+            record=record,
+            results_root=results_root,
+        )
+        source_study, before_row = _resolve_exact_ledger_projection(
+            artifacts=artifacts,
+            projection=before,
+        )
+        if source_study.protocol_hash != inputs.held_out_call_manifest_hash:
+            raise Phase5LedgerPersistenceError(
+                "Phase 5 source projection belongs to another held-out protocol"
+            )
+
+        if execution.condition in CPU_CONDITIONS:
+            script = scripts[execution.episode_id]
+            cpu = next(
+                item for item in script.cpu_inputs if item.condition is execution.condition
+            )
+            receiving_job = artifacts.ledger.resolve_job_identity(
+                phase5_cpu_receiving_job_identity(
+                    inputs=inputs,
+                    ledger_study_id=ledger_study_id,
+                    script=script,
+                    cpu=cpu,
+                ),
+                study_id=ledger_study_id,
+            )
+        else:
+            receipt = execution.regeneration_receipt
+            if receipt is None:
+                raise Phase5LedgerPersistenceError(
+                    "C2 condition resolution lacks its model-call receipt"
+                )
+            receiving_job = artifacts.ledger.resolve_model_call_job(
+                study_id=ledger_study_id,
+                model_call_ids=tuple(item.model_call_id for item in receipt.ledger_calls),
+            )
+            if receipt.failure_artifact_hash is not None:
+                artifacts.ledger.get_artifact(receipt.failure_artifact_hash)
+        _require_terminal_receiving_job(
+            receiving_job,
+            label=f"{execution.episode_id}/{execution.condition.value}",
+        )
+
+        after_row = None
+        if after is not None:
+            after_study, after_row = _resolve_exact_ledger_projection(
+                artifacts=artifacts,
+                projection=after,
+            )
+            if (
+                after_study.study_id != ledger_study_id
+                or after_row.job_id != receiving_job.job_id
+            ):
+                raise Phase5LedgerPersistenceError(
+                    "Phase 5 after projection is not owned by its receiving study/job"
+                )
+        expected_after_hash = execution.resolution.after_projection_hash
+        if (after is None) != (expected_after_hash is None) or (
+            after is not None and after.content_hash != expected_after_hash
+        ):
+            raise Phase5LedgerPersistenceError(
+                "Phase 5 ledger projection binding differs from its resolution"
+            )
+        bindings.append(
+            _Phase5LedgerResolutionBinding(
+                record=record,
+                before_projection=before_row,
+                receiving_job=receiving_job,
+                after_projection=after_row,
+            )
+        )
+    return tuple(bindings)
+
+
+def _persist_phase5_artifact(
+    *,
+    artifacts: ArtifactStore,
+    value: ImmutableRecord,
+    media_type: str,
+    created_at: datetime,
+    release_class: LedgerReleaseClass = LedgerReleaseClass.RESTRICTED,
+) -> str:
+    payload = _canonical_record_payload(value)
+    artifact = artifacts.put_bytes(
+        payload,
+        media_type=media_type,
+        release_class=release_class,
+        created_at=created_at,
+    )
+    if artifact.content_hash != hashlib.sha256(payload).hexdigest():
+        raise Phase5LedgerPersistenceError("Phase 5 CAS write changed artifact identity")
+    return artifact.content_hash
+
+
+def _feedback_row_id(
+    *,
+    ledger_study_id: str,
+    episode_id: str,
+    condition: ConditionName | None,
+    revision_hash: str,
+) -> str:
+    kind = "user" if condition is None else condition.value.casefold()
+    identity = canonical_sha256(
+        {
+            "study_id": ledger_study_id,
+            "episode_id": episode_id,
+            "condition": condition,
+            "revision_hash": revision_hash,
+        }
+    )
+    return f"phase5-feedback-{kind}-{identity[:32]}"
+
+
+def _visualization_row_id(
+    *,
+    feedback_id: str,
+    stage: Literal["before", "after"],
+    bundle: VisualizationBundle,
+) -> str:
+    identity = canonical_sha256(
+        {
+            "feedback_id": feedback_id,
+            "stage": stage,
+            "bundle_hash": bundle.content_hash,
+        }
+    )
+    return f"phase5-visualization-{stage}-{identity[:32]}"
+
+
+def persist_phase5_ledger(
+    *,
+    inputs: Phase5ExecutionInputManifest,
+    records: tuple[FeedbackExecutionRecord, ...],
+    results_root: Path,
+    artifacts: ArtifactStore,
+    ledger_study_id: str,
+) -> None:
+    """Append shared revisions, condition resolutions, and before/after views.
+
+    Every source projection, receiving job, and result projection is resolved before
+    the first write.  A partial append caused by process loss is safe to replay because
+    all row and artifact identities are deterministic and immutable.
+    """
+
+    try:
+        study = artifacts.ledger.get_study(ledger_study_id)
+        if study.release_class is not LedgerReleaseClass.RESTRICTED:
+            raise Phase5LedgerPersistenceError(
+                "Phase 5 receiving study must be restricted"
+            )
+        bindings = _build_phase5_ledger_bindings(
+            inputs=inputs,
+            records=records,
+            results_root=results_root,
+            artifacts=artifacts,
+            ledger_study_id=ledger_study_id,
+        )
+        if len(bindings) != 21:
+            raise Phase5LedgerPersistenceError(
+                "Phase 5 ledger persistence requires exactly 21 condition resolutions"
+            )
+
+        instructions: dict[str, RevisionInstruction] = {}
+        for binding in bindings:
+            execution = binding.record.execution
+            previous = instructions.setdefault(execution.episode_id, execution.instruction)
+            if previous != execution.instruction:
+                raise Phase5LedgerPersistenceError(
+                    "Phase 5 episode conditions do not share one exact revision"
+                )
+        if len(instructions) != 9:
+            raise Phase5LedgerPersistenceError(
+                "Phase 5 ledger persistence requires exactly nine user revisions"
+            )
+
+        for episode_id, instruction in instructions.items():
+            revision = instruction.revision
+            artifacts.ledger.record_feedback(
+                feedback_id=_feedback_row_id(
+                    ledger_study_id=ledger_study_id,
+                    episode_id=episode_id,
+                    condition=None,
+                    revision_hash=revision.content_hash,
+                ),
+                study_id=ledger_study_id,
+                job_id=None,
+                feedback_kind=LedgerFeedbackKind.USER_REVISION,
+                action=LedgerFeedbackAction(revision.action.value),
+                revision_hash=revision.content_hash,
+                anchor_manifest_hash=canonical_sha256(
+                    tuple(item.content_hash for item in revision.anchors)
+                ),
+                before_context_hash=revision.before_context_hash,
+                after_context_hash=revision.after_context_hash,
+                receiving_condition=None,
+                before_projection_id=None,
+                after_projection_id=None,
+                resolution_status=LedgerFeedbackResolutionStatus.PENDING,
+                resolution_artifact_hash=None,
+                release_class=LedgerReleaseClass.RESTRICTED,
+                created_at=revision.created_at,
+            )
+
+        visualization_configuration = load_visualization_configuration()
+        expected_layout_hash = canonical_sha256(
+            {
+                "algorithm": "preset",
+                "coordinate_rule": visualization_configuration.coordinate_rule,
+                "seed": visualization_configuration.layout_seed,
+                "seed_manifest_hash": visualization_configuration.seed_manifest_hash,
+                "layout_seed_entry_hash": (
+                    visualization_configuration.layout_seed_entry_hash
+                ),
+            }
+        )
+        expected_style_hash = canonical_sha256(
+            {
+                "style": visualization_configuration.style_name,
+                "progressive_disclosure": (
+                    visualization_configuration.progressive_disclosure
+                ),
+            }
+        )
+        expected_font_hash = canonical_sha256(
+            {
+                "family": visualization_configuration.font_family,
+                "base_px": visualization_configuration.font_base_px,
+            }
+        )
+        for binding in bindings:
+            execution = binding.record.execution
+            revision = execution.instruction.revision
+            feedback_id = _feedback_row_id(
+                ledger_study_id=ledger_study_id,
+                episode_id=execution.episode_id,
+                condition=execution.condition,
+                revision_hash=revision.content_hash,
+            )
+            resolution_artifact_hash = _persist_phase5_artifact(
+                artifacts=artifacts,
+                value=execution.resolution,
+                media_type=(
+                    "application/vnd.story-projection.feedback-resolution+json"
+                ),
+                created_at=execution.resolution.resolved_at,
+            )
+            status = {
+                FeedbackResolutionStatus.RESOLVED: LedgerFeedbackResolutionStatus.APPLIED,
+                FeedbackResolutionStatus.CAPABILITY_LIMITED: (
+                    LedgerFeedbackResolutionStatus.CAPABILITY_LIMITED
+                ),
+                FeedbackResolutionStatus.INVALID: LedgerFeedbackResolutionStatus.REJECTED,
+            }[execution.resolution.status]
+            artifacts.ledger.record_feedback(
+                feedback_id=feedback_id,
+                study_id=ledger_study_id,
+                job_id=binding.receiving_job.job_id,
+                feedback_kind=LedgerFeedbackKind.CONDITION_RESOLUTION,
+                action=LedgerFeedbackAction(execution.action.value),
+                revision_hash=revision.content_hash,
+                anchor_manifest_hash=canonical_sha256(
+                    tuple(item.content_hash for item in revision.anchors)
+                ),
+                before_context_hash=revision.before_context_hash,
+                after_context_hash=revision.after_context_hash,
+                receiving_condition=execution.condition.value,
+                before_projection_id=binding.before_projection.projection_id,
+                after_projection_id=(
+                    None
+                    if binding.after_projection is None
+                    else binding.after_projection.projection_id
+                ),
+                resolution_status=status,
+                resolution_artifact_hash=resolution_artifact_hash,
+                release_class=LedgerReleaseClass.RESTRICTED,
+                created_at=execution.resolution.resolved_at,
+            )
+
+            visualizations = [
+                ("before", execution.before_bundle, binding.before_projection)
+            ]
+            if execution.after_bundle is not None:
+                if binding.after_projection is None:
+                    raise Phase5LedgerPersistenceError(
+                        "after visualization lacks its exact ledger projection"
+                    )
+                visualizations.append(
+                    ("after", execution.after_bundle, binding.after_projection)
+                )
+            for stage, bundle, projection in visualizations:
+                if (
+                    bundle.projection_hash != projection.projection_semantic_hash
+                    or bundle.state.layout_name
+                    != visualization_configuration.layout_name
+                    or bundle.state.layout_config_hash != expected_layout_hash
+                    or bundle.state.style_config_hash != expected_style_hash
+                    or bundle.state.font_config_hash != expected_font_hash
+                    or bundle.state.layout_seed != visualization_configuration.layout_seed
+                    or bundle.state.viewport != visualization_configuration.viewport
+                ):
+                    raise Phase5LedgerPersistenceError(
+                        "Phase 5 visualization differs from its ledger projection/configuration"
+                    )
+                visualization_artifact_hash = _persist_phase5_artifact(
+                    artifacts=artifacts,
+                    value=bundle,
+                    media_type=(
+                        "application/vnd.story-projection.visualization-bundle+json"
+                    ),
+                    created_at=execution.resolution.resolved_at,
+                    release_class=LedgerReleaseClass(bundle.release_class.value),
+                )
+                artifacts.ledger.record_visualization(
+                    visualization_id=_visualization_row_id(
+                        feedback_id=feedback_id,
+                        stage=stage,
+                        bundle=bundle,
+                    ),
+                    projection_id=projection.projection_id,
+                    renderer_configuration_hash=(
+                        visualization_configuration.content_hash
+                    ),
+                    semantic_hash=bundle.projection_hash,
+                    visualization_artifact_hash=visualization_artifact_hash,
+                    layout_seed=bundle.state.layout_seed,
+                    release_class=LedgerReleaseClass(bundle.release_class.value),
+                    created_at=execution.resolution.resolved_at,
+                )
+    except Phase5ExecutionError:
+        raise
+    except (KeyError, StoreError, ValueError, OSError) as error:
+        raise Phase5LedgerPersistenceError(
+            f"Phase 5 ledger persistence failed closed: {error}"
+        ) from error
+
+
 def _append_exact(path: Path, record: ImmutableRecord) -> bool:
     payload = record.to_canonical_json().encode() + b"\n"
     _assert_no_symlink_chain(path)
@@ -1066,15 +2052,33 @@ def execute_phase5(
     ledger_verifier: FeedbackLedgerVerifier,
     output_root: Path,
     completed_at: AwareDatetime | Callable[[], datetime],
+    artifacts: ArtifactStore | None = None,
+    ledger_study_id: str | None = None,
 ) -> Phase5JournalIndex:
     """Execute/resume the frozen inventory after prerequisites were verified."""
 
     validate_phase5_inputs(inputs, protocol)
+    if (artifacts is None) != (ledger_study_id is None):
+        raise Phase5LedgerPreflightError(
+            "ArtifactStore and ledger_study_id must be supplied together"
+        )
     if (
         prerequisites.content_hash != inputs.primary_results_gate_hash
         or prerequisites.final_reviewed_seal_hash != inputs.final_reviewed_seal_hash
     ):
         raise Phase5PrerequisiteError("execution does not bind its verified upstream gates")
+    if artifacts is not None and ledger_study_id is not None:
+        materialize_phase5_cpu_ledger(
+            inputs=inputs,
+            protocol=protocol,
+            artifacts=artifacts,
+            ledger_study_id=ledger_study_id,
+        )
+        validate_phase5_ledger_preflight(
+            inputs=inputs,
+            artifacts=artifacts,
+            ledger_study_id=ledger_study_id,
+        )
     root = output_root.absolute()
     _assert_no_symlink_chain(root)
     root.mkdir(parents=True, exist_ok=True)
@@ -1283,6 +2287,14 @@ def execute_phase5(
         }
     ):
         raise Phase5ExecutionError("Phase 5 execution inventory changed")
+    if artifacts is not None and ledger_study_id is not None:
+        persist_phase5_ledger(
+            inputs=inputs,
+            records=tuple(records),
+            results_root=results_dir,
+            artifacts=artifacts,
+            ledger_study_id=ledger_study_id,
+        )
     _append_exact(root / "feedback_manifest.json", manifest)
 
     def artifact_binding(
@@ -1432,9 +2444,12 @@ __all__ = [
     "FeedbackLedgerVerifier",
     "InterruptedFeedbackCallRecoveryRequired",
     "Phase5ArtifactBinding",
+    "Phase5CpuLedgerMaterializationError",
     "Phase5ExecutionError",
     "Phase5ExecutionInputManifest",
     "Phase5JournalIndex",
+    "Phase5LedgerPersistenceError",
+    "Phase5LedgerPreflightError",
     "Phase5PrerequisiteError",
     "Phase5RunnerConfiguration",
     "PrimaryHeldOutResultsGate",
@@ -1447,8 +2462,12 @@ __all__ = [
     "feedback_model_call_record_hash",
     "load_phase5_input_manifest",
     "load_phase5_runner_configuration",
+    "materialize_phase5_cpu_ledger",
+    "persist_phase5_ledger",
+    "phase5_cpu_receiving_job_identity",
     "replay_phase5_prerequisites",
     "run_phase5_from_files",
     "validate_phase5_inputs",
+    "validate_phase5_ledger_preflight",
     "validate_phase5_prerequisites",
 ]

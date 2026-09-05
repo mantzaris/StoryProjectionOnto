@@ -16,6 +16,7 @@ from story_projection_onto.development_adapter import (
     persist_opaque_json,
 )
 from story_projection_onto.development_artifacts import (
+    SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
     DevelopmentAssessmentBundle,
     DevelopmentPackingPreflight,
     DevelopmentPreparationIndex,
@@ -121,6 +122,134 @@ def test_production_factory_propagates_gpu_recovery_overlay(tmp_path: Path) -> N
     assert adopter.recovery_service_start_event_ids == (event_id,)
 
 
+def test_second_recovery_factory_and_forecast_bind_exact_ordered_service_ids(
+    tmp_path: Path,
+) -> None:
+    amendment_hash = _digest("v3-retry-amendment")
+    overlay_hash = _digest("v4-second-recovery-overlay")
+    started = datetime(2026, 9, 5, tzinfo=UTC)
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        for ordinal, event_id in enumerate(
+            SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS
+        ):
+            ledger.record_gpu_event(
+                event_id=event_id,
+                event_kind=GpuEventKind.GPU_SESSION_START,
+                allocated_seconds=10 + ordinal,
+                started_at=started + timedelta(seconds=ordinal * 20),
+                ended_at=started + timedelta(seconds=10 + ordinal * 21),
+                succeeded=True,
+            )
+        ledger.record_gpu_event(
+            event_id="registered-base-service-start-001",
+            event_kind=GpuEventKind.GPU_SESSION_START,
+            allocated_seconds=12,
+            started_at=started + timedelta(seconds=50),
+            ended_at=started + timedelta(seconds=62),
+            succeeded=True,
+        )
+        adopter = create_production_development_adopter(
+            root=ROOT,
+            service=_NoInferenceService(),
+            artifacts=ArtifactStore(BlobStore(tmp_path / "blobs"), ledger),
+            tokenizer=_CompactFakeTokenizer(),
+            tokenizer_manifest=_tokenizer_manifest(),
+            launcher_configuration_hash=_digest("launcher"),
+            model_snapshot_manifest_hash=_digest("snapshot"),
+            source_association={
+                "revision_label": "second-recovery-test",
+                "local_tree_sha256": _digest("source-tree"),
+            },
+            checkpoint_path=tmp_path / "run" / "fallback.checkpoint.json",
+            assessment_factory=_unreachable_assessment_factory,
+            retry_amendment_sha256=amendment_hash,
+            second_recovery_overlay_sha256=overlay_hash,
+            recovery_service_start_event_ids=(
+                SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS
+            ),
+        )
+        receipt = build_development_forecast_receipt(
+            root=ROOT,
+            ledger=ledger,
+            service=_NoInferenceService(),
+            manifest=load_development_call_manifest(ROOT),
+            clock=lambda: started,
+            retry_amendment_sha256=amendment_hash,
+            second_recovery_overlay_sha256=overlay_hash,
+            recovery_service_start_event_ids=(
+                SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS
+            ),
+        )
+
+    assert adopter.second_recovery_overlay_sha256 == overlay_hash
+    assert receipt.authorized_additional_service_start_events == 2
+    assert receipt.effective_accounting_events == 288
+    service_row = next(
+        row for row in receipt.inventory_rows if row.call_class == "gpu_session_start"
+    )
+    assert service_row.consumed_before_development == 1
+    assert service_row.remaining_after_development == 7
+
+
+@pytest.mark.parametrize(
+    ("retry_hash", "overlay_hash", "service_ids"),
+    [
+        (
+            _digest("v3-amendment"),
+            _digest("v4-overlay"),
+            SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS[:1],
+        ),
+        (
+            _digest("v3-amendment"),
+            _digest("v4-overlay"),
+            tuple(reversed(SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS)),
+        ),
+        (
+            _digest("v3-amendment"),
+            _digest("v4-overlay"),
+            (*SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS, "unexpected-start"),
+        ),
+        (
+            _digest("v3-amendment"),
+            None,
+            SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
+        ),
+        (
+            None,
+            _digest("v4-overlay"),
+            SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
+        ),
+    ],
+)
+def test_second_recovery_factory_rejects_missing_extra_reordered_or_unbound_ids(
+    tmp_path: Path,
+    retry_hash: str | None,
+    overlay_hash: str | None,
+    service_ids: tuple[str, ...],
+) -> None:
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger, pytest.raises(
+        DevelopmentContinuationError
+    ):
+        create_production_development_adopter(
+            root=ROOT,
+            service=_NoInferenceService(),
+            artifacts=ArtifactStore(BlobStore(tmp_path / "blobs"), ledger),
+            tokenizer=_CompactFakeTokenizer(),
+            tokenizer_manifest=_tokenizer_manifest(),
+            launcher_configuration_hash=_digest("launcher"),
+            model_snapshot_manifest_hash=_digest("snapshot"),
+            source_association={
+                "revision_label": "invalid-second-recovery-test",
+                "local_tree_sha256": _digest("source-tree"),
+            },
+            checkpoint_path=tmp_path / "run" / "fallback.checkpoint.json",
+            assessment_factory=_unreachable_assessment_factory,
+            retry_amendment_sha256=retry_hash,
+            second_recovery_overlay_sha256=overlay_hash,
+            recovery_service_start_event_ids=service_ids,
+        )
+
+
 def _tokenizer_manifest() -> TokenizerManifest:
     return TokenizerManifest(
         schema_version="1.0.0",
@@ -179,6 +308,7 @@ def _bootstrap(
         launcher_configuration_hash=adopter.launcher_configuration_hash,
         model_snapshot_manifest_hash=adopter.model_snapshot_manifest_hash,
         service_checkpoint_sha256=_digest("service-checkpoint"),
+        development_storage_admission_hash=_digest("phase3-storage-admission"),
         allocated_gpu_seconds_before_preparation=BASELINE_SECONDS,
     )
 

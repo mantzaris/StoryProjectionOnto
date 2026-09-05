@@ -26,7 +26,7 @@ from story_projection_onto.contracts import (
     EvidenceRecord,
     EvidenceSnapshot,
     ImmutableRecord,
-    ModelVisibleEvidenceRecord,
+    ModelVisibleEvidenceInput,
     ModelVisibleQueryContext,
     Sha256Digest,
     canonical_sha256,
@@ -215,7 +215,7 @@ class ModelEligibleWorldArtifact(ImmutableRecord):
 
     artifact_id: str
     snapshot: EvidenceSnapshot
-    evidence: tuple[ModelVisibleEvidenceRecord, ...]
+    evidence: tuple[ModelVisibleEvidenceInput, ...]
 
     @model_validator(mode="after")
     def snapshot_matches_evidence(self) -> Self:
@@ -252,8 +252,11 @@ class EvidenceProjectionEquivalenceCertificate(ImmutableRecord):
     ordered_full_evidence_hash: Sha256Digest
     ordered_model_visible_evidence_hash: Sha256Digest
     evidence_count: int = Field(gt=0)
-    projection_rule: Literal["contracts.to_model_visible_evidence/v1"] = (
-        "contracts.to_model_visible_evidence/v1"
+    projection_rule: Literal[
+        "contracts.to_model_visible_evidence/v1",
+        "contracts.to_model_visible_evidence/v2-exact-lineage",
+    ] = (
+        "contracts.to_model_visible_evidence/v2-exact-lineage"
     )
 
 
@@ -400,7 +403,12 @@ def verify_neutral_evidence_projection(
         certificate.ordered_model_visible_evidence_hash,
         certificate.evidence_count,
     )
-    if expected_model != model_visible or observed != expected:
+    if (
+        certificate.projection_rule
+        != "contracts.to_model_visible_evidence/v2-exact-lineage"
+        or expected_model != model_visible
+        or observed != expected
+    ):
         raise GoldFirewallError(
             "neutral evidence does not project exactly to the staged model-visible artifact"
         )

@@ -130,6 +130,14 @@ def harness(tmp_path: Path) -> Iterator[_Harness]:
         builder_loader=load_builder,
         clock=clock,
     )
+    ledger.register_study(
+        study_id=manifest.manifest_id,
+        protocol_hash=manifest.content_hash,
+        code_manifest_hash=canonical_sha256({"test": "held-out-c0"}),
+        configuration_hash=configuration.content_hash,
+        release_class=ReleaseClass.RESTRICTED,
+        created_at=clock(),
+    )
     try:
         yield _Harness(adapter, unit, backends[0], artifacts, clock)
     finally:

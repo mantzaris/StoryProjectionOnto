@@ -9,7 +9,7 @@ import pytest
 
 import story_projection_onto.held_out_execution as held_out_execution
 import story_projection_onto.held_out_primary as held_out
-from story_projection_onto.contracts import ConditionName, RunOutcome
+from story_projection_onto.contracts import ConditionName, RunOutcome, canonical_sha256
 from story_projection_onto.development_adapter import (
     DEFAULT_DEVELOPMENT_CONSTRUCTION_CONFIG,
     DevelopmentConstructionConfiguration,
@@ -29,6 +29,8 @@ from story_projection_onto.held_out_factory import (
     HeldOutFactoryError,
     _canonical_restricted_root,
     _load_held_out_neutral_worlds,
+    _registered_phase_three_storage_preflight,
+    _require_registered_phase_three_storage_preflight,
     _restricted_descendant,
     create_frozen_production_held_out_bundle,
 )
@@ -42,8 +44,11 @@ from story_projection_onto.store import (
     BlobStore,
     Compression,
     GpuEventKind,
+    JobState,
     Ledger,
     ReleaseClass,
+    SemanticAssessmentScope,
+    StoragePreflight,
 )
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -310,6 +315,29 @@ def test_semantic_executor_recovers_exact_preallocation_or_terminal_event_bounda
                 ledger.get_model_call(result.artifact_receipt.model_call_id).successful
                 is False
             )
+            job_id = canonical_sha256(executor._job_identity(call))
+            assert [item.to_state for item in ledger.transitions(job_id)] == [
+                JobState.PLANNED,
+                JobState.PREQUERY_SEALED,
+                JobState.GENERATED,
+                JobState.VALIDATED,
+                JobState.FINALIZED,
+            ]
+            validation_rows = ledger._connection.execute(
+                "SELECT * FROM validations WHERE job_id = ?", (job_id,)
+            ).fetchall()
+            assert len(validation_rows) == 1
+            assert validation_rows[0]["semantic_assessment_scope"] == (
+                SemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED.value
+            )
+            row_counts = {
+                table: ledger.count_rows(table)
+                for table in ("jobs", "job_transitions", "validations", "failures")
+            }
+            assert executor.recover(call=call, envelope=envelope) == result
+            assert {
+                table: ledger.count_rows(table) for table in row_counts
+            } == row_counts
         else:
             assert result is None
             assert executor._state().active_intent is None
@@ -390,6 +418,22 @@ def test_semantic_executor_recovers_terminal_repair_after_result_commit_crash(
         assert interrupted is not None
         assert interrupted.repair_gpu_event_id is not None
 
+        job_id = canonical_sha256(executor._job_identity(call))
+        assert [item.to_state for item in ledger.transitions(job_id)] == [
+            JobState.PLANNED,
+            JobState.PREQUERY_SEALED,
+            JobState.GENERATED,
+            JobState.REPAIRED,
+            JobState.VALIDATED,
+            JobState.FINALIZED,
+        ]
+        assert ledger.count_rows("validations") == 2
+        assert ledger.count_rows("failures") == 2
+        durable_counts = {
+            table: ledger.count_rows(table)
+            for table in ("jobs", "job_transitions", "validations", "failures")
+        }
+
         result = executor.recover(call=call, envelope=envelope)
 
         assert result is not None
@@ -401,6 +445,9 @@ def test_semantic_executor_recovers_terminal_repair_after_result_commit_crash(
         assert result.artifact_receipt.repair_model_call_id is not None
         assert executor._state().active_intent is None
         assert len(ledger.gpu_events()) == 2
+        assert {
+            table: ledger.count_rows(table) for table in durable_counts
+        } == durable_counts
     finally:
         ledger.close()
 
@@ -426,6 +473,63 @@ def test_concrete_factory_fails_before_paths_when_development_binding_is_pending
             restricted_root=ROOT / "artifacts" / "restricted",
             quota_root=tmp_path,
         )
+
+
+def test_held_out_factory_uses_exact_registered_phase_three_storage_reservation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    storage = StoragePreflight(tmp_path)
+    original_check = storage.check
+    observed: list[dict[str, int]] = []
+
+    def capture_check(**arguments: int):
+        observed.append(dict(arguments))
+        return original_check(
+            **arguments,
+            current_occupied_bytes=0,
+            filesystem_free_bytes=30_000_000_000,
+        )
+
+    monkeypatch.setattr(storage, "check", capture_check)
+
+    report = _registered_phase_three_storage_preflight(ROOT, storage)
+
+    assert observed == [
+        {
+            "declared_growth_bytes": 2_500_000_000,
+            "largest_atomic_temporary_bytes": 268_435_456,
+            "quarantine_allowance_bytes": 268_435_456,
+            "release_staging_bytes": 268_435_456,
+        }
+    ]
+    assert report.additional_reserved_bytes == sum(observed[0].values())
+
+
+def test_held_out_factory_persists_rejected_registered_storage_gate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    storage = StoragePreflight(tmp_path)
+    original_check = storage.check
+    rejected = original_check(
+        current_occupied_bytes=25_000_000_000,
+        filesystem_free_bytes=30_000_000_000,
+        declared_growth_bytes=2_500_000_000,
+        largest_atomic_temporary_bytes=268_435_456,
+        quarantine_allowance_bytes=268_435_456,
+        release_staging_bytes=268_435_456,
+    )
+    monkeypatch.setattr(storage, "check", lambda **_arguments: rejected)
+
+    with Ledger(tmp_path / "study.sqlite3") as ledger:
+        with pytest.raises(HeldOutFactoryError, match="storage preflight failed"):
+            _require_registered_phase_three_storage_preflight(ROOT, storage, ledger)
+        samples = ledger.storage_samples_with_phase_prefix("phase_3:")
+
+    assert len(samples) == 1
+    assert samples[0].phase == "phase_3:held_out_primary:factory"
+    assert samples[0].allowed is False
 
 
 def test_primary_executor_conditions_remain_exact_three() -> None:

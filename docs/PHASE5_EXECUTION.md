@@ -21,6 +21,29 @@ sent through the explicitly injected adapter. The adapter must return a ledger
 bound receipt for success, invalid output, timeout, or failure. The orchestrator
 does not catch an unrecorded adapter exception and invent a receipt.
 
+## Semantic assessment and display scopes
+
+Runtime validation is structural, not an evidence-support judgment. Every runtime
+`ValidationRecord` therefore carries the explicit
+`runtime_structural_only_not_assessed` scope and all three semantic status fields are
+`not_applicable`; this combination means *not assessed*, not a favorable N/A verdict.
+A post-hoc record must instead declare `posthoc_scorer_or_reviewer` and assess at least
+one semantic dimension. The two scopes cannot be interchanged.
+
+`build_visualization_bundle` defaults to `full_structural` plus the persistent
+`pending_scorer_or_reviewer` disclosure so raw projection output remains inspectable.
+Phase 5 execution paths request `registered_display` explicitly, applying the frozen
+common display budgets and endpoint-closed visibility rule. A supported-only view is
+available only when an immutable `VisualizationSemanticOverlay` is supplied explicitly
+after construction. The overlay binds the exact projection, snapshot, evidence packet,
+query context, and source scorer/reviewer artifact hashes and must assess every emitted
+assertion with its exact content hash. Assertion support and description support are
+separate. Unsupported assertions are omitted in supported-only mode; unverified node
+descriptions and `why_matters` prose are replaced by fixed nonfactual disclosure text,
+and only verified in-packet evidence from the assertion's own description lineage may
+be shown as description support. Overlay records contain no gold answer and are never
+serialized into model-visible requests.
+
 ## Production materialization
 
 `phase5_production.py` closes the held-out-to-feedback boundary without assuming
@@ -35,8 +58,10 @@ and held-out call manifest before resolving any episode.
 The six scripted revisions must have an immutable pre-output
 `ScriptedRevisionFreeze`. Actual CPU resolutions are supplied as typed,
 restricted-CAS `CpuReprojectionInput` records and are checked against the exact C0
-and C1 source projections. The three researcher traces contain only their real UI
-instruction and C2 source. A separate post-freeze
+and C1 source projections. The three researcher traces contain their real UI
+request receipt, replayable instruction, and C2 source. The capture-only real
+`/api/revisions` endpoint binds the canonical request and instruction bytes,
+before bundle, projection, action, episode, and honest timestamps. A separate post-freeze
 `Phase5ScorerBindingAuthorization` exposes only 18 opaque known-answer hashes;
 gold projections, target changes, and scorer artifacts are never opened by the
 materializer or adapter.
@@ -118,6 +143,44 @@ from the append-only attempt, model-call, GPU-event, and CAS rows. A recovered s
 calls only `recover_feedback(request_hash)` and never sends another inference.
 The external combined-block controller remains responsible for owning vLLM and
 for providing the already-running service lease; Phase 5 never starts or stops it.
+
+## Canonical report table
+
+After the scorer-only 18-record bundle and receipt have been materialized, compile
+the public-safe Phase 7 feedback source directly from the immutable execution and
+scoring roots:
+
+```bash
+python scripts/materialize_phase5_feedback_table.py \
+  --feedback-journal-root artifacts/restricted/phase5_feedback \
+  --scoring-root artifacts/restricted/phase5_feedback_scoring \
+  --output-root artifacts/public/phase5_feedback_report \
+  --materialize
+```
+
+The output contains `feedback.csv` and a self-hashed
+`feedback_table_receipt.json`. The compiler verifies all 18 scripted
+condition-score records and derives the three C2 trace scores from their graph
+diffs, latency, resolution, and replay records. It groups only by episode class,
+condition, and action, retains explicit defined counts and rate denominators, and
+keeps every trace gold field `NA`. It can be replayed without writing:
+
+```bash
+python scripts/materialize_phase5_feedback_table.py \
+  --feedback-journal-root artifacts/restricted/phase5_feedback \
+  --scoring-root artifacts/restricted/phase5_feedback_scoring \
+  --output-root artifacts/public/phase5_feedback_report \
+  --verify
+```
+
+Both files should be registered as Phase 5 predecessor artifacts for the Phase 7
+`feedback` table. Set `source_table_artifact_id` to `feedback.csv` and
+`source_receipt_artifact_id` to the public receipt artifact; give the receipt a
+`content_hash` / `canonical_without_field` logical-hash contract and include both
+artifact IDs in the table lineage and public allowlist. Phase 7 rejects a complete
+feedback table unless the typed receipt, physical CSV hash, logical row hash,
+columns, exact 18+3 inventory, and row count all agree. No episode text, rationale,
+evidence, or projection content is copied into the public table.
 
 The study is an implementation demonstration. It supports no participant or
 usability claim.

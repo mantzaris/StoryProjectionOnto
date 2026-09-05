@@ -44,6 +44,7 @@ from story_projection_onto.held_out_primary import (
     ReviewedHeldOutPlan,
     load_held_out_control_configuration,
 )
+from story_projection_onto.held_out_results import close_held_out_primary_results
 
 ROOT = Path(__file__).resolve().parents[2]
 NOW = datetime(2026, 1, 1, tzinfo=UTC)
@@ -685,6 +686,48 @@ def test_complete_control_plane_inventory_and_exact_resume(
         authorized_at=completed + timedelta(seconds=1),
     )
     assert bridge.runtime_namespace_closed and not bridge.model_input_open
+    results_root = tmp_path / "TEST-ONLY-held-out-results"
+    closed_bridge, primary_gate = close_held_out_primary_results(
+        reviewed_plan=reviewed_plan,
+        call_manifest=manifest,
+        execution=execution,
+        held_out_output_root=output,
+        results_root=results_root,
+        runtime=runtime,
+        clock=lambda: completed + timedelta(seconds=1),
+    )
+    assert closed_bridge == bridge
+    assert primary_gate.held_out_execution_manifest_hash == execution.content_hash
+    assert primary_gate.scorer_bridge_hash == bridge.content_hash
+    assert primary_gate.result_artifact_hashes == bridge.output_artifact_hashes
+    assert (results_root / "held_out_execution_manifest.json").read_bytes() == (
+        output / "execution_manifest.json"
+    ).read_bytes()
+    assert {
+        item.name for item in results_root.iterdir()
+    } == {
+        "held_out_execution_manifest.json",
+        "primary_results_gate.json",
+        "scorer_bridge.json",
+    }
+    interrupted_result_temporary = results_root / (
+        ".primary_results_gate.json.TEST-ONLY-power-loss.tmp"
+    )
+    interrupted_result_temporary.write_bytes(
+        (results_root / "primary_results_gate.json").read_bytes()
+    )
+    replayed_bridge, replayed_gate = close_held_out_primary_results(
+        reviewed_plan=reviewed_plan,
+        call_manifest=manifest,
+        execution=execution,
+        held_out_output_root=output,
+        results_root=results_root,
+        runtime=runtime,
+        clock=lambda: completed + timedelta(days=1),
+    )
+    assert replayed_bridge == bridge
+    assert replayed_gate == primary_gate
+    assert interrupted_result_temporary.exists()
 
     first_itt_path = next((output / "itt").glob("*.json"))
     interrupted_temporary = first_itt_path.with_name(

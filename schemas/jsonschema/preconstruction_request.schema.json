@@ -202,6 +202,78 @@
       "title": "EventCandidate",
       "type": "object"
     },
+    "LegacyModelVisibleEvidenceRecord": {
+      "additionalProperties": false,
+      "description": "Append-only parser for frozen pre-grounding-lineage request fixtures.\n\nNew request construction never emits this shape.  Runtime structural validation\nrejects it so historical bytes remain inspectable without making provenance-free\nevidence eligible for a new model call or accepted output.",
+      "properties": {
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "discourse_position": {
+          "$ref": "#/$defs/DiscoursePosition"
+        },
+        "event_candidates": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/EventCandidate"
+          },
+          "title": "Event Candidates",
+          "type": "array"
+        },
+        "evidence_id": {
+          "maxLength": 192,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "mention_candidates": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/MentionCandidate"
+          },
+          "title": "Mention Candidates",
+          "type": "array"
+        },
+        "relation_phrase_candidates": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/RelationPhraseCandidate"
+          },
+          "title": "Relation Phrase Candidates",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "temporal_clues": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/TemporalClue"
+          },
+          "title": "Temporal Clues",
+          "type": "array"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "text",
+        "discourse_position"
+      ],
+      "title": "LegacyModelVisibleEvidenceRecord",
+      "type": "object"
+    },
     "MentionCandidate": {
       "additionalProperties": false,
       "properties": {
@@ -303,8 +375,14 @@
     },
     "ModelVisibleEvidenceRecord": {
       "additionalProperties": false,
-      "description": "Strict allowlist for evidence passed to a model.",
+      "description": "Strict model allowlist with the indexed lineage needed for exact citation.",
       "properties": {
+        "confidence": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
         "content_hash": {
           "default": "",
           "pattern": "^(?:|[0-9a-f]{64})$",
@@ -337,6 +415,16 @@
           "title": "Mention Candidates",
           "type": "array"
         },
+        "passage_id": {
+          "maxLength": 192,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+          "title": "Passage Id",
+          "type": "string"
+        },
+        "provenance": {
+          "$ref": "#/$defs/ProvenanceReference"
+        },
         "relation_phrase_candidates": {
           "default": [],
           "items": {
@@ -363,12 +451,21 @@
           "minLength": 1,
           "title": "Text",
           "type": "string"
+        },
+        "text_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Text Hash",
+          "type": "string"
         }
       },
       "required": [
         "evidence_id",
         "text",
-        "discourse_position"
+        "discourse_position",
+        "passage_id",
+        "text_hash",
+        "provenance",
+        "confidence"
       ],
       "title": "ModelVisibleEvidenceRecord",
       "type": "object"
@@ -423,6 +520,75 @@
         "display_assertion_budget"
       ],
       "title": "OutputBudgets",
+      "type": "object"
+    },
+    "ProvenanceReference": {
+      "additionalProperties": false,
+      "properties": {
+        "confidence": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "evidence_id": {
+          "maxLength": 192,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+          "title": "Evidence Id",
+          "type": "string"
+        },
+        "extraction_method": {
+          "minLength": 1,
+          "title": "Extraction Method",
+          "type": "string"
+        },
+        "locator": {
+          "minLength": 1,
+          "title": "Locator",
+          "type": "string"
+        },
+        "provenance_id": {
+          "maxLength": 192,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+          "title": "Provenance Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "source_artifact_hash": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Artifact Hash"
+        }
+      },
+      "required": [
+        "provenance_id",
+        "evidence_id",
+        "extraction_method",
+        "locator",
+        "confidence"
+      ],
+      "title": "ProvenanceReference",
       "type": "object"
     },
     "RelationPhraseCandidate": {
@@ -498,6 +664,45 @@
       "title": "RelationPhraseCandidate",
       "type": "object"
     },
+    "RevelationPosition": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "revelation_order": {
+          "minimum": 0,
+          "title": "Revelation Order",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "revelation_order"
+      ],
+      "title": "RevelationPosition",
+      "type": "object"
+    },
     "RuntimeIdentifiers": {
       "additionalProperties": false,
       "properties": {
@@ -567,6 +772,56 @@
         "decoding_config_hash"
       ],
       "title": "RuntimeIdentifiers",
+      "type": "object"
+    },
+    "SpoilerHorizon": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "horizon_id": {
+          "maxLength": 192,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+          "title": "Horizon Id",
+          "type": "string"
+        },
+        "max_discourse_position": {
+          "$ref": "#/$defs/DiscoursePosition"
+        },
+        "max_revelation_position": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RevelationPosition"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "withheld_after_horizon": {
+          "const": true,
+          "default": true,
+          "title": "Withheld After Horizon",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "horizon_id",
+        "max_discourse_position"
+      ],
+      "title": "SpoilerHorizon",
       "type": "object"
     },
     "TemporalClue": {
@@ -743,7 +998,14 @@
     },
     "evidence": {
       "items": {
-        "$ref": "#/$defs/ModelVisibleEvidenceRecord"
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ModelVisibleEvidenceRecord"
+          },
+          {
+            "$ref": "#/$defs/LegacyModelVisibleEvidenceRecord"
+          }
+        ]
       },
       "title": "Evidence",
       "type": "array"
@@ -768,6 +1030,17 @@
       "default": "1.0.0",
       "title": "Schema Version",
       "type": "string"
+    },
+    "sealed_horizon": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SpoilerHorizon"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "snapshot_hash": {
       "pattern": "^[0-9a-f]{64}$",

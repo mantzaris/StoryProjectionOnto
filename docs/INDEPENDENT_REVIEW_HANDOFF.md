@@ -13,8 +13,10 @@ reviews and cannot authorize a held-out run.
 2. Save their completed `IndependentReviewResponse` in a restricted location.
    Notes and the reviewer pseudonym are restricted by default.
 3. A separately acting adjudicator receives the response and writes a
-   `ReviewAdjudication`. Every `DISAGREE` or `UNCERTAIN` item must be resolved;
-   agreed items must not be included.
+   `ReviewAdjudication`. Its required `adjudicator_pseudonym` must differ from
+   the response's `reviewer_pseudonym`; the validator compares them
+   case-insensitively and fails closed. Every `DISAGREE` or `UNCERTAIN` item
+   must be resolved; agreed items must not be included.
 4. `RETAIN` keeps the original sealed scorer semantics. `AMEND` requires a
    `ReviewAmendmentBundle` containing the complete amended
    `GoldContextualProjection` and `GoldAlternativeSet`. Each AMEND item must name

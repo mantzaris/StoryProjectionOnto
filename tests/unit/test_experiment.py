@@ -303,6 +303,13 @@ def test_meter_context_records_load_warmup_inference_repair_and_restart(tmp_path
         assert summary.seconds_for(GpuEventKind.RESTART) == 1.5
         assert meter.actual_allocated_gpu_seconds == 10
         assert ledger.count_rows("gpu_allocation_journal") == 10
+        journal = ledger.gpu_allocation_journal_records()
+        assert len(journal) == 10
+        assert tuple((item.allocation_id, item.sequence) for item in journal) == tuple(
+            (allocation_id, sequence)
+            for allocation_id in ("inference", "load", "repair", "restart", "warmup")
+            for sequence in (0, 1)
+        )
         assert ledger.unresolved_gpu_allocations() == ()
 
 

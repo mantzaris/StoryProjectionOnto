@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 import hashlib
 import json
 import os
@@ -11,8 +13,11 @@ import zipfile
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Annotated, Any, Literal, Self
 
+from pydantic import Field, StringConstraints, model_validator
+
+from story_projection_onto.contracts import ImmutableRecord, ReleaseClass, Sha256Digest
 from story_projection_onto.reporting import canonical_manifest_payload, canonical_sha256, write_json
 
 try:
@@ -29,10 +34,13 @@ ALLOWED_SUFFIXES = frozenset(
         ".html",
         ".js",
         ".json",
+        ".lock",
         ".md",
+        ".mjs",
         ".pdf",
         ".png",
         ".py",
+        ".sh",
         ".svg",
         ".toml",
         ".txt",
@@ -106,6 +114,185 @@ class PublicEntry:
     release_class: str
 
 
+@dataclass(frozen=True, slots=True)
+class Phase7ReleaseLineage:
+    """Exact production-compiler chain authenticated before public bundling."""
+
+    build_token: str
+    source_registry_sha256: str
+    compiler_configuration_sha256: str
+    current_pointer_file_sha256: str
+    current_pointer_manifest_sha256: str
+    compilation_manifest_file_sha256: str
+    compilation_manifest_sha256: str
+    immutable_output_inventory_sha256: str
+    result_manifest_file_sha256: str
+    report_pdf_file_sha256: str
+    public_bundle_input_file_sha256: str
+    public_entry_inventory_sha256: str
+
+    def __post_init__(self) -> None:
+        if (
+            not isinstance(self.build_token, str)
+            or len(self.build_token) != 16
+            or any(character not in "0123456789abcdef" for character in self.build_token)
+        ):
+            raise ValueError("Phase-7 release build token must be 16 lowercase hex digits")
+        for name, value in self.manifest_payload().items():
+            if name == "build_token":
+                continue
+            if not isinstance(value, str) or len(value) != 64 or any(
+                character not in "0123456789abcdef" for character in value
+            ):
+                raise ValueError(f"Phase-7 release digest is invalid: {name}")
+
+    def manifest_payload(self) -> dict[str, str]:
+        return {
+            "build_token": self.build_token,
+            "source_registry_sha256": self.source_registry_sha256,
+            "compiler_configuration_sha256": self.compiler_configuration_sha256,
+            "current_pointer_file_sha256": self.current_pointer_file_sha256,
+            "current_pointer_manifest_sha256": self.current_pointer_manifest_sha256,
+            "compilation_manifest_file_sha256": self.compilation_manifest_file_sha256,
+            "compilation_manifest_sha256": self.compilation_manifest_sha256,
+            "immutable_output_inventory_sha256": self.immutable_output_inventory_sha256,
+            "result_manifest_file_sha256": self.result_manifest_file_sha256,
+            "report_pdf_file_sha256": self.report_pdf_file_sha256,
+            "public_bundle_input_file_sha256": self.public_bundle_input_file_sha256,
+            "public_entry_inventory_sha256": self.public_entry_inventory_sha256,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class VisualReleaseLineage:
+    """Path-free hashes for an accepted inspection of the released report PDF."""
+
+    raster_manifest_file_sha256: str
+    raster_manifest_sha256: str
+    inspection_receipt_file_sha256: str
+    inspection_receipt_sha256: str
+    source_pdf_sha256: str
+    inspection_status: str = "accepted"
+
+    def __post_init__(self) -> None:
+        for name, value in self.manifest_payload().items():
+            if name == "inspection_status":
+                if value != "accepted":
+                    raise ValueError("visual release lineage must record accepted inspection")
+                continue
+            if not isinstance(value, str) or len(value) != 64 or any(
+                character not in "0123456789abcdef" for character in value
+            ):
+                raise ValueError(f"visual release digest is invalid: {name}")
+
+    def manifest_payload(self) -> dict[str, str]:
+        return {
+            "raster_manifest_file_sha256": self.raster_manifest_file_sha256,
+            "raster_manifest_sha256": self.raster_manifest_sha256,
+            "inspection_receipt_file_sha256": self.inspection_receipt_file_sha256,
+            "inspection_receipt_sha256": self.inspection_receipt_sha256,
+            "source_pdf_sha256": self.source_pdf_sha256,
+            "inspection_status": self.inspection_status,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class NarrativeReleaseLineage:
+    """Path-free hashes for the restricted corpus-to-public-table release chain."""
+
+    analysis_receipt_file_sha256: str
+    analysis_receipt_sha256: str
+    index_manifest_file_sha256: str
+    index_manifest_sha256: str
+    protected_canary_manifest_file_sha256: str
+    protected_canary_manifest_sha256: str
+    corpus_sha256: str
+    release_scan_receipt_sha256: str
+    public_table_file_sha256: str
+    publication_status: str = "public_scan_passed"
+
+    def __post_init__(self) -> None:
+        for name, value in self.manifest_payload().items():
+            if name == "publication_status":
+                if value != "public_scan_passed":
+                    raise ValueError("narrative release lineage must record a passed public scan")
+                continue
+            if not isinstance(value, str) or len(value) != 64 or any(
+                character not in "0123456789abcdef" for character in value
+            ):
+                raise ValueError(f"narrative release digest is invalid: {name}")
+
+    def manifest_payload(self) -> dict[str, str]:
+        return {
+            "analysis_receipt_file_sha256": self.analysis_receipt_file_sha256,
+            "analysis_receipt_sha256": self.analysis_receipt_sha256,
+            "index_manifest_file_sha256": self.index_manifest_file_sha256,
+            "index_manifest_sha256": self.index_manifest_sha256,
+            "protected_canary_manifest_file_sha256": (
+                self.protected_canary_manifest_file_sha256
+            ),
+            "protected_canary_manifest_sha256": self.protected_canary_manifest_sha256,
+            "corpus_sha256": self.corpus_sha256,
+            "release_scan_receipt_sha256": self.release_scan_receipt_sha256,
+            "public_table_file_sha256": self.public_table_file_sha256,
+            "publication_status": self.publication_status,
+        }
+
+
+class ProtectedProseCanary(ImmutableRecord):
+    """One restricted exact-byte canary; public manifests expose only its hash."""
+
+    canary_id: Annotated[
+        str,
+        StringConstraints(pattern=r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"),
+    ]
+    payload_base64: Annotated[str, StringConstraints(min_length=12, max_length=8192)] = Field(
+        repr=False
+    )
+    payload_sha256: Sha256Digest
+
+    @model_validator(mode="after")
+    def payload_is_canonical_and_bound(self) -> Self:
+        try:
+            decoded = base64.b64decode(self.payload_base64, validate=True)
+        except (ValueError, binascii.Error) as error:
+            raise ValueError("protected prose canary is not canonical base64") from error
+        if base64.b64encode(decoded).decode("ascii") != self.payload_base64:
+            raise ValueError("protected prose canary base64 is noncanonical")
+        if not 8 <= len(decoded) <= 4096:
+            raise ValueError("protected prose canary must contain 8..4096 bytes")
+        if hashlib.sha256(decoded).hexdigest() != self.payload_sha256:
+            raise ValueError("protected prose canary payload hash mismatch")
+        return self
+
+    def decoded(self) -> bytes:
+        return base64.b64decode(self.payload_base64, validate=True)
+
+
+class ProtectedProseCanaryManifest(ImmutableRecord):
+    """Restricted scanner input required whenever case-study artifacts are published."""
+
+    manifest_id: Annotated[
+        str,
+        StringConstraints(pattern=r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"),
+    ]
+    corpus_hash: Sha256Digest
+    canaries: tuple[ProtectedProseCanary, ...]
+    release_class: Literal[ReleaseClass.RESTRICTED] = ReleaseClass.RESTRICTED
+
+    @model_validator(mode="after")
+    def inventory_is_nonempty_and_unique(self) -> Self:
+        identifiers = [item.canary_id for item in self.canaries]
+        payload_hashes = [item.payload_sha256 for item in self.canaries]
+        if not identifiers:
+            raise ValueError("protected prose canary manifest must not be empty")
+        if len(identifiers) != len(set(identifiers)):
+            raise ValueError("protected prose canary IDs must be unique")
+        if len(payload_hashes) != len(set(payload_hashes)):
+            raise ValueError("protected prose canary payloads must be unique")
+        return self
+
+
 def _file_sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -125,7 +312,10 @@ def _validate_relative_path(value: str) -> PurePosixPath:
     if blocked:
         raise PublicReleaseError(f"prohibited public path component: {blocked[0]}")
     suffix = path.suffix.lower()
-    extensionless_notice = not suffix and path.name.upper() in {"LICENSE", "NOTICE"}
+    upper_name = path.name.upper()
+    extensionless_notice = not suffix and (
+        upper_name in {"LICENSE", "NOTICE"} or upper_name.endswith("_LICENSE")
+    )
     if suffix in PROHIBITED_SUFFIXES or (
         suffix not in ALLOWED_SUFFIXES and not extensionless_notice
     ):
@@ -133,9 +323,27 @@ def _validate_relative_path(value: str) -> PurePosixPath:
     return path
 
 
+def _assert_no_symlink_chain(path: Path) -> None:
+    current = path.absolute()
+    while True:
+        if current.is_symlink():
+            raise PublicReleaseError(f"symlinked public-release path is prohibited: {path}")
+        if current.parent == current:
+            return
+        current = current.parent
+
+
 def _safe_source(root: Path, relative_path: str) -> Path:
     relative = _validate_relative_path(relative_path)
-    candidate = root.joinpath(*relative.parts)
+    _assert_no_symlink_chain(root)
+    try:
+        resolved_root = root.resolve(strict=True)
+    except OSError as error:
+        raise PublicReleaseError("public source root does not exist") from error
+    if not resolved_root.is_dir():
+        raise PublicReleaseError("public source root is not a directory")
+    candidate = root.absolute().joinpath(*relative.parts)
+    _assert_no_symlink_chain(candidate)
     try:
         metadata = candidate.lstat()
     except FileNotFoundError as exc:
@@ -145,9 +353,50 @@ def _safe_source(root: Path, relative_path: str) -> Path:
     if not stat.S_ISREG(metadata.st_mode):
         raise PublicReleaseError(f"public artifact is not a regular file: {relative_path}")
     resolved = candidate.resolve(strict=True)
-    if not resolved.is_relative_to(root.resolve()):
+    if not resolved.is_relative_to(resolved_root):
         raise PublicReleaseError(f"public artifact escapes source root: {relative_path}")
     return resolved
+
+
+def _safe_explicit_file(root: Path, path: Path, *, label: str) -> Path:
+    _assert_no_symlink_chain(root)
+    try:
+        resolved_root = root.resolve(strict=True)
+    except OSError as error:
+        raise PublicReleaseError(f"{label} root does not exist") from error
+    candidate = path.absolute()
+    if not candidate.is_relative_to(root.absolute()):
+        raise PublicReleaseError(f"{label} is outside its explicit root")
+    _assert_no_symlink_chain(candidate)
+    try:
+        resolved = candidate.resolve(strict=True)
+    except OSError as error:
+        raise PublicReleaseError(f"missing {label}") from error
+    if not resolved.is_relative_to(resolved_root) or not resolved.is_file():
+        raise PublicReleaseError(f"{label} escapes its explicit root")
+    return resolved
+
+
+def load_protected_prose_canaries(
+    restricted_root: Path,
+    manifest_path: Path,
+) -> tuple[ProtectedProseCanaryManifest, tuple[bytes, ...]]:
+    """Load exact canaries only from a symlink-free explicit restricted root."""
+
+    source = _safe_explicit_file(
+        restricted_root,
+        manifest_path,
+        label="protected prose canary manifest",
+    )
+    try:
+        if source.stat().st_size > 1024 * 1024:
+            raise PublicReleaseError("protected prose canary manifest exceeds 1 MiB")
+        manifest = ProtectedProseCanaryManifest.model_validate_json(source.read_bytes())
+    except PublicReleaseError:
+        raise
+    except Exception as error:
+        raise PublicReleaseError(f"invalid protected prose canary manifest: {error}") from error
+    return manifest, tuple(item.decoded() for item in manifest.canaries)
 
 
 def scan_public_bytes(
@@ -300,13 +549,24 @@ def _scan_file_payload(
     _scan_case_artifact(payload, relative_path)
 
 
-def load_public_entries(manifest_path: Path) -> tuple[PublicEntry, ...]:
-    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
-    supplied_hash = payload.pop("manifest_sha256", None)
-    if supplied_hash != canonical_sha256(payload):
+def _load_public_manifest_payload(manifest_path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise PublicReleaseError("invalid public bundle input manifest") from error
+    if not isinstance(payload, dict):
+        raise PublicReleaseError("public bundle input manifest must be one JSON object")
+    supplied_hash = payload.get("manifest_sha256")
+    immutable = {key: value for key, value in payload.items() if key != "manifest_sha256"}
+    if supplied_hash != canonical_sha256(immutable):
         raise PublicReleaseError("public bundle input manifest self-hash mismatch")
     if payload.get("schema_version") != "1.0.0":
         raise PublicReleaseError("unsupported public bundle manifest schema")
+    return payload
+
+
+def load_public_entries(manifest_path: Path) -> tuple[PublicEntry, ...]:
+    payload = _load_public_manifest_payload(manifest_path)
     entries = tuple(PublicEntry(**item) for item in payload.get("entries", ()))
     if not entries:
         raise PublicReleaseError("public bundle allowlist is empty")
@@ -314,6 +574,28 @@ def load_public_entries(manifest_path: Path) -> tuple[PublicEntry, ...]:
     if len(targets) != len(set(targets)):
         raise PublicReleaseError("duplicate public bundle target")
     return entries
+
+
+def _contains_case_study_publication(entries: Sequence[PublicEntry]) -> bool:
+    for entry in entries:
+        paths = (entry.source_relative_path, entry.bundle_relative_path)
+        if not any(
+            PurePosixPath(value).parts
+            and PurePosixPath(value).parts[0].lower() in {"artifacts", "reports"}
+            for value in paths
+        ):
+            continue
+        components = {
+            component.lower()
+            for value in paths
+            for component in PurePosixPath(value).parts
+        }
+        if any(
+            re.search(r"(?:^|[_-])(?:case|novel)(?:[_-]|$)", item)
+            for item in components
+        ):
+            return True
+    return False
 
 
 def scan_public_entries(
@@ -374,6 +656,10 @@ def build_public_bundle(
     bundle_root: Path,
     *,
     forbidden_canaries: Sequence[bytes] = (),
+    protected_canary_manifest_hash: Sha256Digest | None = None,
+    phase7_lineage: Phase7ReleaseLineage | None = None,
+    visual_release_lineage: VisualReleaseLineage | None = None,
+    narrative_release_lineage: NarrativeReleaseLineage | None = None,
 ) -> dict[str, Any]:
     """Create a new allowlisted directory and deterministic ZIP archive.
 
@@ -381,12 +667,91 @@ def build_public_bundle(
     file that has been removed from the allowlist.
     """
 
-    entries = load_public_entries(manifest_path)
+    safe_manifest = _safe_explicit_file(
+        source_root,
+        manifest_path,
+        label="public bundle input manifest",
+    )
+    manifest_payload = _load_public_manifest_payload(safe_manifest)
+    entries = load_public_entries(safe_manifest)
+    compiler_bound = "source_registry_sha256" in manifest_payload
+    complete_release = manifest_payload.get("bundle_status") == "complete"
+    if (compiler_bound or complete_release) and phase7_lineage is None:
+        raise PublicReleaseError(
+            "compiler-generated or complete public bundle requires Phase-7 lineage"
+        )
+    if phase7_lineage is not None:
+        entry_inventory_hash = canonical_sha256(
+            [
+                {
+                    "source_relative_path": item.source_relative_path,
+                    "bundle_relative_path": item.bundle_relative_path,
+                    "sha256": item.sha256,
+                    "release_class": item.release_class,
+                }
+                for item in entries
+            ]
+        )
+        if (
+            phase7_lineage.public_bundle_input_file_sha256 != _file_sha256(safe_manifest)
+            or phase7_lineage.public_entry_inventory_sha256 != entry_inventory_hash
+            or (
+                compiler_bound
+                and manifest_payload["source_registry_sha256"]
+                != phase7_lineage.source_registry_sha256
+            )
+        ):
+            raise PublicReleaseError("Phase-7 release lineage differs from public input")
+    case_study_publication = _contains_case_study_publication(entries)
+    if complete_release and visual_release_lineage is None:
+        raise PublicReleaseError(
+            "complete public bundle requires accepted visual-inspection lineage"
+        )
+    if case_study_publication and (
+        not forbidden_canaries or protected_canary_manifest_hash is None
+    ):
+        raise PublicReleaseError(
+            "case-study publication requires a validated protected-prose canary manifest"
+        )
+    if protected_canary_manifest_hash is not None and not forbidden_canaries:
+        raise PublicReleaseError("protected canary manifest hash supplied without canaries")
+    if case_study_publication and narrative_release_lineage is None:
+        raise PublicReleaseError(
+            "case-study publication requires complete narrative release lineage"
+        )
+    if not case_study_publication and narrative_release_lineage is not None:
+        raise PublicReleaseError(
+            "narrative release lineage supplied without a case-study publication"
+        )
+    if (
+        narrative_release_lineage is not None
+        and narrative_release_lineage.protected_canary_manifest_sha256
+        != protected_canary_manifest_hash
+    ):
+        raise PublicReleaseError(
+            "narrative release lineage differs from protected canary manifest"
+        )
+    if (
+        narrative_release_lineage is not None
+        and narrative_release_lineage.public_table_file_sha256
+        not in {entry.sha256 for entry in entries}
+    ):
+        raise PublicReleaseError(
+            "narrative release lineage does not bind an allowlisted public table"
+        )
+    if (
+        visual_release_lineage is not None
+        and phase7_lineage is not None
+        and visual_release_lineage.source_pdf_sha256
+        != phase7_lineage.report_pdf_file_sha256
+    ):
+        raise PublicReleaseError("visual release lineage differs from Phase-7 report PDF")
     records = scan_public_entries(
         source_root,
         entries,
         forbidden_canaries=forbidden_canaries,
     )
+    _assert_no_symlink_chain(bundle_root)
     if bundle_root.exists():
         raise PublicReleaseError("public bundle destination already exists")
     bundle_root.mkdir(parents=True)
@@ -398,7 +763,22 @@ def build_public_bundle(
     payload: dict[str, Any] = {
         "schema_version": "1.0.0",
         "kind": "verified_public_bundle",
-        "source_manifest_sha256": _file_sha256(manifest_path),
+        "source_manifest_sha256": _file_sha256(safe_manifest),
+        "phase7_release_lineage": (
+            None if phase7_lineage is None else phase7_lineage.manifest_payload()
+        ),
+        "visual_release_lineage": (
+            None
+            if visual_release_lineage is None
+            else visual_release_lineage.manifest_payload()
+        ),
+        "narrative_release_lineage": (
+            None
+            if narrative_release_lineage is None
+            else narrative_release_lineage.manifest_payload()
+        ),
+        "case_study_publication": case_study_publication,
+        "protected_canary_manifest_hash": protected_canary_manifest_hash,
         "entries": list(records),
         "total_bytes": sum(item["size_bytes"] for item in records),
         "excluded_classes": [

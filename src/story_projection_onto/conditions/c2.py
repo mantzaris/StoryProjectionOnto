@@ -181,6 +181,7 @@ def finalize_c2_draft(
         draft=draft,
         upper_ontology=request.upper_ontology,
         evidence=request.packet.evidence,
+        horizon=inputs.snapshot.horizon,
         budgets=request.budgets,
         capabilities=request.capabilities,
     )

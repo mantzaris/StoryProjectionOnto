@@ -1,26 +1,42 @@
 from __future__ import annotations
 
 import copy
+import fcntl
 import hashlib
 import importlib
 import json
 import os
+import shutil
+import signal
 import subprocess
+import sys
+import time
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from contextlib import suppress
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 from typing import cast
 
 import pytest
 
+import story_projection_onto.fallback_acceptance as fallback_acceptance_module
 from story_projection_onto.contracts import (
+    RUNTIME_STRUCTURAL_ONLY_DIAGNOSTIC,
     ConditionName,
     OutputBudgets,
     PrequeryPreparationBinding,
     QueryAccessEvent,
     RunOutcome,
+    canonical_json,
     canonical_sha256,
+)
+from story_projection_onto.development_artifacts import (
+    SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
+)
+from story_projection_onto.development_continuation import (
+    create_production_development_adopter,
 )
 from story_projection_onto.development_runtime import (
     DevelopmentCallKind,
@@ -40,10 +56,33 @@ from story_projection_onto.development_runtime import (
     UnitPrequeryBinding,
     load_development_call_manifest,
 )
-from story_projection_onto.experiment import ResourceLimits
+from story_projection_onto.experiment import (
+    AllocatedGPUMeter,
+    ResourceLimits,
+    StorageAllocationPlan,
+)
 from story_projection_onto.fallback_acceptance import (
     AMENDED_FALLBACK_STARTUP_WATCHDOG_SECONDS,
     REPAIR_TRIGGER_RULE,
+    SECOND_RECOVERY_EVIDENCE_BRIDGE_IMPLEMENTATION_PATH,
+    SECOND_RECOVERY_EVIDENCE_BRIDGE_REGRESSION_TEST_PATH,
+    SECOND_RECOVERY_EVIDENCE_BRIDGE_SECTION_NAME,
+    SECOND_RECOVERY_OVERLAY_KIND,
+    SECOND_RECOVERY_POST_TWO_FIX_C0_IMPLEMENTATION_SHA256,
+    SECOND_RECOVERY_POST_TWO_FIX_C0_REGRESSION_TEST_SHA256,
+    SECOND_RECOVERY_RETRY_CALL_ID,
+    SECOND_RECOVERY_V3_C1_IMPLEMENTATION_SHA256,
+    SECOND_RECOVERY_V3_DECODER_SCHEMA_SHA256,
+    SECOND_RECOVERY_V3_INCIDENT_FILE_SHA256,
+    SECOND_RECOVERY_V3_INCIDENT_MANIFEST_SHA256,
+    SECOND_RECOVERY_V3_REQUEST_SHA256,
+    SECOND_RECOVERY_V3_RESULT_FILE_SHA256,
+    SECOND_RECOVERY_V3_RESULT_MANIFEST_SHA256,
+    SECOND_RECOVERY_V3_RETRY_AMENDMENT_SHA256,
+    SECOND_RECOVERY_V3_RUN_ID,
+    SECOND_RECOVERY_V4_C1_CONDITION_PATHWAY_TEST_SHA256,
+    SECOND_RECOVERY_V4_C1_DEVELOPMENT_ASSESSMENT_TEST_SHA256,
+    SECOND_RECOVERY_V4_C1_IMPLEMENTATION_SHA256,
     DevelopmentAdopterRegistration,
     DevelopmentContinuationBootstrap,
     DevelopmentContinuationHandoff,
@@ -52,6 +91,7 @@ from story_projection_onto.fallback_acceptance import (
     PreparedDevelopmentContinuation,
     build_fallback_acceptance_request,
     build_fallback_repair_request,
+    build_second_fallback_recovery_overlay,
     fallback_pilot_calls,
     fallback_plan_manifest,
     main,
@@ -59,34 +99,76 @@ from story_projection_onto.fallback_acceptance import (
     pre_fallback_gpu_accounting_baseline,
     validate_fallback_service_retry_amendment,
     validate_pre_fallback_gpu_accounting,
+    validate_second_fallback_recovery_overlay,
     validate_source_association,
 )
 from story_projection_onto.gpu_runtime import (
     FALLBACK_MODEL_REPOSITORY,
     FALLBACK_MODEL_REVISION,
     FALLBACK_SERVED_MODEL_NAME,
+    ChatMessage,
     GenerationResult,
     GuidedJSONRequest,
+    RuntimeTransportError,
     ServiceState,
     ServiceUptime,
     TokenizerManifest,
     VLLMLaunchConfiguration,
+    VLLMService,
 )
+from story_projection_onto.ledger_verify import verify_ledger
 from story_projection_onto.manifest import build_source_manifest
 from story_projection_onto.model_gate import FallbackModelPolicy
 from story_projection_onto.phase1_acceptance import validate_acceptance_generation
+from story_projection_onto.phase1_legacy_provenance import (
+    CERTIFICATE_RELATIVE_PATH,
+    Phase1LegacyEvidenceProvenanceBridge,
+)
 from story_projection_onto.public_release import scan_public_bytes
 from story_projection_onto.store import (
     ArtifactStore,
+    AttemptKind,
     BlobStore,
+    FailureKind,
     GpuEventKind,
+    GpuServiceJournalState,
     GpuSummary,
+    JobState,
     Ledger,
+    ReleaseClass,
+    SemanticAssessmentScope,
+    StorageBudget,
+    StorageBudgetExceeded,
+    StoragePreflight,
+    ValidationStatus,
 )
 
 ROOT = Path(__file__).resolve().parents[2]
 HASH_A = "a" * 64
 HASH_B = "b" * 64
+
+
+def legacy_provenance_bridge() -> Phase1LegacyEvidenceProvenanceBridge:
+    return Phase1LegacyEvidenceProvenanceBridge.load(ROOT)
+
+
+def with_legacy_source_hashes(value: Mapping[str, object]) -> dict[str, object]:
+    """Model the source-only fields now required from non-Fixed fallback output."""
+
+    result = copy.deepcopy(dict(value))
+    bridge = legacy_provenance_bridge()
+    by_evidence_id = {
+        binding.evidence_id: binding.source.source_artifact_hash
+        for binding in bridge.certificate.evidence_bindings
+    }
+    graph = cast(dict[str, object], result["instance_graph"])
+    assertions = cast(list[dict[str, object]], graph["assertions"])
+    for assertion in assertions:
+        for provenance in cast(list[dict[str, object]], assertion["provenance"]):
+            provenance["source_artifact_hash"] = by_evidence_id[
+                cast(str, provenance["evidence_id"])
+            ]
+    return result
 
 
 class FakeTokenizer:
@@ -122,6 +204,25 @@ def fallback_tokenizer_manifest() -> TokenizerManifest:
     )
 
 
+def v3_fallback_tokenizer_manifest() -> TokenizerManifest:
+    predecessor = json.loads(
+        (
+            ROOT
+            / "artifacts/public/results/fallback_gpu_acceptance_development_v3.json"
+        ).read_text(encoding="utf-8")
+    )
+    payload = copy.deepcopy(predecessor["runtime"]["tokenizer"])
+    expected_manifest_sha256 = payload.pop("manifest_sha256")
+    payload["tokenizer_file_sha256"] = tuple(
+        tuple(row) for row in payload["tokenizer_file_sha256"]
+    )
+    payload["end_of_turn_token_ids"] = tuple(payload["end_of_turn_token_ids"])
+    payload["stop_token_ids"] = tuple(payload["stop_token_ids"])
+    manifest = TokenizerManifest(**payload)
+    assert manifest.manifest_sha256 == expected_manifest_sha256
+    return manifest
+
+
 def test_fallback_plan_binds_exact_calls_reserves_and_no_primary_block() -> None:
     plan = fallback_plan_manifest(ROOT)
     calls = plan["calls"]
@@ -134,10 +235,41 @@ def test_fallback_plan_binds_exact_calls_reserves_and_no_primary_block() -> None
     assert plan["controller_invocation_count"] == 2
     assert plan["supervising_orchestrator_required"] is True
     assert plan["internal_controller_stages_require_live_guard"] is True
+    assert plan["append_only_orchestration_invocation_required"] is True
+    assert plan["independent_lease_guardian_required_before_service_start"] is True
+    assert plan["guardian_binds_hard_stop_and_exact_execution_arguments"] is True
+    assert plan["durable_preexec_service_identity_gate_required"] is True
+    assert plan["fresh_controller_outputs_must_be_absent"] is True
+    assert plan["resume_requires_exact_invocation_guard_and_stage_bindings"] is True
     assert plan["normal_exit_requires_verified_shutdown"] is True
     assert plan["pre_fallback_ledger_must_exactly_reproduce_primary_result"] is True
     assert plan["fresh_gpu_ledger_forbidden"] is True
     assert plan["normal_acceptance_block"]["executed"] is False
+    second_recovery = plan["second_recovery_overlay_support"]
+    assert second_recovery["overlay_schema_version"] == "1.2.0"
+    assert second_recovery["evidence_provenance_bridge_binding_required"] is True
+    assert second_recovery["retry_wire_delta_scope"] == (
+        "guided_schema_schema_derived_runtime_hashes_and_hash_bound_provenance_only"
+    )
+    assert second_recovery["historical_c0_two_fix_layer_is_constant_bound"] is True
+    assert second_recovery["historical_c1_semantic_status_layer_is_constant_bound"] is True
+    assert second_recovery["immutable_v3_fallback_input_comparison_required"] is True
+    assert second_recovery["whole_wire_payload_byte_identity_to_failed_v3_claimed"] is False
+    assert second_recovery["projection_dependency_correction_required"] is True
+    assert second_recovery["concurrent_integrity_disclosure_required"] is True
+    assert second_recovery["predecessor_accepted_output_count"] == 0
+    assert second_recovery["predecessor_base_output_count"] == 0
+    assert second_recovery["predecessor_development_output_count"] == 0
+    assert second_recovery["integrity_correction_model_output_count"] == 0
+    assert second_recovery["integrity_correction_gpu_call_count"] == 0
+    assert second_recovery["c1_prequery_construction_acceptance_unchanged"] is True
+    assert second_recovery[
+        "final_projection_selection_feasibility_changed_before_outputs"
+    ] is True
+    assert second_recovery[
+        "final_projection_validation_targeting_changed_before_outputs"
+    ] is True
+    assert second_recovery["future_projection_and_analysis_outputs_may_change"] is True
     continuation = plan["development_continuation"]
     assert continuation["adopter_protocol"] == "fallback-live-development-adopter-v1"
     assert continuation["selected_model_freeze_bootstrap_requires_development_completion"] is False
@@ -145,16 +277,13 @@ def test_fallback_plan_binds_exact_calls_reserves_and_no_primary_block() -> None
     assert continuation["fallback_owner_performs_final_shutdown"] is True
     assert continuation["callback_returns"] == "canonical DevelopmentExecutionResult"
     assert continuation["fallback_owner_derives_continuation_receipt"] is True
-    assert continuation["micro_pilot_c1_operator_scope"] == (
-        "representative_grounded_subset"
-    )
+    assert continuation["micro_pilot_c1_operator_scope"] == ("representative_grounded_subset")
     assert continuation["complete_c1_operator_inventory_gate"] == (
         "DevelopmentScientificAssessment.c1_all_construction_operators_exercised"
     )
     assert continuation["standalone_cli_gpu_execution_enabled"] is True
     assert continuation["standalone_registered_factory"] == (
-        "story_projection_onto.development_continuation:"
-        "create_production_development_adopter"
+        "story_projection_onto.development_continuation:create_production_development_adopter"
     )
     module_name, factory_name = continuation["standalone_registered_factory"].split(":")
     assert callable(getattr(importlib.import_module(module_name), factory_name))
@@ -171,7 +300,24 @@ def test_fallback_plan_binds_exact_calls_reserves_and_no_primary_block() -> None
         "src/story_projection_onto/conditions/c1.py",
         "src/story_projection_onto/conditions/c2.py",
         "src/story_projection_onto/conditions/fixed_select.py",
+        CERTIFICATE_RELATIVE_PATH,
+        SECOND_RECOVERY_EVIDENCE_BRIDGE_IMPLEMENTATION_PATH,
+        SECOND_RECOVERY_EVIDENCE_BRIDGE_REGRESSION_TEST_PATH,
     }.issubset(implementation_paths)
+    bridge = legacy_provenance_bridge()
+    plan_bridge = plan["legacy_evidence_provenance_bridge"]
+    assert plan_bridge["certificate_manifest_sha256"] == bridge.manifest_sha256
+    assert plan_bridge["certificate_file_sha256"] == bridge.certificate_file_sha256
+    assert plan_bridge["model_visible_section_name"] == (
+        SECOND_RECOVERY_EVIDENCE_BRIDGE_SECTION_NAME
+    )
+    assert plan_bridge["required_for_base_resume_and_repair_validation"] is True
+    assert plan_bridge["source_critical_validation_fields"] == [
+        "evidence_id",
+        "locator",
+        "source_artifact_hash",
+        "confidence_ceiling",
+    ]
     assert [row["watchdog_seconds"] for row in calls] == [240, 150, 150, 90]
     assert [row["reserve_call_class"] for row in calls] == [
         "reserve_long",
@@ -212,11 +358,13 @@ def test_fallback_request_uses_exact_candidate_and_complete_repair_pack() -> Non
     call = fallback_pilot_calls(policy)[1]
     tokenizer = FakeTokenizer()
     tokenizer_manifest = fallback_tokenizer_manifest()
+    bridge = legacy_provenance_bridge()
     base = build_fallback_acceptance_request(
         root=ROOT,
         call=call,
         tokenizer=tokenizer,
         tokenizer_manifest=tokenizer_manifest,
+        legacy_provenance_bridge=bridge,
     )
     invalid = json.loads((ROOT / "tests/fixtures/phase1/c2_query_output.json").read_text())
     repair = build_fallback_repair_request(
@@ -234,15 +382,114 @@ def test_fallback_request_uses_exact_candidate_and_complete_repair_pack() -> Non
         ),
         tokenizer=tokenizer,
         tokenizer_manifest=tokenizer_manifest,
+        legacy_provenance_bridge=bridge,
     )
 
     assert base.model_name == repair.model_name == FALLBACK_SERVED_MODEL_NAME
     assert "fallback_capability_probe" in base.packing.required_section_names
+    assert SECOND_RECOVERY_EVIDENCE_BRIDGE_SECTION_NAME in (
+        base.packing.required_section_names
+    )
     assert repair.decoding.decoding_pass.value == "repair"
     assert repair.packing.truncation_applied is False
     assert repair.packing.complete_evidence_packet is True
     assert {"invalid_draft", "validation_diagnostics"}.issubset(
         repair.packing.required_section_names
+    )
+    base_payload = json.loads(base.messages[-1].content)
+    repair_payload = json.loads(repair.messages[-1].content)
+    assert repair_payload[SECOND_RECOVERY_EVIDENCE_BRIDGE_SECTION_NAME] == (
+        base_payload[SECOND_RECOVERY_EVIDENCE_BRIDGE_SECTION_NAME]
+    )
+    base_bridge_pack = next(
+        section
+        for section in base.packing.sections
+        if section.name == SECOND_RECOVERY_EVIDENCE_BRIDGE_SECTION_NAME
+    )
+    repair_bridge_pack = next(
+        section
+        for section in repair.packing.sections
+        if section.name == SECOND_RECOVERY_EVIDENCE_BRIDGE_SECTION_NAME
+    )
+    assert repair_bridge_pack.section_content_hash == base_bridge_pack.section_content_hash
+
+
+def test_fallback_repair_rejects_rebaselined_provenance_section() -> None:
+    policy = FallbackModelPolicy.load(ROOT / "configs/study/fallback_model.json")
+    call = fallback_pilot_calls(policy)[1]
+    base = build_fallback_acceptance_request(
+        root=ROOT,
+        call=call,
+        tokenizer=FakeTokenizer(),
+        tokenizer_manifest=fallback_tokenizer_manifest(),
+        legacy_provenance_bridge=legacy_provenance_bridge(),
+    )
+    payload = json.loads(base.messages[-1].content)
+    payload[SECOND_RECOVERY_EVIDENCE_BRIDGE_SECTION_NAME]["records"][0][
+        "text_hash"
+    ] = "0" * 64
+    tampered_section_sha256 = hashlib.sha256(
+        canonical_json(payload[SECOND_RECOVERY_EVIDENCE_BRIDGE_SECTION_NAME]).encode("utf-8")
+    ).hexdigest()
+    tampered_packing = base.packing.model_copy(
+        update={
+            "sections": tuple(
+                section.model_copy(
+                    update={"content_hash_value": tampered_section_sha256}
+                )
+                if section.name == SECOND_RECOVERY_EVIDENCE_BRIDGE_SECTION_NAME
+                else section
+                for section in base.packing.sections
+            )
+        }
+    )
+    tampered = replace(
+        base,
+        messages=(
+            base.messages[0],
+            ChatMessage(role="user", content=canonical_json(payload)),
+        ),
+        packing=tampered_packing,
+    )
+    invalid = json.loads((ROOT / "tests/fixtures/phase1/c2_query_output.json").read_text())
+    with pytest.raises(ValueError, match="exact provenance bridge"):
+        build_fallback_repair_request(
+            root=ROOT,
+            base_call=call.acceptance_call(),
+            base_request=tampered,
+            invalid_draft=invalid,
+            diagnostics=(
+                {
+                    "code": "invalid_evidence_id",
+                    "path": "instance_graph.assertions",
+                    "message": "field group failed a model-visible validator",
+                    "related_ids": [],
+                },
+            ),
+            tokenizer=FakeTokenizer(),
+            tokenizer_manifest=fallback_tokenizer_manifest(),
+            legacy_provenance_bridge=legacy_provenance_bridge(),
+        )
+
+
+def test_fixed_select_prompt_preserves_raw_seal_and_null_bridge_source_hashes() -> None:
+    policy = FallbackModelPolicy.load(ROOT / "configs/study/fallback_model.json")
+    call = fallback_pilot_calls(policy)[-1]
+    request = build_fallback_acceptance_request(
+        root=ROOT,
+        call=call,
+        tokenizer=FakeTokenizer(),
+        tokenizer_manifest=fallback_tokenizer_manifest(),
+        legacy_provenance_bridge=legacy_provenance_bridge(),
+    )
+    payload = json.loads(request.messages[-1].content)
+    fixture = json.loads((ROOT / call.request_fixture).read_text(encoding="utf-8"))
+    assert payload["sealed_ontology"] == fixture["fixed_ontology"]
+    bridge_section = payload[SECOND_RECOVERY_EVIDENCE_BRIDGE_SECTION_NAME]
+    assert all(
+        row["provenance"]["source_artifact_hash"] is None
+        and isinstance(row["effective_validation_source_artifact_hash"], str)
+        for row in bridge_section["records"]
     )
 
 
@@ -278,8 +525,83 @@ def test_cli_plan_mode_and_execute_requirements_parse_without_side_effects() -> 
     assert validation.validate_only is True
     assert validation.execute is False
 
+    builder = parse_arguments(
+        [
+            "--output",
+            "restricted/proposal.json",
+            "--build-second-recovery-overlay",
+            "--second-recovery-authorized-at",
+            "2026-09-04T23:59:00Z",
+        ]
+    )
+    assert builder.build_second_recovery_overlay is True
+    assert builder.second_recovery_authorized_at == datetime(
+        2026,
+        9,
+        4,
+        23,
+        59,
+        tzinfo=UTC,
+    )
+
     with pytest.raises(SystemExit):
         parse_arguments(["--output", "invalid.json", "--execute", "--validate-only"])
+    with pytest.raises(SystemExit):
+        parse_arguments(
+            [
+                "--output",
+                "invalid.json",
+                "--execute",
+                "--build-second-recovery-overlay",
+            ]
+        )
+
+
+def test_validate_only_receipt_is_append_only(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = tmp_path / "preflight.json"
+    arguments = [
+        "--validate-only",
+        "--controller-stage",
+        "orchestrate",
+        "--project-root",
+        str(ROOT),
+        "--output",
+        str(output),
+        "--run-id",
+        "fallback-preflight-append-only",
+    ]
+    for name in (
+        "primary-result",
+        "activation-certificate",
+        "cache-replacement-receipt",
+        "snapshot",
+        "shared-cache",
+        "verified-model-manifest",
+        "source-association",
+        "ledger",
+        "artifact-root",
+        "checkpoint",
+        "quota-root",
+    ):
+        arguments.extend((f"--{name}", str(tmp_path / name)))
+    payload = {
+        "kind": "phase1_fallback_execution_preflight",
+        "passed": True,
+        "manifest_sha256": HASH_A,
+    }
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_validate_execution_preflight",
+        lambda _options, *, root: payload,
+    )
+
+    assert main(arguments) == 0
+    assert json.loads(output.read_text(encoding="utf-8")) == payload
+    with pytest.raises(FileExistsError, match="already exists"):
+        main(arguments)
 
 
 def test_fallback_requires_exact_rejected_primary_gpu_ledger_baseline() -> None:
@@ -329,8 +651,7 @@ def test_authorized_fallback_retry_binds_exact_failure_and_recovered_ledger() ->
         (ROOT / "artifacts/public/manifests/fallback_activation_v2.json").read_text()
     )
     prior_path = (
-        ROOT
-        / "artifacts/public/results/"
+        ROOT / "artifacts/public/results/"
         "fallback_gpu_acceptance_development_v1.json.controller-handoff.json"
     )
     prior = json.loads(prior_path.read_text())
@@ -364,6 +685,1082 @@ def test_authorized_fallback_retry_binds_exact_failure_and_recovered_ledger() ->
     assert amendment["amendment"]["recovery_service_start_watchdog_seconds"] == (
         AMENDED_FALLBACK_STARTUP_WATCHDOG_SECONDS
     )
+
+
+def test_second_recovery_overlay_is_exact_and_proposed_cannot_execute(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    policy = FallbackModelPolicy.load(ROOT / "configs/study/fallback_model.json")
+    limits = ResourceLimits.load(ROOT / "configs/study/resource_limits.json")
+    primary = json.loads(
+        (ROOT / "artifacts/public/results/phase1_gpu_acceptance_v2_failed.json").read_text()
+    )
+    activation = json.loads(
+        (ROOT / "artifacts/public/manifests/fallback_activation_v2.json").read_text()
+    )
+    prior_amendment_path = ROOT / "configs/study/fallback_service_retry_amendment.json"
+    prior_failure_path = (
+        ROOT / "artifacts/public/results/"
+        "fallback_gpu_acceptance_development_v1.json.controller-handoff.json"
+    )
+    v3_result_path = ROOT / "artifacts/public/results/fallback_gpu_acceptance_development_v3.json"
+    v3_incident_path = (
+        ROOT / "artifacts/public/manifests/fallback_gpu_acceptance_development_v3_incident.json"
+    )
+    v3_result = json.loads(v3_result_path.read_text())
+    incident = json.loads(v3_incident_path.read_text())
+    current_source_path = tmp_path / "current-source-association.json"
+    current_source_path.write_text('{"test":"source-freeze"}\n', encoding="utf-8")
+    current_source = {
+        "manifest_sha256": "a" * 64,
+        "local_tree_sha256": "b" * 64,
+    }
+    bridge = legacy_provenance_bridge()
+    retry_request = build_fallback_acceptance_request(
+        root=ROOT,
+        call=fallback_pilot_calls(policy)[0],
+        tokenizer=FakeTokenizer(),
+        tokenizer_manifest=v3_fallback_tokenizer_manifest(),
+        legacy_provenance_bridge=bridge,
+    )
+    accounting = v3_result["runtime"]["gpu_accounting"]
+    predecessor_source = incident["provenance"]["source_tree"]
+    corrected_forecast = fallback_acceptance_module._second_recovery_corrected_forecast(
+        predecessor=v3_result,
+        inventory=fallback_acceptance_module.GPUCallInventory.load(
+            ROOT / "configs/study/gpu_call_inventory.json"
+        ),
+        limits=limits,
+    )
+    assert corrected_forecast["corrected_remaining_mandatory_forecast_seconds"] == (
+        pytest.approx(30_516.0027264791)
+    )
+    assert corrected_forecast["actual_plus_remaining_and_service_start_seconds"] == (
+        pytest.approx(31_722.61868077492)
+    )
+    assert corrected_forecast["scheduled_reserve_seconds"] == pytest.approx(677.38131922508)
+    assert corrected_forecast["service_start_watchdog_seconds"] == 300.0
+    assert corrected_forecast["additional_service_allocation_forecast_seconds"] == pytest.approx(
+        391.40054529582005
+    )
+
+    def file_sha256(path: Path) -> str:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+
+    base_payload: dict[str, object] = {
+        "schema_version": "1.2.0",
+        "kind": SECOND_RECOVERY_OVERLAY_KIND,
+        "authorization": {
+            "status": "proposed",
+            "basis": "Pending explicit user authorization after final source freeze.",
+            "authorized_by": None,
+            "recorded_at": None,
+        },
+        "authorized_recovery_run_id": "fallback-qwen3-8b-awq-development-v4",
+        "authoritative_plan_file_sha256": {
+            "methodological": file_sha256(
+                ROOT / "plan_notes/METHODOLOGICAL_PLAN_QUERY_DEPENDENT_TEMPORAL_ONTOLOGY.md"
+            ),
+            "implementation": file_sha256(
+                ROOT / "plan_notes/IMPLEMENTATION_PLAN_QUERY_DEPENDENT_TEMPORAL_ONTOLOGY.md"
+            ),
+        },
+        "base_gpu_call_inventory_file_sha256": file_sha256(
+            ROOT / "configs/study/gpu_call_inventory.json"
+        ),
+        "fallback_policy_file_sha256": file_sha256(ROOT / "configs/study/fallback_model.json"),
+        "fallback_activation_manifest_sha256": activation["manifest_sha256"],
+        "primary_rejection_manifest_sha256": primary["manifest_sha256"],
+        "model": {
+            "repository": policy.repository,
+            "revision": policy.revision,
+            "served_model_name": policy.served_model_name,
+        },
+        "predecessor": {
+            "run_id": SECOND_RECOVERY_V3_RUN_ID,
+            "result_file_sha256": SECOND_RECOVERY_V3_RESULT_FILE_SHA256,
+            "result_manifest_sha256": SECOND_RECOVERY_V3_RESULT_MANIFEST_SHA256,
+            "incident_file_sha256": SECOND_RECOVERY_V3_INCIDENT_FILE_SHA256,
+            "incident_manifest_sha256": SECOND_RECOVERY_V3_INCIDENT_MANIFEST_SHA256,
+            "prior_retry_amendment_file_sha256": file_sha256(prior_amendment_path),
+            "prior_retry_amendment_manifest_sha256": (SECOND_RECOVERY_V3_RETRY_AMENDMENT_SHA256),
+            "failed_call_id": SECOND_RECOVERY_RETRY_CALL_ID,
+            "failed_request_sha256": SECOND_RECOVERY_V3_REQUEST_SHA256,
+            "failed_decoder_schema_sha256": (SECOND_RECOVERY_V3_DECODER_SCHEMA_SHA256),
+            "failure_type": "RuntimeTransportError",
+            "inference_call_reached_generation": False,
+            "service_shutdown_verified": True,
+            "consumed_recovery_service_starts": 1,
+            "consumed_reserve_class": "reserve_long",
+            "consumed_reserve_slots": 1,
+        },
+        "cumulative_gpu_accounting": accounting,
+        "decoder_compatibility": {
+            "protocol": "vllm-0.10.2-xgrammar-ignored-string-keywords-v1",
+            "vllm_version": "0.10.2",
+            "xgrammar_version": "0.1.23",
+            "structured_decoder": "vllm-0.10.2-xgrammar-no-fallback",
+            "canonical_validation_schema_file_sha256": file_sha256(
+                ROOT / "schemas/jsonschema/ontology_draft.schema.json"
+            ),
+            "compatibility_implementation_file_sha256": file_sha256(
+                ROOT / "src/story_projection_onto/llm.py"
+            ),
+            "phase1_schema_builder_file_sha256": file_sha256(
+                ROOT / "src/story_projection_onto/phase1_acceptance.py"
+            ),
+            "regression_test_file_sha256": file_sha256(
+                ROOT / "tests/integration/test_xgrammar_decoder_compatibility.py"
+            ),
+            "compatible_decoder_schema_sha256": canonical_sha256(retry_request.output_schema),
+            "retry_request_sha256": retry_request.request_hash,
+            **fallback_acceptance_module._second_recovery_validate_retry_request_inputs(
+                root=ROOT,
+                predecessor=v3_result,
+                policy=policy,
+                retry_request=retry_request,
+                compatible_schema=retry_request.output_schema,
+                legacy_provenance_bridge=bridge,
+            ),
+            "stripped_string_keywords": [
+                "format",
+                "maxLength",
+                "minLength",
+                "pattern",
+            ],
+            "ontology_draft_schema_and_pydantic_validation_unchanged": True,
+            "cpu_xgrammar_compilation_required_before_gpu": True,
+        },
+        "evidence_provenance_bridge": (
+            fallback_acceptance_module._second_recovery_evidence_bridge_binding(
+                root=ROOT,
+                bridge=bridge,
+                retry_request=retry_request,
+            )
+        ),
+        "source": {
+            "predecessor_association_manifest_sha256": predecessor_source[
+                "association_manifest_sha256"
+            ],
+            "predecessor_tree_sha256": predecessor_source["tree_sha256"],
+            "current_association_file_sha256": file_sha256(current_source_path),
+            "current_association_manifest_sha256": current_source["manifest_sha256"],
+            "current_tree_sha256": current_source["local_tree_sha256"],
+        },
+        "amendment": {
+            "additional_fallback_service_loads": 1,
+            "recovery_service_start_watchdog_seconds": 300,
+            "authorized_retry_inference_attempts": 1,
+            "retry_call_id": SECOND_RECOVERY_RETRY_CALL_ID,
+            "retry_attempt_kind": "retry",
+            "retry_reserve_call_class": "reserve_long",
+            "retry_watchdog_seconds": 240,
+            "additional_unreserved_inference_attempts": 0,
+            "original_accounting_events": 286,
+            "prior_effective_accounting_events": 287,
+            "amended_effective_accounting_events": 288,
+            "original_maximum_inference_attempts": 278,
+            "amended_maximum_inference_attempts": 278,
+            "prior_consumed_reserve_long_slots": 1,
+            "projected_consumed_reserve_long_slots_after_retry": 2,
+            "registered_reserve_long_slot_count": 4,
+        },
+        "corrected_forecast": corrected_forecast,
+        "c0_pre_data_correction": {
+            "classification": "pre_data_implementation_correction",
+            "condition": "C0",
+            "implementation_file": "src/story_projection_onto/conditions/c0.py",
+            "predecessor_implementation_file_sha256": (
+                "bb7ec5f00df86ec24eedeaea6b90a1bda473511d0ab9f334cecda9f1970f27c7"
+            ),
+            "current_implementation_file_sha256": (
+                SECOND_RECOVERY_POST_TWO_FIX_C0_IMPLEMENTATION_SHA256
+            ),
+            "regression_test_file": "tests/unit/test_c0_condition.py",
+            "regression_test_file_sha256": (
+                SECOND_RECOVERY_POST_TWO_FIX_C0_REGRESSION_TEST_SHA256
+            ),
+            "change_ids": [
+                "parse_story_step_point_and_validity_interval",
+                "admit_supported_served_as_predicate",
+            ],
+            "predecessor_completed_base_call_count": 0,
+            "predecessor_development_call_count": 0,
+            "predecessor_development_output_count": 0,
+            "retry_request_affected": False,
+            "authoritative_plan_rewritten": False,
+        },
+        "semantic_validation_correction": {
+            "classification": "post_v3_integrity_correction",
+            "condition": "C1",
+            "implementation_file": "src/story_projection_onto/conditions/c1.py",
+            "predecessor_implementation_file_sha256": (SECOND_RECOVERY_V3_C1_IMPLEMENTATION_SHA256),
+            "current_implementation_file_sha256": (SECOND_RECOVERY_V4_C1_IMPLEMENTATION_SHA256),
+            "condition_pathway_regression_file": ("tests/integration/test_condition_pathways.py"),
+            "condition_pathway_regression_file_sha256": (
+                SECOND_RECOVERY_V4_C1_CONDITION_PATHWAY_TEST_SHA256
+            ),
+            "development_assessment_regression_file": ("tests/unit/test_development_assessment.py"),
+            "development_assessment_regression_file_sha256": (
+                SECOND_RECOVERY_V4_C1_DEVELOPMENT_ASSESSMENT_TEST_SHA256
+            ),
+            "change_ids": ["semantic-validation-correction-c1-structural-status-v1"],
+            "predecessor_accepted_output_count": 0,
+            "predecessor_completed_base_call_count": 0,
+            "predecessor_development_call_count": 0,
+            "predecessor_development_output_count": 0,
+            "retry_request_affected": False,
+            "changed_surface": "post_generation_validation_metadata_only",
+            "validation_status": "accepted",
+            "evidence_support_status": "not_applicable",
+            "temporal_status": "not_applicable",
+            "commitment_status": "not_applicable",
+            "standardized_diagnostic": RUNTIME_STRUCTURAL_ONLY_DIAGNOSTIC,
+            "unchanged_controls": {
+                "prompts": True,
+                "evidence": True,
+                "model_visible_payload_byte_identity_to_v3_claimed": False,
+                "model_visible_delta_limited_to_hash_bound_provenance": True,
+                "llm_ontology_draft_schema": True,
+                "construction_semantics": True,
+                "selection_semantics": True,
+                "object_and_display_budgets": True,
+                "seeds": True,
+            },
+            "authoritative_plan_rewritten": False,
+        },
+        "frozen_input_controls": (
+            fallback_acceptance_module._second_recovery_frozen_input_controls(ROOT)
+        ),
+        "projection_dependency_correction": (
+            fallback_acceptance_module._second_recovery_projection_dependency_correction(
+                root=ROOT,
+                predecessor=v3_result,
+                incident=incident,
+            )
+        ),
+        "concurrent_integrity_disclosure": (
+            fallback_acceptance_module._second_recovery_concurrent_integrity_disclosure(
+                root=ROOT,
+                predecessor=v3_result,
+                incident=incident,
+            )
+        ),
+        "unchanged_scientific_controls": {
+            "model_snapshot": True,
+            "runtime_stack": True,
+            "no_cpu_weight_offload": True,
+            "generation_concurrency_one": True,
+            "c1_prequery_llm_construction_semantics": True,
+            "c2_query_dependent_construction_semantics": True,
+            "a_fixed_select_mechanical_selection_semantics": True,
+            "a_fixed_select_raw_seal_checked_before_effective_provenance_binding": True,
+            "post_generation_validation_required": True,
+            "single_bounded_repair_limit": True,
+            "repair_model_prompt_fact_free_diagnostics": True,
+            "immutable_v3_fallback_input_comparison_required": True,
+        },
+        "scope": (
+            "One reserve-long retry of the exact v3 fallback C1 transport failure "
+            "and one additional recovery service start; no other retry is authorized."
+        ),
+        "authoritative_plans_rewritten": False,
+    }
+
+    def write_overlay(payload: Mapping[str, object], *, name: str) -> Path:
+        overlay_path = tmp_path / name
+        overlay_path.write_text(
+            json.dumps(
+                {**payload, "manifest_sha256": canonical_sha256(payload)},
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        return overlay_path
+
+    observed = GpuSummary(
+        total_allocated_microseconds=accounting["total_allocated_microseconds"],
+        event_count=accounting["event_count"],
+        service_session_count=accounting["service_session_count"],
+        by_kind_microseconds=tuple(
+            (GpuEventKind(kind), microseconds)
+            for kind, microseconds in accounting["by_kind_microseconds"].items()
+        ),
+    )
+    validation_arguments = {
+        "root": ROOT,
+        "v3_result_path": v3_result_path,
+        "v3_incident_path": v3_incident_path,
+        "prior_retry_amendment_path": prior_amendment_path,
+        "prior_retry_failure_path": prior_failure_path,
+        "run_id": "fallback-qwen3-8b-awq-development-v4",
+        "policy": policy,
+        "activation_certificate": activation,
+        "primary_result": primary,
+        "limits": limits,
+        "source_association": current_source,
+        "source_association_path": current_source_path,
+        "retry_request": retry_request,
+        "legacy_provenance_bridge": bridge,
+        "observed": observed,
+        "verify_decoder_compilation": False,
+    }
+    proposed_path = write_overlay(base_payload, name="second-recovery-proposed.json")
+    proposed, predecessor, validated_incident = validate_second_fallback_recovery_overlay(
+        overlay_path=proposed_path,
+        require_authorized=False,
+        **validation_arguments,
+    )
+    assert proposed["authorization"]["status"] == "proposed"
+    assert predecessor["manifest_sha256"] == SECOND_RECOVERY_V3_RESULT_MANIFEST_SHA256
+    assert validated_incident["manifest_sha256"] == (SECOND_RECOVERY_V3_INCIDENT_MANIFEST_SHA256)
+    with pytest.raises(PermissionError, match="remains proposed"):
+        validate_second_fallback_recovery_overlay(
+            overlay_path=proposed_path,
+            require_authorized=True,
+            **validation_arguments,
+        )
+
+    changed_user_payload = json.loads(retry_request.messages[1].content)
+    changed_user_payload["evidence_snapshot"][0]["text"] += " Altered."
+    changed_message_request = replace(
+        retry_request,
+        messages=(
+            retry_request.messages[0],
+            ChatMessage(role="user", content=canonical_json(changed_user_payload)),
+        ),
+    )
+    changed_message_overlay = copy.deepcopy(base_payload)
+    changed_message_overlay["decoder_compatibility"]["retry_request_sha256"] = (
+        changed_message_request.request_hash
+    )
+    with pytest.raises(ValueError, match="frozen v3 scientific inputs"):
+        validate_second_fallback_recovery_overlay(
+            overlay_path=write_overlay(
+                changed_message_overlay,
+                name="second-recovery-rebaselined-message.json",
+            ),
+            require_authorized=False,
+            **{**validation_arguments, "retry_request": changed_message_request},
+        )
+
+    changed_bridge_payload = json.loads(retry_request.messages[1].content)
+    changed_bridge_payload[SECOND_RECOVERY_EVIDENCE_BRIDGE_SECTION_NAME]["records"][0][
+        "text_hash"
+    ] = "0" * 64
+    changed_bridge_request = replace(
+        retry_request,
+        messages=(
+            retry_request.messages[0],
+            ChatMessage(role="user", content=canonical_json(changed_bridge_payload)),
+        ),
+    )
+    changed_bridge_overlay = copy.deepcopy(base_payload)
+    changed_bridge_overlay["decoder_compatibility"]["retry_request_sha256"] = (
+        changed_bridge_request.request_hash
+    )
+    with pytest.raises(ValueError, match="frozen v3 scientific inputs"):
+        validate_second_fallback_recovery_overlay(
+            overlay_path=write_overlay(
+                changed_bridge_overlay,
+                name="second-recovery-rebaselined-provenance-section.json",
+            ),
+            require_authorized=False,
+            **{**validation_arguments, "retry_request": changed_bridge_request},
+        )
+
+    changed_decoding_payload = retry_request.decoding.model_dump(
+        mode="json",
+        exclude={"content_hash"},
+    )
+    changed_decoding_payload["seed"] = 1
+    changed_seed_request = replace(
+        retry_request,
+        decoding=type(retry_request.decoding).model_validate(changed_decoding_payload),
+    )
+    changed_seed_overlay = copy.deepcopy(base_payload)
+    changed_seed_overlay["decoder_compatibility"]["retry_request_sha256"] = (
+        changed_seed_request.request_hash
+    )
+    with pytest.raises(ValueError, match="frozen v3 scientific inputs"):
+        validate_second_fallback_recovery_overlay(
+            overlay_path=write_overlay(
+                changed_seed_overlay,
+                name="second-recovery-rebaselined-seed.json",
+            ),
+            require_authorized=False,
+            **{**validation_arguments, "retry_request": changed_seed_request},
+        )
+
+    authorized_payload = copy.deepcopy(base_payload)
+    authorized_payload["authorization"] = {
+        "status": "authorized",
+        "basis": "The user explicitly authorized this exact hash-bound v4 recovery.",
+        "authorized_by": "user",
+        "recorded_at": "2026-09-04T23:59:00Z",
+    }
+    authorized_path = write_overlay(
+        authorized_payload,
+        name="second-recovery-authorized.json",
+    )
+    authorized, _, _ = validate_second_fallback_recovery_overlay(
+        overlay_path=authorized_path,
+        require_authorized=True,
+        **validation_arguments,
+    )
+    assert authorized["authorization"]["status"] == "authorized"
+    assert authorized["amendment"]["amended_maximum_inference_attempts"] == 278
+    assert authorized["c0_pre_data_correction"] == base_payload["c0_pre_data_correction"]
+    assert (
+        authorized["semantic_validation_correction"]
+        == base_payload["semantic_validation_correction"]
+    )
+    assert authorized["c0_pre_data_correction"][
+        "current_implementation_file_sha256"
+    ] == SECOND_RECOVERY_POST_TWO_FIX_C0_IMPLEMENTATION_SHA256
+    assert authorized["c0_pre_data_correction"][
+        "regression_test_file_sha256"
+    ] == SECOND_RECOVERY_POST_TWO_FIX_C0_REGRESSION_TEST_SHA256
+    assert fallback_acceptance_module._second_recovery_c0_pre_data_correction(
+        root=tmp_path,
+        predecessor=v3_result,
+        incident=incident,
+    ) == base_payload["c0_pre_data_correction"]
+    assert file_sha256(
+        ROOT / "src/story_projection_onto/conditions/c0.py"
+    ) != SECOND_RECOVERY_POST_TWO_FIX_C0_IMPLEMENTATION_SHA256
+    assert authorized["semantic_validation_correction"][
+        "current_implementation_file_sha256"
+    ] == SECOND_RECOVERY_V4_C1_IMPLEMENTATION_SHA256
+    assert fallback_acceptance_module._second_recovery_semantic_validation_correction(
+        root=tmp_path,
+        predecessor=v3_result,
+        incident=incident,
+    ) == base_payload["semantic_validation_correction"]
+    assert file_sha256(
+        ROOT / "src/story_projection_onto/conditions/c1.py"
+    ) != SECOND_RECOVERY_V4_C1_IMPLEMENTATION_SHA256
+    decoder = authorized["decoder_compatibility"]
+    assert decoder["failed_v3_decoder_schema_reconstructed_sha256"] == (
+        SECOND_RECOVERY_V3_DECODER_SCHEMA_SHA256
+    )
+    assert decoder["failed_v3_request_reconstructed_sha256"] == (
+        SECOND_RECOVERY_V3_REQUEST_SHA256
+    )
+    assert decoder["failed_v3_request_exactly_reconstructed"] is True
+    assert decoder["retry_scientific_inputs_exactly_reconstructed"] is True
+    assert decoder["retry_wire_delta_scope"] == (
+        "guided_schema_schema_derived_runtime_hashes_and_hash_bound_provenance_only"
+    )
+    evidence_bridge = authorized["evidence_provenance_bridge"]
+    assert evidence_bridge["certificate_manifest_sha256"] == bridge.manifest_sha256
+    assert evidence_bridge["certificate_file_sha256"] == bridge.certificate_file_sha256
+    assert evidence_bridge["retry_call_id"] == SECOND_RECOVERY_RETRY_CALL_ID
+    assert evidence_bridge["retry_legacy_evidence_sha256"] == (
+        "a20b09f014e86dbb5ef490beb35134b75a1ad306536de6d0d07e4570de8f1b73"
+    )
+    assert evidence_bridge["source_critical_validation_fields"] == [
+        "evidence_id",
+        "locator",
+        "source_artifact_hash",
+        "confidence_ceiling",
+    ]
+    assert evidence_bridge["immutable_v3_fixture_bytes_changed"] is False
+    assert evidence_bridge["cpu_semantic_inference_performed"] is False
+    assert evidence_bridge[
+        "fixed_raw_semantic_comparison_precedes_effective_binding"
+    ] is True
+    assert evidence_bridge["fixed_prompt_preserves_raw_null_source_artifact_hashes"] is True
+    assert evidence_bridge["repairs_preserve_exact_model_visible_section"] is True
+
+    frozen_inputs = authorized["frozen_input_controls"]
+    assert frozen_inputs["predecessor_source_manifest_file_sha256"] == (
+        fallback_acceptance_module.SECOND_RECOVERY_V3_SOURCE_MANIFEST_FILE_SHA256
+    )
+    assert frozen_inputs["predecessor_source_tree_sha256"] == (
+        fallback_acceptance_module.SECOND_RECOVERY_V3_SOURCE_TREE_SHA256
+    )
+    assert tuple(frozen_inputs["fallback_call_seed_values"]) == (0, 0, 1, 1)
+    assert frozen_inputs["whole_wire_payload_byte_identity_to_failed_v3_claimed"] is False
+    assert frozen_inputs["wire_payload_difference"] == (
+        "registered_decoder_compatibility_and_hash_bound_provenance_bridge"
+    )
+    assert all(item["byte_identical"] for item in frozen_inputs["byte_identical_files"])
+    assert {
+        item["path"] for item in frozen_inputs["byte_identical_files"]
+    } == set(fallback_acceptance_module.SECOND_RECOVERY_FROZEN_INPUT_SOURCE_PATHS)
+
+    projection_correction = authorized["projection_dependency_correction"]
+    assert projection_correction["correction_id"] == (
+        "second-recovery-predata-projection-dependency-integrity-v1"
+    )
+    assert projection_correction["predecessor_c0_implementation_file_sha256"] == (
+        SECOND_RECOVERY_POST_TWO_FIX_C0_IMPLEMENTATION_SHA256
+    )
+    assert projection_correction["predecessor_c1_implementation_file_sha256"] == (
+        SECOND_RECOVERY_V4_C1_IMPLEMENTATION_SHA256
+    )
+    assert projection_correction["current_c0_implementation_file_sha256"] == file_sha256(
+        ROOT / "src/story_projection_onto/conditions/c0.py"
+    )
+    assert projection_correction["current_c1_implementation_file_sha256"] == file_sha256(
+        ROOT / "src/story_projection_onto/conditions/c1.py"
+    )
+    assert projection_correction["query_time_selection_feasibility_changed"] is True
+    assert projection_correction["final_projection_validation_targeting_changed"] is True
+    assert projection_correction["final_projection_validation_target_domain"] == (
+        "ontology-projection-structural-validation-target-v1"
+    )
+    assert projection_correction["final_projection_validation_target_excludes_cyclic_fields"]
+    assert projection_correction["repair_parent_hash_and_attempt_required_together"]
+    assert projection_correction["future_projection_outputs_may_change"] is True
+    assert projection_correction["predecessor_base_output_count"] == 0
+    assert projection_correction["correction_model_output_count"] == 0
+    assert projection_correction["correction_gpu_call_count"] == 0
+    assert projection_correction["unchanged_controls"][
+        "frozen_input_controls_sha256"
+    ] == canonical_sha256(frozen_inputs)
+
+    integrity_disclosure = authorized["concurrent_integrity_disclosure"]
+    assert "registered-display-qualified-dependency-closure-v2" in (
+        integrity_disclosure["change_ids"]
+    )
+    assert integrity_disclosure["predecessor_accepted_output_count"] == 0
+    assert integrity_disclosure["predecessor_base_output_count"] == 0
+    assert integrity_disclosure["correction_model_output_count"] == 0
+    assert integrity_disclosure["correction_gpu_call_count"] == 0
+    assert integrity_disclosure["retry_request_affected"] is False
+    assert integrity_disclosure["frozen_input_controls_sha256"] == canonical_sha256(
+        authorized["frozen_input_controls"]
+    )
+    assert integrity_disclosure[
+        "whole_wire_payload_byte_identity_to_failed_v3_claimed"
+    ] is False
+    assert integrity_disclosure["c1_prequery_construction_acceptance_changed"] is False
+    assert integrity_disclosure["final_projection_display_feasibility_changed"] is True
+    assert "condition_semantics" not in authorized["unchanged_scientific_controls"]
+    assert "validation_and_repair_policy" not in authorized["unchanged_scientific_controls"]
+    assert {
+        "c1_prequery_llm_construction_semantics",
+        "c2_query_dependent_construction_semantics",
+        "a_fixed_select_mechanical_selection_semantics",
+        "a_fixed_select_raw_seal_checked_before_effective_provenance_binding",
+        "single_bounded_repair_limit",
+        "repair_model_prompt_fact_free_diagnostics",
+    }.issubset(authorized["unchanged_scientific_controls"])
+    assert "c2_condition_implementation_byte_identical" not in (
+        authorized["unchanged_scientific_controls"]
+    )
+    assert "a_fixed_select_condition_implementation_byte_identical" not in (
+        authorized["unchanged_scientific_controls"]
+    )
+
+    for required_correction in (
+        "evidence_provenance_bridge",
+        "frozen_input_controls",
+        "projection_dependency_correction",
+        "concurrent_integrity_disclosure",
+    ):
+        missing_layer = copy.deepcopy(authorized_payload)
+        missing_layer.pop(required_correction)
+        missing_layer_path = write_overlay(
+            missing_layer,
+            name=f"second-recovery-missing-{required_correction}.json",
+        )
+        with pytest.raises(ValueError, match="contract is invalid"):
+            validate_second_fallback_recovery_overlay(
+                overlay_path=missing_layer_path,
+                require_authorized=True,
+                **validation_arguments,
+            )
+
+    misstated_bridge = copy.deepcopy(authorized_payload)
+    misstated_bridge["evidence_provenance_bridge"]["certificate_file_sha256"] = "0" * 64
+    with pytest.raises(
+        ValueError,
+        match="evidence provenance bridge binding changed",
+    ):
+        validate_second_fallback_recovery_overlay(
+            overlay_path=write_overlay(
+                misstated_bridge,
+                name="second-recovery-misstated-provenance-certificate.json",
+            ),
+            require_authorized=True,
+            **validation_arguments,
+        )
+
+    legacy_schema = copy.deepcopy(authorized_payload)
+    legacy_schema["schema_version"] = "1.0.0"
+    legacy_schema_path = write_overlay(
+        legacy_schema,
+        name="second-recovery-legacy-schema.json",
+    )
+    with pytest.raises(ValueError, match="contract is invalid"):
+        validate_second_fallback_recovery_overlay(
+            overlay_path=legacy_schema_path,
+            require_authorized=True,
+            **validation_arguments,
+        )
+
+    for hash_field in (
+        "current_c0_implementation_file_sha256",
+        "current_c1_implementation_file_sha256",
+        "validate_implementation_file_sha256",
+        "contracts_implementation_file_sha256",
+        "c0_regression_test_file_sha256",
+        "c1_regression_test_file_sha256",
+        "contracts_regression_test_file_sha256",
+    ):
+        misstated_projection_hash = copy.deepcopy(authorized_payload)
+        misstated_projection_hash["projection_dependency_correction"][hash_field] = "0" * 64
+        misstated_projection_hash_path = write_overlay(
+            misstated_projection_hash,
+            name=f"second-recovery-misstated-projection-{hash_field}.json",
+        )
+        with pytest.raises(ValueError, match="misstates the projection-dependency correction"):
+            validate_second_fallback_recovery_overlay(
+                overlay_path=misstated_projection_hash_path,
+                require_authorized=True,
+                **validation_arguments,
+            )
+
+    nonzero_projection_output = copy.deepcopy(authorized_payload)
+    nonzero_projection_output["projection_dependency_correction"][
+        "correction_model_output_count"
+    ] = 1
+    nonzero_projection_output_path = write_overlay(
+        nonzero_projection_output,
+        name="second-recovery-nonzero-projection-output.json",
+    )
+    with pytest.raises(ValueError, match="contract is invalid"):
+        validate_second_fallback_recovery_overlay(
+            overlay_path=nonzero_projection_output_path,
+            require_authorized=True,
+            **validation_arguments,
+        )
+
+    equalized_projection_bytes = copy.deepcopy(authorized_payload)
+    equalized_projection_bytes["projection_dependency_correction"][
+        "current_c0_implementation_file_sha256"
+    ] = equalized_projection_bytes["projection_dependency_correction"][
+        "predecessor_c0_implementation_file_sha256"
+    ]
+    equalized_projection_bytes_path = write_overlay(
+        equalized_projection_bytes,
+        name="second-recovery-equalized-projection-bytes.json",
+    )
+    with pytest.raises(ValueError, match="contract is invalid"):
+        validate_second_fallback_recovery_overlay(
+            overlay_path=equalized_projection_bytes_path,
+            require_authorized=True,
+            **validation_arguments,
+        )
+
+    misstated_integrity_hash = copy.deepcopy(authorized_payload)
+    misstated_integrity_hash["concurrent_integrity_disclosure"][
+        "semantic_assessment_scope"
+    ]["sources"][0]["sha256"] = "0" * 64
+    misstated_integrity_hash_path = write_overlay(
+        misstated_integrity_hash,
+        name="second-recovery-misstated-integrity-hash.json",
+    )
+    with pytest.raises(ValueError, match="misstates the concurrent integrity disclosure"):
+        validate_second_fallback_recovery_overlay(
+            overlay_path=misstated_integrity_hash_path,
+            require_authorized=True,
+            **validation_arguments,
+        )
+
+    changed_integrity_retry = copy.deepcopy(authorized_payload)
+    changed_integrity_retry["concurrent_integrity_disclosure"]["retry_request_affected"] = True
+    changed_integrity_retry_path = write_overlay(
+        changed_integrity_retry,
+        name="second-recovery-changed-integrity-retry.json",
+    )
+    with pytest.raises(ValueError, match="contract is invalid"):
+        validate_second_fallback_recovery_overlay(
+            overlay_path=changed_integrity_retry_path,
+            require_authorized=True,
+            **validation_arguments,
+        )
+
+    missing_correction = copy.deepcopy(authorized_payload)
+    missing_correction.pop("semantic_validation_correction")
+    missing_correction_path = write_overlay(
+        missing_correction,
+        name="second-recovery-missing-semantic-validation-correction.json",
+    )
+    with pytest.raises(ValueError, match="contract is invalid"):
+        validate_second_fallback_recovery_overlay(
+            overlay_path=missing_correction_path,
+            require_authorized=True,
+            **validation_arguments,
+        )
+
+    for hash_field in (
+        "current_implementation_file_sha256",
+        "condition_pathway_regression_file_sha256",
+        "development_assessment_regression_file_sha256",
+    ):
+        misstated_c1_hash = copy.deepcopy(authorized_payload)
+        misstated_c1_hash["semantic_validation_correction"][hash_field] = "0" * 64
+        misstated_c1_hash_path = write_overlay(
+            misstated_c1_hash,
+            name=f"second-recovery-misstated-{hash_field}.json",
+        )
+        with pytest.raises(
+            ValueError,
+            match="misstates the C1 semantic-validation correction",
+        ):
+            validate_second_fallback_recovery_overlay(
+                overlay_path=misstated_c1_hash_path,
+                require_authorized=True,
+                **validation_arguments,
+            )
+
+    weakened_c1_flag = copy.deepcopy(authorized_payload)
+    weakened_c1_flag["semantic_validation_correction"]["unchanged_controls"]["prompts"] = False
+    weakened_c1_flag_path = write_overlay(
+        weakened_c1_flag,
+        name="second-recovery-weakened-c1-flag.json",
+    )
+    with pytest.raises(ValueError, match="contract is invalid"):
+        validate_second_fallback_recovery_overlay(
+            overlay_path=weakened_c1_flag_path,
+            require_authorized=True,
+            **validation_arguments,
+        )
+
+    changed_retry_effect = copy.deepcopy(authorized_payload)
+    changed_retry_effect["semantic_validation_correction"]["retry_request_affected"] = True
+    changed_retry_effect_path = write_overlay(
+        changed_retry_effect,
+        name="second-recovery-changed-retry-effect.json",
+    )
+    with pytest.raises(ValueError, match="contract is invalid"):
+        validate_second_fallback_recovery_overlay(
+            overlay_path=changed_retry_effect_path,
+            require_authorized=True,
+            **validation_arguments,
+        )
+
+    misstated_c1_status = copy.deepcopy(authorized_payload)
+    misstated_c1_status["semantic_validation_correction"]["evidence_support_status"] = "supported"
+    misstated_c1_status_path = write_overlay(
+        misstated_c1_status,
+        name="second-recovery-misstated-c1-status.json",
+    )
+    with pytest.raises(ValueError, match="contract is invalid"):
+        validate_second_fallback_recovery_overlay(
+            overlay_path=misstated_c1_status_path,
+            require_authorized=True,
+            **validation_arguments,
+        )
+
+    misstated_c1_diagnostic = copy.deepcopy(authorized_payload)
+    misstated_c1_diagnostic["semantic_validation_correction"]["standardized_diagnostic"] = (
+        "A different diagnostic."
+    )
+    misstated_c1_diagnostic_path = write_overlay(
+        misstated_c1_diagnostic,
+        name="second-recovery-misstated-c1-diagnostic.json",
+    )
+    with pytest.raises(ValueError, match="contract is invalid"):
+        validate_second_fallback_recovery_overlay(
+            overlay_path=misstated_c1_diagnostic_path,
+            require_authorized=True,
+            **validation_arguments,
+        )
+
+    invalid_delta = copy.deepcopy(authorized_payload)
+    invalid_delta["amendment"]["amended_maximum_inference_attempts"] = 279
+    invalid_path = write_overlay(invalid_delta, name="second-recovery-invalid.json")
+    with pytest.raises(ValueError, match="contract is invalid"):
+        validate_second_fallback_recovery_overlay(
+            overlay_path=invalid_path,
+            require_authorized=True,
+            **validation_arguments,
+        )
+
+    for hash_field in (
+        "predecessor_implementation_file_sha256",
+        "current_implementation_file_sha256",
+        "regression_test_file_sha256",
+    ):
+        misstated_c0 = copy.deepcopy(authorized_payload)
+        misstated_c0["c0_pre_data_correction"][hash_field] = "0" * 64
+        misstated_c0_path = write_overlay(
+            misstated_c0,
+            name=f"second-recovery-misstated-c0-{hash_field}.json",
+        )
+        with pytest.raises(ValueError, match="misstates the pre-data C0 correction"):
+            validate_second_fallback_recovery_overlay(
+                overlay_path=misstated_c0_path,
+                require_authorized=True,
+                **validation_arguments,
+            )
+
+    changed_observed = GpuSummary(
+        total_allocated_microseconds=accounting["total_allocated_microseconds"] + 1,
+        event_count=accounting["event_count"],
+        service_session_count=accounting["service_session_count"],
+        by_kind_microseconds=observed.by_kind_microseconds,
+    )
+    with pytest.raises(RuntimeError, match="terminal v3 ledger"):
+        validate_second_fallback_recovery_overlay(
+            overlay_path=authorized_path,
+            require_authorized=True,
+            **{**validation_arguments, "observed": changed_observed},
+        )
+
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "validate_source_association",
+        lambda *_args, **_kwargs: current_source,
+    )
+    restricted_root = tmp_path / "restricted"
+    built_proposed_path = restricted_root / "second-recovery-built.proposed.json"
+    builder_arguments = {
+        "root": ROOT,
+        "restricted_output_root": restricted_root,
+        "v3_result_path": v3_result_path,
+        "v3_incident_path": v3_incident_path,
+        "prior_retry_amendment_path": prior_amendment_path,
+        "prior_retry_failure_path": prior_failure_path,
+        "run_id": "fallback-qwen3-8b-awq-development-v4",
+        "policy": policy,
+        "activation_certificate": activation,
+        "primary_result": primary,
+        "limits": limits,
+        "source_association": current_source,
+        "source_association_path": current_source_path,
+        "retry_request": retry_request,
+        "legacy_provenance_bridge": bridge,
+        "observed": observed,
+        "verify_decoder_compilation": False,
+    }
+    built_proposed = build_second_fallback_recovery_overlay(
+        output_path=built_proposed_path,
+        **builder_arguments,
+    )
+    first_bytes = built_proposed_path.read_bytes()
+    replayed = build_second_fallback_recovery_overlay(
+        output_path=built_proposed_path,
+        **builder_arguments,
+    )
+    assert replayed == built_proposed
+    assert built_proposed_path.read_bytes() == first_bytes
+    assert built_proposed["authorization"] == {
+        "status": "proposed",
+        "basis": "Pending explicit user authorization after final source freeze.",
+        "authorized_by": None,
+        "recorded_at": None,
+    }
+    assert built_proposed["schema_version"] == "1.2.0"
+    assert built_proposed["frozen_input_controls"] == base_payload["frozen_input_controls"]
+    assert built_proposed["projection_dependency_correction"] == (
+        base_payload["projection_dependency_correction"]
+    )
+    assert built_proposed["concurrent_integrity_disclosure"] == (
+        base_payload["concurrent_integrity_disclosure"]
+    )
+    with pytest.raises(FileExistsError, match="append-only"):
+        build_second_fallback_recovery_overlay(
+            output_path=built_proposed_path,
+            authorization_basis="A changed proposed basis.",
+            **builder_arguments,
+        )
+
+    built_authorized = build_second_fallback_recovery_overlay(
+        output_path=restricted_root / "second-recovery-built.authorized.json",
+        authorization_status="authorized",
+        authorization_basis=(
+            "The user explicitly authorized the exact bound recovery in this test."
+        ),
+        authorized_at=datetime(2026, 9, 4, 23, 59, tzinfo=UTC),
+        **builder_arguments,
+    )
+    assert built_authorized["authorization"]["status"] == "authorized"
+    with pytest.raises(ValueError, match="aware timestamp"):
+        build_second_fallback_recovery_overlay(
+            output_path=restricted_root / "missing-time.json",
+            authorization_status="authorized",
+            authorization_basis="Explicit test-only authorization.",
+            authorized_at=None,
+            **builder_arguments,
+        )
+    with pytest.raises(ValueError, match="explicitly restricted"):
+        build_second_fallback_recovery_overlay(
+            output_path=tmp_path / "public" / "escape.json",
+            restricted_output_root=tmp_path / "public",
+            **{
+                key: value
+                for key, value in builder_arguments.items()
+                if key != "restricted_output_root"
+            },
+        )
+
+    symlink_target = tmp_path / "private-target"
+    symlink_target.mkdir()
+    intermediate_link = tmp_path / "intermediate-link"
+    intermediate_link.symlink_to(symlink_target, target_is_directory=True)
+    linked_restricted_root = intermediate_link / "restricted"
+    with pytest.raises(ValueError, match="ancestry"):
+        build_second_fallback_recovery_overlay(
+            output_path=linked_restricted_root / "redirected.json",
+            restricted_output_root=linked_restricted_root,
+            **{
+                key: value
+                for key, value in builder_arguments.items()
+                if key != "restricted_output_root"
+            },
+        )
+    assert not (symlink_target / "restricted").exists()
+
+    outside_parent = tmp_path / "outside-not-created" / "nested"
+    with pytest.raises(ValueError, match="escaped"):
+        build_second_fallback_recovery_overlay(
+            output_path=outside_parent / "escape.json",
+            **builder_arguments,
+        )
+    assert not outside_parent.exists()
+
+
+def test_second_recovery_integrity_file_binding_rejects_symlinks_and_missing_files(
+    tmp_path: Path,
+) -> None:
+    regular = tmp_path / "regular.py"
+    regular.write_text("value = 1\n", encoding="utf-8")
+    linked = tmp_path / "linked.py"
+    linked.symlink_to(regular)
+
+    binding = fallback_acceptance_module._second_recovery_bound_file(
+        tmp_path,
+        "regular.py",
+    )
+    assert binding == {
+        "path": "regular.py",
+        "sha256": hashlib.sha256(regular.read_bytes()).hexdigest(),
+    }
+    with pytest.raises(ValueError, match="contains a symlink"):
+        fallback_acceptance_module._second_recovery_bound_file(tmp_path, "linked.py")
+    with pytest.raises(FileNotFoundError):
+        fallback_acceptance_module._second_recovery_bound_file(tmp_path, "missing.py")
+
+
+def test_second_recovery_semantic_scope_inventory_covers_every_explicit_runtime_use() -> None:
+    discovered = set()
+    for path in sorted((ROOT / "src/story_projection_onto").rglob("*.py")):
+        if path.name == "fallback_acceptance.py":
+            continue
+        source = path.read_text(encoding="utf-8")
+        if any(
+            marker in source
+            for marker in (
+                "SemanticAssessmentScope",
+                "semantic_assessment_scope",
+                "runtime_structural_acceptance_record",
+            )
+        ):
+            discovered.add(path.relative_to(ROOT).as_posix())
+    declared = set(
+        fallback_acceptance_module.SECOND_RECOVERY_INTEGRITY_SEMANTIC_SCOPE_SOURCE_PATHS
+    )
+    generated_contracts = {
+        "schemas/jsonschema/ontology_projection.schema.json",
+        "schemas/jsonschema/schema_manifest.json",
+        "schemas/jsonschema/validated_generation.schema.json",
+    }
+    assert declared == discovered | generated_contracts | {
+        "src/story_projection_onto/fallback_acceptance.py"
+    }
+
+
+def test_second_recovery_display_inventory_covers_every_production_callsite() -> None:
+    discovered = set()
+    for path in sorted((ROOT / "src/story_projection_onto").rglob("*.py")):
+        if path.name == "fallback_acceptance.py":
+            continue
+        source = path.read_text(encoding="utf-8")
+        if any(
+            marker in source
+            for marker in (
+                "VisualizationContentScope.REGISTERED_DISPLAY",
+                "compile_registered_display_selection",
+            )
+        ):
+            discovered.add(path.relative_to(ROOT).as_posix())
+    discovered.add("ui/app.js")
+    assert discovered == set(
+        fallback_acceptance_module.SECOND_RECOVERY_INTEGRITY_DISPLAY_SOURCE_PATHS
+    )
+
+
+def test_second_recovery_lifecycle_inventory_covers_every_production_writer() -> None:
+    discovered = set()
+    lifecycle_markers = (
+        ".record_validation(",
+        ".record_projection(",
+        ".transition_job(",
+        ".advance_job_lifecycle(",
+        ".record_metric(",
+        ".record_visualization(",
+        "resolve_model_call_job(",
+        "resolve_job_identity(",
+        "resolve_projection_artifact(",
+    )
+    for path in sorted((ROOT / "src/story_projection_onto").rglob("*.py")):
+        if path.name == "fallback_acceptance.py":
+            continue
+        source = path.read_text(encoding="utf-8")
+        if any(marker in source for marker in lifecycle_markers):
+            discovered.add(path.relative_to(ROOT).as_posix())
+    declared = set(
+        fallback_acceptance_module.SECOND_RECOVERY_INTEGRITY_LIFECYCLE_SOURCE_PATHS
+    )
+    assert discovered <= declared
+    assert {
+        "src/story_projection_onto/fallback_acceptance.py",
+        "src/story_projection_onto/held_out_binding.py",
+        "src/story_projection_onto/ledger_verify.py",
+        "src/story_projection_onto/scorer_only/development_assessment.py",
+    } <= declared
+
+
+@pytest.mark.parametrize(
+    "mutated_relative",
+    [
+        "prompts/c1_pre/prompt_v1.md",
+        "tests/fixtures/phase1/c1_pre_request.json",
+        "configs/study/decoding.json",
+        "schemas/jsonschema/ontology_draft.schema.json",
+    ],
+)
+def test_second_recovery_frozen_inputs_cannot_rebaseline_current_mutations(
+    tmp_path: Path,
+    mutated_relative: str,
+) -> None:
+    frozen_root = tmp_path / "frozen-input-root"
+    required_paths = (
+        fallback_acceptance_module.SECOND_RECOVERY_V3_SOURCE_MANIFEST_PATH,
+        *fallback_acceptance_module.SECOND_RECOVERY_FROZEN_INPUT_SOURCE_PATHS,
+    )
+    for relative in required_paths:
+        destination = frozen_root / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(ROOT / relative, destination)
+
+    frozen = fallback_acceptance_module._second_recovery_frozen_input_controls(
+        frozen_root
+    )
+    assert frozen["whole_wire_payload_byte_identity_to_failed_v3_claimed"] is False
+
+    mutated = frozen_root / mutated_relative
+    mutated.write_text(mutated.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="frozen fallback input differs from v3"):
+        fallback_acceptance_module._second_recovery_frozen_input_controls(frozen_root)
 
 
 def test_standalone_cli_dispatches_only_to_registered_orchestrator(
@@ -412,6 +1809,61 @@ def test_standalone_cli_dispatches_only_to_registered_orchestrator(
     assert not (tmp_path / "ledger").exists()
     assert not (tmp_path / "checkpoint").exists()
     assert not (tmp_path / "result.json").exists()
+
+
+def test_public_launcher_establishes_a_dedicated_orchestrator_group(
+    tmp_path: Path,
+) -> None:
+    program = (
+        "import json, os; "
+        "from story_projection_onto.fallback_acceptance import "
+        "establish_fallback_orchestrator_process_group; "
+        "arguments=['--execute','--controller-stage','orchestrate','--output',"
+        f"{str(tmp_path / 'unused.json')!r}]; "
+        "establish_fallback_orchestrator_process_group(arguments); "
+        "print(json.dumps({'pid':os.getpid(),'pgrp':os.getpgrp()}))"
+    )
+    completed = subprocess.run(
+        (sys.executable, "-c", program),
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    identity = json.loads(completed.stdout)
+    assert identity["pid"] == identity["pgrp"]
+
+
+def test_second_recovery_builder_cli_dispatches_without_gpu_runtime(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    observed: list[object] = []
+
+    def build(options: object, *, root: Path) -> dict[str, object]:
+        observed.extend((options, root))
+        return {"authorization": {"status": "proposed"}}
+
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_build_second_recovery_overlay_from_cli",
+        build,
+    )
+    output = tmp_path / "restricted" / "proposal.json"
+    assert (
+        main(
+            [
+                "--build-second-recovery-overlay",
+                "--project-root",
+                str(ROOT),
+                "--output",
+                str(output),
+            ]
+        )
+        == 0
+    )
+    assert len(observed) == 2
+    assert observed[1] == ROOT
+    assert not output.exists()
 
 
 def test_checked_in_source_association_hash_is_verified(tmp_path: Path) -> None:
@@ -471,26 +1923,26 @@ def test_operator_probe_rejects_labels_without_behavior() -> None:
 
     policy = FallbackModelPolicy.load(ROOT / "configs/study/fallback_model.json")
     call = fallback_pilot_calls(policy)[1]
-    output = json.loads((ROOT / "tests/fixtures/phase1/c2_query_output.json").read_text())
+    output = with_legacy_source_hashes(
+        json.loads((ROOT / "tests/fixtures/phase1/c2_query_output.json").read_text())
+    )
     audit = validate_acceptance_generation(
         root=ROOT,
         call=call.acceptance_call(),
         parsed_object=output,
+        legacy_provenance_bridge=legacy_provenance_bridge(),
     )
     behavior = _require_call_operator_coverage(call, audit, output, root=ROOT)
     assert behavior["behaviorally_valid"] is True
 
     spoofed = copy.deepcopy(output)
-    split = next(
-        decision
-        for decision in spoofed["decisions"]
-        if decision["operator"] == "split"
-    )
+    split = next(decision for decision in spoofed["decisions"] if decision["operator"] == "split")
     split["created_object_ids"] = split["created_object_ids"][:1]
     spoofed_audit = validate_acceptance_generation(
         root=ROOT,
         call=call.acceptance_call(),
         parsed_object=spoofed,
+        legacy_provenance_bridge=legacy_provenance_bridge(),
     )
     with pytest.raises(FallbackCapabilityBehaviorError, match="split"):
         _require_call_operator_coverage(call, spoofed_audit, spoofed, root=ROOT)
@@ -498,6 +1950,7 @@ def test_operator_probe_rejects_labels_without_behavior() -> None:
 
 @dataclass
 class FakeResourceSampler:
+    storage: StoragePreflight | None = None
     samples: tuple[object, ...] = ()
 
     def sample(self, **kwargs: object) -> None:
@@ -548,16 +2001,38 @@ class FakeFallbackService:
         )
 
     def start(self, *, event_id: str, **kwargs: object) -> None:
-        self.remaining_required_seconds.append(
-            cast(float, kwargs["remaining_required_seconds"])
-        )
+        self.remaining_required_seconds.append(cast(float, kwargs["remaining_required_seconds"]))
         self.start_count += 1
+        started_at = datetime(2026, 9, 3, tzinfo=UTC)
+        session_id = cast(str, kwargs["session_id"])
+        allocation_baseline = self.ledger.gpu_summary().total_allocated_seconds
+        self.ledger.record_gpu_service_observation(
+            service_session_id=event_id,
+            state=GpuServiceJournalState.OPENED,
+            session_id=session_id,
+            configuration_hash=self.configuration.configuration_hash,
+            service_started_at=started_at,
+            elapsed_seconds=0,
+            ledger_allocated_seconds_before_session=allocation_baseline,
+            hard_limit_seconds=36_000,
+            observed_at=started_at,
+            details={"fake_service_contract": "terminal_accounting_fixture"},
+        )
         self._record_event(
             event_id=event_id,
             event_kind=GpuEventKind.GPU_SESSION_START,
             seconds=5,
         )
-        self.live.update({"running": True, "pid": self.pid})
+        self.live.update(
+            {
+                "running": True,
+                "pid": self.pid,
+                "session_id": session_id,
+                "service_event_id": event_id,
+                "service_started_at": started_at,
+                "allocation_baseline": allocation_baseline,
+            }
+        )
         self.state = ServiceState.READY
 
     def write_resume_checkpoint(
@@ -650,9 +2125,7 @@ class FakeFallbackService:
         attempt_id: str,
         **kwargs: object,
     ) -> GenerationResult:
-        self.remaining_required_seconds.append(
-            cast(float, kwargs["remaining_required_seconds"])
-        )
+        self.remaining_required_seconds.append(cast(float, kwargs["remaining_required_seconds"]))
         self._record_event(
             event_id=event_id,
             event_kind=GpuEventKind.FALLBACK_TEST,
@@ -678,9 +2151,7 @@ class FakeFallbackService:
         accounting_details: Mapping[str, object],
         **kwargs: object,
     ) -> GenerationResult:
-        self.remaining_required_seconds.append(
-            cast(float, kwargs["remaining_required_seconds"])
-        )
+        self.remaining_required_seconds.append(cast(float, kwargs["remaining_required_seconds"]))
         self._record_event(
             event_id=event_id,
             event_kind=GpuEventKind.REPAIR,
@@ -708,12 +2179,38 @@ class FakeFallbackService:
             return None
         self.live["running"] = False
         self.state = ServiceState.STOPPED
-        seconds = self.ledger.gpu_summary().total_allocated_seconds
-        start = datetime(2026, 9, 3, tzinfo=UTC)
-        return ServiceUptime(
-            session_id="fallback-test",
+        session_id = cast(str, self.live["session_id"])
+        service_event_id = cast(str, self.live["service_event_id"])
+        start = cast(datetime, self.live["service_started_at"])
+        baseline = cast(float, self.live["allocation_baseline"])
+        classified_seconds = self.ledger.gpu_summary().total_allocated_seconds - baseline
+        seconds = classified_seconds
+        ended_at = start + timedelta(seconds=seconds)
+        self.ledger.record_gpu_service_observation(
+            service_session_id=service_event_id,
+            state=GpuServiceJournalState.PROCESS_STOPPED,
+            session_id=session_id,
+            configuration_hash=self.configuration.configuration_hash,
+            service_started_at=start,
+            elapsed_seconds=seconds,
+            ledger_allocated_seconds_before_session=baseline,
+            hard_limit_seconds=36_000,
+            observed_at=ended_at,
+            details={"fake_process_absence_verified": True},
+        )
+        self.ledger.close_gpu_service_journal(
+            service_session_id=service_event_id,
+            session_id=session_id,
+            service_seconds=seconds,
+            classified_event_seconds=classified_seconds,
             started_at=start,
-            ended_at=start + timedelta(seconds=seconds),
+            ended_at=ended_at,
+            details={"fake_service_contract": "terminal_accounting_fixture"},
+        )
+        return ServiceUptime(
+            session_id=session_id,
+            started_at=start,
+            ended_at=ended_at,
             service_seconds=seconds,
             allocated_event_seconds=seconds,
         )
@@ -763,9 +2260,7 @@ def _development_prequery_inputs(
     bindings: list[UnitPrequeryBinding] = []
     completed = datetime(2026, 9, 3, tzinfo=UTC)
     for unit_id in ("dev-unit-01", "dev-unit-02", "dev-unit-03", "dev-unit-04"):
-        prequery = next(
-            call.prequery_stage for call in manifest.calls if call.unit_id == unit_id
-        )
+        prequery = next(call.prequery_stage for call in manifest.calls if call.unit_id == unit_id)
         evidence = json.loads(
             (ROOT / prequery.relative_path / "evidence.json").read_text(encoding="utf-8")
         )
@@ -775,9 +2270,7 @@ def _development_prequery_inputs(
                 unit_id=snapshot["world_or_window_id"],
                 condition=condition,
                 seed_block=(
-                    None
-                    if condition is ConditionName.C0_CLASSICAL_PRE
-                    else manifest.seed_block
+                    None if condition is ConditionName.C0_CLASSICAL_PRE else manifest.seed_block
                 ),
                 snapshot_hash=snapshot["content_hash"],
                 preparation_hash=hashlib.sha256(
@@ -914,9 +2407,7 @@ class FakeDevelopmentAdopter:
         inputs = _development_prequery_inputs(manifest, bootstrap)
         forecast = ForecastControl(
             forecast_receipt_hash="a" * 64,
-            gpu_call_inventory_file_sha256=(
-                manifest.gpu_call_inventory_file_sha256
-            ),
+            gpu_call_inventory_file_sha256=(manifest.gpu_call_inventory_file_sha256),
             post_development_mandatory_forecast_seconds=123.0,
         )
         self.prepared_value = PreparedDevelopmentContinuation(
@@ -988,9 +2479,7 @@ class FakeDevelopmentAdopter:
                             if condition is ConditionName.C1_LLM_PRE
                             else digest(f"{call.call_id}:fixed-preparation")
                         ),
-                        lineage_artifact_hash=digest(
-                            f"{call.call_id}:{condition.value}:lineage"
-                        ),
+                        lineage_artifact_hash=digest(f"{call.call_id}:{condition.value}:lineage"),
                         completed_at=completed,
                     )
                     for condition in (
@@ -1017,18 +2506,12 @@ class FakeDevelopmentAdopter:
                     plan_hash=plan.content_hash,
                     call_id=call.call_id,
                     unit_id=call.unit_id,
-                    source_c1_construction_seal_hash=digest(
-                        f"{call.source_c1_call_id}:seal"
-                    ),
-                    source_c1_preparation_hash=digest(
-                        f"{call.source_c1_call_id}:preparation"
-                    ),
+                    source_c1_construction_seal_hash=digest(f"{call.source_c1_call_id}:seal"),
+                    source_c1_preparation_hash=digest(f"{call.source_c1_call_id}:preparation"),
                     fixed_ontology_hash=digest(f"{call.call_id}:fixed-ontology"),
                     evidence_alias_bijection_hash=digest(f"{call.call_id}:aliases"),
                     derived_output_schema_hash=digest(f"{call.call_id}:schema"),
-                    derived_decoding_manifest_hash=digest(
-                        f"{call.call_id}:decoding"
-                    ),
+                    derived_decoding_manifest_hash=digest(f"{call.call_id}:decoding"),
                     exact_run_condition_config_hash=run_config_hash,
                     exact_run_condition_config_artifact_hash=digest(
                         f"{call.call_id}:config-artifact"
@@ -1054,9 +2537,7 @@ class FakeDevelopmentAdopter:
                     fixed_schema_derivation=fixed_derivation,
                     ledger_receipt_hash=digest(f"{call.call_id}:ledger"),
                     gpu_event_id=f"gpu-{call.call_id}",
-                    query_access_event_hash=(
-                        None if access is None else access.content_hash
-                    ),
+                    query_access_event_hash=(None if access is None else access.content_hash),
                     prequery_preparation_bindings=preparations,
                     allocated_gpu_seconds=0,
                     prompt_tokens=1,
@@ -1113,13 +2594,7 @@ class FakeDevelopmentAdopter:
 
 def _fallback_launch_configuration(tmp_path: Path) -> VLLMLaunchConfiguration:
     cache = tmp_path / "cache"
-    snapshot = (
-        cache
-        / "hub"
-        / "models--Qwen--Qwen3-8B-AWQ"
-        / "snapshots"
-        / FALLBACK_MODEL_REVISION
-    )
+    snapshot = cache / "hub" / "models--Qwen--Qwen3-8B-AWQ" / "snapshots" / FALLBACK_MODEL_REVISION
     snapshot.mkdir(parents=True)
     return VLLMLaunchConfiguration.from_model_configuration(
         snapshot_path=snapshot,
@@ -1144,11 +2619,15 @@ def _runner(
     )
     return FallbackAcceptanceRunner(
         root=ROOT,
+        legacy_provenance_bridge=legacy_provenance_bridge(),
         run_id="fallback-unit",
         service=cast(object, service),
         ledger=ledger,
         artifacts=ArtifactStore(BlobStore(tmp_path / "blobs"), ledger),
-        resource_sampler=cast(object, FakeResourceSampler()),
+        resource_sampler=cast(
+            object,
+            FakeResourceSampler(storage=StoragePreflight(tmp_path)),
+        ),
         tokenizer=FakeTokenizer(),
         tokenizer_manifest=fallback_tokenizer_manifest(),
         checkpoint_path=tmp_path / "fallback.checkpoint.json",
@@ -1167,9 +2646,118 @@ def _runner(
     )
 
 
+def test_v4_prepare_reaches_mocked_service_start_with_registered_adopter(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The production v4 factory must accept its exact two-start lineage."""
+
+    configuration = _fallback_launch_configuration(tmp_path)
+    live: dict[str, object] = {}
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        service = FakeFallbackService(
+            configuration,
+            ledger,
+            _fallback_outputs(trigger_repair=False),
+            live,
+        )
+        reached_start = RuntimeError("mocked-service-start-boundary")
+
+        def forbid_gpu_start(**kwargs: object) -> None:
+            del kwargs
+            service.start_count += 1
+            raise reached_start
+
+        monkeypatch.setattr(service, "start", forbid_gpu_start)
+        source_manifest = build_source_manifest(ROOT, "v4-factory-path-test")
+        source_association = {
+            "manifest_sha256": "d" * 64,
+            "local_tree_sha256": source_manifest.tree_sha256,
+            "revision_label": "v4-factory-path-test",
+        }
+        amendment_hash = SECOND_RECOVERY_V3_RETRY_AMENDMENT_SHA256
+        overlay_hash = "f" * 64
+        adopter = create_production_development_adopter(
+            root=ROOT,
+            service=cast(object, service),
+            artifacts=ArtifactStore(BlobStore(tmp_path / "blobs"), ledger),
+            tokenizer=FakeTokenizer(),
+            tokenizer_manifest=fallback_tokenizer_manifest(),
+            launcher_configuration_hash=configuration.configuration_hash,
+            model_snapshot_manifest_hash="c" * 64,
+            source_association=source_association,
+            checkpoint_path=tmp_path / "fallback.checkpoint.json",
+            assessment_factory=lambda **_kwargs: (_ for _ in ()).throw(
+                AssertionError("development assessment cannot run before service start")
+            ),
+            retry_amendment_sha256=amendment_hash,
+            second_recovery_overlay_sha256=overlay_hash,
+            recovery_service_start_event_ids=(SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS),
+        )
+        runner = FallbackAcceptanceRunner(
+            root=ROOT,
+            legacy_provenance_bridge=legacy_provenance_bridge(),
+            run_id="fallback-qwen3-8b-awq-development-v4",
+            service=cast(object, service),
+            ledger=ledger,
+            artifacts=ArtifactStore(BlobStore(tmp_path / "blobs"), ledger),
+            resource_sampler=cast(object, FakeResourceSampler()),
+            tokenizer=FakeTokenizer(),
+            tokenizer_manifest=fallback_tokenizer_manifest(),
+            checkpoint_path=tmp_path / "fallback.checkpoint.json",
+            activation_certificate={"manifest_sha256": HASH_A},
+            replacement_receipt={"manifest_sha256": HASH_B},
+            snapshot_manifest={
+                "repository": FALLBACK_MODEL_REPOSITORY,
+                "revision": FALLBACK_MODEL_REVISION,
+                "manifest_sha256": "c" * 64,
+            },
+            source_association=source_association,
+            retry_amendment={
+                "manifest_sha256": amendment_hash,
+                "authorized_recovery_run_id": SECOND_RECOVERY_V3_RUN_ID,
+            },
+            prior_fallback_failure={"manifest_sha256": "e" * 64},
+            second_recovery_overlay={
+                "manifest_sha256": overlay_hash,
+                "authorized_recovery_run_id": ("fallback-qwen3-8b-awq-development-v4"),
+                "authorization": {"status": "authorized"},
+            },
+            second_recovery_v3_result={
+                "manifest_sha256": SECOND_RECOVERY_V3_RESULT_MANIFEST_SHA256
+            },
+            second_recovery_v3_incident={
+                "manifest_sha256": SECOND_RECOVERY_V3_INCIDENT_MANIFEST_SHA256
+            },
+            service_start_watchdog_seconds=(AMENDED_FALLBACK_STARTUP_WATCHDOG_SECONDS),
+            development_adopter=adopter,
+        )
+        monkeypatch.setattr(
+            FallbackAcceptanceRunner,
+            "_validate_second_recovery_request_binding",
+            lambda _self: None,
+        )
+        monkeypatch.setattr(
+            FallbackAcceptanceRunner,
+            "_second_recovery_retry_lineage",
+            lambda _self: None,
+        )
+        monkeypatch.setattr(
+            fallback_acceptance_module,
+            "_resource_gate",
+            lambda _ledger, _limits: {"accepted": True},
+        )
+
+        with pytest.raises(RuntimeError, match="mocked-service-start-boundary") as exc:
+            runner.prepare_controller_restart()
+
+    assert exc.value is reached_start
+    assert service.start_count == 1
+
+
 def _fallback_outputs(*, trigger_repair: bool) -> dict[str, Mapping[str, object]]:
-    accepted_c1 = json.loads(
-        (ROOT / "tests/fixtures/phase1/c1_pre_output.json").read_text()
+    accepted_c1 = with_legacy_source_hashes(
+        json.loads((ROOT / "tests/fixtures/phase1/c1_pre_output.json").read_text())
     )
     first_c1 = copy.deepcopy(accepted_c1)
     if trigger_repair:
@@ -1181,11 +2769,11 @@ def _fallback_outputs(*, trigger_repair: bool) -> dict[str, Mapping[str, object]
     return {
         "fallback-c1-01": first_c1,
         "fallback-c1-01-repair-01": accepted_c1,
-        "fallback-c2-01": json.loads(
-            (ROOT / "tests/fixtures/phase1/c2_query_output.json").read_text()
+        "fallback-c2-01": with_legacy_source_hashes(
+            json.loads((ROOT / "tests/fixtures/phase1/c2_query_output.json").read_text())
         ),
-        "fallback-c2-02": json.loads(
-            (ROOT / "tests/fixtures/phase1/c2_query_output_2.json").read_text()
+        "fallback-c2-02": with_legacy_source_hashes(
+            json.loads((ROOT / "tests/fixtures/phase1/c2_query_output_2.json").read_text())
         ),
         "fallback-fixed-01": json.loads(
             (ROOT / "tests/fixtures/phase1/fixed_select_output.json").read_text()
@@ -1239,25 +2827,48 @@ def test_two_controller_fallback_runner_is_bounded_resumable_and_audited(
         assert result["operator_coverage_gate"]["c1_pilot_complete"] is True
         assert result["operator_coverage_gate"]["c1_global_complete_in_micro_pilot"] is False
         assert result["operator_coverage_gate"]["c1_global_completion_gate"] == (
-            "integrated_development_scientific_assessment."
-            "c1_all_construction_operators_exercised"
+            "integrated_development_scientific_assessment.c1_all_construction_operators_exercised"
         )
         assert result["operator_coverage_gate"]["c2_complete"] is True
         assert result["actual_plus_remaining_forecast"]["admitted"] is True
         assert result["normal_acceptance_block_executed"] is False
-        assert result["selected_model_freeze"]["scope"] == (
-            "registered_development_llm_conditions"
-        )
+        assert result["selected_model_freeze"]["scope"] == ("registered_development_llm_conditions")
         assert result["selected_model_freeze"]["held_out_execution_allowed"] is False
         assert result["development_continuation_gate"]["passed"] is True
         assert result["development_continuation_receipt"]["terminal_call_count"] == 24
-        assert result["development_continuation_bootstrap"][
-            "selected_model_freeze_hash"
-        ] == result["selected_model_freeze"]["manifest_sha256"]
+        storage_admission = result["development_storage_admission"]
+        assert storage_admission["phase"] == "phase_3"
+        assert storage_admission["allowed"] is True
+        assert storage_admission["declared_growth_bytes"] == 2_500_000_000
+        assert storage_admission["largest_atomic_temporary_bytes"] == 268_435_456
+        assert storage_admission["quarantine_allowance_bytes"] == 268_435_456
+        assert storage_admission["release_staging_bytes"] == 268_435_456
+        assert result["development_continuation_gate"]["phase3_storage_admitted"] is True
+        assert (
+            result["development_continuation_bootstrap"][
+                "development_storage_admission_hash"
+            ]
+            == storage_admission["content_hash"]
+            == result["development_handoff"]["development_storage_admission_hash"]
+            == result["development_continuation_receipt"][
+                "development_storage_admission_hash"
+            ]
+        )
+        storage_rows = ledger.storage_samples_with_phase_prefix(
+            "phase3_development:fallback-unit"
+        )
+        assert len(storage_rows) == 1
+        assert storage_rows[0].sample_id == storage_admission["storage_sample_id"]
+        assert storage_rows[0].additional_reserved_bytes == 3_305_306_368
+        assert (
+            result["development_continuation_bootstrap"]["selected_model_freeze_hash"]
+            == result["selected_model_freeze"]["manifest_sha256"]
+        )
         assert result["development_preparation"]["query_access_event_count"] == 0
-        assert result["development_handoff"]["live_service_identity"][
-            "service_pid"
-        ] == first_service.pid
+        assert (
+            result["development_handoff"]["live_service_identity"]["service_pid"]
+            == first_service.pid
+        )
         assert "checkpoint_path" not in result["development_preparation"]
         assert "development_checkpoint_path" not in result["development_handoff"]
         assert result["development_preparation"]["restricted_fields_withheld"] == [
@@ -1273,38 +2884,245 @@ def test_two_controller_fallback_runner_is_bounded_resumable_and_audited(
         assert not hasattr(adopter.adapter, "shutdown")
         assert second_service.resume_count == 1
         assert first_service.pid == second_service.pid
-        assert sum(
-            event.event_kind is GpuEventKind.GPU_SESSION_START
-            for event in ledger.gpu_events()
-        ) == 1
-        assert sum(
-            event.event_kind is GpuEventKind.FALLBACK_TEST
-            for event in ledger.gpu_events()
-        ) == 4
-        assert sum(
-            event.event_kind is GpuEventKind.REPAIR
-            for event in ledger.gpu_events()
-        ) == int(trigger_repair)
-        assert len(result["reserve_consumption"]) == 4 + int(trigger_repair)
-        assert len(second_service.remaining_required_seconds) == 4 + int(
+        assert (
+            sum(event.event_kind is GpuEventKind.GPU_SESSION_START for event in ledger.gpu_events())
+            == 1
+        )
+        assert (
+            sum(event.event_kind is GpuEventKind.FALLBACK_TEST for event in ledger.gpu_events())
+            == 4
+        )
+        assert sum(event.event_kind is GpuEventKind.REPAIR for event in ledger.gpu_events()) == int(
             trigger_repair
         )
+        assert len(result["reserve_consumption"]) == 4 + int(trigger_repair)
+        assert len(second_service.remaining_required_seconds) == 4 + int(trigger_repair)
         assert min(second_service.remaining_required_seconds) > 29_000
         assert live["running"] is False
 
+        specs = fallback_pilot_calls(
+            FallbackModelPolicy.load(ROOT / "configs/study/fallback_model.json")
+        )
+        expected_roles = {
+            ConditionName.C1_LLM_PRE: "prebuild",
+            ConditionName.C2_LLM_QUERY: "query_time",
+            ConditionName.A_FIXED_SELECT: "fixed_select",
+        }
+        for spec in specs:
+            model_call = ledger.get_model_call(f"fallback-unit-{spec.call_id}")
+            transitions = ledger.transitions(model_call.job_id)
+            expected_states = [JobState.PLANNED, JobState.PREQUERY_SEALED]
+            if spec.condition is not ConditionName.C1_LLM_PRE:
+                expected_states.append(JobState.QUERY_REVEALED)
+                assert transitions[2].occurred_at > transitions[1].occurred_at
+            expected_states.append(JobState.GENERATED)
+            if trigger_repair and spec.call_id == "fallback-c1-01":
+                expected_states.append(JobState.REPAIRED)
+            expected_states.extend((JobState.VALIDATED, JobState.FINALIZED))
+            assert [item.to_state for item in transitions] == expected_states
+            assert model_call.call_role.value == expected_roles[spec.condition]
+            validation = ledger.get_validation(
+                f"fallback-unit-{spec.call_id}-attempt-validation"
+            )
+            assert validation.input_artifact_hash == model_call.response_artifact_hash
+            assert validation.semantic_assessment_scope is (
+                SemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED
+            )
+            assert validation.validation_status.value == (
+                "rejected"
+                if trigger_repair and spec.call_id == "fallback-c1-01"
+                else "accepted"
+            )
+        assert ledger.count_rows("projections") == 0
+        assert ledger.count_rows("validations") == 4 + int(trigger_repair)
+
         state = json.loads((tmp_path / "fallback.checkpoint.json").read_text())
+        handoff_count = len(adopter.handoffs)
+        replayed_development = second_runner._run_development_continuation(
+            provisional_result=cast(Mapping[str, object], state["accepted_micro_pilot_result"]),
+            state=state,
+            execution_hash=cast(str, state["execution_hash"]),
+            registration=adopter.registration(),
+        )
+        assert replayed_development.content_hash == result["development_continuation_receipt"][
+            "content_hash"
+        ]
+        assert len(adopter.handoffs) == handoff_count
+        assert len(
+            ledger.storage_samples_with_phase_prefix("phase3_development:fallback-unit")
+        ) == 1
+        before_replay_counts = {
+            table: ledger.count_rows(table)
+            for table in (
+                "artifacts",
+                "attempts",
+                "failures",
+                "job_transitions",
+                "model_calls",
+                "storage_samples",
+                "validations",
+            )
+        }
         resumed, _, timings = second_runner._resume_completed(
             state=state,
-            call=fallback_pilot_calls(
-                FallbackModelPolicy.load(ROOT / "configs/study/fallback_model.json")
-            )[0],
+            call=specs[0],
         )
+        replayed, _, _ = second_runner._resume_completed(state=state, call=specs[0])
         assert resumed["status"] == "resumed"
+        assert replayed == resumed
         assert len(timings) == 1 + int(trigger_repair)
+        assert before_replay_counts == {
+            table: ledger.count_rows(table) for table in before_replay_counts
+        }
         if trigger_repair:
-            assert resumed["base_attempt"]["packing_report"][
-                "complete_evidence_snapshot"
-            ] is True
+            assert resumed["base_attempt"]["packing_report"]["complete_evidence_snapshot"] is True
+
+    verification = verify_ledger(tmp_path / "ledger.sqlite3", tmp_path / "blobs")
+    assert verification.valid, verification.issues
+
+
+def test_development_continuation_records_rejected_phase3_storage_before_adopter(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    configuration = _fallback_launch_configuration(tmp_path)
+    live: dict[str, object] = {}
+    outputs = _fallback_outputs(trigger_repair=False)
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        first_service = FakeFallbackService(configuration, ledger, outputs, live)
+        first_runner = _runner(tmp_path=tmp_path, ledger=ledger, service=first_service)
+        monkeypatch.setattr(os, "getpid", lambda: 41501)
+        first_runner.prepare_controller_restart()
+
+        second_service = FakeFallbackService(configuration, ledger, outputs, live)
+        second_runner = _runner(tmp_path=tmp_path, ledger=ledger, service=second_service)
+        second_runner.resource_sampler = cast(
+            object,
+            FakeResourceSampler(
+                storage=StoragePreflight(
+                    tmp_path,
+                    budget=StorageBudget(
+                        total_allocation_bytes=30_000_000_000,
+                        max_occupied_bytes=50,
+                        min_headroom_bytes=5_000_000_000,
+                    ),
+                )
+            ),
+        )
+        monkeypatch.setattr(os, "getpid", lambda: 41502)
+
+        with pytest.raises(StorageBudgetExceeded):
+            second_runner.run()
+
+        adopter = cast(FakeDevelopmentAdopter, second_runner.development_adopter)
+        assert adopter.prepared_value is None
+        assert adopter.handoffs == []
+        assert live["running"] is False
+        rows = ledger.storage_samples_with_phase_prefix(
+            "phase3_development:fallback-unit"
+        )
+        assert len(rows) == 1
+        assert rows[0].allowed is False
+        state = json.loads((tmp_path / "fallback.checkpoint.json").read_text())
+        admission = state["development_storage_admissions"][-1]
+        assert admission["storage_sample_id"] == rows[0].sample_id
+        assert admission["allowed"] is False
+        assert admission["sampled_total_allocation_bytes"] == 30_000_000_000
+        assert admission["sampled_max_occupied_bytes"] == 50
+        assert admission["sampled_min_headroom_bytes"] == 5_000_000_000
+        assert admission["projected_allocation_free_bytes"] == (
+            admission["sampled_total_allocation_bytes"]
+            - admission["projected_occupied_bytes"]
+        )
+        assert state["development_continuation_ready"] is False
+
+
+def test_development_storage_admission_recovers_ledger_first_crash_and_rechecks(
+    tmp_path: Path,
+) -> None:
+    configuration = _fallback_launch_configuration(tmp_path)
+    live: dict[str, object] = {}
+    outputs = _fallback_outputs(trigger_repair=False)
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        service = FakeFallbackService(configuration, ledger, outputs, live)
+        runner = _runner(tmp_path=tmp_path, ledger=ledger, service=service)
+        state = runner._initial_state(HASH_A)
+        runner._save(state)
+
+        reservation = StorageAllocationPlan.load(
+            ROOT / "configs/study/storage_phase_allocations.json"
+        ).reservation_for("phase_3")
+        assert runner.resource_sampler.storage is not None
+        orphan_report = runner.resource_sampler.storage.check(
+            **reservation.preflight_arguments()
+        )
+        orphan_sample_id = ledger.record_storage_sample(
+            orphan_report,
+            phase="phase3_development:fallback-unit",
+            sampled_at=datetime.now(UTC) - timedelta(seconds=1),
+        )
+
+        recovered = runner._reconcile_development_storage_admissions(state)
+        assert len(recovered) == 1
+        assert recovered[0].storage_sample_id == orphan_sample_id
+        assert recovered[0].sampled_total_allocation_bytes == (
+            orphan_report.budget.total_allocation_bytes
+        )
+        assert recovered[0].sampled_max_occupied_bytes == (
+            orphan_report.budget.max_occupied_bytes
+        )
+        assert recovered[0].sampled_min_headroom_bytes == (
+            orphan_report.budget.min_headroom_bytes
+        )
+        assert state["development_storage_admission_hash"] == recovered[0].content_hash
+        checkpoint_after_recovery = runner.checkpoint_path.read_bytes()
+
+        replayed = runner._reconcile_development_storage_admissions(state)
+        assert replayed == recovered
+        assert runner.checkpoint_path.read_bytes() == checkpoint_after_recovery
+        assert len(
+            ledger.storage_samples_with_phase_prefix("phase3_development:fallback-unit")
+        ) == 1
+
+        fresh, fresh_report = runner._record_development_storage_admission(state)
+        assert fresh_report.allowed is True
+        assert fresh.storage_sample_id != orphan_sample_id
+        assert fresh.sampled_at > recovered[0].sampled_at
+        assert state["development_storage_admission_hash"] == fresh.content_hash
+        assert [
+            item.storage_sample_id
+            for item in runner._verify_development_storage_admissions(
+                state,
+                required=True,
+            )
+        ] == [orphan_sample_id, fresh.storage_sample_id]
+
+
+def test_development_storage_admission_rejects_a_looser_runtime_budget(
+    tmp_path: Path,
+) -> None:
+    configuration = _fallback_launch_configuration(tmp_path)
+    live: dict[str, object] = {}
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        service = FakeFallbackService(configuration, ledger, {}, live)
+        runner = _runner(tmp_path=tmp_path, ledger=ledger, service=service)
+        runner.resource_sampler = cast(
+            object,
+            FakeResourceSampler(
+                storage=StoragePreflight(
+                    tmp_path,
+                    budget=StorageBudget(
+                        total_allocation_bytes=31_000_000_000,
+                        max_occupied_bytes=26_000_000_000,
+                        min_headroom_bytes=5_000_000_000,
+                    ),
+                )
+            ),
+        )
+        state = runner._initial_state(HASH_A)
+
+        with pytest.raises(RuntimeError, match="more permissive than registered limits"):
+            runner._record_development_storage_admission(state)
 
 
 def test_fallback_rejects_missing_development_adopter_before_model_start(
@@ -1394,9 +3212,7 @@ def test_development_adopter_failure_always_returns_lifecycle_to_owner_shutdown(
         assert failure["failure_stage"] == "development_continuation"
         assert failure["phase1_gate_passed"] is False
         if failure_mode == "changed_pid":
-            assert failure["partial_development_checkpoint"][
-                "canonical_checkpoint_valid"
-            ] is False
+            assert failure["partial_development_checkpoint"]["canonical_checkpoint_valid"] is False
 
 
 @pytest.mark.parametrize(
@@ -1572,6 +3388,65 @@ def test_same_controller_cannot_consume_calls_and_cleanup_stops_orphan(
         assert live["running"] is False
 
 
+def test_terminal_accounting_uses_atomic_lease_when_lock_mirror_is_torn(
+    tmp_path: Path,
+) -> None:
+    configuration = _fallback_launch_configuration(tmp_path)
+    started_at = datetime(2026, 9, 3, tzinfo=UTC)
+    event_id = "fallback-unit-service-start-001"
+    lock_path = configuration.shared_cache / ".story-projection-onto-vllm.lock"
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        ledger.record_gpu_event(
+            event_id=event_id,
+            event_kind=GpuEventKind.FAILURE,
+            allocated_seconds=3,
+            started_at=started_at,
+            ended_at=started_at + timedelta(seconds=3),
+            succeeded=False,
+            details={
+                "recovered_from_open_journal": True,
+                "intended_event_kind": GpuEventKind.GPU_SESSION_START.value,
+            },
+        )
+        service = VLLMService(
+            configuration=configuration,
+            client=cast(object, SimpleNamespace()),
+            meter=AllocatedGPUMeter(
+                ledger,
+                monotonic_clock=lambda: 0.0,
+                wall_clock=lambda: started_at,
+            ),
+            monotonic_clock=lambda: 0.0,
+            wall_clock=lambda: started_at,
+        )
+        service._acquire_service_lock()
+        service._session_id = "fallback-unit"
+        service._accounting_session_id = event_id
+        service._started_at = started_at
+        service._started_monotonic = 0.0
+        service._allocated_at_start = 0.0
+        assert service._prepare_durable_exec_gate()
+        service._write_service_lock_metadata(
+            lease_state="stopped_verified",
+            service_pid=None,
+            ended_at=started_at + timedelta(seconds=3),
+        )
+        service._release_service_lock()
+        lock_path.write_bytes(b'{"lease_state":"stopped_verified"')
+
+        runner = _runner(
+            tmp_path=tmp_path,
+            ledger=ledger,
+            service=cast(FakeFallbackService, service),
+            register_development_adopter=False,
+        )
+        assert runner._validate_terminal_service_accounting() is None
+        authoritative = service.read_authoritative_service_lease()
+        assert authoritative is not None
+        assert authoritative["lease_state"] == "stopped_verified"
+        assert authoritative["accounting_session_id"] == event_id
+
+
 def test_failure_result_retains_partial_call_reserve_and_shutdown_accounting(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1601,15 +3476,588 @@ def test_failure_result_retains_partial_call_reserve_and_shutdown_accounting(
 
         assert failure["completed_base_call_count"] == 1
         assert len(failure["reserve_consumption"]) == 1
-        assert failure["actual_plus_remaining_forecast"][
-            "actual_allocated_seconds"
-        ] > 0
+        assert failure["actual_plus_remaining_forecast"]["actual_allocated_seconds"] > 0
         assert failure["vllm_service_stopped"] is True
         assert failure["physical_service_state_unverified"] is False
         assert live["running"] is False
 
 
-def test_failed_diagnostic_repair_retains_repair_timing_and_reserve(
+def test_failed_transport_is_accounted_but_not_used_as_latency_proxy(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    configuration = _fallback_launch_configuration(tmp_path)
+    live: dict[str, object] = {}
+    outputs = _fallback_outputs(trigger_repair=False)
+    response_sha256 = "f" * 64
+    private_marker = "/work" + "space/restricted/xgrammar-schema"
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        first_service = FakeFallbackService(configuration, ledger, outputs, live)
+        first_runner = _runner(tmp_path=tmp_path, ledger=ledger, service=first_service)
+        monkeypatch.setattr(os, "getpid", lambda: 62501)
+        first_runner.prepare_controller_restart()
+
+        second_service = FakeFallbackService(configuration, ledger, outputs, live)
+        original = second_service.run_fallback_test
+
+        def failed_transport(*args: object, **kwargs: object) -> GenerationResult:
+            original(*args, **kwargs)
+            raise RuntimeTransportError(
+                "vLLM returned HTTP 400",
+                restricted_diagnostics={
+                    "http_status": 400,
+                    "response_sha256": response_sha256,
+                    "response_size_bytes": 123,
+                    "response_json_object": True,
+                    "error_type": "BadRequestError",
+                    "error_message": private_marker,
+                    "error_code": 400,
+                },
+            )
+
+        monkeypatch.setattr(second_service, "run_fallback_test", failed_transport)
+        second_runner = _runner(
+            tmp_path=tmp_path,
+            ledger=ledger,
+            service=second_service,
+        )
+        monkeypatch.setattr(os, "getpid", lambda: 62502)
+        result = second_runner.run()
+
+        assert result["micro_pilot_passed"] is False
+        assert result["actual_plus_remaining_forecast"]["actual_allocated_seconds"] > 0
+        assert "acceptance_c1" not in {row["call_class"] for row in result["timing_by_call_class"]}
+        development_c1 = next(
+            row
+            for row in result["post_fallback_full_manifest_forecast"]["rows"]
+            if row["call_class"] == "development_c1"
+        )
+        assert development_c1["forecast_p95_seconds"] == 180
+
+        failures = ledger.failures_for_lineage("fallback-unit-fallback-c1-01-attempt")
+        assert len(failures) == 1
+        failure = failures[0]
+        assert failure.artifact_hash is not None
+        details = json.loads(failure.details_json)
+        assert details == {
+            "call_id": "fallback-c1-01",
+            "exception_type": "RuntimeTransportError",
+            "restricted_diagnostics_artifact_hash": details[
+                "restricted_diagnostics_artifact_hash"
+            ],
+        }
+        public_diagnostic_record = ledger.get_artifact(failure.artifact_hash)
+        assert public_diagnostic_record.release_class is ReleaseClass.PUBLIC
+        restricted_hash = cast(str, details["restricted_diagnostics_artifact_hash"])
+        assert restricted_hash != failure.artifact_hash
+        diagnostic_record = ledger.get_artifact(restricted_hash)
+        assert diagnostic_record.release_class is ReleaseClass.RESTRICTED
+        diagnostic = json.loads(
+            second_runner.artifacts.blobs.read_bytes(
+                diagnostic_record,
+                allow_restricted=True,
+            )
+        )
+        assert diagnostic["response_sha256"] == response_sha256
+        assert diagnostic["error_message"] == private_marker
+        public_bytes = json.dumps(result, sort_keys=True).encode()
+        assert private_marker.encode() not in public_bytes
+        scan_public_bytes(public_bytes, relative_path="fallback-result.json")
+        assert live["running"] is False
+
+
+def test_transport_failure_before_gpu_event_is_terminal_and_audit_valid(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    configuration = _fallback_launch_configuration(tmp_path)
+    live: dict[str, object] = {}
+    outputs = _fallback_outputs(trigger_repair=False)
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        first_service = FakeFallbackService(configuration, ledger, outputs, live)
+        first_runner = _runner(tmp_path=tmp_path, ledger=ledger, service=first_service)
+        monkeypatch.setattr(os, "getpid", lambda: 62601)
+        first_runner.prepare_controller_restart()
+
+        second_service = FakeFallbackService(configuration, ledger, outputs, live)
+
+        def fail_before_event(*args: object, **kwargs: object) -> GenerationResult:
+            del args, kwargs
+            raise RuntimeError("synthetic pre-allocation transport failure")
+
+        monkeypatch.setattr(second_service, "run_fallback_test", fail_before_event)
+        second_runner = _runner(
+            tmp_path=tmp_path,
+            ledger=ledger,
+            service=second_service,
+        )
+        monkeypatch.setattr(os, "getpid", lambda: 62602)
+        result = second_runner.run()
+
+        assert result["micro_pilot_passed"] is False
+        attempt_id = "fallback-unit-fallback-c1-01-attempt"
+        attempt = ledger.attempt_lineage(attempt_id)[-1]
+        assert [item.to_state for item in ledger.transitions(attempt.job_id)] == [
+            JobState.PLANNED,
+            JobState.PREQUERY_SEALED,
+            JobState.GENERATED,
+            JobState.VALIDATED,
+            JobState.FINALIZED,
+        ]
+        with pytest.raises(KeyError):
+            ledger.get_model_call("fallback-unit-fallback-c1-01")
+        validation = ledger.get_validation(f"{attempt_id}-validation")
+        assert validation.validation_status.value == "rejected"
+        assert validation.semantic_assessment_scope is (
+            SemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED
+        )
+        failures = tuple(
+            failure
+            for failure in ledger.failures_for_lineage(attempt_id)
+            if failure.attempt_id == attempt_id
+        )
+        assert len(failures) == 1
+        assert failures[0].artifact_hash == validation.diagnostics_artifact_hash
+        assert ledger.get_artifact(failures[0].artifact_hash).release_class is ReleaseClass.PUBLIC
+        assert live["running"] is False
+
+    verification = verify_ledger(tmp_path / "ledger.sqlite3", tmp_path / "blobs")
+    assert verification.valid, verification.issues
+
+
+def test_guardian_recovers_pre_attempt_controller_death_once(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The durable attempt intent closes the reserve-to-attempt crash window."""
+
+    configuration = _fallback_launch_configuration(tmp_path)
+    live: dict[str, object] = {}
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        service = FakeFallbackService(
+            configuration,
+            ledger,
+            _fallback_outputs(trigger_repair=False),
+            live,
+        )
+        monkeypatch.setattr(
+            service,
+            "read_authoritative_service_lease",
+            lambda: None,
+            raising=False,
+        )
+        runner = _runner(tmp_path=tmp_path, ledger=ledger, service=service)
+        execution_hash = HASH_A
+        call = next(
+            call
+            for call in fallback_pilot_calls(
+                FallbackModelPolicy.load(ROOT / "configs/study/fallback_model.json")
+            )
+            if call.call_id == "fallback-c2-01"
+        )
+        sealed_at = datetime.now(UTC)
+        job = ledger.create_or_resume_job(
+            runner._job_identity(call=call, execution_hash=execution_hash),
+            release_class=ReleaseClass.PUBLIC,
+            created_at=sealed_at,
+        )
+        runner._prepare_job_lifecycle(
+            job_id=job.job_id,
+            call=call,
+            prequery_sealed_at=sealed_at,
+        )
+        state = runner._initial_state(execution_hash)
+        runner._save(state)
+        attempt_id = f"{runner.run_id}-{call.call_id}-attempt"
+        created_at = datetime.now(UTC)
+        runner._reserve(
+            state,
+            call_id=call.call_id,
+            reserve_call_class=call.reserve_call_class,
+            watchdog_seconds=call.watchdog_seconds,
+            job_id=job.job_id,
+            attempt_id=attempt_id,
+            attempt_kind=AttemptKind.BASE,
+            parent_attempt_id=None,
+            input_hash=HASH_A,
+            config_hash=HASH_B,
+            seed=call.seed_block,
+            attempt_created_at=created_at,
+        )
+
+        # Simulate process death before record_attempt(), then replay once before
+        # the terminal guardian consumes the same immutable receipt.
+        receipt = runner._terminalize_interrupted_call_lifecycle(state)
+        assert receipt is not None
+        transition_count = len(ledger.transitions(job.job_id))
+        failure_count = len(ledger.failures_for_lineage(attempt_id))
+        assert runner._terminalize_interrupted_call_lifecycle(state) == receipt
+        assert len(ledger.transitions(job.job_id)) == transition_count
+        assert len(ledger.failures_for_lineage(attempt_id)) == failure_count
+
+        result = fallback_acceptance_module._guardian_terminalize(
+            runner,
+            invocation={
+                "manifest_sha256": HASH_A,
+                "execution_arguments_sha256": HASH_B,
+            },
+            ticket={"manifest_sha256": "c" * 64},
+            trigger="terminal_request",
+            terminal_request_sha256="d" * 64,
+            controller_takeover_sha256=None,
+            control_group_outcomes=(),
+        )
+        assert result["physical_shutdown_verified"] is True
+        checkpoint = json.loads(runner.checkpoint_path.read_text(encoding="utf-8"))
+        assert checkpoint["active_call_id"] is None
+        assert checkpoint["active_attempt"] is None
+        assert checkpoint["failed_call_id"] == call.call_id
+        assert [item.to_state for item in ledger.transitions(job.job_id)] == [
+            JobState.PLANNED,
+            JobState.PREQUERY_SEALED,
+            JobState.QUERY_REVEALED,
+            JobState.GENERATED,
+            JobState.VALIDATED,
+            JobState.FINALIZED,
+        ]
+        validation = ledger.get_validation(f"{attempt_id}-validation")
+        assert validation.validation_status is ValidationStatus.REJECTED
+        assert validation.semantic_assessment_scope is (
+            SemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED
+        )
+        failures = tuple(
+            failure
+            for failure in ledger.failures_for_lineage(attempt_id)
+            if failure.attempt_id == attempt_id
+        )
+        assert len(failures) == 1
+        assert failures[0].failure_kind is FailureKind.INTERRUPTED
+
+    verification = verify_ledger(tmp_path / "ledger.sqlite3", tmp_path / "blobs")
+    assert verification.valid, verification.issues
+
+
+def test_guardian_recovers_pre_attempt_repair_controller_death_once(
+    tmp_path: Path,
+) -> None:
+    """A reserved repair is reconstructed with its exact parent and replayed once."""
+
+    configuration = _fallback_launch_configuration(tmp_path)
+    live: dict[str, object] = {}
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        service = FakeFallbackService(
+            configuration,
+            ledger,
+            _fallback_outputs(trigger_repair=True),
+            live,
+        )
+        runner = _runner(tmp_path=tmp_path, ledger=ledger, service=service)
+        execution_hash = HASH_A
+        call = next(
+            call
+            for call in fallback_pilot_calls(
+                FallbackModelPolicy.load(ROOT / "configs/study/fallback_model.json")
+            )
+            if call.call_id == "fallback-c2-01"
+        )
+        sealed_at = datetime.now(UTC)
+        job = ledger.create_or_resume_job(
+            runner._job_identity(call=call, execution_hash=execution_hash),
+            release_class=ReleaseClass.PUBLIC,
+            created_at=sealed_at,
+        )
+        runner._prepare_job_lifecycle(
+            job_id=job.job_id,
+            call=call,
+            prequery_sealed_at=sealed_at,
+        )
+        state = runner._initial_state(execution_hash)
+        runner._save(state)
+
+        base_attempt_id = f"{runner.run_id}-{call.call_id}-attempt"
+        base_created_at = (
+            datetime.fromisoformat(ledger.transitions(job.job_id)[-1].occurred_at)
+            + timedelta(microseconds=1)
+        )
+        runner._reserve(
+            state,
+            call_id=call.call_id,
+            reserve_call_class=call.reserve_call_class,
+            watchdog_seconds=call.watchdog_seconds,
+            job_id=job.job_id,
+            attempt_id=base_attempt_id,
+            attempt_kind=AttemptKind.BASE,
+            parent_attempt_id=None,
+            input_hash=HASH_A,
+            config_hash=HASH_B,
+            seed=call.seed_block,
+            attempt_created_at=base_created_at,
+        )
+        ledger.record_attempt(
+            attempt_id=base_attempt_id,
+            job_id=job.job_id,
+            attempt_kind=AttemptKind.BASE,
+            input_hash=HASH_A,
+            config_hash=HASH_B,
+            seed=call.seed_block,
+            created_at=base_created_at,
+        )
+        base_terminal_at = base_created_at + timedelta(seconds=1)
+        base_event_id = f"{runner.run_id}-{call.call_id}-gpu"
+        ledger.record_gpu_event(
+            event_id=base_event_id,
+            event_kind=GpuEventKind.FALLBACK_TEST,
+            allocated_seconds=1,
+            started_at=base_created_at,
+            ended_at=base_terminal_at,
+            succeeded=True,
+            job_id=job.job_id,
+            attempt_id=base_attempt_id,
+        )
+        invalid_artifact = runner.artifacts.put_bytes(
+            b'{"invalid":true}\n',
+            media_type="application/json",
+            release_class=ReleaseClass.PUBLIC,
+            created_at=base_terminal_at,
+        )
+        ledger.record_model_call(
+            model_call_id=base_attempt_id.removesuffix("-attempt"),
+            job_id=job.job_id,
+            attempt_id=base_attempt_id,
+            gpu_event_id=base_event_id,
+            backend=fallback_acceptance_module.ModelBackend.VLLM_GPU,
+            call_role=runner._call_role(call),
+            retry_class=call.retry_class,
+            model_manifest_hash=configuration.configuration_hash,
+            decoding_manifest_hash=HASH_B,
+            request_hash=HASH_A,
+            response_artifact_hash=invalid_artifact.content_hash,
+            construction_unit_hash=fallback_acceptance_module._base_construction_unit_hash(
+                call
+            ),
+            served_context_count=1,
+            prompt_tokens=10,
+            completion_tokens=5,
+            allocated_gpu_seconds=1,
+            successful=True,
+            created_at=base_terminal_at,
+        )
+        runner._advance_one(
+            job_id=job.job_id,
+            call=call,
+            state=JobState.GENERATED,
+            occurred_at=base_terminal_at,
+        )
+        base_validation_id = runner._record_structural_validation(
+            job_id=job.job_id,
+            attempt_id=base_attempt_id,
+            input_artifact_hash=invalid_artifact.content_hash,
+            validator_manifest_hash=execution_hash,
+            accepted=False,
+            diagnostics_artifact_hash=invalid_artifact.content_hash,
+            created_at=base_terminal_at,
+        )
+        ledger.record_failure(
+            attempt_id=base_attempt_id,
+            failure_kind=FailureKind.INVALID_OUTPUT,
+            message="Synthetic base output requires repair",
+            details={"call_id": call.call_id},
+            artifact_hash=invalid_artifact.content_hash,
+            occurred_at=base_terminal_at,
+        )
+
+        state["repair_parent_call_id"] = call.call_id
+        repair_call_id = f"{call.call_id}-repair-01"
+        repair_attempt_id = f"{runner.run_id}-{repair_call_id}-attempt"
+        repair_created_at = base_terminal_at + timedelta(microseconds=1)
+        runner._reserve(
+            state,
+            call_id=repair_call_id,
+            reserve_call_class="reserve_short",
+            watchdog_seconds=90,
+            job_id=job.job_id,
+            attempt_id=repair_attempt_id,
+            attempt_kind=AttemptKind.REPAIR,
+            parent_attempt_id=base_attempt_id,
+            input_hash="c" * 64,
+            config_hash="d" * 64,
+            seed=call.seed_block,
+            attempt_created_at=repair_created_at,
+        )
+
+        receipt = runner._terminalize_interrupted_call_lifecycle(state)
+        assert receipt is not None
+        transition_count = len(ledger.transitions(job.job_id))
+        failure_count = len(ledger.failures_for_lineage(repair_attempt_id))
+        assert runner._terminalize_interrupted_call_lifecycle(state) == receipt
+        assert len(ledger.transitions(job.job_id)) == transition_count
+        assert len(ledger.failures_for_lineage(repair_attempt_id)) == failure_count
+
+        repair_attempt = ledger.attempt_lineage(repair_attempt_id)[-1]
+        assert repair_attempt.attempt_kind is AttemptKind.REPAIR
+        assert repair_attempt.parent_attempt_id == base_attempt_id
+        assert [item.to_state for item in ledger.transitions(job.job_id)] == [
+            JobState.PLANNED,
+            JobState.PREQUERY_SEALED,
+            JobState.QUERY_REVEALED,
+            JobState.GENERATED,
+            JobState.REPAIRED,
+            JobState.VALIDATED,
+            JobState.FINALIZED,
+        ]
+        repair_validation = ledger.get_validation(f"{repair_attempt_id}-validation")
+        assert repair_validation.validation_status is ValidationStatus.REJECTED
+        assert repair_validation.parent_validation_id == base_validation_id
+        assert repair_validation.repair_attempt_id == repair_attempt_id
+        repair_failures = tuple(
+            failure
+            for failure in ledger.failures_for_lineage(repair_attempt_id)
+            if failure.attempt_id == repair_attempt_id
+        )
+        assert len(repair_failures) == 1
+        assert repair_failures[0].failure_kind is FailureKind.INTERRUPTED
+
+    verification = verify_ledger(tmp_path / "ledger.sqlite3", tmp_path / "blobs")
+    assert verification.valid, verification.issues
+
+
+def test_interrupted_result_commit_preserves_accepted_validation(
+    tmp_path: Path,
+) -> None:
+    configuration = _fallback_launch_configuration(tmp_path)
+    live: dict[str, object] = {}
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        service = FakeFallbackService(
+            configuration,
+            ledger,
+            _fallback_outputs(trigger_repair=False),
+            live,
+        )
+        runner = _runner(tmp_path=tmp_path, ledger=ledger, service=service)
+        execution_hash = HASH_A
+        call = next(
+            call
+            for call in fallback_pilot_calls(
+                FallbackModelPolicy.load(ROOT / "configs/study/fallback_model.json")
+            )
+            if call.call_id == "fallback-c2-01"
+        )
+        sealed_at = datetime.now(UTC)
+        job = ledger.create_or_resume_job(
+            runner._job_identity(call=call, execution_hash=execution_hash),
+            release_class=ReleaseClass.PUBLIC,
+            created_at=sealed_at,
+        )
+        runner._prepare_job_lifecycle(
+            job_id=job.job_id,
+            call=call,
+            prequery_sealed_at=sealed_at,
+        )
+        state = runner._initial_state(execution_hash)
+        runner._save(state)
+        attempt_id = f"{runner.run_id}-{call.call_id}-attempt"
+        created_at = datetime.now(UTC)
+        runner._reserve(
+            state,
+            call_id=call.call_id,
+            reserve_call_class=call.reserve_call_class,
+            watchdog_seconds=call.watchdog_seconds,
+            job_id=job.job_id,
+            attempt_id=attempt_id,
+            attempt_kind=AttemptKind.BASE,
+            parent_attempt_id=None,
+            input_hash=HASH_A,
+            config_hash=HASH_B,
+            seed=call.seed_block,
+            attempt_created_at=created_at,
+        )
+        ledger.record_attempt(
+            attempt_id=attempt_id,
+            job_id=job.job_id,
+            attempt_kind=AttemptKind.BASE,
+            input_hash=HASH_A,
+            config_hash=HASH_B,
+            seed=call.seed_block,
+            created_at=created_at,
+        )
+        event_id = f"{runner.run_id}-{call.call_id}-gpu"
+        event_end = created_at + timedelta(seconds=1)
+        ledger.record_gpu_event(
+            event_id=event_id,
+            event_kind=GpuEventKind.FALLBACK_TEST,
+            allocated_seconds=1,
+            started_at=created_at,
+            ended_at=event_end,
+            succeeded=True,
+            job_id=job.job_id,
+            attempt_id=attempt_id,
+        )
+        response = runner.artifacts.put_bytes(
+            b'{"durable":"response"}\n',
+            media_type="application/json",
+            release_class=ReleaseClass.PUBLIC,
+            created_at=event_end,
+        )
+        ledger.record_model_call(
+            model_call_id=attempt_id.removesuffix("-attempt"),
+            job_id=job.job_id,
+            attempt_id=attempt_id,
+            gpu_event_id=event_id,
+            backend=fallback_acceptance_module.ModelBackend.VLLM_GPU,
+            call_role=runner._call_role(call),
+            retry_class=call.retry_class,
+            model_manifest_hash=configuration.configuration_hash,
+            decoding_manifest_hash=HASH_B,
+            request_hash=HASH_A,
+            response_artifact_hash=response.content_hash,
+            construction_unit_hash=fallback_acceptance_module._base_construction_unit_hash(
+                call
+            ),
+            served_context_count=1,
+            prompt_tokens=10,
+            completion_tokens=5,
+            allocated_gpu_seconds=1,
+            successful=True,
+            created_at=event_end,
+        )
+        runner._advance_one(
+            job_id=job.job_id,
+            call=call,
+            state=JobState.GENERATED,
+            occurred_at=event_end,
+        )
+        runner._record_structural_validation(
+            job_id=job.job_id,
+            attempt_id=attempt_id,
+            input_artifact_hash=response.content_hash,
+            validator_manifest_hash=execution_hash,
+            accepted=True,
+            created_at=event_end,
+        )
+        runner._finish_job_lifecycle(
+            job_id=job.job_id,
+            call=call,
+            occurred_at=event_end,
+        )
+
+        runner._terminalize_interrupted_call_lifecycle(state)
+
+        validation = ledger.get_validation(f"{attempt_id}-validation")
+        assert validation.validation_status is ValidationStatus.ACCEPTED
+        failures = tuple(
+            failure
+            for failure in ledger.failures_for_lineage(attempt_id)
+            if failure.attempt_id == attempt_id
+        )
+        assert len(failures) == 1
+        assert failures[0].failure_kind is FailureKind.INTERRUPTED
+        assert ledger.get_job(job.job_id).state is JobState.FINALIZED
+
+    verification = verify_ledger(tmp_path / "ledger.sqlite3", tmp_path / "blobs")
+    assert verification.valid, verification.issues
+
+
+def test_failed_diagnostic_repair_retains_accounting_but_not_latency_proxy(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1641,11 +4089,10 @@ def test_failed_diagnostic_repair_retains_repair_timing_and_reserve(
         assert result["micro_pilot_passed"] is False
         assert result["repair_attempt_count"] == 1
         assert len(result["reserve_consumption"]) == 2
-        assert result["timing_gate"]["repair_sample_count"] == 1
+        assert result["timing_gate"]["repair_sample_count"] == 0
+        assert result["timing_gate"]["completed_repair_transport_count"] == 0
         assert result["timing_gate"]["repair_sample_count_valid"] is True
-        assert sum(
-            event.event_kind is GpuEventKind.REPAIR for event in ledger.gpu_events()
-        ) == 1
+        assert sum(event.event_kind is GpuEventKind.REPAIR for event in ledger.gpu_events()) == 1
         assert live["running"] is False
 
 
@@ -1678,6 +4125,59 @@ def _orchestrator_options(tmp_path: Path) -> object:
     return parse_arguments(arguments)
 
 
+def test_status_requires_and_verifies_complete_durable_invocation_arguments(
+    tmp_path: Path,
+) -> None:
+    complete = _orchestrator_options(tmp_path)
+    paths = fallback_acceptance_module._orchestration_paths(complete)
+    invocation_payload = {
+        "schema_version": "1.0.0",
+        "kind": "fallback_controller_orchestration_invocation",
+        "run_id": complete.run_id,
+        "execution_arguments_sha256": canonical_sha256(
+            fallback_acceptance_module._controller_execution_arguments(complete)
+        ),
+        "result_output": str(paths.result_output),
+        "handoff_output": str(paths.handoff_output),
+        "cleanup_output": str(paths.cleanup_output),
+        "checkpoint": str(paths.checkpoint),
+        "hard_stop_at": datetime.now(UTC).isoformat(),
+    }
+    invocation = {
+        **invocation_payload,
+        "manifest_sha256": canonical_sha256(invocation_payload),
+    }
+    fallback_acceptance_module._write_append_only_json(paths.invocation, invocation)
+
+    minimal = parse_arguments(
+        [
+            "--status",
+            "--output",
+            str(complete.output),
+            "--run-id",
+            complete.run_id,
+            "--checkpoint",
+            str(complete.checkpoint),
+            "--ledger",
+            str(complete.ledger),
+        ]
+    )
+    with pytest.raises(
+        SystemExit,
+        match="status with a durable orchestration invocation requires",
+    ):
+        fallback_acceptance_module._orchestrator_status(minimal)
+
+    status = fallback_acceptance_module._orchestrator_status(complete)
+    assert status["invocation_present"] is True
+    assert status["invocation_sha256"] == invocation["manifest_sha256"]
+
+    changed = copy.deepcopy(complete)
+    changed.source_association = tmp_path / "different-source-association.json"
+    with pytest.raises(ValueError, match="durable orchestration identity"):
+        fallback_acceptance_module._orchestrator_status(changed)
+
+
 def test_orchestrator_supervises_two_controllers_and_closes_guard(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1688,46 +4188,66 @@ def test_orchestrator_supervises_two_controllers_and_closes_guard(
 
     options = _orchestrator_options(tmp_path)
     stages: list[str] = []
+    closed: list[dict[str, object]] = []
+    invocation = {
+        "run_id": options.run_id,
+        "execution_arguments_sha256": HASH_A,
+        "manifest_sha256": HASH_B,
+    }
+    ticket = {"manifest_sha256": "c" * 64}
+    guard_path = tmp_path / "checkpoint.orchestrator-guard-000001.json"
+    guard = {"run_id": options.run_id, "manifest_sha256": "d" * 64}
 
     def run(command: tuple[str, ...], *, check: bool) -> subprocess.CompletedProcess[str]:
         assert check is False
         stage = command[command.index("--controller-stage") + 1]
         output = Path(command[command.index("--output") + 1])
         stages.append(stage)
-        if stage == "prepare":
-            output.write_text(
-                json.dumps(
-                    {
-                        "run_id": options.run_id,
-                        "model_service_left_live_for_controller_restart": True,
-                        "physical_service_live": True,
-                        "vllm_service_stopped": False,
-                    }
-                ),
-                encoding="utf-8",
-            )
-        elif stage == "run":
-            output.write_text(
-                json.dumps(
-                    {
-                        "micro_pilot_passed": True,
-                        "phase1_gate_passed": False,
-                        "physical_service_live": False,
-                        "vllm_service_stopped": True,
-                    }
-                ),
-                encoding="utf-8",
-            )
+        output.write_text("{}\n", encoding="utf-8")
         return subprocess.CompletedProcess(command, 2 if stage == "run" else 0)
 
+    def validate(path: Path, *, expected_stage: str, **kwargs: object) -> dict[str, object]:
+        del path, kwargs
+        return {
+            "phase1_gate_passed": expected_stage != "run",
+            "manifest_sha256": "e" * 64,
+        }
+
     monkeypatch.setattr(subprocess, "run", run)
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_new_orchestration_identity",
+        lambda options, paths: (invocation, ticket),
+    )
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_create_orchestrator_guard",
+        lambda options, invocation, ticket: (guard_path, guard),
+    )
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_ensure_guardian_running",
+        lambda *args, **kwargs: {"manifest_sha256": "f" * 64},
+    )
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_validate_controller_stage_result",
+        validate,
+    )
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_request_guardian_terminal_verification",
+        lambda *args, **kwargs: {"manifest_sha256": "1" * 64},
+    )
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_close_orchestrator_guard",
+        lambda *args, **kwargs: closed.append(dict(kwargs)),
+    )
     assert _orchestrate_controller_processes(options) == 2
     assert stages == ["prepare", "run"]
-    guard = json.loads(
-        (tmp_path / "checkpoint.orchestrator-guard.json").read_text()
-    )
-    assert guard["state"] == "closed"
-    assert guard["physical_shutdown_verified"] is True
+    assert len(closed) == 1
+    assert closed[0]["physical_shutdown_verified"] is True
 
 
 def test_orchestrator_invokes_cleanup_when_run_does_not_verify_shutdown(
@@ -1740,46 +4260,973 @@ def test_orchestrator_invokes_cleanup_when_run_does_not_verify_shutdown(
 
     options = _orchestrator_options(tmp_path)
     stages: list[str] = []
+    invocation = {
+        "run_id": options.run_id,
+        "execution_arguments_sha256": HASH_A,
+        "manifest_sha256": HASH_B,
+    }
+    ticket = {"manifest_sha256": "c" * 64}
+    guard_path = tmp_path / "checkpoint.orchestrator-guard-000001.json"
+    guard = {"run_id": options.run_id, "manifest_sha256": "d" * 64}
 
     def run(command: tuple[str, ...], *, check: bool) -> subprocess.CompletedProcess[str]:
         assert check is False
         stage = command[command.index("--controller-stage") + 1]
         output = Path(command[command.index("--output") + 1])
         stages.append(stage)
-        if stage == "prepare":
-            output.write_text(
-                json.dumps(
-                    {
-                        "run_id": options.run_id,
-                        "model_service_left_live_for_controller_restart": True,
-                        "physical_service_live": True,
-                        "vllm_service_stopped": False,
-                    }
-                ),
-                encoding="utf-8",
-            )
-            Path(str(options.checkpoint) + ".service").write_text("{}")
-        elif stage == "run":
-            output.write_text(
-                json.dumps(
-                    {
-                        "physical_service_live": None,
-                        "vllm_service_stopped": False,
-                    }
-                ),
-                encoding="utf-8",
-            )
-        else:
-            output.write_text(
-                json.dumps({"physical_shutdown_verified": True}),
-                encoding="utf-8",
-            )
+        output.write_text("{}\n", encoding="utf-8")
         return subprocess.CompletedProcess(command, 0)
 
+    def validate(path: Path, *, expected_stage: str, **kwargs: object) -> dict[str, object]:
+        del path, kwargs
+        if expected_stage == "run":
+            raise RuntimeError("run lacks verified service shutdown")
+        return {"manifest_sha256": "e" * 64, "physical_shutdown_verified": True}
+
     monkeypatch.setattr(subprocess, "run", run)
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_new_orchestration_identity",
+        lambda options, paths: (invocation, ticket),
+    )
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_create_orchestrator_guard",
+        lambda options, invocation, ticket: (guard_path, guard),
+    )
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_ensure_guardian_running",
+        lambda *args, **kwargs: {"manifest_sha256": "f" * 64},
+    )
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_validate_controller_stage_result",
+        validate,
+    )
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_request_guardian_terminal_verification",
+        lambda *args, **kwargs: {"manifest_sha256": "1" * 64},
+    )
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_close_orchestrator_guard",
+        lambda *args, **kwargs: None,
+    )
     with pytest.raises(RuntimeError, match="verified service shutdown"):
         _orchestrate_controller_processes(options)
     assert stages == ["prepare", "run", "cleanup"]
+
+
+def test_controller_result_replay_rejects_coherent_outer_tampering(
+    tmp_path: Path,
+) -> None:
+    options = _orchestrator_options(tmp_path)
+    invocation_payload = {
+        "kind": "fallback_controller_orchestration_invocation",
+        "run_id": options.run_id,
+        "execution_arguments_sha256": HASH_A,
+    }
+    invocation = {
+        **invocation_payload,
+        "manifest_sha256": canonical_sha256(invocation_payload),
+    }
+    guard_payload = {
+        "schema_version": "1.0.0",
+        "kind": "fallback_controller_orchestrator_guard",
+        "run_id": options.run_id,
+        "sequence": 1,
+        "previous_guard_sha256": None,
+    }
+    guard = {**guard_payload, "manifest_sha256": canonical_sha256(guard_payload)}
+    guard_path = tmp_path / "checkpoint.orchestrator-guard-000001.json"
+    guard_path.write_text(json.dumps(guard), encoding="utf-8")
+    original_payload = {
+        "schema_version": "1.0.0",
+        "kind": "phase1_fallback_micro_pilot_result",
+        "run_id": options.run_id,
+        "phase1_gate_passed": False,
+        "physical_service_live": False,
+        "vllm_service_stopped": True,
+        "bounded_value": "original",
+    }
+    original = {
+        **original_payload,
+        "manifest_sha256": canonical_sha256(original_payload),
+    }
+    bound = fallback_acceptance_module._bind_controller_stage_result(
+        original,
+        stage="run",
+        guard=guard,
+        invocation=invocation,
+    )
+    bound["bounded_value"] = "coherently-tampered"
+    rebound = {key: value for key, value in bound.items() if key != "manifest_sha256"}
+    bound["manifest_sha256"] = canonical_sha256(rebound)
+    result_path = tmp_path / "result.json"
+    result_path.write_text(json.dumps(bound), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="inner result"):
+        fallback_acceptance_module._validate_controller_stage_result(
+            result_path,
+            options=options,
+            invocation=invocation,
+            expected_stage="run",
+        )
+
+
+def test_resume_orchestrator_recovers_prepare_without_second_service_start(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    options = _orchestrator_options(tmp_path)
+    options.resume_orchestrator = True
+    Path(options.checkpoint).write_text(
+        json.dumps(
+            {
+                "run_id": options.run_id,
+                "service_start_attempted": True,
+                "controller_handoff_complete": False,
+                "active_call_id": None,
+                "failed_call_id": None,
+            }
+        ),
+        encoding="utf-8",
+    )
+    invocation = {
+        "run_id": options.run_id,
+        "execution_arguments_sha256": HASH_A,
+        "manifest_sha256": HASH_B,
+    }
+    ticket = {"manifest_sha256": "c" * 64}
+    guard_path = tmp_path / "checkpoint.orchestrator-guard-000001.json"
+    guard = {"run_id": options.run_id, "manifest_sha256": "d" * 64}
+    stages: list[str] = []
+
+    def run(command: tuple[str, ...], *, check: bool) -> subprocess.CompletedProcess[str]:
+        assert check is False
+        stage = command[command.index("--controller-stage") + 1]
+        stages.append(stage)
+        Path(command[command.index("--output") + 1]).write_text("{}\n")
+        return subprocess.CompletedProcess(command, 2 if stage == "run" else 0)
+
+    def validate(path: Path, *, expected_stage: str, **kwargs: object) -> dict[str, object]:
+        del path, kwargs
+        return {
+            "phase1_gate_passed": False,
+            "manifest_sha256": "e" * 64,
+            "orchestration_controller_stage": expected_stage,
+        }
+
+    monkeypatch.setattr(subprocess, "run", run)
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_load_orchestration_identity",
+        lambda options, paths: (invocation, ticket),
+    )
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_create_orchestrator_guard",
+        lambda options, invocation, ticket: (guard_path, guard),
+    )
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_ensure_guardian_running",
+        lambda *args, **kwargs: {"manifest_sha256": "f" * 64},
+    )
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_validate_controller_stage_result",
+        validate,
+    )
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_request_guardian_terminal_verification",
+        lambda *args, **kwargs: {"manifest_sha256": "1" * 64},
+    )
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_close_orchestrator_guard",
+        lambda *args, **kwargs: None,
+    )
+
+    assert fallback_acceptance_module._orchestrate_controller_processes(options) == 2
+    assert stages == ["recover-prepare", "run"]
+    assert "prepare" not in stages
+
+
+def test_fresh_orchestration_rejects_stale_output_before_guardian_or_controller(
+    tmp_path: Path,
+) -> None:
+    options = _orchestrator_options(tmp_path)
+    paths = fallback_acceptance_module._orchestration_paths(options)
+    paths.result_output.write_text("stale\n", encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="absent durable state and outputs"):
+        fallback_acceptance_module._new_orchestration_identity(options, paths)
+
+
+def test_resume_repairs_invocation_to_ticket_power_loss_before_any_controller(
+    tmp_path: Path,
+) -> None:
+    options = _orchestrator_options(tmp_path)
+    options.resume_orchestrator = True
+    paths = fallback_acceptance_module._orchestration_paths(options)
+    arguments_hash = canonical_sha256(
+        fallback_acceptance_module._controller_execution_arguments(options)
+    )
+    created_at = datetime.now(UTC).isoformat()
+    invocation_payload = {
+        "schema_version": "1.0.0",
+        "kind": "fallback_controller_orchestration_invocation",
+        "run_id": options.run_id,
+        "execution_arguments_sha256": arguments_hash,
+        "result_output": str(paths.result_output),
+        "handoff_output": str(paths.handoff_output),
+        "cleanup_output": str(paths.cleanup_output),
+        "checkpoint": str(paths.checkpoint),
+        "service_session_id": options.run_id,
+        "service_event_id": f"{options.run_id}-service-start-001",
+        "invocation_nonce": "a" * 64,
+        "gpu_seconds_before_invocation": 0.0,
+        "protected_shutdown_seconds": 70.0,
+        "hard_stop_at": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
+        "resume_grace_seconds": 300.0,
+        "created_at": created_at,
+    }
+    invocation = {
+        **invocation_payload,
+        "manifest_sha256": canonical_sha256(invocation_payload),
+    }
+    fallback_acceptance_module._write_append_only_json(paths.invocation, invocation)
+
+    loaded_invocation, ticket = fallback_acceptance_module._load_orchestration_identity(
+        options, paths
+    )
+
+    assert loaded_invocation == invocation
+    assert paths.guardian_ticket.is_file()
+    assert ticket == fallback_acceptance_module._guardian_ticket_for_invocation(
+        options,
+        paths=paths,
+        invocation=invocation,
+    )
+
+
+def test_guard_inventory_rejects_missing_or_reordered_sequence(tmp_path: Path) -> None:
+    options = _orchestrator_options(tmp_path)
+    guard_path = tmp_path / "checkpoint.orchestrator-guard-000002.json"
+    guard_path.write_text("{}\n", encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="not contiguous"):
+        fallback_acceptance_module._guard_paths(options)
+
+
+def test_orchestrator_liveness_requires_unchanged_process_command(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    guard = {
+        "orchestrator_pid": 41001,
+        "orchestrator_start_ticks": 9001,
+        "orchestrator_command_sha256": HASH_A,
+    }
+    monkeypatch.setattr(os, "kill", lambda pid, signal_number: None)
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_process_identity",
+        lambda pid: (9001, HASH_A),
+    )
+    assert fallback_acceptance_module._guard_process_is_live(guard)
+
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_process_identity",
+        lambda pid: (9001, HASH_B),
+    )
+    assert not fallback_acceptance_module._guard_process_is_live(guard)
+
+
+def test_closed_receipt_cannot_authorize_two_live_orchestrators(
+    tmp_path: Path,
+) -> None:
+    options = _orchestrator_options(tmp_path)
+    invocation = {
+        "manifest_sha256": HASH_A,
+        "execution_arguments_sha256": HASH_B,
+    }
+    ticket = {"manifest_sha256": "c" * 64}
+    start_ticks, command_sha256 = fallback_acceptance_module._process_identity(os.getpid())
+    guard_payload = {
+        "schema_version": "1.0.0",
+        "kind": "fallback_controller_orchestrator_guard",
+        "state": "active",
+        "run_id": options.run_id,
+        "sequence": 1,
+        "previous_guard_sha256": None,
+        "orchestration_invocation_sha256": HASH_A,
+        "guardian_ticket_sha256": "c" * 64,
+        "orchestrator_pid": os.getpid(),
+        "orchestrator_start_ticks": start_ticks,
+        "orchestrator_command_sha256": command_sha256,
+        "execution_arguments_sha256": HASH_B,
+        "started_at": datetime.now(UTC).isoformat(),
+    }
+    guard = {**guard_payload, "manifest_sha256": canonical_sha256(guard_payload)}
+    guard_path = tmp_path / "checkpoint.orchestrator-guard-000001.json"
+    guard_path.write_text(json.dumps(guard), encoding="utf-8")
+    close_payload = {
+        "schema_version": "1.0.0",
+        "kind": "fallback_controller_orchestrator_closed",
+        "run_id": options.run_id,
+        "orchestrator_guard_sha256": guard["manifest_sha256"],
+        "physical_shutdown_verified": True,
+    }
+    close = {**close_payload, "manifest_sha256": canonical_sha256(close_payload)}
+    fallback_acceptance_module._guard_close_path(guard_path).write_text(
+        json.dumps(close),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeError, match="live fallback orchestrator"):
+        fallback_acceptance_module._create_orchestrator_guard(
+            options,
+            invocation=invocation,
+            ticket=ticket,
+        )
+
+
+def test_guardian_hard_deadline_terminalizes_without_starting_service(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    options = _orchestrator_options(tmp_path)
+    invocation = {
+        "run_id": options.run_id,
+        "execution_arguments_sha256": HASH_A,
+        "manifest_sha256": HASH_B,
+    }
+    ticket = {
+        "manifest_sha256": "c" * 64,
+        "guardian_command_sha256": "d" * 64,
+        "hard_stop_at": (datetime.now(UTC) - timedelta(seconds=1)).isoformat(),
+        "resume_grace_seconds": 300.0,
+    }
+    Path(options.checkpoint).write_text(
+        json.dumps(
+            {
+                "run_id": options.run_id,
+                "service_start_attempted": True,
+                "active_call_id": None,
+                "failed_call_id": None,
+            }
+        ),
+        encoding="utf-8",
+    )
+    calls: list[str] = []
+
+    class FakeGuardianRunner:
+        run_id = options.run_id
+        checkpoint_path = Path(options.checkpoint)
+        service = SimpleNamespace(
+            state=ServiceState.STOPPED,
+            configuration=SimpleNamespace(configuration_hash=HASH_A),
+            read_authoritative_service_lease=lambda: None,
+        )
+        _last_service_adoption_failure_type = None
+        ledger = SimpleNamespace(
+            latest_gpu_service_journal=lambda event_id: None,
+            unresolved_gpu_allocations=lambda: (),
+            unresolved_gpu_service_journals=lambda: (),
+            gpu_summary=lambda: SimpleNamespace(total_allocated_seconds=0.0),
+        )
+        _service_event_id = f"{options.run_id}-service-start-001"
+
+        def _stop_or_reconcile_service(self) -> tuple[None, bool]:
+            calls.append("terminalize")
+            return None, False
+
+        def _validate_terminal_service_accounting(self) -> None:
+            return None
+
+        def _save(self, state: Mapping[str, object]) -> None:
+            calls.append("save")
+
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_load_orchestration_identity",
+        lambda options, paths: (invocation, ticket),
+    )
+    result = fallback_acceptance_module._run_guardian(
+        options,
+        runner=cast(FallbackAcceptanceRunner, FakeGuardianRunner()),
+        ticket=ticket,
+    )
+
+    assert result["trigger"] == "hard_stop_deadline"
+    assert result["physical_shutdown_verified"] is True
+    assert result["checkpoint_service_adoption_failed"] is False
+    assert result["checkpoint_service_adoption_failure_type"] is None
+    assert calls == ["terminalize", "save"]
+
+
+def test_guardian_terminalizes_exact_lease_when_checkpoint_was_lost(
+    tmp_path: Path,
+) -> None:
+    """An atomic service lease remains actionable without a runner checkpoint."""
+
+    calls: list[str] = []
+    service = SimpleNamespace(
+        state=ServiceState.STOPPED,
+        configuration=SimpleNamespace(configuration_hash=HASH_A),
+        read_authoritative_service_lease=lambda: {
+            "session_id": "fallback-test",
+            "accounting_session_id": "fallback-test-service-start-001",
+            "configuration_hash": HASH_A,
+        },
+    )
+
+    class LeaseOnlyRunner:
+        run_id = "fallback-test"
+        checkpoint_path = tmp_path / "missing-checkpoint.json"
+        _last_service_adoption_failure_type = None
+        _service_event_id = "fallback-test-service-start-001"
+        ledger = SimpleNamespace(
+            latest_gpu_service_journal=lambda event_id: None,
+            unresolved_gpu_allocations=lambda: (),
+            unresolved_gpu_service_journals=lambda: (),
+            gpu_summary=lambda: SimpleNamespace(total_allocated_seconds=11.0),
+        )
+
+        def _stop_or_reconcile_service(self) -> tuple[None, bool]:
+            calls.append("terminalize")
+            return None, True
+
+        def _validate_terminal_service_accounting(self) -> None:
+            calls.append("accounting")
+            return None
+
+    runner = LeaseOnlyRunner()
+    runner.service = service
+    result = fallback_acceptance_module._guardian_terminalize(
+        cast(FallbackAcceptanceRunner, runner),
+        invocation={
+            "manifest_sha256": HASH_B,
+            "execution_arguments_sha256": HASH_A,
+        },
+        ticket={"manifest_sha256": "c" * 64},
+        trigger="hard_stop_deadline",
+        terminal_request_sha256=None,
+        controller_takeover_sha256="d" * 64,
+        control_group_outcomes=(),
+    )
+
+    assert calls == ["terminalize", "accounting"]
+    assert result["checkpoint_service_adopted"] is True
+    assert result["physical_shutdown_verified"] is True
+
+
+def test_guardian_rejects_terminal_success_with_any_unresolved_service_journal(
+    tmp_path: Path,
+) -> None:
+    """Terminal proof is ledger-wide, not limited to the fallback event ID."""
+
+    class RunnerWithForeignUnresolvedService:
+        run_id = "fallback-test"
+        checkpoint_path = tmp_path / "missing-checkpoint.json"
+        _last_service_adoption_failure_type = None
+        _service_event_id = "fallback-test-service-start-001"
+        service = SimpleNamespace(
+            state=ServiceState.STOPPED,
+            configuration=SimpleNamespace(configuration_hash=HASH_A),
+            read_authoritative_service_lease=lambda: None,
+        )
+        ledger = SimpleNamespace(
+            latest_gpu_service_journal=lambda event_id: None,
+            unresolved_gpu_allocations=lambda: (),
+            unresolved_gpu_service_journals=lambda: (
+                SimpleNamespace(service_session_id="prior-unresolved-service"),
+            ),
+            gpu_summary=lambda: SimpleNamespace(total_allocated_seconds=11.0),
+        )
+
+        def _validate_terminal_service_accounting(self) -> None:
+            return None
+
+    with pytest.raises(RuntimeError, match="could not verify terminal"):
+        fallback_acceptance_module._guardian_terminalize(
+            cast(FallbackAcceptanceRunner, RunnerWithForeignUnresolvedService()),
+            invocation={
+                "manifest_sha256": HASH_B,
+                "execution_arguments_sha256": HASH_A,
+            },
+            ticket={"manifest_sha256": "c" * 64},
+            trigger="hard_stop_deadline",
+            terminal_request_sha256=None,
+            controller_takeover_sha256="d" * 64,
+            control_group_outcomes=(),
+        )
+
+
+def test_guardian_hard_deadline_kills_lock_owner_then_exact_service_target(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A wedged controller's flock cannot defeat the independent hard stop."""
+
+    options = _orchestrator_options(tmp_path)
+    paths = fallback_acceptance_module._orchestration_paths(options)
+    controller_lock = tmp_path / "controller.lock"
+    controller_ready = tmp_path / "controller.ready"
+    controller_program = (
+        "import fcntl, os, pathlib, sys, time; "
+        "stream=open(sys.argv[1], 'w'); "
+        "fcntl.flock(stream.fileno(), fcntl.LOCK_EX); "
+        "pathlib.Path(sys.argv[2]).write_text(str(os.getpid())); "
+        "time.sleep(120)"
+    )
+    controller_command = (
+        sys.executable,
+        "-c",
+        controller_program,
+        str(controller_lock),
+        str(controller_ready),
+    )
+    controller = subprocess.Popen(controller_command, start_new_session=True)
+    service = subprocess.Popen(
+        (sys.executable, "-c", "import time; time.sleep(120)"),
+        start_new_session=True,
+    )
+    try:
+        deadline = time.monotonic() + 5
+        while not controller_ready.is_file() and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert controller_ready.is_file()
+
+        controller_ticks, controller_command_hash = fallback_acceptance_module._process_identity(
+            controller.pid
+        )
+        controller_group = os.getpgid(controller.pid)
+        controller_session = os.getsid(controller.pid)
+        assert controller_group == controller.pid
+        service_ticks, service_command_hash = fallback_acceptance_module._process_identity(
+            service.pid
+        )
+        service_identity = {
+            "service_pid": service.pid,
+            "service_start_ticks": service_ticks,
+            "service_command_sha256": service_command_hash,
+            "service_process_group_id": os.getpgid(service.pid),
+            "service_session_id": os.getsid(service.pid),
+        }
+
+        invocation = {
+            "run_id": options.run_id,
+            "execution_arguments_sha256": HASH_A,
+            "manifest_sha256": HASH_B,
+        }
+        ticket = {
+            "manifest_sha256": "c" * 64,
+            "guardian_command_sha256": "d" * 64,
+            "hard_stop_at": (datetime.now(UTC) - timedelta(seconds=1)).isoformat(),
+            "resume_grace_seconds": 300.0,
+        }
+        guard_payload = {
+            "schema_version": "1.0.0",
+            "kind": "fallback_controller_orchestrator_guard",
+            "state": "active",
+            "run_id": options.run_id,
+            "sequence": 1,
+            "previous_guard_sha256": None,
+            "orchestration_invocation_sha256": HASH_B,
+            "guardian_ticket_sha256": ticket["manifest_sha256"],
+            "orchestrator_pid": controller.pid,
+            "orchestrator_start_ticks": controller_ticks,
+            "orchestrator_command_sha256": controller_command_hash,
+            "orchestrator_process_group_id": controller_group,
+            "orchestrator_session_id": controller_session,
+            "execution_arguments_sha256": HASH_A,
+            "started_at": datetime.now(UTC).isoformat(),
+        }
+        guard = {
+            **guard_payload,
+            "manifest_sha256": canonical_sha256(guard_payload),
+        }
+        fallback_acceptance_module._write_append_only_json(
+            fallback_acceptance_module._guard_path(options, 1),
+            guard,
+        )
+        receipt_payload = {
+            "schema_version": "1.0.0",
+            "kind": "fallback_internal_controller_receipt",
+            "run_id": options.run_id,
+            "sequence": 1,
+            "previous_controller_receipt_sha256": None,
+            "controller_stage": "cleanup",
+            "controller_output": str(paths.cleanup_output.resolve()),
+            "orchestration_invocation_sha256": HASH_B,
+            "orchestrator_guard_sha256": guard["manifest_sha256"],
+            "execution_arguments_sha256": HASH_A,
+            "controller_pid": controller.pid,
+            "controller_start_ticks": controller_ticks,
+            "controller_command_sha256": controller_command_hash,
+            "controller_process_group_id": controller_group,
+            "controller_session_id": controller_session,
+            "registered_at": datetime.now(UTC).isoformat(),
+        }
+        receipt = {
+            **receipt_payload,
+            "manifest_sha256": canonical_sha256(receipt_payload),
+        }
+        fallback_acceptance_module._write_append_only_json(
+            fallback_acceptance_module._controller_receipt_path(options, 1),
+            receipt,
+        )
+        Path(options.checkpoint).write_text(
+            json.dumps(
+                {
+                    "run_id": options.run_id,
+                    "service_start_attempted": True,
+                    "active_call_id": None,
+                    "failed_call_id": None,
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        fake_service = SimpleNamespace(
+            state=ServiceState.READY,
+            configuration=SimpleNamespace(configuration_hash=HASH_A),
+            read_authoritative_service_lease=lambda: {
+                "session_id": options.run_id,
+                "accounting_session_id": f"{options.run_id}-service-start-001",
+                "configuration_hash": HASH_A,
+            },
+        )
+        cleanup_observations: list[str] = []
+
+        class LockHoldingGuardianRunner:
+            run_id = options.run_id
+            checkpoint_path = Path(options.checkpoint)
+            _last_service_adoption_failure_type = None
+            _service_event_id = f"{options.run_id}-service-start-001"
+            service = fake_service
+            ledger = SimpleNamespace(
+                latest_gpu_service_journal=lambda event_id: SimpleNamespace(
+                    service_session_id=event_id
+                ),
+                unresolved_gpu_allocations=lambda: (),
+                unresolved_gpu_service_journals=lambda: (),
+                gpu_summary=lambda: SimpleNamespace(total_allocated_seconds=17.0),
+            )
+
+            def _stop_or_reconcile_service(self) -> tuple[None, bool]:
+                descriptor = os.open(controller_lock, os.O_RDWR)
+                try:
+                    fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    cleanup_observations.append("controller-lock-released")
+                finally:
+                    os.close(descriptor)
+                assert fallback_acceptance_module._exact_bound_process_is_live(
+                    service_identity,
+                    prefix="service",
+                )
+                os.killpg(service.pid, signal.SIGTERM)
+                service.wait(timeout=5)
+                fake_service.state = ServiceState.STOPPED
+                cleanup_observations.append("service-target-stopped")
+                return None, True
+
+            def _validate_terminal_service_accounting(self) -> None:
+                assert service.poll() is not None
+                cleanup_observations.append("accounting-terminal")
+                return None
+
+            def _save(self, state: Mapping[str, object]) -> None:
+                assert state["orphan_cleanup_completed"] is True
+
+        monkeypatch.setattr(
+            fallback_acceptance_module,
+            "_load_orchestration_identity",
+            lambda options, paths: (invocation, ticket),
+        )
+        monkeypatch.setattr(
+            fallback_acceptance_module,
+            "_internal_controller_command",
+            lambda options, *, stage, output, guard: controller_command,
+        )
+
+        result = fallback_acceptance_module._run_guardian(
+            options,
+            runner=cast(FallbackAcceptanceRunner, LockHoldingGuardianRunner()),
+            ticket=ticket,
+        )
+        controller.wait(timeout=5)
+
+        assert result["trigger"] == "hard_stop_deadline"
+        assert result["controller_takeover_sha256"] is not None
+        assert result["physical_shutdown_verified"] is True
+        assert result["checkpoint_service_adopted"] is True
+        assert cleanup_observations == [
+            "controller-lock-released",
+            "service-target-stopped",
+            "accounting-terminal",
+        ]
+        assert controller.poll() is not None
+        assert service.poll() is not None
+        assert paths.controller_takeover.is_file()
+        with pytest.raises(RuntimeError, match="takeover"):
+            fallback_acceptance_module._register_internal_controller(
+                options,
+                guard=guard,
+                invocation=invocation,
+            )
+        status = fallback_acceptance_module._orchestrator_status(options)
+        assert status["resume_allowed"] is False
+        assert status["controller_launch_authority_revoked"] is True
+    finally:
+        for process in (controller, service):
+            if process.poll() is None:
+                os.killpg(process.pid, signal.SIGKILL)
+            with suppress(subprocess.TimeoutExpired):
+                process.wait(timeout=5)
+
+
+def test_controller_kill_recovers_open_call_before_service_without_double_count(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A pre-existing guardian meter closes a killed controller's open call once."""
+
+    options = _orchestrator_options(tmp_path)
+    paths = fallback_acceptance_module._orchestration_paths(options)
+    configuration = _fallback_launch_configuration(tmp_path)
+    ledger_path = tmp_path / "guardian-open-call.sqlite3"
+    ready_path = tmp_path / "controller-open-call.ready"
+    target_program = "import time; time.sleep(120)"
+    target_command = (sys.executable, "-c", target_program)
+    monkeypatch.setattr(
+        VLLMLaunchConfiguration,
+        "command",
+        lambda self, python_executable=sys.executable: target_command,
+    )
+    controller_program = """
+import sys
+import time
+from pathlib import Path
+
+from story_projection_onto.experiment import AllocatedGPUMeter
+from story_projection_onto.gpu_runtime import VLLMLaunchConfiguration, VLLMService
+from story_projection_onto.store import Ledger
+
+cache = Path(sys.argv[1])
+snapshot = Path(sys.argv[2])
+model_configuration = Path(sys.argv[3])
+ledger_path = Path(sys.argv[4])
+ready_path = Path(sys.argv[5])
+run_id = sys.argv[6]
+target_program = sys.argv[7]
+target_command = (sys.executable, "-c", target_program)
+VLLMLaunchConfiguration.command = (
+    lambda self, python_executable=sys.executable: target_command
+)
+
+class EndpointAbsentClient:
+    def endpoint_live(self, timeout_seconds):
+        return False
+
+configuration = VLLMLaunchConfiguration.from_model_configuration(
+    snapshot_path=snapshot,
+    shared_cache=cache,
+    model_configuration_path=model_configuration,
+    model_candidate="fallback",
+    verified_snapshot_manifest_sha256="a" * 64,
+)
+with Ledger(ledger_path) as ledger:
+    meter = AllocatedGPUMeter(ledger)
+    service = VLLMService(
+        configuration=configuration,
+        client=EndpointAbsentClient(),
+        meter=meter,
+        readiness_check=lambda: True,
+    )
+    service.start(
+        session_id=run_id,
+        event_id=f"{run_id}-service-start-001",
+        watchdog_seconds=180,
+    )
+    with meter.inference(
+        event_id=f"{run_id}-open-call",
+        maximum_seconds=120,
+    ):
+        ready_path.write_text(str(service.pid), encoding="utf-8")
+        time.sleep(120)
+"""
+    controller_command = (
+        sys.executable,
+        "-c",
+        controller_program,
+        str(configuration.shared_cache),
+        str(configuration.snapshot_path),
+        str(ROOT / "configs/study/model.json"),
+        str(ledger_path),
+        str(ready_path),
+        options.run_id,
+        target_program,
+    )
+    target_pid: int | None = None
+    controller: subprocess.Popen[bytes] | None = None
+    with Ledger(ledger_path) as ledger:
+        # This is the important production ordering: the guardian and its meter
+        # exist before the controller opens either journal.
+        guardian_meter = AllocatedGPUMeter(ledger)
+        controller = subprocess.Popen(controller_command, start_new_session=True)
+        try:
+            deadline = time.monotonic() + 10
+            while not ready_path.is_file() and time.monotonic() < deadline:
+                if controller.poll() is not None:
+                    raise AssertionError(
+                        f"controller exited before opening its call ({controller.returncode})"
+                    )
+                time.sleep(0.01)
+            assert ready_path.is_file()
+            target_pid = int(ready_path.read_text(encoding="utf-8"))
+            assert ledger.unresolved_gpu_allocations()
+
+            controller_ticks, controller_command_hash = (
+                fallback_acceptance_module._process_identity(controller.pid)
+            )
+            controller_group = os.getpgid(controller.pid)
+            controller_session = os.getsid(controller.pid)
+            invocation = {
+                "run_id": options.run_id,
+                "execution_arguments_sha256": HASH_A,
+                "manifest_sha256": HASH_B,
+            }
+            ticket = {"manifest_sha256": "c" * 64}
+            guard_payload = {
+                "schema_version": "1.0.0",
+                "kind": "fallback_controller_orchestrator_guard",
+                "state": "active",
+                "run_id": options.run_id,
+                "sequence": 1,
+                "previous_guard_sha256": None,
+                "orchestration_invocation_sha256": HASH_B,
+                "guardian_ticket_sha256": ticket["manifest_sha256"],
+                "orchestrator_pid": controller.pid,
+                "orchestrator_start_ticks": controller_ticks,
+                "orchestrator_command_sha256": controller_command_hash,
+                "orchestrator_process_group_id": controller_group,
+                "orchestrator_session_id": controller_session,
+                "execution_arguments_sha256": HASH_A,
+                "started_at": datetime.now(UTC).isoformat(),
+            }
+            guard = {
+                **guard_payload,
+                "manifest_sha256": canonical_sha256(guard_payload),
+            }
+            fallback_acceptance_module._write_append_only_json(
+                fallback_acceptance_module._guard_path(options, 1),
+                guard,
+            )
+            receipt_payload = {
+                "schema_version": "1.0.0",
+                "kind": "fallback_internal_controller_receipt",
+                "run_id": options.run_id,
+                "sequence": 1,
+                "previous_controller_receipt_sha256": None,
+                "controller_stage": "cleanup",
+                "controller_output": str(paths.cleanup_output.resolve()),
+                "orchestration_invocation_sha256": HASH_B,
+                "orchestrator_guard_sha256": guard["manifest_sha256"],
+                "execution_arguments_sha256": HASH_A,
+                "controller_pid": controller.pid,
+                "controller_start_ticks": controller_ticks,
+                "controller_command_sha256": controller_command_hash,
+                "controller_process_group_id": controller_group,
+                "controller_session_id": controller_session,
+                "registered_at": datetime.now(UTC).isoformat(),
+            }
+            receipt = {
+                **receipt_payload,
+                "manifest_sha256": canonical_sha256(receipt_payload),
+            }
+            fallback_acceptance_module._write_append_only_json(
+                fallback_acceptance_module._controller_receipt_path(options, 1),
+                receipt,
+            )
+            monkeypatch.setattr(
+                fallback_acceptance_module,
+                "_internal_controller_command",
+                lambda options, *, stage, output, guard: controller_command,
+            )
+
+            _takeover, outcomes = fallback_acceptance_module._revoke_controller_authority(
+                options,
+                paths=paths,
+                invocation=invocation,
+                ticket=ticket,
+                trigger="hard_stop_deadline",
+            )
+            controller.wait(timeout=5)
+            assert outcomes[0]["bound_controller_allocation_absent"] is True
+            assert ledger.unresolved_gpu_allocations()
+
+            class EndpointAbsentClient:
+                def endpoint_live(self, timeout_seconds: float) -> bool:
+                    return False
+
+            recovering = VLLMService(
+                configuration=configuration,
+                client=cast(object, EndpointAbsentClient()),
+                meter=guardian_meter,
+            )
+            assert recovering.resume_live_service_lease(
+                expected_session_id=options.run_id,
+                expected_event_id=f"{options.run_id}-service-start-001",
+                cleanup_only=True,
+            )
+            uptime = recovering.shutdown(shutdown_seconds=1)
+            assert uptime is not None
+            assert ledger.unresolved_gpu_allocations() == ()
+            assert ledger.unresolved_gpu_service_journals() == ()
+
+            service_record = ledger.get_gpu_service_session(f"{options.run_id}-service-start-001")
+            assert service_record is not None
+            recovered_call = next(
+                event
+                for event in ledger.gpu_events()
+                if event.event_id == f"{options.run_id}-open-call"
+            )
+            assert recovered_call.event_kind is GpuEventKind.FAILURE
+            assert recovered_call.ended_at == service_record.ended_at
+            assert service_record.classified_event_microseconds == sum(
+                event.allocated_microseconds for event in ledger.gpu_events()
+            )
+            assert (
+                ledger.gpu_summary().total_allocated_microseconds
+                == service_record.service_microseconds
+            )
+            service_details = json.loads(service_record.details_json)
+            assert service_details["controller_lost_allocation_event_ids"] == [
+                f"{options.run_id}-open-call"
+            ]
+            assert datetime.fromisoformat(
+                service_details["shared_terminal_recovery_at"]
+            ) == datetime.fromisoformat(service_record.ended_at)
+
+            before_replay = ledger.gpu_summary()
+            AllocatedGPUMeter(ledger)
+            assert ledger.gpu_summary() == before_replay
+        finally:
+            if controller is not None and controller.poll() is None:
+                with suppress(ProcessLookupError):
+                    os.killpg(controller.pid, signal.SIGKILL)
+                with suppress(subprocess.TimeoutExpired):
+                    controller.wait(timeout=5)
+            if target_pid is not None:
+                with suppress(ProcessLookupError):
+                    os.killpg(target_pid, signal.SIGKILL)
 
 
 def test_cleanup_orphan_still_shuts_down_when_adoption_raises(
@@ -1800,6 +5247,13 @@ def test_cleanup_orphan_still_shuts_down_when_adoption_raises(
             raise RuntimeError("adoption failed")
 
         monkeypatch.setattr(service, "resume_from_checkpoint", fail_adoption)
-        with pytest.raises(RuntimeError, match="adoption failed"):
-            runner.cleanup_orphan()
+        cleanup = runner.cleanup_orphan()
+
+        assert cleanup["physical_shutdown_verified"] is True
+        assert cleanup["checkpoint_service_adopted"] is False
+        assert cleanup["checkpoint_service_adoption_failed"] is True
+        assert cleanup["checkpoint_service_adoption_failure_type"] == "RuntimeError"
+        assert "adoption failed" not in json.dumps(cleanup)
         assert live["running"] is False
+        checkpoint = json.loads(runner.checkpoint_path.read_text(encoding="utf-8"))
+        assert checkpoint["service_adoption_failure_type"] == "RuntimeError"

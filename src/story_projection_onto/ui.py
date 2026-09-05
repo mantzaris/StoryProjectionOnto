@@ -27,7 +27,6 @@ from story_projection_onto.contracts import (
     DiscoursePosition,
     EvidenceBadge,
     EvidencePacket,
-    EvidenceSupportStatus,
     ExplicitValueState,
     FeedbackAction,
     FeedbackAnchor,
@@ -48,7 +47,6 @@ from story_projection_onto.contracts import (
     StoryTime,
     TemporalKind,
     UserRevision,
-    ValidationStatus,
     Viewport,
     VisualizationAssertion,
     VisualizationNode,
@@ -57,6 +55,15 @@ from story_projection_onto.contracts import (
     canonical_json,
     canonical_sha256,
 )
+from story_projection_onto.display_selection import (
+    DISPLAY_SELECTION_RULE_REVISION,
+    DisplaySelectionError,
+    compile_registered_display_selection,
+)
+from story_projection_onto.display_selection import (
+    assertion_endpoint_ids as _projection_assertion_endpoint_ids,
+)
+from story_projection_onto.feedback_provenance import ResearcherTraceSubmissionReceipt
 from story_projection_onto.temporal import (
     discourse_is_within_horizon,
     revelation_is_within_horizon,
@@ -70,6 +77,137 @@ class VisualizationCompilationError(ValueError):
 class VisualizationObjectKind(StrEnum):
     ENTITY = "entity"
     EVENT = "event"
+
+
+class SemanticDisplayMode(StrEnum):
+    """Whether the renderer retains all output or exposes only supported assertions."""
+
+    ALL_STRUCTURAL = "all_structural"
+    SUPPORTED_ONLY = "supported_only"
+
+
+class VisualizationContentScope(StrEnum):
+    """Pre-overlay content scope used by a visualization."""
+
+    FULL_STRUCTURAL = "full_structural"
+    REGISTERED_DISPLAY = "registered_display"
+
+
+NODE_DESCRIPTION_WITHHELD = (
+    "Projection-authored description withheld because post-hoc description support "
+    "was not verified."
+)
+WHY_MATTERS_WITHHELD = (
+    "Projection-authored why-it-matters text withheld because post-hoc description "
+    "support was not verified."
+)
+
+
+class SemanticSupportStatus(StrEnum):
+    """Post-hoc support verdict; runtime construction never creates these values."""
+
+    SUPPORTED = "supported"
+    UNSUPPORTED = "unsupported"
+    INSUFFICIENT = "insufficient"
+
+
+class SemanticAssessmentSourceKind(StrEnum):
+    SCORER = "scorer"
+    REVIEWER = "reviewer"
+
+
+class VisualizationAssertionSemanticAssessment(ImmutableRecord):
+    """One scorer/reviewer verdict for an emitted projection assertion.
+
+    Assertion support and description support are deliberately separate.  A strict
+    assertion match does not establish that generated ``why_matters`` or dependent
+    node-description prose is supported.
+    """
+
+    projection_assertion_id: Identifier
+    projection_assertion_hash: Sha256Digest
+    assertion_support_status: SemanticSupportStatus
+    description_support_status: SemanticSupportStatus
+    supported_description_evidence_ids: tuple[Identifier, ...] = ()
+
+    @model_validator(mode="after")
+    def supported_description_has_evidence(self) -> Self:
+        evidence_ids = self.supported_description_evidence_ids
+        if evidence_ids != tuple(sorted(evidence_ids)) or len(evidence_ids) != len(
+            set(evidence_ids)
+        ):
+            raise ValueError("supported-description evidence IDs must be unique and sorted")
+        if self.description_support_status is SemanticSupportStatus.SUPPORTED:
+            if self.assertion_support_status is not SemanticSupportStatus.SUPPORTED:
+                raise ValueError("description support requires a supported assertion")
+            if not evidence_ids:
+                raise ValueError("supported descriptions require verified evidence")
+        elif evidence_ids:
+            raise ValueError("unverified descriptions cannot carry supported evidence")
+        return self
+
+
+class VisualizationSemanticOverlay(ImmutableRecord):
+    """Immutable post-hoc semantic assessment for one exact projection input cell.
+
+    This DTO is scorer/reviewer output only.  It is never a construction request input,
+    never mutates the projection, and intentionally contains no gold target or expected
+    answer.  ``source_artifact_hash`` binds the upstream scorer/reviewer artifact from
+    which these presentation-safe verdicts were materialized.
+    """
+
+    overlay_id: Identifier
+    projection_hash: Sha256Digest
+    snapshot_hash: Sha256Digest
+    packet_hash: Sha256Digest
+    context_hash: Sha256Digest
+    source_kind: SemanticAssessmentSourceKind
+    source_artifact_hash: Sha256Digest
+    assessment_revision: str = Field(min_length=1)
+    assertion_assessments: tuple[VisualizationAssertionSemanticAssessment, ...]
+    assessed_at: AwareDatetime
+    release_class: ReleaseClass
+
+    @model_validator(mode="after")
+    def assessment_inventory_is_canonical(self) -> Self:
+        assertion_ids = tuple(
+            item.projection_assertion_id for item in self.assertion_assessments
+        )
+        if assertion_ids != tuple(sorted(assertion_ids)):
+            raise ValueError("semantic overlay assessments must be sorted by assertion ID")
+        if len(assertion_ids) != len(set(assertion_ids)):
+            raise ValueError("semantic overlay assessments require unique assertion IDs")
+        return self
+
+
+class VisualizationDisplaySelection(ImmutableRecord):
+    """Frozen, condition-neutral pre-overlay visibility selection.
+
+    The registered display scope is the only source for direct visual-clutter
+    geometry.  The full scope remains available for raw intention-to-treat inspection.
+    """
+
+    projection_hash: Sha256Digest
+    content_scope: VisualizationContentScope
+    rule_revision: Literal[
+        "context-relevance-qualified-dependency-closure-v2"
+    ] = (
+        DISPLAY_SELECTION_RULE_REVISION
+    )
+    budget_accounting_hash: Sha256Digest
+    output_budgets_hash: Sha256Digest
+    projection_node_ids: tuple[Identifier, ...]
+    projection_assertion_ids: tuple[Identifier, ...]
+
+    @model_validator(mode="after")
+    def selected_ids_are_canonical(self) -> Self:
+        for label, values in (
+            ("node", self.projection_node_ids),
+            ("assertion", self.projection_assertion_ids),
+        ):
+            if values != tuple(sorted(values)) or len(values) != len(set(values)):
+                raise ValueError(f"selected {label} IDs must be unique and sorted")
+        return self
 
 
 DEFAULT_VISUALIZATION_CONFIG_PATH = (
@@ -122,6 +260,9 @@ class VisualizationNodeDetail(ImmutableRecord):
     contextual_type_label: str = Field(min_length=1)
     contextual_type_definition: str = Field(min_length=1)
     contextual_role: str = Field(min_length=1)
+    description_support_status: Literal[
+        "pending", "supported", "unsupported", "insufficient"
+    ] = "pending"
 
     @model_validator(mode="after")
     def require_condition_independent_anchor_material(self) -> Self:
@@ -143,6 +284,12 @@ class VisualizationAssertionDetail(ImmutableRecord):
     role_labels: tuple[Identifier, ...] = ()
     evidence_ids: tuple[Identifier, ...]
     why_matters_evidence_ids: tuple[Identifier, ...]
+    assertion_support_status: Literal[
+        "pending", "supported", "unsupported", "insufficient"
+    ] = "pending"
+    description_support_status: Literal[
+        "pending", "supported", "unsupported", "insufficient"
+    ] = "pending"
     proposition_content_id: Identifier | None = None
     holder_relative_time: HolderRelativeTime | None = None
 
@@ -152,10 +299,16 @@ class VisualizationAssertionDetail(ImmutableRecord):
             raise ValueError(
                 "holder-relative time and proposition content must be present or absent together"
             )
-        if not self.evidence_ids or not self.why_matters_evidence_ids:
-            raise ValueError("visual assertion details require evidence and why support")
+        if not self.evidence_ids:
+            raise ValueError("visual assertion details require assertion evidence")
         if not set(self.why_matters_evidence_ids).issubset(self.evidence_ids):
             raise ValueError("visual why support must be assertion evidence")
+        if self.description_support_status == "supported" and not self.why_matters_evidence_ids:
+            raise ValueError("supported visual descriptions require verified evidence")
+        if self.description_support_status in {"unsupported", "insufficient"} and (
+            self.why_matters_evidence_ids
+        ):
+            raise ValueError("unverified visual descriptions cannot claim supported evidence")
         return self
 
 
@@ -187,7 +340,14 @@ class VisualizationBundle(ImmutableRecord):
     condition: ConditionName
     context: QueryContext
     context_hash: Sha256Digest
+    snapshot_hash: Sha256Digest
     packet_hash: Sha256Digest
+    semantic_assessment_status: Literal[
+        "pending_scorer_or_reviewer", "verified_scorer_or_reviewer"
+    ] = "pending_scorer_or_reviewer"
+    semantic_display_mode: SemanticDisplayMode = SemanticDisplayMode.ALL_STRUCTURAL
+    semantic_overlay: VisualizationSemanticOverlay | None = None
+    display_selection: VisualizationDisplaySelection
     state: VisualizationState
     node_details: tuple[VisualizationNodeDetail, ...]
     assertion_details: tuple[VisualizationAssertionDetail, ...]
@@ -198,8 +358,44 @@ class VisualizationBundle(ImmutableRecord):
     def bundle_references_are_complete(self) -> Self:
         if self.state.projection_hash != self.projection_hash:
             raise ValueError("visualization bundle and state projection hashes differ")
+        if self.display_selection.projection_hash != self.projection_hash:
+            raise ValueError("display selection is bound to another projection")
         if self.context.content_hash != self.context_hash:
             raise ValueError("visualization bundle does not hash its query context")
+        displayed_assertion_ids = {
+            item.projection_assertion_id for item in self.state.assertions
+        }
+        if self.semantic_display_mode is SemanticDisplayMode.ALL_STRUCTURAL and (
+            displayed_assertion_ids
+            != set(self.display_selection.projection_assertion_ids)
+        ):
+            raise ValueError("displayed assertions do not match the pre-overlay selection")
+        if self.semantic_overlay is None:
+            if self.semantic_assessment_status != "pending_scorer_or_reviewer":
+                raise ValueError("verified semantic status requires a bound overlay")
+            if self.semantic_display_mode is not SemanticDisplayMode.ALL_STRUCTURAL:
+                raise ValueError("supported-only display requires a bound semantic overlay")
+        else:
+            overlay = self.semantic_overlay
+            if self.semantic_assessment_status != "verified_scorer_or_reviewer":
+                raise ValueError("a bound semantic overlay must be disclosed as verified")
+            if (
+                overlay.projection_hash != self.projection_hash
+                or overlay.snapshot_hash != self.snapshot_hash
+                or overlay.packet_hash != self.packet_hash
+                or overlay.context_hash != self.context_hash
+            ):
+                raise ValueError("semantic overlay is bound to another visualization input")
+            if self.semantic_display_mode is SemanticDisplayMode.SUPPORTED_ONLY:
+                expected_assertion_ids = {
+                    item.projection_assertion_id
+                    for item in overlay.assertion_assessments
+                    if item.assertion_support_status is SemanticSupportStatus.SUPPORTED
+                }.intersection(self.display_selection.projection_assertion_ids)
+                if displayed_assertion_ids != expected_assertion_ids:
+                    raise ValueError(
+                        "displayed assertions do not match the semantic display mode"
+                    )
         node_ids = {item.visualization_node_id for item in self.state.nodes}
         detail_node_ids = {item.visualization_node_id for item in self.node_details}
         if node_ids != detail_node_ids:
@@ -217,6 +413,28 @@ class VisualizationBundle(ImmutableRecord):
         if any(not set(item.evidence_ids).issubset(available) for item in badges):
             raise ValueError("every visual evidence badge must resolve in bundle metadata")
         nodes = {item.visualization_node_id: item for item in self.state.nodes}
+        displayed_node_ids = {item.projection_object_id for item in nodes.values()}
+        if self.semantic_display_mode is SemanticDisplayMode.ALL_STRUCTURAL and (
+            displayed_node_ids != set(self.display_selection.projection_node_ids)
+        ):
+            raise ValueError("displayed nodes do not match the pre-overlay display selection")
+        if self.semantic_display_mode is SemanticDisplayMode.SUPPORTED_ONLY:
+            required_node_ids: set[str] = set()
+            for assertion in self.state.assertions:
+                for visual_id in _visual_assertion_endpoint_ids(assertion):
+                    required_node_ids.add(nodes[visual_id].projection_object_id)
+            if displayed_node_ids != required_node_ids:
+                raise ValueError(
+                    "supported-only display must contain exactly supported assertion endpoints"
+                )
+        assessment_by_id = (
+            None
+            if self.semantic_overlay is None
+            else {
+                item.projection_assertion_id: item
+                for item in self.semantic_overlay.assertion_assessments
+            }
+        )
         for detail in self.node_details:
             node = nodes[detail.visualization_node_id]
             if detail.stable_anchor_id != detail.visualization_node_id:
@@ -227,6 +445,17 @@ class VisualizationBundle(ImmutableRecord):
                 raise ValueError("visual node detail and overview roles differ")
             if detail.evidence_ids != node.evidence_badge.evidence_ids:
                 raise ValueError("visual node detail and overview evidence differ")
+            expected_description_status = _description_support_status(
+                node.description_assertion_ids, assessment_by_id
+            )
+            if detail.description_support_status != expected_description_status:
+                raise ValueError("visual node description support status differs from overlay")
+            if (
+                self.semantic_display_mode is SemanticDisplayMode.SUPPORTED_ONLY
+                and expected_description_status != "supported"
+                and node.description != NODE_DESCRIPTION_WITHHELD
+            ):
+                raise ValueError("unsupported node description was not withheld")
         assertions = {item.visualization_assertion_id: item for item in self.state.assertions}
         for detail in self.assertion_details:
             assertion = assertions[detail.visualization_assertion_id]
@@ -242,6 +471,31 @@ class VisualizationBundle(ImmutableRecord):
                 detail.why_matters_evidence_ids
             ).issubset(assertion.evidence_badge.evidence_ids):
                 raise ValueError("visual why support is absent from the evidence badge")
+            if assessment_by_id is None:
+                if (
+                    detail.assertion_support_status != "pending"
+                    or detail.description_support_status != "pending"
+                    or not detail.why_matters_evidence_ids
+                ):
+                    raise ValueError("unassessed visual assertion must remain pending")
+            else:
+                assessment = assessment_by_id[detail.projection_assertion_id]
+                if (
+                    detail.assertion_support_status
+                    != assessment.assertion_support_status.value
+                    or detail.description_support_status
+                    != assessment.description_support_status.value
+                    or detail.why_matters_evidence_ids
+                    != assessment.supported_description_evidence_ids
+                ):
+                    raise ValueError("visual assertion support differs from its overlay")
+                if (
+                    self.semantic_display_mode is SemanticDisplayMode.SUPPORTED_ONLY
+                    and assessment.description_support_status
+                    is not SemanticSupportStatus.SUPPORTED
+                    and assertion.why_matters != WHY_MATTERS_WITHHELD
+                ):
+                    raise ValueError("unsupported why_matters text was not withheld")
             has_epistemic_overview = assertion.epistemic_holder_id is not None
             if has_epistemic_overview != (detail.holder_relative_time is not None):
                 raise ValueError("visual overview and detail epistemic status differ")
@@ -249,6 +503,12 @@ class VisualizationBundle(ImmutableRecord):
             item.release_class is ReleaseClass.RESTRICTED for item in self.evidence_metadata
         ):
             raise ValueError("a public visualization bundle cannot expose restricted metadata")
+        if (
+            self.release_class is ReleaseClass.PUBLIC
+            and self.semantic_overlay is not None
+            and self.semantic_overlay.release_class is ReleaseClass.RESTRICTED
+        ):
+            raise ValueError("a public visualization bundle cannot expose a restricted overlay")
         return self
 
 
@@ -322,20 +582,16 @@ def _assertion_uncertainty(assertion) -> ExplicitValueState:
     return ExplicitValueState.KNOWN
 
 
-def _accepted_supported_assertion_ids(projection: OntologyProjection) -> frozenset[str]:
-    records: dict[str, object] = {}
-    for record in projection.validation_records:
-        if record.target_id in records:
-            raise VisualizationCompilationError(
-                f"duplicate validation records for {record.target_id!r}"
-            )
-        records[record.target_id] = record
+def _structurally_accepted_assertion_ids(projection: OntologyProjection) -> frozenset[str]:
+    """Return every emitted assertion from a structurally accepted projection.
+
+    ``OntologyProjection`` enforces its runtime structural-validation envelope.  A
+    scorer or reviewer may later assess semantic evidence support, but that result must
+    not alter the graph supplied to direct clutter or intention-to-treat measurements.
+    """
+
     return frozenset(
-        assertion.assertion_id
-        for assertion in projection.instance_graph.assertions
-        if (record := records.get(assertion.assertion_id)) is not None
-        and record.validation_status is ValidationStatus.ACCEPTED
-        and record.evidence_support_status is EvidenceSupportStatus.SUPPORTED
+        assertion.assertion_id for assertion in projection.instance_graph.assertions
     )
 
 
@@ -363,6 +619,128 @@ def _evidence_metadata(
     )
 
 
+def _compile_display_selection(
+    projection: OntologyProjection,
+    content_scope: VisualizationContentScope,
+) -> VisualizationDisplaySelection:
+    """Apply the one frozen, condition-neutral display-budget rule."""
+
+    node_records = (*projection.instance_graph.entities, *projection.instance_graph.events)
+    assertion_records = projection.instance_graph.assertions
+    node_ids = tuple(
+        getattr(item, "entity_id", getattr(item, "event_id", None)) for item in node_records
+    )
+    assertion_ids = tuple(item.assertion_id for item in assertion_records)
+    accounting = projection.budget_accounting
+    if accounting.nodes_used != len(node_records) or accounting.assertions_used != len(
+        assertion_records
+    ):
+        raise VisualizationCompilationError(
+            "projection object counts differ from authoritative budget accounting"
+        )
+
+    if content_scope is VisualizationContentScope.FULL_STRUCTURAL:
+        selected_node_ids = tuple(sorted(node_ids))
+        selected_assertion_ids = tuple(sorted(assertion_ids))
+    else:
+        try:
+            selection = compile_registered_display_selection(
+                projection.instance_graph,
+                accounting,
+                projection.budgets,
+            )
+        except DisplaySelectionError as error:
+            raise VisualizationCompilationError(str(error)) from error
+        selected_node_ids = selection.node_ids
+        selected_assertion_ids = selection.assertion_ids
+
+    return VisualizationDisplaySelection(
+        projection_hash=projection.content_hash,
+        content_scope=content_scope,
+        budget_accounting_hash=accounting.content_hash,
+        output_budgets_hash=projection.budgets.content_hash,
+        projection_node_ids=selected_node_ids,
+        projection_assertion_ids=selected_assertion_ids,
+    )
+
+
+def _verify_semantic_overlay(
+    projection: OntologyProjection,
+    context: QueryContext,
+    packet: EvidencePacket,
+    overlay: VisualizationSemanticOverlay,
+) -> dict[str, VisualizationAssertionSemanticAssessment]:
+    expected_bindings = (
+        (overlay.projection_hash, projection.content_hash, "projection"),
+        (overlay.snapshot_hash, projection.snapshot_hash, "snapshot"),
+        (overlay.snapshot_hash, packet.snapshot_hash, "packet snapshot"),
+        (overlay.packet_hash, packet.content_hash, "packet"),
+        (overlay.context_hash, context.content_hash, "context"),
+    )
+    for observed, expected, label in expected_bindings:
+        if observed != expected:
+            raise VisualizationCompilationError(
+                f"semantic overlay is bound to another {label}"
+            )
+    assertions = {
+        item.assertion_id: item for item in projection.instance_graph.assertions
+    }
+    assessments = {
+        item.projection_assertion_id: item for item in overlay.assertion_assessments
+    }
+    if set(assessments) != set(assertions):
+        raise VisualizationCompilationError(
+            "semantic overlay must assess every and only emitted assertion"
+        )
+    packet_evidence_ids = {item.evidence_id for item in packet.evidence}
+    for assertion_id, assertion in assertions.items():
+        assessment = assessments[assertion_id]
+        if assessment.projection_assertion_hash != assertion.content_hash:
+            raise VisualizationCompilationError(
+                f"semantic overlay assertion hash differs for {assertion_id!r}"
+            )
+        supported_description_evidence = set(
+            assessment.supported_description_evidence_ids
+        )
+        if not supported_description_evidence.issubset(packet_evidence_ids):
+            raise VisualizationCompilationError(
+                "semantic overlay cites description evidence outside the packet"
+            )
+        if not supported_description_evidence.issubset(assertion.evidence_ids):
+            raise VisualizationCompilationError(
+                "semantic overlay cites evidence outside its projection assertion"
+            )
+        if not supported_description_evidence.issubset(
+            assertion.why_matters_evidence_ids
+        ):
+            raise VisualizationCompilationError(
+                "semantic overlay cites evidence absent from why_matters lineage"
+            )
+    return assessments
+
+
+def _description_support_status(
+    assertion_ids: Sequence[str],
+    assessments: Mapping[str, VisualizationAssertionSemanticAssessment] | None,
+) -> Literal["pending", "supported", "unsupported", "insufficient"]:
+    if assessments is None:
+        return "pending"
+    rows = tuple(assessments[item] for item in assertion_ids)
+    if all(
+        item.assertion_support_status is SemanticSupportStatus.SUPPORTED
+        and item.description_support_status is SemanticSupportStatus.SUPPORTED
+        for item in rows
+    ):
+        return "supported"
+    if any(
+        item.assertion_support_status is SemanticSupportStatus.UNSUPPORTED
+        or item.description_support_status is SemanticSupportStatus.UNSUPPORTED
+        for item in rows
+    ):
+        return "unsupported"
+    return "insufficient"
+
+
 def build_visualization_bundle(
     projection: OntologyProjection,
     context: QueryContext,
@@ -370,20 +748,56 @@ def build_visualization_bundle(
     *,
     include_public_evidence_text: bool = False,
     visualization_config: VisualizationConfiguration | None = None,
+    content_scope: VisualizationContentScope = VisualizationContentScope.FULL_STRUCTURAL,
+    semantic_overlay: VisualizationSemanticOverlay | None = None,
+    semantic_display_mode: SemanticDisplayMode = SemanticDisplayMode.ALL_STRUCTURAL,
 ) -> VisualizationBundle:
-    """Compile a validated projection into a renderer-only DTO.
+    """Compile a structurally accepted projection into a renderer-only DTO.
 
-    Assertions that are not both structurally accepted and evidence-supported are not
-    displayed.  A node description is displayed only when every assertion named as its
-    support is accepted and supported.  These are visibility decisions, not repairs.
+    The default deliberately retains the full raw intention-to-treat output and marks
+    semantic assessment pending.  Registered clutter capture must explicitly request
+    ``REGISTERED_DISPLAY``; that scope applies the frozen common display-budget rule.
+    Post-hoc semantic filtering is available only with an exact scorer/reviewer overlay
+    and never changes the source projection.
     """
 
     config = visualization_config or load_visualization_configuration()
+    try:
+        content_scope = VisualizationContentScope(content_scope)
+        semantic_display_mode = SemanticDisplayMode(semantic_display_mode)
+    except ValueError as error:
+        raise VisualizationCompilationError(str(error)) from error
     if projection.context_hash != context.content_hash:
         raise VisualizationCompilationError("projection and visualization context differ")
     if projection.packet_hash != packet.content_hash:
         raise VisualizationCompilationError("projection and visualization packet differ")
-    accepted = _accepted_supported_assertion_ids(projection)
+    if projection.snapshot_hash != packet.snapshot_hash:
+        raise VisualizationCompilationError("projection and visualization snapshots differ")
+    accepted = _structurally_accepted_assertion_ids(projection)
+    display_selection = _compile_display_selection(projection, content_scope)
+    assessments = (
+        None
+        if semantic_overlay is None
+        else _verify_semantic_overlay(projection, context, packet, semantic_overlay)
+    )
+    if semantic_display_mode is SemanticDisplayMode.SUPPORTED_ONLY and assessments is None:
+        raise VisualizationCompilationError(
+            "supported-only display requires a verified scorer/reviewer overlay"
+        )
+    selected_assertion_ids = set(display_selection.projection_assertion_ids)
+    if semantic_display_mode is SemanticDisplayMode.SUPPORTED_ONLY:
+        assert assessments is not None
+        selected_assertion_ids.intersection_update(
+            assertion_id
+            for assertion_id, assessment in assessments.items()
+            if assessment.assertion_support_status is SemanticSupportStatus.SUPPORTED
+        )
+    selected_node_ids = set(display_selection.projection_node_ids)
+    if semantic_display_mode is SemanticDisplayMode.SUPPORTED_ONLY:
+        selected_node_ids = set()
+        for assertion in projection.instance_graph.assertions:
+            if assertion.assertion_id in selected_assertion_ids:
+                selected_node_ids.update(_projection_assertion_endpoint_ids(assertion))
     type_definitions = {item.type_id: item for item in projection.local_schema.contextual_types}
     predicate_definitions = {item.predicate_id: item for item in projection.local_schema.predicates}
     bases = _stable_node_bases(projection)
@@ -448,8 +862,19 @@ def build_visualization_bundle(
         mention_ids,
         aliases,
     ) in (*entity_rows, *event_rows):
+        if object_id not in selected_node_ids:
+            continue
         if not set(description_assertion_ids).issubset(accepted):
             continue
+        description_support_status = _description_support_status(
+            description_assertion_ids, assessments
+        )
+        displayed_description = description
+        if (
+            semantic_display_mode is SemanticDisplayMode.SUPPORTED_ONLY
+            and description_support_status != "supported"
+        ):
+            displayed_description = NODE_DESCRIPTION_WITHHELD
         type_definition = type_definitions.get(contextual_type_id)
         if type_definition is None:
             raise VisualizationCompilationError(
@@ -477,7 +902,7 @@ def build_visualization_bundle(
                 evidence_ids=evidence_ids,
                 count=len(evidence_ids),
             ),
-            description=description,
+            description=displayed_description,
             description_assertion_ids=description_assertion_ids,
             release_class=projection.release_class,
         )
@@ -494,6 +919,7 @@ def build_visualization_bundle(
                 contextual_type_label=type_definition.label,
                 contextual_type_definition=type_definition.definition,
                 contextual_role=contextual_role,
+                description_support_status=description_support_status,
             )
         )
         x, y = _position_for_anchor(visual_id, config.layout_seed)
@@ -506,7 +932,10 @@ def build_visualization_bundle(
         projection.instance_graph.assertions,
         key=lambda item: (item.content_hash, item.assertion_id),
     ):
-        if assertion.assertion_id not in accepted:
+        if (
+            assertion.assertion_id not in accepted
+            or assertion.assertion_id not in selected_assertion_ids
+        ):
             continue
         predicate = predicate_definitions.get(assertion.predicate_id)
         if predicate is None:
@@ -518,7 +947,9 @@ def build_visualization_bundle(
                 assertion.subject_id not in object_to_visual
                 or assertion.object_id not in object_to_visual
             ):
-                continue
+                raise VisualizationCompilationError(
+                    "display selection omitted an endpoint required by a selected assertion"
+                )
             source_id = object_to_visual[assertion.subject_id]
             target_id = object_to_visual[assertion.object_id]
             visual_roles: tuple[RoleBinding, ...] = ()
@@ -529,7 +960,9 @@ def build_visualization_bundle(
             }
         else:
             if any(role.object_id not in object_to_visual for role in assertion.roles):
-                continue
+                raise VisualizationCompilationError(
+                    "display selection omitted an n-ary role required by a selected assertion"
+                )
             source_id = None
             target_id = None
             visual_roles = tuple(
@@ -553,16 +986,35 @@ def build_visualization_bundle(
         ordinal = structural_collisions.get(stable_base, 0) + 1
         structural_collisions[stable_base] = ordinal
         visual_assertion_id = stable_base if ordinal == 1 else f"{stable_base}-{ordinal}"
-        holder = (
-            object_to_visual.get(
-                assertion.epistemic_scope.holder_id,
-                assertion.epistemic_scope.holder_id,
-            )
-            if assertion.epistemic_scope is not None
-            else None
-        )
+        holder = None
+        if assertion.epistemic_scope is not None:
+            holder = object_to_visual.get(assertion.epistemic_scope.holder_id)
+            if holder is None:
+                raise VisualizationCompilationError(
+                    "display selection omitted the holder required by an epistemic assertion"
+                )
         attitude = (
             assertion.epistemic_scope.attitude if assertion.epistemic_scope is not None else None
+        )
+        assessment = (
+            None if assessments is None else assessments[assertion.assertion_id]
+        )
+        assertion_support_status = (
+            "pending" if assessment is None else assessment.assertion_support_status.value
+        )
+        description_support_status = (
+            "pending" if assessment is None else assessment.description_support_status.value
+        )
+        displayed_why_matters = assertion.why_matters
+        if (
+            semantic_display_mode is SemanticDisplayMode.SUPPORTED_ONLY
+            and description_support_status != "supported"
+        ):
+            displayed_why_matters = WHY_MATTERS_WITHHELD
+        why_matters_evidence_ids = (
+            assertion.why_matters_evidence_ids
+            if assessment is None
+            else assessment.supported_description_evidence_ids
         )
         visual_assertions.append(
             VisualizationAssertion(
@@ -586,7 +1038,7 @@ def build_visualization_bundle(
                     count=len(assertion.evidence_ids),
                 ),
                 provenance=assertion.provenance,
-                why_matters=assertion.why_matters,
+                why_matters=displayed_why_matters,
                 why_matters_assertion_id=assertion.assertion_id,
                 release_class=projection.release_class,
             )
@@ -602,7 +1054,9 @@ def build_visualization_bundle(
                 narrative_commitment=assertion.narrative_commitment,
                 role_labels=tuple(role.role for role in visual_roles),
                 evidence_ids=assertion.evidence_ids,
-                why_matters_evidence_ids=assertion.why_matters_evidence_ids,
+                why_matters_evidence_ids=why_matters_evidence_ids,
+                assertion_support_status=assertion_support_status,
+                description_support_status=description_support_status,
                 proposition_content_id=assertion.proposition_content_id,
                 holder_relative_time=(
                     None
@@ -630,10 +1084,26 @@ def build_visualization_bundle(
         "progressive_disclosure": config.progressive_disclosure,
     }
     font_payload = {"family": config.font_family, "base_px": config.font_base_px}
+    default_full_pending = (
+        content_scope is VisualizationContentScope.FULL_STRUCTURAL
+        and semantic_overlay is None
+        and semantic_display_mode is SemanticDisplayMode.ALL_STRUCTURAL
+    )
+    state_identity = (
+        {"projection_hash": projection_hash, "filter": "none"}
+        if default_full_pending
+        else {
+            "projection_hash": projection_hash,
+            "filter": "none",
+            "display_selection_hash": display_selection.content_hash,
+            "semantic_overlay_hash": (
+                None if semantic_overlay is None else semantic_overlay.content_hash
+            ),
+            "semantic_display_mode": semantic_display_mode.value,
+        }
+    )
     state = VisualizationState(
-        visualization_state_id=_identifier_digest(
-            "view", {"projection_hash": projection_hash, "filter": "none"}
-        ),
+        visualization_state_id=_identifier_digest("view", state_identity),
         projection_hash=projection_hash,
         semantic_hash=projection_hash,
         layout_name=config.layout_name,
@@ -658,17 +1128,42 @@ def build_visualization_bundle(
     bundle_release_class = (
         ReleaseClass.RESTRICTED
         if projection.release_class is ReleaseClass.RESTRICTED
+        or (
+            semantic_overlay is not None
+            and semantic_overlay.release_class is ReleaseClass.RESTRICTED
+        )
         or any(item.release_class is ReleaseClass.RESTRICTED for item in evidence_metadata)
         else ReleaseClass.PUBLIC
     )
+    bundle_identity = (
+        {"projection_hash": projection_hash}
+        if default_full_pending
+        else {
+            "projection_hash": projection_hash,
+            "display_selection_hash": display_selection.content_hash,
+            "semantic_overlay_hash": (
+                None if semantic_overlay is None else semantic_overlay.content_hash
+            ),
+            "semantic_display_mode": semantic_display_mode.value,
+        }
+    )
     return VisualizationBundle(
-        bundle_id=_identifier_digest("bundle", {"projection_hash": projection_hash}),
+        bundle_id=_identifier_digest("bundle", bundle_identity),
         projection_id=projection.projection_id,
         projection_hash=projection_hash,
         condition=projection.condition,
         context=context,
         context_hash=context.content_hash,
+        snapshot_hash=projection.snapshot_hash,
         packet_hash=packet.content_hash,
+        semantic_assessment_status=(
+            "pending_scorer_or_reviewer"
+            if semantic_overlay is None
+            else "verified_scorer_or_reviewer"
+        ),
+        semantic_display_mode=semantic_display_mode,
+        semantic_overlay=semantic_overlay,
+        display_selection=display_selection,
         state=state,
         node_details=tuple(details),
         assertion_details=tuple(assertion_details),
@@ -740,6 +1235,8 @@ def _visual_assertion_endpoint_ids(assertion: VisualizationAssertion) -> frozens
         if item is not None
     }
     endpoint_ids.update(role.object_id for role in assertion.roles)
+    if assertion.epistemic_holder_id is not None:
+        endpoint_ids.add(assertion.epistemic_holder_id)
     return frozenset(endpoint_ids)
 
 
@@ -2021,11 +2518,17 @@ def create_app(
     static_directory: Path | None = None,
     allow_restricted_evidence_metadata: bool = False,
     clock: Callable[[], datetime] | None = None,
+    researcher_trace_episode_by_projection_id: Mapping[str, str] | None = None,
+    researcher_trace_capture_sink: (
+        Callable[[ImmutableRecord, ResearcherTraceSubmissionReceipt], None] | None
+    ) = None,
 ):
     """Create the local single-user FastAPI application.
 
-    A runner is injected explicitly.  Without one, revision submission returns 503 rather
-    than pretending that a C2 regeneration occurred.
+    A runner is injected explicitly.  Without one, ordinary revision submission returns
+    503 rather than pretending that a C2 regeneration occurred.  A projection explicitly
+    registered as one of the three researcher traces instead takes the capture-only path:
+    the exact instruction and endpoint receipt are durably stored and no runner is called.
     """
 
     try:
@@ -2037,6 +2540,13 @@ def create_app(
 
     if revision_seed is not None and revision_seed < 0:
         raise ValueError("the configured revision seed must be nonnegative")
+    trace_episodes = dict(researcher_trace_episode_by_projection_id or {})
+    if bool(trace_episodes) != (researcher_trace_capture_sink is not None):
+        raise ValueError(
+            "researcher-trace projection mapping and receipt sink must be configured together"
+        )
+    if len(trace_episodes.values()) != len(set(trace_episodes.values())):
+        raise ValueError("each researcher-trace episode must bind one before projection")
     ui_directory = static_directory or Path(__file__).resolve().parents[2] / "ui"
     now = clock or (lambda: datetime.now(UTC))
     app = FastAPI(
@@ -2150,21 +2660,78 @@ def create_app(
                 status_code=403,
                 detail="restricted projection metadata is not authorized",
             )
-        instruction = _compile_submission(submission, before, created_at=now())
-        if revision_runner is None:
-            raise HTTPException(
-                status_code=503,
-                detail="no metered condition runner is configured; no regeneration was claimed",
-            )
+        requested_at = now()
+        instruction = _compile_submission(
+            submission,
+            before,
+            created_at=requested_at,
+        )
         if revision_seed is None:
             raise HTTPException(
                 status_code=503,
-                detail="no frozen feedback seed is configured; no regeneration was started",
+                detail=(
+                    "no frozen feedback seed is configured; no regeneration was started "
+                    "and no regeneration was claimed"
+                ),
             )
         if submission.seed != revision_seed:
             raise HTTPException(
                 status_code=422,
                 detail="submitted seed differs from the frozen feedback seed",
+            )
+        trace_episode_id = trace_episodes.get(submission.before_projection_id)
+        if trace_episode_id is not None:
+            if before.condition is not ConditionName.C2_LLM_QUERY:
+                raise HTTPException(
+                    status_code=422,
+                    detail="researcher traces require a C2 before projection",
+                )
+            assert researcher_trace_capture_sink is not None
+            instruction_bytes = (instruction.to_canonical_json() + "\n").encode("utf-8")
+            submission_json = submission.to_canonical_json()
+            submission_bytes = (submission_json + "\n").encode("utf-8")
+            receipt = ResearcherTraceSubmissionReceipt(
+                receipt_id=(
+                    "trace-receipt-"
+                    + canonical_sha256(
+                        {
+                            "episode_id": trace_episode_id,
+                            "submission_hash": submission.content_hash,
+                            "instruction_hash": instruction.content_hash,
+                        }
+                    )[:24]
+                ),
+                episode_id=trace_episode_id,
+                action=submission.action,
+                requested_at=requested_at,
+                before_projection_id=before.projection_id,
+                before_projection_hash=before.projection_hash,
+                before_bundle_hash=before.content_hash,
+                submission_hash=submission.content_hash,
+                submission_canonical_json=submission_json,
+                submission_file_sha256=hashlib.sha256(submission_bytes).hexdigest(),
+                instruction_hash=instruction.content_hash,
+                instruction_file_sha256=hashlib.sha256(instruction_bytes).hexdigest(),
+                recorded_at=requested_at,
+            )
+            try:
+                researcher_trace_capture_sink(instruction, receipt)
+            except (OSError, ValueError) as error:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"researcher-trace receipt was not durably recorded: {error}",
+                ) from error
+            return {
+                "capture_only": True,
+                "episode_id": trace_episode_id,
+                "instruction": instruction,
+                "submission_receipt": receipt,
+                "regeneration_started": False,
+            }
+        if revision_runner is None:
+            raise HTTPException(
+                status_code=503,
+                detail="no metered condition runner is configured; no regeneration was claimed",
             )
         result = revision_runner(instruction, before, submission.seed)
         if result.instruction.content_hash != instruction.content_hash:
@@ -2217,6 +2784,7 @@ def create_app(
 
 
 __all__ = [
+    "DISPLAY_SELECTION_RULE_REVISION",
     "EvidenceMetadata",
     "FeedbackEpisodeKind",
     "FeedbackEpisodePlan",
@@ -2233,14 +2801,21 @@ __all__ = [
     "RevisionDraftSubmission",
     "RevisionExecutionResult",
     "RevisionInstruction",
+    "SemanticAssessmentSourceKind",
+    "SemanticDisplayMode",
+    "SemanticSupportStatus",
     "VisualizationAssertionDetail",
+    "VisualizationAssertionSemanticAssessment",
     "VisualizationBundle",
     "VisualizationChange",
     "VisualizationChangeKind",
     "VisualizationCompilationError",
     "VisualizationConfiguration",
+    "VisualizationContentScope",
+    "VisualizationDisplaySelection",
     "VisualizationNodeDetail",
     "VisualizationObjectKind",
+    "VisualizationSemanticOverlay",
     "apply_context_refinement",
     "assert_revision_anchors_resolve_in_packet",
     "assert_revision_has_no_projection_local_anchors",

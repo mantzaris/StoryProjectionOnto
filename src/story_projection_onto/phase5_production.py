@@ -9,6 +9,7 @@ known-answer hashes.
 
 from __future__ import annotations
 
+import hashlib
 import math
 import os
 from datetime import datetime
@@ -28,6 +29,7 @@ from story_projection_onto.contracts import (
     Sha256Digest,
 )
 from story_projection_onto.development_runtime import RunOutcome
+from story_projection_onto.feedback_provenance import ResearcherTraceSubmissionReceipt
 from story_projection_onto.feedback_runtime import (
     FeedbackAttemptStatus,
     FeedbackLedgerCallReference,
@@ -64,12 +66,17 @@ from story_projection_onto.store import (
     GpuEventKind,
     ModelBackend,
     ModelCallRole,
+    ReadOnlyArtifactStore,
     RetryClass,
 )
 from story_projection_onto.ui import (
     FeedbackEpisodeKind,
+    RevisionDraftSubmission,
     RevisionInstruction,
+    VisualizationContentScope,
+    _compile_submission,
     assert_revision_anchors_resolve_in_packet,
+    build_visualization_bundle,
 )
 
 _RecordT = TypeVar("_RecordT", bound=ImmutableRecord)
@@ -93,6 +100,9 @@ Phase5ObjectKind = Literal[
     "scripted_revision_freeze",
     "cpu_reprojection_input",
     "scorer_binding_authorization",
+    "researcher_trace_submission_receipt",
+    "feedback_gold_projection_source",
+    "feedback_required_target_change",
     "phase5_after_packet",
     "phase5_after_projection",
     "phase5_failure",
@@ -100,19 +110,36 @@ Phase5ObjectKind = Literal[
 
 
 class Phase5CASReference(ImmutableRecord):
-    """A logical object and its exact restricted CAS serialization."""
+    """A logical object and its exact CAS serialization.
+
+    Synthetic evidence packets and snapshots already exist in the shared public
+    CAS.  Reusing those exact bytes is safe; every constructed, instructional,
+    scorer-bound, result, and failure object remains restricted.
+    """
 
     artifact_hash: Sha256Digest
     logical_content_hash: Sha256Digest
     object_kind: Phase5ObjectKind
     media_type: str = Field(min_length=1)
-    release_class: Literal[ReleaseClass.RESTRICTED] = ReleaseClass.RESTRICTED
+    release_class: ReleaseClass = ReleaseClass.RESTRICTED
+
+    @model_validator(mode="after")
+    def public_only_for_synthetic_evidence(self) -> Self:
+        if self.release_class is ReleaseClass.PUBLIC and self.object_kind not in {
+            "evidence_packet",
+            "evidence_snapshot",
+        }:
+            raise ValueError("only Phase 5 evidence packets and snapshots may be public")
+        return self
 
 
 class RestrictedPhase5CAS:
-    """Typed, integrity-checking reader over the study's existing restricted CAS."""
+    """Typed reader over restricted Phase 5 records and shared public evidence."""
 
-    def __init__(self, artifacts: ArtifactStore) -> None:
+    def __init__(
+        self,
+        artifacts: ArtifactStore | ReadOnlyArtifactStore,
+    ) -> None:
         self.artifacts = artifacts
 
     def bytes(self, reference: Phase5CASReference) -> bytes:
@@ -125,11 +152,14 @@ class RestrictedPhase5CAS:
         if (
             record.content_hash != reference.artifact_hash
             or record.media_type != reference.media_type
-            or record.release_class.value != ReleaseClass.RESTRICTED.value
+            or record.release_class.value != reference.release_class.value
         ):
             raise Phase5MaterializationError("Phase 5 CAS metadata differs from its reference")
         try:
-            return self.artifacts.blobs.read_bytes(record, allow_restricted=True)
+            return self.artifacts.blobs.read_bytes(
+                record,
+                allow_restricted=reference.release_class is ReleaseClass.RESTRICTED,
+            )
         except Exception as error:
             raise Phase5MaterializationError(
                 f"cannot verify Phase 5 CAS artifact {reference.artifact_hash}: {error}"
@@ -169,6 +199,9 @@ _MEDIA_TYPES: dict[Phase5ObjectKind, str] = {
         "scripted_revision_freeze",
         "cpu_reprojection_input",
         "scorer_binding_authorization",
+        "researcher_trace_submission_receipt",
+        "feedback_gold_projection_source",
+        "feedback_required_target_change",
         "phase5_after_packet",
         "phase5_after_projection",
     )
@@ -182,20 +215,57 @@ def persist_phase5_record(
     *,
     object_kind: Phase5ObjectKind,
     created_at: datetime,
+    release_class: ReleaseClass = ReleaseClass.RESTRICTED,
 ) -> Phase5CASReference:
     """Persist an already-created record; this helper never invents semantic content."""
 
+    expected = phase5_record_reference(
+        value,
+        object_kind=object_kind,
+        release_class=release_class,
+    )
+    release = expected.release_class
     record = artifacts.put_bytes(
         (value.to_canonical_json() + "\n").encode("utf-8"),
-        media_type=_MEDIA_TYPES[object_kind],
-        release_class=ReleaseClass.RESTRICTED,
+        media_type=expected.media_type,
+        release_class=release,
         created_at=created_at,
     )
-    return Phase5CASReference(
+    observed = Phase5CASReference(
         artifact_hash=record.content_hash,
         logical_content_hash=value.content_hash,
         object_kind=object_kind,
         media_type=record.media_type,
+        release_class=record.release_class,
+    )
+    if observed != expected:
+        raise Phase5MaterializationError("persisted Phase 5 CAS metadata changed")
+    return observed
+
+
+def phase5_record_reference(
+    value: ImmutableRecord,
+    *,
+    object_kind: Phase5ObjectKind,
+    release_class: ReleaseClass = ReleaseClass.RESTRICTED,
+) -> Phase5CASReference:
+    """Derive the exact CAS reference without performing a write."""
+
+    release = ReleaseClass(release_class)
+    if release is ReleaseClass.PUBLIC and object_kind not in {
+        "evidence_packet",
+        "evidence_snapshot",
+    }:
+        raise Phase5MaterializationError(
+            "only Phase 5 evidence packets and snapshots may be persisted as public"
+        )
+    payload = (value.to_canonical_json() + "\n").encode("utf-8")
+    return Phase5CASReference(
+        artifact_hash=hashlib.sha256(payload).hexdigest(),
+        logical_content_hash=value.content_hash,
+        object_kind=object_kind,
+        media_type=_MEDIA_TYPES[object_kind],
+        release_class=release,
     )
 
 
@@ -341,6 +411,9 @@ class Phase5ScorerBindingAuthorization(ImmutableRecord):
     authorization_id: str = Field(min_length=1)
     protocol_hash: Sha256Digest
     scorer_bridge_hash: Sha256Digest
+    known_answer_source_hash: Sha256Digest
+    review_completion_manifest_hash: Sha256Digest
+    final_reviewed_seal_hash: Sha256Digest
     bindings: tuple[ScorerOnlyFeedbackBinding, ...]
     authorized_at: AwareDatetime
     scorer_namespace: Literal["scorer_only"] = "scorer_only"
@@ -368,6 +441,7 @@ class Phase5EpisodeSource(ImmutableRecord):
     c1_export: Phase5CASReference | None = None
     c0_cpu_input: Phase5CASReference | None = None
     c1_cpu_input: Phase5CASReference | None = None
+    trace_submission_receipt: Phase5CASReference | None = None
     c2_export: Phase5CASReference
 
     @model_validator(mode="after")
@@ -384,6 +458,8 @@ class Phase5EpisodeSource(ImmutableRecord):
             self.c1_cpu_input,
         )
         if self.kind is FeedbackEpisodeKind.SCRIPTED_KNOWN_ANSWER:
+            if self.trace_submission_receipt is not None:
+                raise ValueError("scripted episode cannot carry a researcher receipt")
             if any(item is None for item in scripted_values):
                 raise ValueError("scripted episode lacks freeze/C0/C1 materialization")
             expected_kinds = (
@@ -400,6 +476,12 @@ class Phase5EpisodeSource(ImmutableRecord):
                 raise ValueError("scripted episode CAS object kind changed")
         elif any(item is not None for item in scripted_values):
             raise ValueError("researcher trace cannot carry scripted or scorer-bound inputs")
+        elif (
+            self.trace_submission_receipt is None
+            or self.trace_submission_receipt.object_kind
+            != "researcher_trace_submission_receipt"
+        ):
+            raise ValueError("researcher trace requires its typed UI submission receipt")
         return self
 
 
@@ -407,6 +489,7 @@ class Phase5MaterializationSourceManifest(ImmutableRecord):
     source_id: str = Field(min_length=1)
     run_id: str = Field(min_length=1)
     protocol_hash: Sha256Digest
+    script_commitment_manifest_hash: Sha256Digest
     primary_results_gate_hash: Sha256Digest
     final_reviewed_seal_hash: Sha256Digest
     held_out_execution_manifest_hash: Sha256Digest
@@ -446,6 +529,7 @@ class Phase5InputEpisodeLineage(ImmutableRecord):
 class Phase5InputMaterializationReceipt(ImmutableRecord):
     source_manifest_hash: Sha256Digest
     input_manifest_hash: Sha256Digest
+    script_commitment_manifest_hash: Sha256Digest
     primary_results_gate_hash: Sha256Digest
     held_out_execution_manifest_hash: Sha256Digest
     held_out_call_manifest_hash: Sha256Digest
@@ -482,6 +566,8 @@ def validate_phase5_materialization_receipt(
     if (
         receipt.input_manifest_hash != inputs.content_hash
         or receipt.source_manifest_hash != inputs.source_manifest_hash
+        or receipt.script_commitment_manifest_hash
+        != inputs.script_commitment_manifest_hash
         or receipt.primary_results_gate_hash != inputs.primary_results_gate_hash
         or receipt.held_out_execution_manifest_hash != inputs.held_out_execution_manifest_hash
         or receipt.held_out_call_manifest_hash != inputs.held_out_call_manifest_hash
@@ -595,6 +681,23 @@ def _verify_source_model_calls(
         abs_tol=1e-6,
     ):
         raise Phase5MaterializationError("held-out export GPU allocation differs from ITT")
+
+
+def validate_phase5_source_model_calls(
+    *,
+    export: Phase5HeldOutProjectionExport,
+    source_result: HeldOutITTRecord,
+    call: HeldOutCallSpec,
+    artifacts: ArtifactStore,
+) -> None:
+    """Public producer-side replay of exact held-out model/GPU ledger rows."""
+
+    _verify_source_model_calls(
+        export=export,
+        source_result=source_result,
+        call=call,
+        artifacts=artifacts,
+    )
 
 
 def _load_export(
@@ -770,6 +873,7 @@ def materialize_phase5_input_manifest(
     *,
     source: Phase5MaterializationSourceManifest,
     protocol: FeedbackProtocolConfiguration,
+    script_commitment_path: Path,
     primary_results_gate_path: Path,
     benchmark_root: Path,
     review_completion_root: Path,
@@ -779,6 +883,21 @@ def materialize_phase5_input_manifest(
 
     if source.protocol_hash != protocol.content_hash:
         raise Phase5MaterializationError("source manifest uses another feedback protocol")
+    # Import locally so the pre-output commitment module can reuse the restricted
+    # CAS contracts here without introducing an import cycle.
+    from story_projection_onto.phase5_commitment import load_phase5_script_commitment
+
+    commitment = load_phase5_script_commitment(script_commitment_path)
+    if (
+        commitment.content_hash != source.script_commitment_manifest_hash
+        or commitment.protocol_hash != protocol.content_hash
+        or commitment.benchmark_draft_seal_hash != protocol.benchmark_draft_seal_hash
+        or commitment.committed_at >= commitment.scheduled_activation_at
+        or commitment.scheduled_activation_at > source.captured_at
+    ):
+        raise Phase5MaterializationError(
+            "source manifest uses another or invalid pre-output script commitment"
+        )
     gate, execution, bridge = replay_phase5_prerequisites(
         expected_gate_hash=source.primary_results_gate_hash,
         expected_final_reviewed_seal_hash=source.final_reviewed_seal_hash,
@@ -790,6 +909,12 @@ def materialize_phase5_input_manifest(
     if (
         source.held_out_execution_manifest_hash != execution.content_hash
         or source.primary_results_gate_hash != gate.content_hash
+        or commitment.review_gate.review_completion_manifest_hash
+        != execution.review_completion_manifest_hash
+        or commitment.review_gate.final_reviewed_seal_hash
+        != execution.final_reviewed_seal_hash
+        or commitment.review_gate.final_reviewed_seal_hash
+        != source.final_reviewed_seal_hash
     ):
         raise Phase5MaterializationError("source manifest binds another held-out execution")
     call_manifest = cas.load(
@@ -800,6 +925,8 @@ def materialize_phase5_input_manifest(
     if (
         call_manifest.content_hash != execution.call_manifest_hash
         or call_manifest.content_hash != source.held_out_call_manifest.logical_content_hash
+        or call_manifest.content_hash
+        != commitment.parent_readiness_floor.held_out_call_manifest_hash
     ):
         raise Phase5MaterializationError("held-out call manifest changed after execution")
     scorer = cas.load(
@@ -810,6 +937,9 @@ def materialize_phase5_input_manifest(
     if (
         scorer.protocol_hash != protocol.content_hash
         or scorer.scorer_bridge_hash != bridge.content_hash
+        or scorer.review_completion_manifest_hash
+        != execution.review_completion_manifest_hash
+        or scorer.final_reviewed_seal_hash != execution.final_reviewed_seal_hash
         or scorer.authorized_at < bridge.authorized_at
         or scorer.authorized_at > source.captured_at
     ):
@@ -818,8 +948,13 @@ def materialize_phase5_input_manifest(
     source_by_id = {item.episode_id: item for item in source.episodes}
     expected_scripts = {item.episode_id: item for item in protocol.scripted_episodes}
     expected_traces = {item.episode_id: item for item in protocol.researcher_trace_slots}
+    commitment_by_id = {item.episode_id: item for item in commitment.entries}
     if set(source_by_id) != set(expected_scripts) | set(expected_traces):
         raise Phase5MaterializationError("source episode IDs differ from the frozen protocol")
+    if set(commitment_by_id) != set(expected_scripts):
+        raise Phase5MaterializationError(
+            "script commitment differs from the six frozen protocol episodes"
+        )
     scorer_by_key = {(item.episode_id, item.condition): item for item in scorer.bindings}
     expected_scorer_keys = {
         (episode_id, condition)
@@ -906,6 +1041,7 @@ def materialize_phase5_input_manifest(
 
         source_receipts = list(c2_sources)
         if selection is not None:
+            committed_script = commitment_by_id[episode_id]
             if instruction.revision.action is not selection.action:
                 raise Phase5MaterializationError("scripted action differs from its selection")
             assert episode.scripted_freeze is not None
@@ -950,7 +1086,30 @@ def materialize_phase5_input_manifest(
             if (
                 c0_cpu.before_projection != c0_projection
                 or c1_cpu.before_projection != c1_projection
+                or c0_cpu.source_query_stage_hash != episode.query_stage_hash
+                or c1_cpu.source_query_stage_hash != episode.query_stage_hash
                 or freeze.instruction_hash != instruction.content_hash
+                or committed_script.context_id != episode.context_id
+                or committed_script.action is not selection.action
+                or committed_script.query_stage_relative_path
+                != query_stage.relative_path
+                or committed_script.query_stage_manifest_hash != episode.query_stage_hash
+                or committed_script.query_stage_manifest_file_sha256
+                != query_stage.manifest_file_sha256
+                or committed_script.query_artifact_hash != query_stage.query_artifact_hash
+                or committed_script.model_visible_evidence_hash
+                != query_stage.evidence_artifact_hash
+                or committed_script.instruction != episode.instruction
+                or committed_script.freeze != episode.scripted_freeze
+                or committed_script.scheduled_activation_at
+                != instruction.revision.created_at
+                or freeze.frozen_at != commitment.committed_at
+                or max(
+                    c0_export.source_completed_at,
+                    c1_export.source_completed_at,
+                    c2_export.source_completed_at,
+                )
+                >= commitment.scheduled_activation_at
                 or freeze.frozen_at
                 >= min(
                     c0_export.source_completed_at,
@@ -981,16 +1140,58 @@ def materialize_phase5_input_manifest(
             source_receipts.extend((*c0_sources, *c1_sources))
         else:
             assert trace_slot is not None
+            assert episode.trace_submission_receipt is not None
+            submission_receipt = cas.load(
+                episode.trace_submission_receipt,
+                ResearcherTraceSubmissionReceipt,
+                object_kind="researcher_trace_submission_receipt",
+            )
             if instruction.revision.action not in trace_slot.allowed_actions:
                 raise Phase5MaterializationError("trace action is outside its registered surface")
+            before_bundle = build_visualization_bundle(
+                c2_projection,
+                instruction.before_context,
+                packet,
+                content_scope=VisualizationContentScope.REGISTERED_DISPLAY,
+            )
+            try:
+                submission = RevisionDraftSubmission.model_validate_json(
+                    submission_receipt.submission_canonical_json
+                )
+                replayed_instruction = _compile_submission(
+                    submission,
+                    before_bundle,
+                    created_at=submission_receipt.requested_at,
+                )
+            except Exception as error:
+                raise Phase5MaterializationError(
+                    "trace UI submission cannot reproduce its instruction"
+                ) from error
+            if (
+                submission_receipt.episode_id != episode_id
+                or submission_receipt.action is not instruction.revision.action
+                or submission_receipt.requested_at != instruction.revision.created_at
+                or submission_receipt.instruction_hash != instruction.content_hash
+                or submission_receipt.before_projection_id != c2_projection.projection_id
+                or submission_receipt.before_projection_hash != c2_projection.content_hash
+                or submission_receipt.before_bundle_hash != before_bundle.content_hash
+                or submission.content_hash != submission_receipt.submission_hash
+                or replayed_instruction != instruction
+                or submission_receipt.recorded_at > source.captured_at
+            ):
+                raise Phase5MaterializationError(
+                    "trace instruction differs from its UI submission receipt"
+                )
             trace_inputs.append(
                 ResearcherTraceInput(
                     episode_id=episode_id,
                     instruction=instruction,
+                    submission_receipt=submission_receipt,
                     packet=packet,
                     c2_before_projection=c2_projection,
                 )
             )
+            source_receipts.append(submission_receipt.content_hash)
 
         episode_exports = [c2_export] if selection is None else [c0_export, c1_export, c2_export]
         lineages.append(
@@ -1039,6 +1240,7 @@ def materialize_phase5_input_manifest(
     inputs = Phase5ExecutionInputManifest(
         run_id=source.run_id,
         protocol_hash=protocol.content_hash,
+        script_commitment_manifest_hash=commitment.content_hash,
         primary_results_gate_hash=gate.content_hash,
         final_reviewed_seal_hash=source.final_reviewed_seal_hash,
         source_manifest_hash=source.content_hash,
@@ -1053,6 +1255,7 @@ def materialize_phase5_input_manifest(
     receipt = Phase5InputMaterializationReceipt(
         source_manifest_hash=source.content_hash,
         input_manifest_hash=inputs.content_hash,
+        script_commitment_manifest_hash=commitment.content_hash,
         primary_results_gate_hash=gate.content_hash,
         held_out_execution_manifest_hash=execution.content_hash,
         held_out_call_manifest_hash=call_manifest.content_hash,
@@ -1068,6 +1271,7 @@ def materialize_phase5_inputs_to_directory(
     *,
     source: Phase5MaterializationSourceManifest,
     protocol: FeedbackProtocolConfiguration,
+    script_commitment_path: Path,
     primary_results_gate_path: Path,
     benchmark_root: Path,
     review_completion_root: Path,
@@ -1090,6 +1294,7 @@ def materialize_phase5_inputs_to_directory(
     inputs, receipt = materialize_phase5_input_manifest(
         source=source,
         protocol=protocol,
+        script_commitment_path=script_commitment_path,
         primary_results_gate_path=primary_results_gate_path,
         benchmark_root=benchmark_root,
         review_completion_root=review_completion_root,
@@ -1458,5 +1663,7 @@ __all__ = [
     "materialize_phase5_input_manifest",
     "materialize_phase5_inputs_to_directory",
     "persist_phase5_record",
+    "phase5_record_reference",
     "validate_phase5_materialization_receipt",
+    "validate_phase5_source_model_calls",
 ]

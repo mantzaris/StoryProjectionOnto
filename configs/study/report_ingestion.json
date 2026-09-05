@@ -1,12 +1,12 @@
 {
   "schema_version": "1.0.0",
   "ingestion_id": "conference-report-ingestion-v1",
-  "compiled_at_utc": "2026-09-04T00:00:00Z",
+  "compiled_at_utc": "2026-09-04T23:24:55Z",
   "predecessors": [
     {
       "family": "fallback",
       "status": "incomplete",
-      "reason": "The permitted fallback is activated and downloaded, but its acceptance gate has not completed.",
+      "reason": "The permitted fallback is activated and downloaded, but fallback v3 was rejected by decoder-schema validation before generation and its acceptance gate remains incomplete.",
       "artifacts": [
         {
           "artifact_id": "fallback-activation",
@@ -51,10 +51,10 @@
           "artifact_id": "synthetic-benchmark-manifest",
           "family": "heldout",
           "relative_path": "data/synthetic/manifests/benchmark_manifest.json",
-          "file_sha256": "15f022302ba1bfbf6f1caf8d3869b16752d02fd693966b2b9bcb1bf28d5be3bb",
+          "file_sha256": "02a3ef312a24d9f19387e5613a68568f002ad4c237ddac494a371a74e945bf14",
           "media_type": "application/json",
           "release_class": "public",
-          "logical_hash": "22bd5e47245938724fc25d289e86e286f4f19e6a4ffd45468649e4e8f68acb78",
+          "logical_hash": "c5bce978a9006b67f13c40701fca2d7b558d62239615c49a2c035221cd1b723f",
           "logical_hash_field": "content_hash",
           "logical_hash_mode": "declared",
           "required_json_fields": ["held_out_world_count", "held_out_context_count", "review_complete", "held_out_launch_authorized"],
@@ -83,7 +83,7 @@
     {
       "family": "runtime",
       "status": "incomplete",
-      "reason": "The cumulative ledger currently covers rejected primary pilots only; final runtime accounting is absent.",
+      "reason": "The recovered cumulative ledger covers the rejected primary pilots, fallback-v1 watchdog attempt, and fallback-v3 decoder-schema rejection; final runtime accounting is absent.",
       "artifacts": [
         {
           "artifact_id": "primary-pilot-v1-failure",
@@ -110,6 +110,45 @@
           "logical_hash_mode": "canonical_without_field",
           "required_json_fields": ["gate_passed", "vllm_service_stopped", "runtime", "failure_type"],
           "measurement_domains": ["gpu_service_time", "gpu_memory", "process_memory", "project_storage"]
+        },
+        {
+          "artifact_id": "fallback-pilot-v1-failure",
+          "family": "runtime",
+          "relative_path": "artifacts/public/results/fallback_gpu_acceptance_development_v1.json.controller-handoff.json",
+          "file_sha256": "c2d84fe31a2e4da613b5d7af418ba9d5c11d1b1c8f8e22583fba5f47ecaa42c3",
+          "media_type": "application/json",
+          "release_class": "public",
+          "logical_hash": "d08ce5ba02e866768a715eee9758be7ef13e5ed3c8e9844457e8d38b20240c7c",
+          "logical_hash_field": "manifest_sha256",
+          "logical_hash_mode": "canonical_without_field",
+          "required_json_fields": ["gate_passed", "vllm_service_stopped", "runtime", "failure_type"],
+          "measurement_domains": ["gpu_service_time"]
+        },
+        {
+          "artifact_id": "fallback-pilot-v3-failure",
+          "family": "runtime",
+          "relative_path": "artifacts/public/results/fallback_gpu_acceptance_development_v3.json",
+          "file_sha256": "9279cdcb048be6bf44da6570d26df9ffd048d839a3bb9f5d76a328f6ea62108a",
+          "media_type": "application/json",
+          "release_class": "public",
+          "logical_hash": "6a76fae9bb970fdf11a9ae37cf785910cf6c270146ca7b752a6aedb678de3efd",
+          "logical_hash_field": "manifest_sha256",
+          "logical_hash_mode": "canonical_without_field",
+          "required_json_fields": ["gate_passed", "vllm_service_stopped", "runtime", "completed_base_call_count"],
+          "measurement_domains": ["gpu_service_time", "gpu_memory", "process_memory", "project_storage"]
+        },
+        {
+          "artifact_id": "fallback-pilot-v3-incident",
+          "family": "runtime",
+          "relative_path": "artifacts/public/manifests/fallback_gpu_acceptance_development_v3_incident.json",
+          "file_sha256": "fd42f197b88bef61ad5696280fd6b4a72f256fd3b0991a069771c5074c9b50e7",
+          "media_type": "application/json",
+          "release_class": "public",
+          "logical_hash": "2e33bcca745dfd5e85b02e5f0f1039444cb082cd7bb88ed252677414f83e249a",
+          "logical_hash_field": "manifest_sha256",
+          "logical_hash_mode": "canonical_without_field",
+          "required_json_fields": ["accounting", "diagnosis", "terminal_state", "resource_maxima", "run_id"],
+          "measurement_domains": []
         }
       ]
     },
@@ -149,24 +188,24 @@
     {
       "table_id": "resource_accounting",
       "status": "complete",
-      "reason": "Observed-to-date pilot accounting with missing final fields explicit.",
+      "reason": "Observed-to-date accounting through the rejected fallback-v3 attempt, with invalid or missing final fields explicit.",
       "scope": "interim",
       "relative_path": "tables/resource_accounting.csv",
-      "file_sha256": "6d655ceb4c91d2875463be129cc766ac4230036f8286215d5cfe3e09d0c03927",
+      "file_sha256": "228538ad967640a7d4919d95b3c86e4a43ca6ae167b4fcfb5eb1dc72eb004e7b",
       "row_count": 8,
       "required_columns": ["scope", "metric", "value", "unit", "status", "source_note"],
-      "source_artifact_ids": ["primary-pilot-v1-failure", "primary-pilot-v2-failure", "phase1-environment"]
+      "source_artifact_ids": ["primary-pilot-v1-failure", "primary-pilot-v2-failure", "fallback-pilot-v1-failure", "fallback-pilot-v3-failure", "fallback-pilot-v3-incident", "phase1-environment"]
     },
     {
       "table_id": "failure_accounting",
       "status": "complete",
-      "reason": "Observed rejected-primary-pilot failures only.",
+      "reason": "Observed incremental allocations for the two rejected primary pilots, fallback-v1 watchdog attempt, and fallback-v3 decoder-schema rejection; this remains interim rather than final accounting.",
       "scope": "interim",
       "relative_path": "tables/failure_accounting.csv",
-      "file_sha256": "1a9b8a298001a0fb4bb0548bd749a349845b7eaac3331d70ad99196e364cec92",
-      "row_count": 2,
+      "file_sha256": "339b205aa3ea22d6bca593b76fb0bd9ecf4a2641961b902d9b1ccee4452ef75a",
+      "row_count": 4,
       "required_columns": ["run_id", "model_repository", "immutable_revision", "failure_type", "completed_generation_calls", "gate_passed", "vllm_service_stopped", "allocated_gpu_seconds", "interpretation"],
-      "source_artifact_ids": ["primary-pilot-v1-failure", "primary-pilot-v2-failure"]
+      "source_artifact_ids": ["primary-pilot-v1-failure", "primary-pilot-v2-failure", "fallback-pilot-v1-failure", "fallback-pilot-v3-failure", "fallback-pilot-v3-incident"]
     },
     {"table_id": "primary_c2_vs_c1", "status": "incomplete", "reason": "No frozen held-out primary analysis table exists.", "scope": "final", "relative_path": null, "file_sha256": null, "row_count": null, "required_columns": [], "source_artifact_ids": []},
     {"table_id": "secondary_c2_vs_c0", "status": "incomplete", "reason": "No frozen held-out secondary analysis table exists.", "scope": "final", "relative_path": null, "file_sha256": null, "row_count": null, "required_columns": [], "source_artifact_ids": []},
@@ -180,5 +219,5 @@
     {"table_id": "novel_case", "status": "blocked", "reason": "The lawful first-novel study has not executed.", "scope": "final", "relative_path": null, "file_sha256": null, "row_count": null, "required_columns": [], "source_artifact_ids": []},
     {"table_id": "qualitative_examples", "status": "incomplete", "reason": "Registered qualitative selections cannot be materialized before their source runs.", "scope": "final", "relative_path": null, "file_sha256": null, "row_count": null, "required_columns": [], "source_artifact_ids": []}
   ],
-  "manifest_sha256": "fb2aac2dcc188e867be7d118dfd8effa85b893d83d5cbba2b80c11e1b3fa1cf6"
+  "manifest_sha256": "5393f43861b8d5cdab7bc5a2f08153d81db98b118310e7848d004e120a2f2917"
 }

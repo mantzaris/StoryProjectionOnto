@@ -51,6 +51,7 @@ from story_projection_onto.contracts import (
     EvidencePacket,
     ImmutableRecord,
     OntologyProjection,
+    QueryContext,
     ReleaseClass,
     RunOutcome,
     Sha256Digest,
@@ -64,11 +65,16 @@ from story_projection_onto.held_out_controller import (
 )
 from story_projection_onto.held_out_primary import HeldOutCallManifest
 from story_projection_onto.independent_review_runtime import load_completed_review
+from story_projection_onto.metrics.adapters import (
+    projection_is_content_bearing,
+    projection_is_structurally_valid,
+)
 from story_projection_onto.metrics.alignment import (
+    QUALIFIED_GROUNDING_AUDIT_REVISION,
     GroundingStatus,
+    audit_qualified_assertion_grounding,
     build_alignment_plan,
     prediction_records,
-    score_alignment,
 )
 from story_projection_onto.metrics.config import StudyMetricConfiguration
 from story_projection_onto.metrics.contrastive import (
@@ -98,12 +104,26 @@ from story_projection_onto.metrics.pipeline import (
     score_intended_projection,
 )
 from story_projection_onto.metrics.rare import annotations_from_gold
-from story_projection_onto.store import ArtifactStore, BlobStore, Ledger, MetricStatus
+from story_projection_onto.renderer_geometry import (
+    GeometryMaterializationReceipt,
+    RendererGeometryError,
+    replay_geometry_materialization,
+)
+from story_projection_onto.store import (
+    ArtifactIntegrityError,
+    ArtifactStore,
+    BlobStore,
+    JobState,
+    Ledger,
+    MetricStatus,
+    ProjectionRecord,
+)
 from story_projection_onto.synthetic_benchmark import (
     ScorerWorldArtifact,
     compile_alignment_alternatives,
     semantic_atom_to_normalized_decision,
 )
+from story_projection_onto.ui import VisualizationContentScope, build_visualization_bundle
 
 REGISTERED_PRIMARY_SCORE_COUNT = 252
 REGISTERED_COMBINED_ORDINARY_SCORE_COUNT = 40
@@ -628,6 +648,10 @@ class _Cell:
     outcome: RunOutcome
     projection: OntologyProjection | None
     failure_artifact_hash: str | None
+    context: QueryContext
+    packet: EvidencePacket
+    source_result_hash: Sha256Digest
+    ledger_projection_id: str | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -669,6 +693,182 @@ def _artifact_model(
             f"{model.__name__} logical hash differs from its immutable pointer"
         )
     return value
+
+
+_SCORER_SOURCE_STATES = frozenset(
+    {JobState.FINALIZED, JobState.SCORED, JobState.RENDERED}
+)
+
+
+def _require_scoring_source_job(ledger: Ledger, job_id: str) -> str:
+    """Require a real terminal generation job before scorer-only processing."""
+
+    job = ledger.get_job(job_id)
+    if job.state not in _SCORER_SOURCE_STATES:
+        raise Phase4AnalysisError(
+            f"generation job {job_id} is {job.state.value}, not finalized for scoring"
+        )
+    return job.job_id
+
+
+def _resolve_model_call_job(
+    *,
+    ledger: Ledger,
+    study_id: str,
+    model_call_ids: Sequence[str],
+    expected_record_hashes: Mapping[str, str],
+) -> str:
+    """Resolve and authenticate one job from exact immutable model-call rows."""
+
+    if set(model_call_ids) != set(expected_record_hashes):
+        raise Phase4AnalysisError("model-call receipt and expected ledger lineage differ")
+    try:
+        job = ledger.resolve_model_call_job(
+            study_id=study_id,
+            model_call_ids=model_call_ids,
+        )
+        for model_call_id in model_call_ids:
+            record = ledger.get_model_call(model_call_id)
+            if canonical_sha256(asdict(record)) != expected_record_hashes[model_call_id]:
+                raise Phase4AnalysisError(
+                    f"model-call ledger record changed for {model_call_id}"
+                )
+    except (ArtifactIntegrityError, KeyError) as error:
+        raise Phase4AnalysisError(
+            "immutable model-call lineage cannot resolve one upstream generation job"
+        ) from error
+    return _require_scoring_source_job(ledger, job.job_id)
+
+
+def _projection_artifact_hash(projection: OntologyProjection) -> str:
+    return hashlib.sha256(
+        (projection.to_canonical_json() + "\n").encode("utf-8")
+    ).hexdigest()
+
+
+def _resolve_job_projection(
+    *,
+    artifacts: ArtifactStore,
+    job_id: str,
+    projection: OntologyProjection,
+    condition: ConditionName,
+    context_hash: str,
+    artifact_hash: str | None = None,
+) -> ProjectionRecord:
+    """Bind a scorer projection to exactly one validated generation ledger row."""
+
+    expected_artifact_hash = artifact_hash or _projection_artifact_hash(projection)
+    rows = tuple(
+        row
+        for row in artifacts.ledger.projections_for_job(job_id)
+        if row.condition_id == condition.value
+        and row.context_hash == context_hash
+        and row.projection_artifact_hash == expected_artifact_hash
+    )
+    if len(rows) != 1:
+        raise Phase4AnalysisError(
+            "projection artifact did not resolve to exactly one row on its generation job"
+        )
+    persisted = _artifact_model(
+        artifacts,
+        artifact_hash=rows[0].projection_artifact_hash,
+        logical_hash=projection.content_hash,
+        model=OntologyProjection,
+    )
+    if persisted != projection:
+        raise Phase4AnalysisError("ledger projection content changed before scoring")
+    return rows[0]
+
+
+def _resolve_preconstructed_projection_job(
+    *,
+    ledger: Ledger,
+    call_manifest: HeldOutCallManifest,
+    unit_id: str,
+    query_stage_hash: str,
+    condition: ConditionName,
+    seed_block: int | None,
+) -> str:
+    if condition is ConditionName.C0_CLASSICAL_PRE:
+        identity: Mapping[str, object] = {
+            "execution_id": call_manifest.manifest_id,
+            "call_id": f"c0-projection-{unit_id}-{query_stage_hash[:16]}",
+            "manifest_hash": call_manifest.content_hash,
+            "condition": condition.value,
+            "lifecycle_kind": "query_time_projection",
+            "query_stage_hash": query_stage_hash,
+        }
+    elif condition is ConditionName.C1_LLM_PRE and seed_block in {1, 2}:
+        sources = tuple(
+            call
+            for call in call_manifest.calls
+            if call.call_class == "test_c1"
+            and call.unit_id == unit_id
+            and call.seed_block == seed_block
+        )
+        if len(sources) != 1:
+            raise Phase4AnalysisError("C1 projection lacks one registered prebuild source")
+        source = sources[0]
+        identity = {
+            "execution_id": call_manifest.manifest_id,
+            "call_id": f"{source.call_id}-projection-{query_stage_hash[:16]}",
+            "manifest_hash": call_manifest.content_hash,
+            "condition": condition.value,
+            "lifecycle_kind": "query_time_projection",
+            "source_prebuild_call_id": source.call_id,
+            "query_stage_hash": query_stage_hash,
+        }
+    else:
+        raise Phase4AnalysisError("preconstructed projection identity has invalid condition/seed")
+    try:
+        job = ledger.resolve_job_identity(
+            identity,
+            study_id=call_manifest.manifest_id,
+        )
+    except ArtifactIntegrityError as error:
+        raise Phase4AnalysisError(
+            "preconstructed projection does not resolve its exact upstream ledger job"
+        ) from error
+    return _require_scoring_source_job(ledger, job.job_id)
+
+
+def _resolve_held_out_query_job(
+    *,
+    ledger: Ledger,
+    call_manifest: HeldOutCallManifest,
+    call: Any,
+    result: Any,
+) -> str:
+    receipt = result.artifact_receipt
+    if receipt is not None:
+        identifiers = (
+            receipt.model_call_id,
+            *((receipt.repair_model_call_id,) if receipt.repair_model_call_id else ()),
+        )
+        hashes = {receipt.model_call_id: receipt.model_call_record_hash}
+        if receipt.repair_model_call_id is not None:
+            assert receipt.repair_model_call_record_hash is not None
+            hashes[receipt.repair_model_call_id] = receipt.repair_model_call_record_hash
+        return _resolve_model_call_job(
+            ledger=ledger,
+            study_id=call_manifest.manifest_id,
+            model_call_ids=identifiers,
+            expected_record_hashes=hashes,
+        )
+    identity = {
+        "execution_id": call_manifest.manifest_id,
+        "call_id": call.call_id,
+        "manifest_hash": call_manifest.content_hash,
+        "condition": call.condition.value,
+        "lifecycle_kind": "query_time_generation",
+    }
+    try:
+        job = ledger.resolve_job_identity(identity, study_id=call_manifest.manifest_id)
+    except ArtifactIntegrityError as error:
+        raise Phase4AnalysisError(
+            "unstarted held-out ITT cell has no exact finalized failure job"
+        ) from error
+    return _require_scoring_source_job(ledger, job.job_id)
 
 
 def _scorer_plan(
@@ -868,7 +1068,7 @@ def _primary_cells(
     if len(projection_receipts) != len(execution.preconstructed_projections):
         raise Phase4AnalysisError("preconstructed projection receipts repeat a scorer cell")
     call_records = {
-        (call.unit_id, call.query_stage_hash, call.condition, call.seed_block): record
+        (call.unit_id, call.query_stage_hash, call.condition, call.seed_block): (call, record)
         for call, record in zip(call_manifest.calls, execution.itt_records, strict=True)
         if call.query_stage_hash is not None
     }
@@ -919,11 +1119,21 @@ def _primary_cells(
                     key = (unit.unit_id, stage.staging_manifest_hash, condition, seed)
                     projection = None
                     failure_hash = None
+                    ledger_projection_id = None
                     if condition in {ConditionName.C0_CLASSICAL_PRE, ConditionName.C1_LLM_PRE}:
                         receipt = projection_receipts.get(key)
                         if receipt is None:
                             raise Phase4AnalysisError("preconstructed projection receipt is absent")
+                        ledger_job_id = _resolve_preconstructed_projection_job(
+                            ledger=artifacts.ledger,
+                            call_manifest=call_manifest,
+                            unit_id=unit.unit_id,
+                            query_stage_hash=stage.staging_manifest_hash,
+                            condition=condition,
+                            seed_block=seed,
+                        )
                         outcome = receipt.outcome
+                        source_result_hash = receipt.content_hash
                         failure_hash = receipt.failure_artifact_hash
                         if outcome is RunOutcome.SUCCEEDED:
                             assert receipt.projection_artifact_hash is not None
@@ -933,11 +1143,27 @@ def _primary_cells(
                                 logical_hash=None,
                                 model=OntologyProjection,
                             )
+                            ledger_projection_id = _resolve_job_projection(
+                                artifacts=artifacts,
+                                job_id=ledger_job_id,
+                                projection=projection,
+                                condition=condition,
+                                context_hash=context.content_hash,
+                                artifact_hash=receipt.projection_artifact_hash,
+                            ).projection_id
                     else:
-                        record = call_records.get(key)
-                        if record is None:
+                        call_and_record = call_records.get(key)
+                        if call_and_record is None:
                             raise Phase4AnalysisError("query-time ITT record is absent")
+                        call, record = call_and_record
                         result = record.result
+                        ledger_job_id = _resolve_held_out_query_job(
+                            ledger=artifacts.ledger,
+                            call_manifest=call_manifest,
+                            call=call,
+                            result=result,
+                        )
+                        source_result_hash = record.content_hash
                         outcome = result.outcome
                         failure_hash = (
                             result.artifact_receipt.raw_response.artifact_hash
@@ -964,15 +1190,25 @@ def _primary_cells(
                                 raise Phase4AnalysisError(
                                     "query-time attempt differs from ITT result"
                                 )
+                            ledger_projection_id = _resolve_job_projection(
+                                artifacts=artifacts,
+                                job_id=ledger_job_id,
+                                projection=projection,
+                                condition=condition,
+                                context_hash=context.content_hash,
+                            ).projection_id
+                    if outcome is not RunOutcome.SUCCEEDED and (
+                        artifacts.ledger.projections_for_job(ledger_job_id)
+                    ):
+                        raise Phase4AnalysisError(
+                            "failed intended cell unexpectedly owns a projection ledger row"
+                        )
                     intended = _intended(
                         unit_id=(
                             f"primary:{unit.unit_id}:{stage.stage_id}:{condition.value}:"
                             f"s{seed if seed is not None else 0}"
                         ),
-                        job_id=(
-                            f"phase4-primary-{unit.unit_id}-{stage.stage_id}-"
-                            f"{condition.value}-s{seed if seed is not None else 0}"
-                        ),
+                        job_id=ledger_job_id,
                         condition=condition,
                         world_id=world.world_spec.world_id,
                         context_id=context.context_id,
@@ -990,6 +1226,10 @@ def _primary_cells(
                             outcome=outcome,
                             projection=projection,
                             failure_artifact_hash=failure_hash,
+                            context=context,
+                            packet=packet,
+                            source_result_hash=source_result_hash,
+                            ledger_projection_id=ledger_projection_id,
                         )
                     )
     cells.sort(key=lambda item: item.intended.unit_id)
@@ -1045,6 +1285,17 @@ def _combined_cells(
             or not itt.included_in_intention_to_treat
         ):
             raise Phase4AnalysisError(f"combined result lineage changed for {call.call_id}")
+        if tuple(item.model_call_id for item in itt.model_calls) != result.model_call_ids:
+            raise Phase4AnalysisError("combined ITT model-call inventory changed")
+        ledger_job_id = _resolve_model_call_job(
+            ledger=artifacts.ledger,
+            study_id=execution_index.run_id,
+            model_call_ids=result.model_call_ids,
+            expected_record_hashes={
+                item.model_call_id: item.model_call_record_hash
+                for item in itt.model_calls
+            },
+        )
         observed_itt_hashes.append(itt.content_hash)
         scorer = scorer_contexts.get(call.context_id)
         if scorer is None:
@@ -1067,6 +1318,7 @@ def _combined_cells(
             raise Phase4AnalysisError("combined and primary packets compile different scorer plans")
         projection = None
         failure_hash = None
+        ledger_projection_id = None
         if result.outcome is RunOutcome.SUCCEEDED:
             pointer = result.condition_attempt_artifact
             attempt = _artifact_model(
@@ -1082,12 +1334,24 @@ def _combined_cells(
             ):
                 raise Phase4AnalysisError("combined condition attempt differs from service result")
             projection = attempt.projection
+            effective_context = call.paraphrase_context or call.source.context
+            ledger_projection_id = _resolve_job_projection(
+                artifacts=artifacts,
+                job_id=ledger_job_id,
+                projection=projection,
+                condition=call.condition,
+                context_hash=effective_context.content_hash,
+            ).projection_id
         else:
             failure_hash = result.condition_attempt_artifact.artifact_hash
+            if artifacts.ledger.projections_for_job(ledger_job_id):
+                raise Phase4AnalysisError(
+                    "failed combined cell unexpectedly owns a projection ledger row"
+                )
         effective_context = call.paraphrase_context or call.source.context
         intended = _intended(
             unit_id=f"combined:{call.call_id}",
-            job_id=f"phase4-combined-{call.call_id}",
+            job_id=ledger_job_id,
             condition=call.condition,
             world_id=scorer.world.world_spec.world_id,
             context_id=call.context_id,
@@ -1105,6 +1369,10 @@ def _combined_cells(
                 outcome=result.outcome,
                 projection=projection,
                 failure_artifact_hash=failure_hash,
+                context=effective_context,
+                packet=packet,
+                source_result_hash=itt.content_hash,
+                ledger_projection_id=ledger_projection_id,
             )
         )
     if tuple(observed_itt_hashes) != execution_index.ordinary_itt_record_hashes:
@@ -1119,10 +1387,11 @@ def _grounding_audit(
 ) -> GroundingAuditInput:
     """Classify exact gold-supported assertions without trusting model support flags.
 
-    A provisional all-supported pass identifies assertions whose aligned participants,
-    relation, qualification, and cited evidence match a permissible gold target.  Only
-    those predictions receive ``SUPPORTED``; other emitted factual assertions receive
-    ``UNSUPPORTED``.  This is scorer-side known-answer auditing, never prompt material.
+    A provisional conversion materializes normalized prediction signatures.  The
+    qualified grounding audit then requires an exact permissible signature and only
+    admissible, reviewed supporting citations.  Other emitted factual assertions
+    receive ``UNSUPPORTED``.  This is scorer-side known-answer auditing, never prompt
+    material.
     """
 
     valid_evidence = frozenset(plan.valid_evidence_ids)
@@ -1134,36 +1403,19 @@ def _grounding_audit(
         )
         for item in projection.instance_graph.assertions
     }
-    predicted_nodes, predicted_assertions, _ = prediction_records(
+    _, predicted_assertions, _ = prediction_records(
         projection,
         predicate_aliases=dict(plan.predicate_aliases),
         valid_evidence_ids=valid_evidence,
         grounding_by_assertion_id=provisional,
         plan=plan.alignment_plan,
     )
-    preliminary = score_alignment(
+    statuses = audit_qualified_assertion_grounding(
         plan=plan.alignment_plan,
-        predicted_nodes=predicted_nodes,
         predicted_assertions=predicted_assertions,
     )
-    supported = {
-        item.prediction_id for item in preliminary.structurally_aligned_assertion_matches
-    }
-    statuses = tuple(
-        sorted(
-            (
-                assertion.assertion_id,
-                (
-                    GroundingStatus.SUPPORTED
-                    if assertion.assertion_id in supported
-                    else GroundingStatus.UNSUPPORTED
-                ),
-            )
-            for assertion in projection.instance_graph.assertions
-        )
-    )
     audit_payload = {
-        "audit_revision": "known-answer-structural-support-v1",
+        "audit_revision": QUALIFIED_GROUNDING_AUDIT_REVISION,
         "projection_hash": projection.content_hash,
         "valid_evidence_manifest_hash": plan.valid_evidence_manifest_hash,
         "assertion_statuses": tuple((key, value.value) for key, value in statuses),
@@ -1196,6 +1448,88 @@ def _geometry(
     return geometry
 
 
+def _replay_geometry_prerequisite(
+    *,
+    geometry_source_root: Path,
+    geometry_root: Path,
+) -> GeometryMaterializationReceipt:
+    """Fail closed on any restricted source, raw capture, or derived-geometry drift."""
+
+    if geometry_source_root.resolve(strict=False) == geometry_root.resolve(strict=False):
+        raise Phase4AnalysisError(
+            "restricted geometry sources and public geometry require distinct roots"
+        )
+    try:
+        return replay_geometry_materialization(
+            source_root=geometry_source_root,
+            geometry_root=geometry_root,
+        )
+    except (RendererGeometryError, ValueError, OSError) as error:
+        raise Phase4AnalysisError(
+            f"renderer geometry replay prerequisite failed: {error}"
+        ) from error
+
+
+def _validate_geometry_materialization_receipt(
+    *,
+    prepared: _PreparedInputs,
+    geometry_source_root: Path,
+    geometry_root: Path,
+    replayed_receipt: GeometryMaterializationReceipt | None = None,
+) -> GeometryMaterializationReceipt:
+    """Bind renderer outputs to the exact successful source-result inventory."""
+
+    receipt = replayed_receipt or _replay_geometry_prerequisite(
+        geometry_source_root=geometry_source_root,
+        geometry_root=geometry_root,
+    )
+    expected: dict[str, set[str]] = defaultdict(set)
+    for cell in (*prepared.primary_cells, *prepared.combined_cells):
+        projection = cell.projection
+        if (
+            cell.outcome is RunOutcome.SUCCEEDED
+            and projection is not None
+            and projection_is_structurally_valid(projection)
+            and projection_is_content_bearing(projection)
+        ):
+            expected[projection.content_hash].add(cell.source_result_hash)
+    received = {item.projection_hash: item for item in receipt.artifacts}
+    if (
+        set(received) != set(expected)
+        or receipt.phase4_analysis_configuration_hash
+        != prepared.analysis_configuration.content_hash
+        or receipt.metric_configuration_hash != prepared.metric_configuration.content_hash
+        or receipt.phase4_source_binding_hash != canonical_sha256(prepared.source_bindings)
+        or receipt.source_association_hash != prepared.source_association_hash
+        or receipt.source_tree_hash != prepared.source_tree_hash
+        or receipt.independent_confirmatory_unit != "world"
+        or receipt.contexts_are_independent_samples is not False
+    ):
+        raise Phase4AnalysisError(
+            "renderer geometry receipt differs from the frozen Phase 4 source inventory"
+        )
+    for projection_hash, source_hashes in expected.items():
+        artifact = received[projection_hash]
+        if artifact.source_result_hashes != tuple(sorted(source_hashes)):
+            raise Phase4AnalysisError("renderer geometry names different source results")
+        if artifact.geometry_relative_path != f"{projection_hash}.json":
+            raise Phase4AnalysisError("renderer geometry filename rule changed")
+        path = geometry_root / artifact.geometry_relative_path
+        geometry = _load_model(path, GeometryMetricInput)
+        content_path = geometry_root / artifact.content_addressed_relative_path
+        if (
+            geometry.projection_hash != projection_hash
+            or geometry.materialization_source_hash != receipt.source_manifest_hash
+            or geometry.source_result_hashes != artifact.source_result_hashes
+            or geometry.renderer_runtime_hash != receipt.renderer_runtime_hash
+            or geometry.content_hash != artifact.geometry_hash
+            or _sha256_file(path) != artifact.geometry_file_sha256
+            or _regular_file(content_path) != _regular_file(path)
+        ):
+            raise Phase4AnalysisError("renderer geometry artifact differs from its receipt")
+    return receipt
+
+
 def _score_cells(
     cells: Sequence[_Cell],
     *,
@@ -1215,15 +1549,29 @@ def _score_cells(
             if cell.projection is None:
                 raise Phase4AnalysisError("successful intended cell lacks a projection")
             projection = cell.projection
-            structurally_valid = bool(projection.validation_records) and all(
-                item.validation_status.value == "accepted"
-                for item in projection.validation_records
+            scoreable_output = (
+                projection_is_structurally_valid(projection)
+                and projection_is_content_bearing(projection)
             )
             geometry = _geometry(
                 projection,
                 geometry_root=geometry_root,
-                required=require_geometry and structurally_valid,
+                required=require_geometry and scoreable_output,
             )
+            if geometry is not None:
+                expected_state = build_visualization_bundle(
+                    projection,
+                    cell.context,
+                    cell.packet,
+                    content_scope=VisualizationContentScope.REGISTERED_DISPLAY,
+                ).state
+                if (
+                    geometry.visualization_state_hash != expected_state.content_hash
+                    or cell.source_result_hash not in geometry.source_result_hashes
+                ):
+                    raise Phase4AnalysisError(
+                        "renderer geometry differs from its projection/result source"
+                    )
             audit = _grounding_audit(projection, cell.scorer_plan)
             previous_audit = grounding_audits.setdefault(projection.content_hash, audit)
             if previous_audit != audit:
@@ -1235,6 +1583,8 @@ def _score_cells(
             score = score_intended_projection(
                 intended,
                 projection,
+                context=cell.context,
+                evidence_packet=cell.packet,
                 configuration=configuration,
                 scorer_plan=cell.scorer_plan,
                 grounding_audit=audit,
@@ -1247,6 +1597,8 @@ def _score_cells(
 
                 bundle = score_complete_projection(
                     projection,
+                    context=cell.context,
+                    evidence_packet=cell.packet,
                     configuration=configuration,
                     scorer_plan=cell.scorer_plan,
                     grounding_audit=audit,
@@ -1809,6 +2161,11 @@ _EXPLORATORY_METRICS = (
     "community_merging_error",
 )
 
+_MECHANISM_SUPPORT_METRICS = (
+    "contrastive_decision_change_f1",
+    "contrastive_collapse",
+)
+
 _ENTROPY_MULTIPLICITY_METRICS = (
     "degree_histogram_entropy",
     "degree_mass_entropy",
@@ -1862,7 +2219,10 @@ def _exploratory_comparisons(
         )
     )
     for metric_name in _EXPLORATORY_METRICS:
-        for comparator in (ConditionName.C1_LLM_PRE, ConditionName.C0_CLASSICAL_PRE):
+        comparators = [ConditionName.C1_LLM_PRE, ConditionName.C0_CLASSICAL_PRE]
+        if metric_name in _MECHANISM_SUPPORT_METRICS:
+            comparators.append(ConditionName.A_FIXED_SELECT)
+        for comparator in comparators:
             treatment = {
                 world: lookup.get((metric_name, ConditionName.C2_LLM_QUERY, world))
                 for world in worlds
@@ -2233,12 +2593,20 @@ def _canonical_comparison_rows(
         for item in entropy_multiplicity
     }
     for item in exploratory:
+        mechanism_support = (
+            item.comparison == "C2-A-FixedSelect"
+            and item.metric_name in _MECHANISM_SUPPORT_METRICS
+        )
         rows.append(
             _paired_comparison_row(
                 item.estimate,
                 comparison=item.comparison,
                 metric=item.metric_name,
-                family="secondary_complete_world_panel",
+                family=(
+                    "mechanism_support"
+                    if mechanism_support
+                    else "secondary_complete_world_panel"
+                ),
                 p_value_kind="two_sided",
                 adjusted_p_value=entropy_adjustments.get(
                     (item.metric_name, item.comparison)
@@ -2843,8 +3211,13 @@ def preflight_phase4_analysis(
     ledger_path: Path,
     artifact_root: Path,
     source_association_path: Path,
+    geometry_source_root: Path,
     geometry_root: Path,
 ) -> Phase4Preflight:
+    replayed_receipt = _replay_geometry_prerequisite(
+        geometry_source_root=geometry_source_root,
+        geometry_root=geometry_root,
+    )
     prepared, ledger = _prepare_inputs(
         repository=repository,
         configuration_path=configuration_path,
@@ -2868,11 +3241,8 @@ def preflight_phase4_analysis(
                 {
                     projection.content_hash
                     for projection in successful
-                    if bool(projection.validation_records)
-                    and all(
-                        item.validation_status.value == "accepted"
-                        for item in projection.validation_records
-                    )
+                    if projection_is_structurally_valid(projection)
+                    and projection_is_content_bearing(projection)
                     and (
                         (geometry_root / f"{projection.content_hash}.json").is_symlink()
                         or not (
@@ -2888,13 +3258,14 @@ def preflight_phase4_analysis(
             renderer.layout_config_hash,
             renderer.style_config_hash,
             renderer.font_config_hash,
+            renderer.viewport_hash,
         )
         for projection in successful:
-            structurally_valid = bool(projection.validation_records) and all(
-                item.validation_status.value == "accepted"
-                for item in projection.validation_records
+            scoreable_output = (
+                projection_is_structurally_valid(projection)
+                and projection_is_content_bearing(projection)
             )
-            if not structurally_valid or projection.content_hash in missing_set:
+            if not scoreable_output or projection.content_hash in missing_set:
                 continue
             geometry = _geometry(projection, geometry_root=geometry_root, required=True)
             assert geometry is not None
@@ -2902,10 +3273,17 @@ def preflight_phase4_analysis(
                 geometry.layout_config_hash,
                 geometry.style_config_hash,
                 geometry.font_config_hash,
+                geometry.viewport_hash,
             ) != expected_renderer_hashes:
                 raise Phase4AnalysisError(
                     "renderer geometry differs from the frozen Phase 4 metric configuration"
                 )
+        _validate_geometry_materialization_receipt(
+            prepared=prepared,
+            geometry_source_root=geometry_source_root,
+            geometry_root=geometry_root,
+            replayed_receipt=replayed_receipt,
+        )
         return Phase4Preflight(
             analysis_configuration_hash=prepared.analysis_configuration.content_hash,
             metric_configuration_hash=prepared.metric_configuration.content_hash,
@@ -3014,26 +3392,44 @@ class _OutputPayload:
 def _record_metric_rows(
     *,
     ledger: Ledger,
-    study_id: str,
+    analysis_id: str,
     artifact_hash: str,
     rows: Sequence[MetricResultRow],
+    job_ids_by_unit_hash: Mapping[str, str],
+    study_ids_by_job_id: Mapping[str, str],
+    projection_ids_by_unit_hash: Mapping[str, str],
 ) -> None:
     for ordinal, row in enumerate(rows, 1):
+        job_id = job_ids_by_unit_hash.get(row.unit_hash)
+        if job_id is None:
+            raise Phase4AnalysisError("metric row has no exact generation job binding")
+        study_id = study_ids_by_job_id.get(job_id)
+        if study_id is None:
+            raise Phase4AnalysisError("generation job has no exact owning study binding")
+        projection_id = projection_ids_by_unit_hash.get(row.unit_hash)
+        if row.projection_id is not None and projection_id is None:
+            raise Phase4AnalysisError(
+                "scored projection metric has no canonical ledger projection binding"
+            )
         metric_id = (
             "phase4-metric-"
             + canonical_sha256(
                 {
-                    "study_id": study_id,
+                    "analysis_id": analysis_id,
+                    "source_study_id": study_id,
                     "artifact_hash": artifact_hash,
                     "ordinal": ordinal,
                     "row": row,
+                    "job_id": job_id,
+                    "ledger_projection_id": projection_id,
                 }
             )[:32]
         )
         ledger.record_metric(
             metric_id=metric_id,
             study_id=study_id,
-            projection_id=None,
+            job_id=job_id,
+            projection_id=projection_id,
             unit_hash=row.unit_hash,
             metric_name=row.metric_name,
             metric_version_hash=row.metric_version_hash,
@@ -3043,6 +3439,204 @@ def _record_metric_rows(
             denominator=row.denominator,
             result_artifact_hash=artifact_hash,
         )
+
+
+def _metric_projection_bindings(
+    *collections: tuple[Sequence[_Cell], _ScoreCollection],
+) -> tuple[Mapping[str, str], Mapping[str, str]]:
+    """Map every per-cell metric unit hash to its real ledger projection row."""
+
+    job_bindings: dict[str, str] = {}
+    projection_bindings: dict[str, str] = {}
+    for cells, collection in collections:
+        if len(cells) != len(collection.scores):
+            raise Phase4AnalysisError("score collection changed its intended cell ordering")
+        for cell, score in zip(cells, collection.scores, strict=True):
+            if score.intended_unit != cell.intended:
+                raise Phase4AnalysisError("score changed its intended generation job")
+            if (cell.projection is None) != (cell.ledger_projection_id is None):
+                raise Phase4AnalysisError("cell projection and ledger projection differ")
+            for row in score.rows:
+                prior_job = job_bindings.setdefault(row.unit_hash, cell.intended.job_id)
+                if prior_job != cell.intended.job_id:
+                    raise Phase4AnalysisError(
+                        "one metric unit hash resolves multiple generation jobs"
+                    )
+            if cell.ledger_projection_id is None:
+                if any(row.projection_id is not None for row in score.rows):
+                    raise Phase4AnalysisError(
+                        "failed ITT cell metric unexpectedly names a projection"
+                    )
+                continue
+            for row in score.rows:
+                prior = projection_bindings.setdefault(
+                    row.unit_hash, cell.ledger_projection_id
+                )
+                if prior != cell.ledger_projection_id:
+                    raise Phase4AnalysisError(
+                        "one metric unit hash resolves multiple ledger projections"
+                    )
+    return job_bindings, projection_bindings
+
+
+def _advance_scored_jobs(
+    ledger: Ledger,
+    *,
+    study_ids_by_job_id: Mapping[str, str],
+    collections: Sequence[tuple[Sequence[_Cell], _ScoreCollection]],
+    completed_at: AwareDatetime,
+) -> None:
+    def signature(
+        *,
+        ledger_projection_id: str | None,
+        unit_hash: str,
+        metric_name: str,
+        metric_version_hash: str,
+        status: str,
+        value: float | int | None,
+        numerator: float | int | None,
+        denominator: float | int | None,
+    ) -> str:
+        return canonical_sha256(
+            {
+                "ledger_projection_id": ledger_projection_id,
+                "unit_hash": unit_hash,
+                "metric_name": metric_name,
+                "metric_version_hash": metric_version_hash,
+                "status": status,
+                "value": None if value is None else float(value),
+                "numerator": None if numerator is None else float(numerator),
+                "denominator": None if denominator is None else float(denominator),
+            }
+        )
+
+    expected_by_job: dict[str, Counter[str]] = defaultdict(Counter)
+    all_cells: list[_Cell] = []
+    for cells, collection in collections:
+        if len(cells) != len(collection.scores):
+            raise Phase4AnalysisError("metric inventory changed before scoring transition")
+        for cell, score in zip(cells, collection.scores, strict=True):
+            all_cells.append(cell)
+            for row in score.rows:
+                expected_by_job[cell.intended.job_id][
+                    signature(
+                        ledger_projection_id=cell.ledger_projection_id,
+                        unit_hash=row.unit_hash,
+                        metric_name=row.metric_name,
+                        metric_version_hash=row.metric_version_hash,
+                        status=row.status.value,
+                        value=row.value,
+                        numerator=row.numerator,
+                        denominator=row.denominator,
+                    )
+                ] += 1
+    for job_id in sorted({cell.intended.job_id for cell in all_cells}):
+        study_id = study_ids_by_job_id.get(job_id)
+        if study_id is None:
+            raise Phase4AnalysisError("scored job has no exact owning study binding")
+        actual = ledger.metrics_for_job(study_id=study_id, job_id=job_id)
+        actual_inventory = Counter(
+            signature(
+                ledger_projection_id=item.projection_id,
+                unit_hash=item.unit_hash,
+                metric_name=item.metric_name,
+                metric_version_hash=item.metric_version_hash,
+                status=item.status.value,
+                value=item.value,
+                numerator=item.numerator,
+                denominator=item.denominator,
+            )
+            for item in actual
+        )
+        if actual_inventory != expected_by_job[job_id] or any(
+            item.result_artifact_hash is None for item in actual
+        ):
+            raise Phase4AnalysisError(
+                f"generation job {job_id} lacks its complete durable metric inventory"
+            )
+        state = ledger.get_job(job_id).state
+        if state is JobState.FINALIZED:
+            ledger.transition_job(job_id, JobState.SCORED, occurred_at=completed_at)
+        elif state not in {JobState.SCORED, JobState.RENDERED}:
+            raise Phase4AnalysisError(
+                f"generation job {job_id} cannot advance to scored from {state.value}"
+            )
+
+
+def _record_geometry_visualizations(
+    *,
+    artifacts: ArtifactStore,
+    analysis_id: str,
+    cells: Sequence[_Cell],
+    geometries: Mapping[str, GeometryMetricInput],
+    metric_configuration: StudyMetricConfiguration,
+    geometry_root: Path,
+    completed_at: AwareDatetime,
+) -> None:
+    """Bind every exact confirmatory geometry to its projection and render state."""
+
+    cells_by_projection: dict[str, list[_Cell]] = defaultdict(list)
+    for cell in cells:
+        if cell.projection is not None:
+            cells_by_projection[cell.projection.content_hash].append(cell)
+    rendered_jobs: set[str] = set()
+    for projection_hash, geometry in sorted(geometries.items()):
+        sources = cells_by_projection.get(projection_hash, [])
+        if not sources:
+            raise Phase4AnalysisError("geometry has no exact intended projection source")
+        path = geometry_root / f"{projection_hash}.json"
+        payload = _regular_file(path)
+        artifact_hash = hashlib.sha256(payload).hexdigest()
+        try:
+            artifact = artifacts.ledger.get_artifact(artifact_hash)
+            if (
+                artifact.release_class.value != ReleaseClass.PUBLIC.value
+                or artifacts.blobs.read_bytes(artifact) != payload
+            ):
+                raise Phase4AnalysisError(
+                    "registered geometry artifact differs from its public source"
+                )
+        except KeyError:
+            artifact = artifacts.put_bytes(
+                payload,
+                media_type="application/json",
+                release_class=ReleaseClass.PUBLIC,
+                created_at=completed_at,
+            )
+        for cell in sorted(sources, key=lambda item: item.intended.unit_id):
+            if cell.ledger_projection_id is None:
+                raise Phase4AnalysisError("geometry source lacks a ledger projection")
+            visualization_id = "phase4-visualization-" + canonical_sha256(
+                {
+                    "analysis_id": analysis_id,
+                    "projection_id": cell.ledger_projection_id,
+                    "geometry_hash": geometry.content_hash,
+                    "artifact_hash": artifact.content_hash,
+                }
+            )[:32]
+            artifacts.ledger.record_visualization(
+                visualization_id=visualization_id,
+                projection_id=cell.ledger_projection_id,
+                renderer_configuration_hash=metric_configuration.renderer.content_hash,
+                semantic_hash=projection_hash,
+                visualization_artifact_hash=artifact.content_hash,
+                layout_seed=metric_configuration.renderer.layout_seed,
+                release_class=ReleaseClass.PUBLIC,
+                created_at=completed_at,
+            )
+            rendered_jobs.add(cell.intended.job_id)
+    for job_id in sorted(rendered_jobs):
+        state = artifacts.ledger.get_job(job_id).state
+        if state is JobState.SCORED:
+            artifacts.ledger.transition_job(
+                job_id,
+                JobState.RENDERED,
+                occurred_at=completed_at,
+            )
+        elif state is not JobState.RENDERED:
+            raise Phase4AnalysisError(
+                f"visualization job {job_id} cannot advance to rendered from {state.value}"
+            )
 
 
 def _dataclass_jsonl(values: Sequence[Any]) -> bytes:
@@ -3199,6 +3793,7 @@ def run_phase4_analysis(
     ledger_path: Path,
     artifact_root: Path,
     source_association_path: Path,
+    geometry_source_root: Path,
     geometry_root: Path,
     output_root: Path,
     completed_at: AwareDatetime,
@@ -3207,6 +3802,10 @@ def run_phase4_analysis(
 
     if completed_at.tzinfo is None or completed_at.utcoffset() is None:
         raise Phase4AnalysisError("Phase 4 completion timestamp must be timezone-aware")
+    replayed_receipt = _replay_geometry_prerequisite(
+        geometry_source_root=geometry_source_root,
+        geometry_root=geometry_root,
+    )
     if output_root.is_symlink() or (output_root.exists() and not output_root.is_dir()):
         raise Phase4AnalysisError("Phase 4 output root must be a non-symlink directory")
     output_root.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -3226,6 +3825,12 @@ def run_phase4_analysis(
     configuration = prepared.analysis_configuration
     metric_configuration = prepared.metric_configuration
     try:
+        _validate_geometry_materialization_receipt(
+            prepared=prepared,
+            geometry_source_root=geometry_source_root,
+            geometry_root=geometry_root,
+            replayed_receipt=replayed_receipt,
+        )
         primary = _score_cells(
             prepared.primary_cells,
             configuration=metric_configuration,
@@ -3242,6 +3847,44 @@ def run_phase4_analysis(
             raise Phase4AnalysisError("primary scoring did not retain all 252 ITT cells")
         if len(combined.scores) != REGISTERED_COMBINED_ORDINARY_SCORE_COUNT:
             raise Phase4AnalysisError("combined scoring did not retain all forty ITT cells")
+        all_cells = (*prepared.primary_cells, *prepared.combined_cells)
+        job_ids_by_unit_hash, projection_ids_by_unit_hash = _metric_projection_bindings(
+            (prepared.primary_cells, primary),
+            (prepared.combined_cells, combined),
+        )
+        study_ids_by_job_id: dict[str, str] = {}
+        for cell in all_cells:
+            expected_study = (
+                prepared.call_manifest.manifest_id
+                if cell.source_block == "primary"
+                else prepared.combined_execution.run_id
+            )
+            try:
+                source_link = ledger.study_job_for_job(cell.intended.job_id)
+            except ArtifactIntegrityError as error:
+                raise Phase4AnalysisError(
+                    "generation job does not resolve one immutable source study"
+                ) from error
+            if source_link.study_id != expected_study:
+                raise Phase4AnalysisError(
+                    "generation job is linked to a different source execution"
+                )
+            prior_study = study_ids_by_job_id.setdefault(
+                cell.intended.job_id,
+                source_link.study_id,
+            )
+            if prior_study != source_link.study_id:
+                raise Phase4AnalysisError("generation job source study is ambiguous")
+        geometry_by_projection: dict[str, GeometryMetricInput] = {}
+        for projection_hash, geometry in (
+            *primary.geometries.items(),
+            *combined.geometries.items(),
+        ):
+            prior = geometry_by_projection.setdefault(projection_hash, geometry)
+            if prior != geometry:
+                raise Phase4AnalysisError(
+                    "one projection resolves different primary/combined geometry"
+                )
 
         primary_manifest = IntendedMetricManifest(
             manifest_id=f"phase4-primary-{prepared.held_out_execution.content_hash[:24]}",
@@ -3862,7 +4505,6 @@ def run_phase4_analysis(
             release_class=ReleaseClass.RESTRICTED,
             created_at=completed_at,
         )
-
         output_files: list[Phase4OutputFile] = []
         table_entries: list[Phase4TableEntry] = []
         artifact_hash_by_path: dict[str, str] = {}
@@ -3900,9 +4542,12 @@ def run_phase4_analysis(
             if spec.metric_rows:
                 _record_metric_rows(
                     ledger=ledger,
-                    study_id=study_id,
+                    analysis_id=study_id,
                     artifact_hash=record.content_hash,
                     rows=spec.metric_rows,
+                    job_ids_by_unit_hash=job_ids_by_unit_hash,
+                    study_ids_by_job_id=study_ids_by_job_id,
+                    projection_ids_by_unit_hash=projection_ids_by_unit_hash,
                 )
             if spec.table_id is not None:
                 assert spec.logical_hash is not None
@@ -3921,6 +4566,25 @@ def run_phase4_analysis(
                         selection_ready=spec.selection_ready,
                     )
                 )
+
+        _advance_scored_jobs(
+            ledger,
+            study_ids_by_job_id=study_ids_by_job_id,
+            collections=(
+                (prepared.primary_cells, primary),
+                (prepared.combined_cells, combined),
+            ),
+            completed_at=completed_at,
+        )
+        _record_geometry_visualizations(
+            artifacts=artifacts,
+            analysis_id=study_id,
+            cells=all_cells,
+            geometries=geometry_by_projection,
+            metric_configuration=metric_configuration,
+            geometry_root=geometry_root,
+            completed_at=completed_at,
+        )
 
         table_manifest = Phase4TableManifest(
             manifest_id=f"phase4-tables-{study_id.removeprefix('phase4-')}",

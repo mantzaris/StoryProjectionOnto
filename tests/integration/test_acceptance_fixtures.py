@@ -187,6 +187,7 @@ def full_validation_inputs(
             evidence_id=visible.evidence_id,
             extraction_method="hand-authored acceptance fixture",
             locator=f"phase1:{visible.evidence_id}",
+            source_artifact_hash=digest(f"phase1-source:{visible.evidence_id}"),
             confidence=1.0,
         )
         full_records.append(
@@ -678,6 +679,22 @@ def test_invalid_repair_case_is_fact_free_and_fails_packet_and_horizon_gates() -
         draft=corrected_draft,
         support_assessments=corrected_support,
     )
+    corrected_payload = strip_content_hashes(corrected_draft.model_dump(mode="json"))
+    indexed_by_id = {item.evidence_id: item for item in packet.evidence}
+    for assertion in corrected_payload["instance_graph"]["assertions"]:
+        for provenance in assertion["provenance"]:
+            indexed = indexed_by_id[provenance["evidence_id"]]
+            provenance["locator"] = indexed.provenance.locator
+            provenance["source_artifact_hash"] = indexed.provenance.source_artifact_hash
+            provenance["confidence"] = min(indexed.confidence, indexed.provenance.confidence)
+    source_bound_corrected = OntologyDraft.model_validate(corrected_payload)
+    source_bound_corrected_report = validate_draft_evidence_grounding(
+        snapshot=snapshot,
+        packet=packet,
+        context=context,
+        draft=source_bound_corrected,
+        support_assessments=corrected_support,
+    )
 
     expected_codes = {
         ValidationCode.EVIDENCE_OUTSIDE_SNAPSHOT,
@@ -689,7 +706,11 @@ def test_invalid_repair_case_is_fact_free_and_fails_packet_and_horizon_gates() -
     assert len(invalid_draft.instance_graph.assertions) == 1
     assert {item.path for item in recorded_report.diagnostics} == {"instance_graph.assertions"}
     assert not actual_report.accepted
-    assert corrected_report.accepted
+    assert not corrected_report.accepted
+    assert {item.code for item in corrected_report.diagnostics} == {
+        ValidationCode.PROVENANCE_MISMATCH
+    }
+    assert source_bound_corrected_report.accepted
     assert expected_codes.issubset({item.code for item in actual_report.diagnostics})
     assert expected_codes == {item.code for item in recorded_report.diagnostics}
     assert lineage.base_attempt_id == raw["base_attempt_id"]

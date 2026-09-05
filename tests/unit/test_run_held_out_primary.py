@@ -4,6 +4,7 @@ import importlib.util
 import json
 import sqlite3
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -190,3 +191,101 @@ def test_public_directory_cannot_be_selected_as_restricted_root(
     assert review_calls == []
     assert tuple(public.rglob("*")) == ()
     assert tuple(canonical_restricted.rglob("*")) == ()
+
+
+def test_successful_run_publishes_results_gate_before_adapter_close(
+    tmp_path: Path,
+    capsys,
+    monkeypatch,
+) -> None:
+    module = _script_module()
+    repository, restricted = _test_repository(tmp_path)
+    manifest = SimpleNamespace(
+        content_hash="a" * 64,
+        units=(),
+    )
+    reviewed_plan = SimpleNamespace(call_manifest=manifest)
+    configuration = SimpleNamespace(production_adapter_factory="example:create")
+    runtime_binding = SimpleNamespace(development_predecessor_ledger="binding")
+    execution = SimpleNamespace(content_hash="b" * 64, itt_records=(1, 2, 3))
+    bridge = SimpleNamespace(content_hash="c" * 64)
+    gate = SimpleNamespace(content_hash="d" * 64)
+    events: list[str] = []
+
+    class Bundle:
+        cpu = object()
+        sessions = object()
+        runtime = object()
+
+        @staticmethod
+        def close() -> None:
+            events.append("close")
+
+    monkeypatch.setattr(
+        module,
+        "open_reviewed_held_out_plan",
+        lambda **_kwargs: reviewed_plan,
+    )
+    monkeypatch.setattr(
+        module,
+        "load_runtime_bound_held_out_configuration",
+        lambda **_kwargs: (configuration, runtime_binding),
+    )
+    monkeypatch.setattr(module, "_adapter_bundle", lambda *_args, **_kwargs: Bundle())
+
+    def execute(**_kwargs):
+        events.append("execute")
+        return execution
+
+    def close_results(**kwargs):
+        assert kwargs["execution"] is execution
+        assert kwargs["runtime"] is Bundle.runtime
+        assert kwargs["results_root"] == repository / "artifacts/restricted/held_out"
+        events.append("results_gate")
+        return bridge, gate
+
+    monkeypatch.setattr(module, "execute_reviewed_held_out_manifest", execute)
+    monkeypatch.setattr(module, "close_held_out_primary_results", close_results)
+    arguments = [
+        "--repository",
+        str(repository),
+        "--review-completion-root",
+        "review",
+        "--run",
+        "--adapter-factory",
+        "example:create",
+        "--snapshot",
+        "snapshot",
+        "--shared-cache",
+        "cache",
+        "--verified-model-manifest",
+        "model.json",
+        "--selected-model-freeze",
+        "freeze.json",
+        "--source-association",
+        "association.json",
+        "--development-prequery-inputs-artifact-hash",
+        "e" * 64,
+        "--ledger",
+        "ledger.sqlite3",
+        "--artifact-root",
+        "artifacts/restricted/cas",
+        "--runtime-root",
+        "artifacts/restricted/runtime",
+        "--restricted-root",
+        str(restricted),
+        "--quota-root",
+        "artifacts/restricted",
+    ]
+
+    assert module.main(arguments) == 0
+    assert events == ["execute", "results_gate", "close"]
+    public = json.loads(capsys.readouterr().out)
+    assert public == {
+        "allocated_gpu_seconds": "read_from_global_ledger",
+        "execution_manifest_hash": execution.content_hash,
+        "itt_call_count": 3,
+        "primary_results_gate_hash": gate.content_hash,
+        "scorer_bridge_hash": bridge.content_hash,
+        "state": "complete",
+    }

@@ -25,6 +25,7 @@ from story_projection_onto.contracts import (
     OntologyDraft,
     OntologyProjection,
     RoleBinding,
+    SemanticAssessmentScope,
     TemporalDeterminationStatus,
     ValidationRecord,
     ValidationStatus,
@@ -32,6 +33,7 @@ from story_projection_onto.contracts import (
 )
 from story_projection_onto.metrics.adapters import (
     adapt_projection_for_metrics,
+    projection_is_content_bearing,
     verify_projection_decisions,
 )
 from story_projection_onto.metrics.alignment import (
@@ -66,6 +68,7 @@ from story_projection_onto.metrics.pipeline import (
     analysis_observations_from_scores,
     materialize_intention_to_treat_scores,
     score_failed_output,
+    score_intended_projection,
     score_projection,
 )
 
@@ -88,6 +91,7 @@ def fixture_projection(*, accepted: bool = True) -> OntologyProjection:
         evidence_support_status=EvidenceSupportStatus.SUPPORTED,
         temporal_status=TemporalDeterminationStatus.VALID,
         commitment_status=CommitmentCheckStatus.VALID,
+        semantic_assessment_scope=SemanticAssessmentScope.POSTHOC_SCORER_OR_REVIEWER,
         validated_at=NOW,
     )
     # The adapter deliberately consumes only the condition-neutral semantic payload
@@ -95,6 +99,10 @@ def fixture_projection(*, accepted: bool = True) -> OntologyProjection:
     return OntologyProjection.model_construct(
         projection_id="projection-fixture",
         content_hash=HASH,
+        condition=ConditionName.C2_LLM_QUERY,
+        snapshot_hash="d" * 64,
+        packet_hash="e" * 64,
+        context_hash="f" * 64,
         local_schema=draft.local_schema,
         instance_graph=draft.instance_graph,
         decisions=draft.decisions,
@@ -534,6 +542,65 @@ def test_mathematically_undefined_entropy_rows_are_not_marked_not_applicable() -
     assert rows["assertion_edge_count"].value == 0
 
 
+def test_node_empty_projection_is_failed_itt_output_with_no_geometry_metrics() -> None:
+    projection = fixture_projection()
+    empty_graph = projection.instance_graph.model_copy(
+        update={
+            "entities": (),
+            "events": (),
+            "proposition_contents": (),
+            "assertions": (),
+        }
+    )
+    empty_projection = projection.model_copy(
+        update={"instance_graph": empty_graph, "decisions": ()}
+    )
+    scorer_plan = ScorerMetricPlan(
+        plan_id="empty-output-scorer-plan",
+        source_gold_hash="b" * 64,
+        alignment_plan=empty_alignment_plan(),
+        gold_decisions=(),
+        rare_annotations=(),
+        valid_evidence_ids=(),
+        valid_evidence_manifest_hash=canonical_sha256(()),
+    )
+    intended = IntendedMetricUnit(
+        unit_id="empty-output-intended",
+        job_id="empty-output-job",
+        condition=ConditionName.C2_LLM_QUERY,
+        world_id="world-empty",
+        context_id="context-empty",
+        seed_block=1,
+        snapshot_hash="d" * 64,
+        packet_hash="e" * 64,
+        context_hash="f" * 64,
+        scorer_plan_hash=scorer_plan.content_hash,
+        relevant_node_gold_count=0,
+        strict_assertion_gold_count=0,
+        ontology_decision_gold_count=0,
+        rare_pivotal_gold_count=0,
+    )
+
+    assert not projection_is_content_bearing(empty_projection)
+    score = score_intended_projection(
+        intended,
+        empty_projection,
+        context=None,  # type: ignore[arg-type] -- must return before semantic inputs
+        evidence_packet=None,  # type: ignore[arg-type]
+        configuration=metric_configuration(),
+        scorer_plan=scorer_plan,
+        grounding_audit=None,  # type: ignore[arg-type]
+        geometry=None,
+    )
+
+    assert score.output_valid is False
+    assert score.failure_kind is OutputFailureKind.VALIDATION_INVALID
+    assert score.failure_artifact_hash == HASH
+    density = next(item for item in score.rows if item.metric_name == "density")
+    assert density.status is PipelineMetricStatus.INVALID
+    assert density.value is None
+
+
 def test_contrast_invariants_and_collapse_summary_expose_denominators() -> None:
     adapter = adapt_projection_for_metrics(fixture_projection(), metric_configuration())
     assertion = adapter.assertion_semantics[0]
@@ -689,6 +756,8 @@ def test_failed_output_is_materialized_from_frozen_intended_manifest() -> None:
         projection_id=stale_projection_id,
         projection_bundle_hash="1" * 64,
         failure_kind=None,
+        failure_artifact_hash=None,
+        allocated_gpu_seconds=0.0,
         rows=stale_rows,
     )
     with pytest.raises(ValueError, match="active metric formula/configuration version"):

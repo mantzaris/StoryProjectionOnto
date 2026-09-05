@@ -60,7 +60,12 @@ def test_checked_in_ingestion_replays_all_families_and_table_slots() -> None:
     assert len(receipt.tables) == 14
     assert sum(item.status is ReportStatus.COMPLETE for item in receipt.tables) == 3
     assert sum(item.status is not ReportStatus.COMPLETE for item in receipt.tables) == 11
-    assert len(receipt.gpu_service_time_artifact_ids) == 2
+    assert receipt.gpu_service_time_artifact_ids == (
+        "primary-pilot-v1-failure",
+        "primary-pilot-v2-failure",
+        "fallback-pilot-v1-failure",
+        "fallback-pilot-v3-failure",
+    )
     assert receipt.runpod_wall_time_artifact_ids == ()
 
 

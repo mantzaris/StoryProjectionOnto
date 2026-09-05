@@ -19,12 +19,14 @@ import decimal
 import enum
 import gzip
 import hashlib
+import io
 import json
 import math
 import os
 import re
 import shutil
 import sqlite3
+import stat
 import threading
 import uuid
 from collections.abc import Iterable, Iterator, Mapping, Sequence
@@ -32,7 +34,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, ClassVar
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 8
 DECIMAL_GIGABYTE = 1_000_000_000
 DEFAULT_TOTAL_ALLOCATION_BYTES = 30 * DECIMAL_GIGABYTE
 DEFAULT_MAX_OCCUPIED_BYTES = 25 * DECIMAL_GIGABYTE
@@ -108,7 +110,13 @@ class JobState(enum.StrEnum):
 
 ALLOWED_JOB_TRANSITIONS: Mapping[JobState, frozenset[JobState]] = {
     JobState.PLANNED: frozenset({JobState.PREQUERY_SEALED}),
-    JobState.PREQUERY_SEALED: frozenset({JobState.QUERY_REVEALED}),
+    # Query-blind C0/C1 preconstruction has no query-access event.  Those jobs
+    # take the typed PREQUERY_SEALED -> GENERATED branch; every query-time job
+    # must still pass through QUERY_REVEALED.  ``transition_job`` verifies the
+    # immutable job identity before permitting the branch.
+    JobState.PREQUERY_SEALED: frozenset(
+        {JobState.QUERY_REVEALED, JobState.GENERATED}
+    ),
     JobState.QUERY_REVEALED: frozenset({JobState.GENERATED}),
     JobState.GENERATED: frozenset({JobState.REPAIRED, JobState.VALIDATED}),
     JobState.REPAIRED: frozenset({JobState.VALIDATED}),
@@ -117,6 +125,123 @@ ALLOWED_JOB_TRANSITIONS: Mapping[JobState, frozenset[JobState]] = {
     JobState.SCORED: frozenset({JobState.RENDERED}),
     JobState.RENDERED: frozenset(),
 }
+
+
+# One already-durable fallback C1 attempt predates typed lifecycle identities. Its
+# second-recovery retry must remain in the same job so the RETRY parent stays a
+# real same-job lineage edge; rewriting the historical job identity or inventing
+# a query reveal would be scientifically false. This frozen record is the only
+# legacy job allowed to take the query-blind PREQUERY_SEALED -> GENERATED branch.
+_LEGACY_FALLBACK_C1_RETRY_JOB_IDENTITY: Mapping[str, str] = {
+    "run_id": "fallback-qwen3-8b-awq-development-v3",
+    "call_id": "fallback-c1-01",
+    "plan_hash": "24bd99189fdf5157d6de1c3c13edaa0a86749c97b1b4957b220e7a62de9aa200",
+}
+_LEGACY_FALLBACK_C1_RETRY_JOB_ID = (
+    "f5646ba427f98e76afc07fabcb6c53f65d73d255856493ac94bf9d0c642f444f"
+)
+_LEGACY_FALLBACK_C1_PARENT_ATTEMPT_ID = (
+    "fallback-qwen3-8b-awq-development-v3-fallback-c1-01-attempt"
+)
+_LEGACY_FALLBACK_C1_PARENT_MODEL_CALL_ID = (
+    "fallback-qwen3-8b-awq-development-v3-fallback-c1-01"
+)
+_LEGACY_FALLBACK_C1_PARENT_GPU_EVENT_ID = (
+    "fallback-qwen3-8b-awq-development-v3-fallback-c1-01-gpu"
+)
+_LEGACY_FALLBACK_C1_REQUEST_HASH = (
+    "1cc73c5525e096a4df830892f37cdc8062899363a0b75835bb2f04b3a14a0d44"
+)
+_LEGACY_FALLBACK_C1_CONSTRUCTION_UNIT_HASH = (
+    "c91e2eeb87d9f9c05713396b3403ddab702573da73c14893eb7ed0c7158e6317"
+)
+_LEGACY_FALLBACK_C1_ALLOCATED_MICROSECONDS = 852_878
+
+
+def frozen_legacy_fallback_c1_retry_prebuild_matches(
+    connection: sqlite3.Connection,
+    *,
+    job_id: str,
+    identity: Mapping[str, Any],
+) -> bool:
+    """Authenticate the sole pre-typed query-blind recovery job.
+
+    This is intentionally not a general legacy escape hatch. Both the writable
+    transition path and the independent read-only verifier call this predicate,
+    which binds the exact immutable v3 job, failed attempt, model call, metered
+    event, and failure row before accepting a direct query-blind generation edge.
+    """
+
+    if (
+        job_id != _LEGACY_FALLBACK_C1_RETRY_JOB_ID
+        or dict(identity) != dict(_LEGACY_FALLBACK_C1_RETRY_JOB_IDENTITY)
+    ):
+        return False
+    attempt = connection.execute(
+        "SELECT * FROM attempts WHERE attempt_id = ?",
+        (_LEGACY_FALLBACK_C1_PARENT_ATTEMPT_ID,),
+    ).fetchone()
+    model_call = connection.execute(
+        "SELECT * FROM model_calls WHERE model_call_id = ?",
+        (_LEGACY_FALLBACK_C1_PARENT_MODEL_CALL_ID,),
+    ).fetchone()
+    event = connection.execute(
+        "SELECT * FROM gpu_events WHERE event_id = ?",
+        (_LEGACY_FALLBACK_C1_PARENT_GPU_EVENT_ID,),
+    ).fetchone()
+    failures = connection.execute(
+        """SELECT * FROM failures WHERE attempt_id = ?
+           ORDER BY failure_id""",
+        (_LEGACY_FALLBACK_C1_PARENT_ATTEMPT_ID,),
+    ).fetchall()
+    if attempt is None or model_call is None or event is None or len(failures) != 1:
+        return False
+    failure = failures[0]
+    try:
+        failure_details = json.loads(failure["details_json"])
+        event_details = json.loads(event["details_json"])
+    except (TypeError, json.JSONDecodeError):
+        return False
+    return bool(
+        attempt["job_id"] == job_id
+        and attempt["attempt_kind"] == AttemptKind.BASE.value
+        and attempt["parent_attempt_id"] is None
+        and attempt["input_hash"] == _LEGACY_FALLBACK_C1_REQUEST_HASH
+        and attempt["config_hash"] == model_call["decoding_manifest_hash"]
+        and attempt["seed"] == 0
+        and model_call["job_id"] == job_id
+        and model_call["attempt_id"] == _LEGACY_FALLBACK_C1_PARENT_ATTEMPT_ID
+        and model_call["gpu_event_id"] == _LEGACY_FALLBACK_C1_PARENT_GPU_EVENT_ID
+        and model_call["backend"] == ModelBackend.VLLM_GPU.value
+        and model_call["call_role"] == ModelCallRole.PILOT.value
+        and model_call["retry_class"] == RetryClass.LONG.value
+        and model_call["request_hash"] == _LEGACY_FALLBACK_C1_REQUEST_HASH
+        and model_call["response_artifact_hash"] is None
+        and model_call["construction_unit_hash"]
+        == _LEGACY_FALLBACK_C1_CONSTRUCTION_UNIT_HASH
+        and model_call["prompt_tokens"] == 0
+        and model_call["completion_tokens"] == 0
+        and model_call["allocated_gpu_microseconds"]
+        == _LEGACY_FALLBACK_C1_ALLOCATED_MICROSECONDS
+        and model_call["successful"] == 0
+        and event["job_id"] == job_id
+        and event["attempt_id"] == _LEGACY_FALLBACK_C1_PARENT_ATTEMPT_ID
+        and event["event_kind"] == GpuEventKind.FAILURE.value
+        and event["allocated_microseconds"]
+        == _LEGACY_FALLBACK_C1_ALLOCATED_MICROSECONDS
+        and event["succeeded"] == 0
+        and event_details.get("reserve_call_class") == "reserve_long"
+        and event_details.get("reserve_reservation_id")
+        == "fallback-qwen3-8b-awq-development-v3:fallback-c1-01"
+        and failure["failure_kind"] == FailureKind.SERVICE.value
+        and failure["message"] == "Fallback micro-pilot model call failed"
+        and failure["artifact_hash"] is None
+        and failure_details
+        == {
+            "call_id": "fallback-c1-01",
+            "exception_type": "RuntimeTransportError",
+        }
+    )
 
 
 class AttemptKind(enum.StrEnum):
@@ -239,6 +364,14 @@ class CommitmentCheckStatus(enum.StrEnum):
     VALID = "valid"
     INVALID = "invalid"
     NOT_APPLICABLE = "not_applicable"
+
+
+class SemanticAssessmentScope(enum.StrEnum):
+    """Whether semantic correctness was actually assessed for a validation row."""
+
+    RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED = "runtime_structural_only_not_assessed"
+    POSTHOC_SCORER_OR_REVIEWER = "posthoc_scorer_or_reviewer"
+    LEGACY_UNSPECIFIED = "legacy_unspecified"
 
 
 class FeedbackKind(enum.StrEnum):
@@ -533,6 +666,7 @@ class ValidationRecord:
     evidence_support_status: EvidenceSupportStatus
     temporal_status: TemporalValidationStatus
     commitment_status: CommitmentCheckStatus
+    semantic_assessment_scope: SemanticAssessmentScope
     diagnostics_artifact_hash: str | None
     parent_validation_id: str | None
     repair_attempt_id: str | None
@@ -551,6 +685,7 @@ class ProjectionRecord:
     upper_ontology_hash: str
     construction_certificate_hash: str
     projection_artifact_hash: str
+    projection_semantic_hash: str | None
     parent_projection_id: str | None
     release_class: ReleaseClass
     finalized_at: str
@@ -580,6 +715,7 @@ class FeedbackRecord:
 class MetricRecord:
     metric_id: str
     study_id: str
+    job_id: str | None
     projection_id: str | None
     unit_hash: str
     metric_name: str
@@ -1042,6 +1178,9 @@ class Ledger:
             f"'{kind.value}'" for kind in TemporalValidationStatus
         )
         commitment_values = ",".join(f"'{kind.value}'" for kind in CommitmentCheckStatus)
+        assessment_scope_values = ",".join(
+            f"'{kind.value}'" for kind in SemanticAssessmentScope
+        )
         feedback_kind_values = ",".join(f"'{kind.value}'" for kind in FeedbackKind)
         feedback_action_values = ",".join(f"'{kind.value}'" for kind in FeedbackAction)
         feedback_status_values = ",".join(f"'{kind.value}'" for kind in FeedbackResolutionStatus)
@@ -1312,6 +1451,8 @@ class Ledger:
                 CHECK (temporal_status IN ({temporal_validation_values})),
             commitment_status TEXT NOT NULL
                 CHECK (commitment_status IN ({commitment_values})),
+            semantic_assessment_scope TEXT NOT NULL
+                CHECK (semantic_assessment_scope IN ({assessment_scope_values})),
             diagnostics_artifact_hash TEXT REFERENCES artifacts(content_hash),
             parent_validation_id TEXT REFERENCES validations(validation_id),
             repair_attempt_id TEXT REFERENCES attempts(attempt_id),
@@ -1328,6 +1469,7 @@ class Ledger:
             upper_ontology_hash TEXT NOT NULL,
             construction_certificate_hash TEXT NOT NULL,
             projection_artifact_hash TEXT NOT NULL REFERENCES artifacts(content_hash),
+            projection_semantic_hash TEXT NOT NULL,
             parent_projection_id TEXT REFERENCES projections(projection_id),
             release_class TEXT NOT NULL CHECK (release_class IN ({release_values})),
             finalized_at TEXT NOT NULL
@@ -1362,6 +1504,7 @@ class Ledger:
         CREATE TABLE IF NOT EXISTS metrics (
             metric_id TEXT PRIMARY KEY,
             study_id TEXT NOT NULL REFERENCES studies(study_id),
+            job_id TEXT NOT NULL REFERENCES jobs(job_id),
             projection_id TEXT REFERENCES projections(projection_id),
             unit_hash TEXT NOT NULL,
             metric_name TEXT NOT NULL,
@@ -1439,9 +1582,45 @@ class Ledger:
             """
             for table in self._APPEND_ONLY_TABLES
         )
+        existing_validation_columns = {
+            str(row["name"])
+            for row in self._connection.execute("PRAGMA table_info(validations)").fetchall()
+        }
+        validation_scope_migration = (
+            ""
+            if not existing_validation_columns
+            or "semantic_assessment_scope" in existing_validation_columns
+            else (
+                "ALTER TABLE validations ADD COLUMN semantic_assessment_scope TEXT "
+                "NOT NULL DEFAULT 'legacy_unspecified' CHECK (semantic_assessment_scope IN "
+                f"({assessment_scope_values}));"
+            )
+        )
+        existing_projection_columns = {
+            str(row["name"])
+            for row in self._connection.execute("PRAGMA table_info(projections)").fetchall()
+        }
+        projection_semantic_migration = (
+            ""
+            if not existing_projection_columns
+            or "projection_semantic_hash" in existing_projection_columns
+            else "ALTER TABLE projections ADD COLUMN projection_semantic_hash TEXT;"
+        )
+        existing_metric_columns = {
+            str(row["name"])
+            for row in self._connection.execute("PRAGMA table_info(metrics)").fetchall()
+        }
+        metric_job_migration = (
+            ""
+            if not existing_metric_columns or "job_id" in existing_metric_columns
+            else "ALTER TABLE metrics ADD COLUMN job_id TEXT REFERENCES jobs(job_id);"
+        )
         migration = f"""
         BEGIN IMMEDIATE;
         {schema}
+        {validation_scope_migration}
+        {projection_semantic_migration}
+        {metric_job_migration}
         {lineage_triggers}
         {append_only_triggers}
         INSERT OR IGNORE INTO schema_metadata(schema_version, created_at)
@@ -1644,6 +1823,46 @@ class Ledger:
             created_at=row["created_at"],
         )
 
+    def get_study_job(self, *, study_id: str, job_id: str) -> StudyJobRecord:
+        """Resolve one exact study/job link without creating missing metadata."""
+
+        self.get_study(study_id)
+        self.get_job(job_id)
+        link_id = sha256_bytes(
+            canonical_json({"study_id": study_id, "job_id": job_id}).encode("utf-8")
+        )
+        row = self._connection.execute(
+            "SELECT * FROM study_jobs WHERE link_id = ?", (link_id,)
+        ).fetchone()
+        if row is None or row["study_id"] != study_id or row["job_id"] != job_id:
+            raise ArtifactIntegrityError("job is not linked to the required study")
+        return StudyJobRecord(
+            link_id=row["link_id"],
+            study_id=row["study_id"],
+            job_id=row["job_id"],
+            created_at=row["created_at"],
+        )
+
+    def study_job_for_job(self, job_id: str) -> StudyJobRecord:
+        """Resolve the one immutable owning study for a generation job."""
+
+        self.get_job(job_id)
+        rows = self._connection.execute(
+            "SELECT * FROM study_jobs WHERE job_id = ? ORDER BY study_id",
+            (job_id,),
+        ).fetchall()
+        if len(rows) != 1:
+            raise ArtifactIntegrityError(
+                "generation job does not resolve to exactly one owning study"
+            )
+        row = rows[0]
+        return StudyJobRecord(
+            link_id=row["link_id"],
+            study_id=row["study_id"],
+            job_id=row["job_id"],
+            created_at=row["created_at"],
+        )
+
     def register_input(
         self,
         *,
@@ -1739,6 +1958,26 @@ class Ledger:
             timestamp_column="created_at",
             timestamp=created_at,
         )
+        return EvidenceSnapshotRecord(
+            snapshot_id=row["snapshot_id"],
+            input_id=row["input_id"],
+            horizon_hash=row["horizon_hash"],
+            evidence_manifest_hash=row["evidence_manifest_hash"],
+            index_configuration_hash=row["index_configuration_hash"],
+            prequery_seal_hash=row["prequery_seal_hash"],
+            eligible_evidence_count=row["eligible_evidence_count"],
+            created_at=row["created_at"],
+        )
+
+    def get_evidence_snapshot(self, snapshot_id: str) -> EvidenceSnapshotRecord:
+        """Resolve one immutable evidence-snapshot metadata row."""
+
+        _metadata_token("snapshot_id", snapshot_id)
+        row = self._connection.execute(
+            "SELECT * FROM evidence_snapshots WHERE snapshot_id = ?", (snapshot_id,)
+        ).fetchone()
+        if row is None:
+            raise KeyError(f"unknown evidence snapshot {snapshot_id}")
         return EvidenceSnapshotRecord(
             snapshot_id=row["snapshot_id"],
             input_id=row["input_id"],
@@ -2232,6 +2471,7 @@ class Ledger:
         evidence_support_status: EvidenceSupportStatus,
         temporal_status: TemporalValidationStatus,
         commitment_status: CommitmentCheckStatus,
+        semantic_assessment_scope: SemanticAssessmentScope,
         diagnostics_artifact_hash: str | None = None,
         parent_validation_id: str | None = None,
         repair_attempt_id: str | None = None,
@@ -2249,6 +2489,32 @@ class Ledger:
         evidence = EvidenceSupportStatus(evidence_support_status)
         temporal = TemporalValidationStatus(temporal_status)
         commitment = CommitmentCheckStatus(commitment_status)
+        assessment_scope = SemanticAssessmentScope(semantic_assessment_scope)
+        semantic_statuses = (evidence, temporal, commitment)
+        unassessed_statuses = (
+            EvidenceSupportStatus.NOT_APPLICABLE,
+            TemporalValidationStatus.NOT_APPLICABLE,
+            CommitmentCheckStatus.NOT_APPLICABLE,
+        )
+        if assessment_scope is SemanticAssessmentScope.LEGACY_UNSPECIFIED:
+            raise ValueError(
+                "legacy_unspecified is migration provenance and cannot be written anew"
+            )
+        if (
+            assessment_scope
+            is SemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED
+            and semantic_statuses != unassessed_statuses
+        ):
+            raise ValueError(
+                "runtime structural-only assessment requires unassessed semantic statuses"
+            )
+        if (
+            assessment_scope is SemanticAssessmentScope.POSTHOC_SCORER_OR_REVIEWER
+            and semantic_statuses == unassessed_statuses
+        ):
+            raise ValueError(
+                "post-hoc assessment requires at least one assessed semantic status"
+            )
         job = self.get_job(job_id)
         for linked_attempt_id in (attempt_id, repair_attempt_id):
             if linked_attempt_id is None:
@@ -2288,6 +2554,7 @@ class Ledger:
                 "evidence_support_status": evidence.value,
                 "temporal_status": temporal.value,
                 "commitment_status": commitment.value,
+                "semantic_assessment_scope": assessment_scope.value,
                 "diagnostics_artifact_hash": diagnostics_artifact_hash,
                 "parent_validation_id": parent_validation_id,
                 "repair_attempt_id": repair_attempt_id,
@@ -2309,6 +2576,9 @@ class Ledger:
             evidence_support_status=EvidenceSupportStatus(row["evidence_support_status"]),
             temporal_status=TemporalValidationStatus(row["temporal_status"]),
             commitment_status=CommitmentCheckStatus(row["commitment_status"]),
+            semantic_assessment_scope=SemanticAssessmentScope(
+                row["semantic_assessment_scope"]
+            ),
             diagnostics_artifact_hash=row["diagnostics_artifact_hash"],
             parent_validation_id=row["parent_validation_id"],
             repair_attempt_id=row["repair_attempt_id"],
@@ -2336,6 +2606,7 @@ class Ledger:
         upper_ontology_hash: str,
         construction_certificate_hash: str,
         projection_artifact_hash: str,
+        projection_semantic_hash: str,
         parent_projection_id: str | None = None,
         release_class: ReleaseClass,
         finalized_at: Any | None = None,
@@ -2347,12 +2618,26 @@ class Ledger:
             ("upper_ontology_hash", upper_ontology_hash),
             ("construction_certificate_hash", construction_certificate_hash),
             ("projection_artifact_hash", projection_artifact_hash),
+            ("projection_semantic_hash", projection_semantic_hash),
         ):
             _normalise_hash(name, value)
         job = self.get_job(job_id)
         validation = self.get_validation(validation_id)
         if validation.job_id != job_id:
             raise ValueError("projection validation cannot cross jobs")
+        if (
+            validation.validation_status is not ValidationStatus.ACCEPTED
+            or validation.semantic_assessment_scope
+            is not SemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED
+            or validation.evidence_support_status
+            is not EvidenceSupportStatus.NOT_APPLICABLE
+            or validation.temporal_status is not TemporalValidationStatus.NOT_APPLICABLE
+            or validation.commitment_status
+            is not CommitmentCheckStatus.NOT_APPLICABLE
+        ):
+            raise ValueError(
+                "projection requires an accepted runtime structural-only validation"
+            )
         snapshot = self._connection.execute(
             """SELECT evidence_snapshots.snapshot_id, inputs.study_id
                FROM evidence_snapshots JOIN inputs USING (input_id)
@@ -2400,6 +2685,7 @@ class Ledger:
                 "upper_ontology_hash": upper_ontology_hash,
                 "construction_certificate_hash": construction_certificate_hash,
                 "projection_artifact_hash": projection_artifact_hash,
+                "projection_semantic_hash": projection_semantic_hash,
                 "parent_projection_id": parent_projection_id,
                 "release_class": release.value,
             },
@@ -2421,6 +2707,7 @@ class Ledger:
             upper_ontology_hash=row["upper_ontology_hash"],
             construction_certificate_hash=row["construction_certificate_hash"],
             projection_artifact_hash=row["projection_artifact_hash"],
+            projection_semantic_hash=row["projection_semantic_hash"],
             parent_projection_id=row["parent_projection_id"],
             release_class=ReleaseClass(row["release_class"]),
             finalized_at=row["finalized_at"],
@@ -2433,6 +2720,132 @@ class Ledger:
         if row is None:
             raise KeyError(f"unknown projection {projection_id}")
         return self._projection_from_row(row)
+
+    def projections_for_job(self, job_id: str) -> tuple[ProjectionRecord, ...]:
+        """Return the immutable projection rows owned by one exact job.
+
+        This deliberately requires a ledger job identifier rather than accepting
+        descriptive condition/unit fields.  Downstream scoring may therefore
+        resolve only identities already bound by generation artifacts.
+        """
+
+        self.get_job(job_id)
+        rows = self._connection.execute(
+            "SELECT * FROM projections WHERE job_id = ? ORDER BY projection_id",
+            (job_id,),
+        ).fetchall()
+        return tuple(self._projection_from_row(row) for row in rows)
+
+    def resolve_projection_artifact(
+        self,
+        *,
+        study_id: str,
+        projection_artifact_hash: str,
+        condition_id: str,
+        context_hash: str,
+    ) -> ProjectionRecord:
+        """Resolve one hash-bound study projection, failing closed on ambiguity."""
+
+        self.get_study(study_id)
+        _normalise_hash("projection_artifact_hash", projection_artifact_hash)
+        _metadata_token("condition_id", condition_id)
+        _normalise_hash("context_hash", context_hash)
+        rows = self._connection.execute(
+            """SELECT p.* FROM projections p
+               JOIN study_jobs sj ON sj.job_id = p.job_id
+               WHERE sj.study_id = ?
+                 AND p.projection_artifact_hash = ?
+                 AND p.condition_id = ?
+                 AND p.context_hash = ?
+               ORDER BY p.projection_id""",
+            (study_id, projection_artifact_hash, condition_id, context_hash),
+        ).fetchall()
+        if len(rows) != 1:
+            raise ArtifactIntegrityError(
+                "projection artifact did not resolve to exactly one study ledger row"
+            )
+        return self._projection_from_row(rows[0])
+
+    def resolve_projection_artifact_owner(
+        self,
+        *,
+        projection_artifact_hash: str,
+        projection_semantic_hash: str,
+        condition_id: str,
+        context_hash: str,
+    ) -> tuple[StudyRecord, ProjectionRecord]:
+        """Resolve one exact projection and its unique owning study globally.
+
+        Feedback consumes held-out projections from a later combined-study job,
+        so its input manifest cannot truthfully assume the receiving study owns
+        the source.  All four immutable semantic bindings are required and an
+        ambiguous/missing study ownership fails closed.
+        """
+
+        for name, value in (
+            ("projection_artifact_hash", projection_artifact_hash),
+            ("projection_semantic_hash", projection_semantic_hash),
+            ("context_hash", context_hash),
+        ):
+            _normalise_hash(name, value)
+        _metadata_token("condition_id", condition_id)
+        rows = self._connection.execute(
+            """SELECT sj.study_id, p.* FROM projections p
+               JOIN study_jobs sj ON sj.job_id = p.job_id
+               WHERE p.projection_artifact_hash = ?
+                 AND p.projection_semantic_hash = ?
+                 AND p.condition_id = ?
+                 AND p.context_hash = ?
+               ORDER BY sj.study_id, p.projection_id""",
+            (
+                projection_artifact_hash,
+                projection_semantic_hash,
+                condition_id,
+                context_hash,
+            ),
+        ).fetchall()
+        if len(rows) != 1:
+            raise ArtifactIntegrityError(
+                "projection did not resolve to exactly one immutable study owner"
+            )
+        row = rows[0]
+        return self.get_study(row["study_id"]), self._projection_from_row(row)
+
+    def resolve_failure_job(
+        self,
+        *,
+        study_id: str,
+        failure_artifact_hash: str,
+    ) -> JobRecord:
+        """Resolve one failed attempt by its immutable ledger failure artifact."""
+
+        self.get_study(study_id)
+        _normalise_hash("failure_artifact_hash", failure_artifact_hash)
+        rows = self._connection.execute(
+            """SELECT DISTINCT j.*,
+                      (SELECT to_state FROM job_transitions t
+                       WHERE t.job_id = j.job_id ORDER BY sequence DESC LIMIT 1) AS state
+               FROM failures f
+               JOIN attempts a ON a.attempt_id = f.attempt_id
+               JOIN jobs j ON j.job_id = a.job_id
+               JOIN study_jobs sj ON sj.job_id = j.job_id
+               WHERE sj.study_id = ? AND f.artifact_hash = ?
+               ORDER BY j.job_id""",
+            (study_id, failure_artifact_hash),
+        ).fetchall()
+        if len(rows) != 1:
+            raise ArtifactIntegrityError(
+                "failure artifact did not resolve to exactly one study ledger job"
+            )
+        row = rows[0]
+        return JobRecord(
+            job_id=row["job_id"],
+            identity_hash=row["identity_hash"],
+            identity_json=row["identity_json"],
+            release_class=ReleaseClass(row["release_class"]),
+            state=JobState(row["state"]),
+            created_at=row["created_at"],
+        )
 
     def record_feedback(
         self,
@@ -2486,18 +2899,41 @@ class Ledger:
                 job_id is None
                 or receiving_condition is None
                 or before_projection_id is None
+                or resolution_artifact_hash is None
                 or status is FeedbackResolutionStatus.PENDING
             ):
-                raise ValueError("a condition resolution requires its own job/projection/status")
+                raise ValueError(
+                    "a condition resolution requires its own job/projection/status/artifact"
+                )
+            if (
+                status is FeedbackResolutionStatus.APPLIED
+                and after_projection_id is None
+            ):
+                raise ValueError("applied feedback requires its after projection")
             _metadata_token("receiving_condition", receiving_condition)
-            self.get_job(job_id)
+            receiving_job = self.get_job(job_id)
             before = self.get_projection(before_projection_id)
-            if before.job_id != job_id:
-                raise ValueError("feedback projection cannot cross jobs")
+            if before.condition_id != receiving_condition:
+                raise ValueError("feedback source condition differs from receiving condition")
+            if before.context_hash != before_context_hash:
+                raise ValueError("feedback source projection context changed")
+            # A feedback job receives a revision to a projection constructed by
+            # an earlier source job.  The source projection may come from the
+            # held-out study while the receiving feedback job belongs to the
+            # combined block.  Require the source to have one unambiguous study
+            # owner, but never rewrite/link it into the receiving study.
+            self.study_job_for_job(before.job_id)
             if after_projection_id is not None:
                 after = self.get_projection(after_projection_id)
                 if after.job_id != job_id:
-                    raise ValueError("feedback projection cannot cross jobs")
+                    raise ValueError(
+                        "feedback result projection must belong to its receiving job"
+                    )
+                if (
+                    after.condition_id != receiving_condition
+                    or after.context_hash != after_context_hash
+                ):
+                    raise ValueError("feedback result condition/context changed")
             if (
                 self._connection.execute(
                     "SELECT 1 FROM study_jobs WHERE study_id = ? AND job_id = ?",
@@ -2506,6 +2942,12 @@ class Ledger:
                 is None
             ):
                 raise ValueError("feedback job must be linked to its study")
+            if receiving_job.state not in {
+                JobState.FINALIZED,
+                JobState.SCORED,
+                JobState.RENDERED,
+            }:
+                raise ValueError("feedback receiving job must be finalized")
         if resolution_artifact_hash is not None:
             _normalise_hash("resolution_artifact_hash", resolution_artifact_hash)
             self.get_artifact(resolution_artifact_hash)
@@ -2562,6 +3004,7 @@ class Ledger:
         *,
         metric_id: str,
         study_id: str,
+        job_id: str,
         projection_id: str | None,
         unit_hash: str,
         metric_name: str,
@@ -2588,15 +3031,23 @@ class Ledger:
             raise ValueError("an unavailable metric cannot carry a numeric value")
         if numeric_denominator is not None and numeric_denominator < 0:
             raise ValueError("metric denominator cannot be negative")
+        job = self.get_job(job_id)
+        linked = self._connection.execute(
+            "SELECT 1 FROM study_jobs WHERE study_id = ? AND job_id = ?",
+            (study_id, job_id),
+        ).fetchone()
+        if linked is None:
+            raise ValueError("metric job must belong to its study")
+        if job.state not in {
+            JobState.FINALIZED,
+            JobState.SCORED,
+            JobState.RENDERED,
+        }:
+            raise ValueError("metric job must be finalized before scoring")
         if projection_id is not None:
             projection = self.get_projection(projection_id)
-            linked = self._connection.execute(
-                """SELECT 1 FROM study_jobs
-                   WHERE study_id = ? AND job_id = ?""",
-                (study_id, projection.job_id),
-            ).fetchone()
-            if linked is None:
-                raise ValueError("metric projection must belong to its study")
+            if projection.job_id != job_id:
+                raise ValueError("metric projection must belong to its exact job")
         if result_artifact_hash is not None:
             _normalise_hash("result_artifact_hash", result_artifact_hash)
             self.get_artifact(result_artifact_hash)
@@ -2608,6 +3059,7 @@ class Ledger:
             stable_fields={
                 "metric_id": metric_id,
                 "study_id": study_id,
+                "job_id": job_id,
                 "projection_id": projection_id,
                 "unit_hash": unit_hash,
                 "metric_name": metric_name,
@@ -2624,6 +3076,7 @@ class Ledger:
         return MetricRecord(
             metric_id=row["metric_id"],
             study_id=row["study_id"],
+            job_id=row["job_id"],
             projection_id=row["projection_id"],
             unit_hash=row["unit_hash"],
             metric_name=row["metric_name"],
@@ -2634,6 +3087,34 @@ class Ledger:
             denominator=row["denominator"],
             result_artifact_hash=row["result_artifact_hash"],
             created_at=row["created_at"],
+        )
+
+    def metrics_for_job(self, *, study_id: str, job_id: str) -> tuple[MetricRecord, ...]:
+        """Return the exact durable metric inventory for one study generation job."""
+
+        self.get_study_job(study_id=study_id, job_id=job_id)
+        rows = self._connection.execute(
+            """SELECT * FROM metrics
+               WHERE study_id = ? AND job_id = ? ORDER BY metric_id""",
+            (study_id, job_id),
+        ).fetchall()
+        return tuple(
+            MetricRecord(
+                metric_id=row["metric_id"],
+                study_id=row["study_id"],
+                job_id=row["job_id"],
+                projection_id=row["projection_id"],
+                unit_hash=row["unit_hash"],
+                metric_name=row["metric_name"],
+                metric_version_hash=row["metric_version_hash"],
+                status=MetricStatus(row["status"]),
+                value=row["value"],
+                numerator=row["numerator"],
+                denominator=row["denominator"],
+                result_artifact_hash=row["result_artifact_hash"],
+                created_at=row["created_at"],
+            )
+            for row in rows
         )
 
     def record_visualization(
@@ -2658,6 +3139,13 @@ class Ledger:
         if isinstance(layout_seed, bool) or not isinstance(layout_seed, int):
             raise ValueError("layout_seed must be an integer")
         projection = self.get_projection(projection_id)
+        if (
+            projection.projection_semantic_hash is None
+            or semantic_hash != projection.projection_semantic_hash
+        ):
+            raise ValueError(
+                "visualization semantic hash must name its exact projection content"
+            )
         self.get_artifact(visualization_artifact_hash)
         release = ReleaseClass(release_class)
         if projection.release_class is ReleaseClass.PUBLIC and release is ReleaseClass.RESTRICTED:
@@ -2852,8 +3340,77 @@ class Ledger:
             created_at=row["created_at"],
         )
 
+    def is_frozen_legacy_fallback_c1_retry_prebuild(self, job_id: str) -> bool:
+        """Return whether ``job_id`` is the one authenticated pre-typed C1 retry job."""
+
+        job = self.get_job(job_id)
+        try:
+            identity = json.loads(job.identity_json)
+        except (TypeError, json.JSONDecodeError):
+            return False
+        return isinstance(identity, Mapping) and (
+            frozen_legacy_fallback_c1_retry_prebuild_matches(
+                self._connection,
+                job_id=job_id,
+                identity=identity,
+            )
+        )
+
+    def resolve_job_identity(
+        self,
+        identity_components: Mapping[str, Any],
+        *,
+        study_id: str | None = None,
+    ) -> JobRecord:
+        """Resolve an exact canonical identity without creating a missing job."""
+
+        identity_json = canonical_json(identity_components)
+        identity_hash = sha256_bytes(identity_json.encode("utf-8"))
+        try:
+            job = self.get_job(identity_hash)
+        except KeyError as error:
+            raise ArtifactIntegrityError(
+                "canonical job identity is absent from the ledger"
+            ) from error
+        if job.identity_hash != identity_hash or job.identity_json != identity_json:
+            raise ArtifactIntegrityError("canonical job identity metadata changed")
+        if study_id is not None:
+            self.get_study_job(study_id=study_id, job_id=job.job_id)
+        return job
+
+    def resolve_model_call_job(
+        self,
+        *,
+        study_id: str,
+        model_call_ids: Sequence[str],
+    ) -> JobRecord:
+        """Resolve one study job from a nonempty immutable model-call lineage."""
+
+        identifiers = tuple(model_call_ids)
+        if not identifiers or len(identifiers) != len(set(identifiers)):
+            raise ArtifactIntegrityError(
+                "model-call job resolution requires nonempty unique identifiers"
+            )
+        try:
+            calls = tuple(self.get_model_call(identifier) for identifier in identifiers)
+        except KeyError as error:
+            raise ArtifactIntegrityError(
+                "model-call lineage is absent from the ledger"
+            ) from error
+        job_ids = {call.job_id for call in calls}
+        if len(job_ids) != 1:
+            raise ArtifactIntegrityError("model-call lineage crosses ledger jobs")
+        job = self.get_job(job_ids.pop())
+        self.get_study_job(study_id=study_id, job_id=job.job_id)
+        return job
+
     def transition_job(
-        self, job_id: str, to_state: JobState, *, occurred_at: Any | None = None
+        self,
+        job_id: str,
+        to_state: JobState,
+        *,
+        occurred_at: Any | None = None,
+        frozen_legacy_fallback_c1_retry: bool = False,
     ) -> JobTransition:
         target = JobState(to_state)
         explicit_timestamp = _normalise_timestamp(occurred_at) if occurred_at is not None else None
@@ -2870,11 +3427,53 @@ class Ledger:
             if current is target:
                 # A replay cannot rewrite the original transition timestamp.
                 return self._transition_from_row(job_id, row)
+            if current is JobState.PREQUERY_SEALED and target is JobState.GENERATED:
+                identity_row = cursor.execute(
+                    "SELECT identity_json FROM jobs WHERE job_id = ?", (job_id,)
+                ).fetchone()
+                if identity_row is None:
+                    raise KeyError(f"unknown job {job_id}")
+                try:
+                    identity = json.loads(identity_row["identity_json"])
+                except (TypeError, json.JSONDecodeError) as exc:
+                    raise ArtifactIntegrityError("job identity is not canonical JSON") from exc
+                typed_query_blind = isinstance(identity, Mapping) and (
+                    identity.get("lifecycle_kind") == "query_blind_prebuild"
+                    and identity.get("condition") in {"C0", "C1"}
+                )
+                frozen_legacy_query_blind = (
+                    frozen_legacy_fallback_c1_retry
+                    and isinstance(identity, Mapping)
+                    and frozen_legacy_fallback_c1_retry_prebuild_matches(
+                        cursor,
+                        job_id=job_id,
+                        identity=identity,
+                    )
+                )
+                if not typed_query_blind and not frozen_legacy_query_blind:
+                    raise InvalidTransitionError(
+                        "only an explicitly typed C0/C1 query-blind prebuild may "
+                        "transition from prequery_sealed directly to generated"
+                    )
             if target not in ALLOWED_JOB_TRANSITIONS[current]:
                 raise InvalidTransitionError(
                     f"cannot transition job from {current.value} to {target.value}"
                 )
             timestamp = explicit_timestamp or _normalise_timestamp()
+            previous_timestamp = _parse_timestamp(row["occurred_at"])
+            parsed_timestamp = _parse_timestamp(timestamp)
+            if parsed_timestamp < previous_timestamp:
+                raise InvalidTransitionError(
+                    "job lifecycle timestamps must be nondecreasing"
+                )
+            if (
+                current is JobState.PREQUERY_SEALED
+                and target is JobState.QUERY_REVEALED
+                and parsed_timestamp <= previous_timestamp
+            ):
+                raise InvalidTransitionError(
+                    "query reveal must strictly follow the prequery seal"
+                )
             cursor.execute(
                 """INSERT INTO job_transitions
                    (job_id, sequence, from_state, to_state, occurred_at)
@@ -2890,6 +3489,67 @@ class Ledger:
             to_state=target,
             occurred_at=timestamp,
         )
+
+    def advance_job_lifecycle(
+        self,
+        job_id: str,
+        milestones: Sequence[tuple[JobState, Any]],
+        *,
+        frozen_legacy_fallback_c1_retry: bool = False,
+    ) -> tuple[JobTransition, ...]:
+        """Append a frozen lifecycle prefix, or verify its exact replay.
+
+        Runtime recovery frequently revisits a job after a later milestone is
+        already durable.  Calling :meth:`transition_job` for an earlier state
+        would then look like an illegal backwards transition.  This helper
+        compares the complete append-only prefix first and appends only the
+        missing suffix.  A changed repair/non-repair path fails closed.
+
+        ``milestones`` deliberately omits ``PLANNED`` because job creation
+        writes that event atomically.  Supplied timestamps must be monotonic;
+        timestamps for already-durable events are never rewritten.
+        """
+
+        requested = tuple((JobState(state), timestamp) for state, timestamp in milestones)
+        requested_states = (JobState.PLANNED, *(state for state, _ in requested))
+        if len(set(requested_states)) != len(requested_states):
+            raise ValueError("job lifecycle milestones must not repeat a state")
+
+        existing = self.transitions(job_id)
+        existing_states = tuple(item.to_state for item in existing)
+        shared = min(len(existing_states), len(requested_states))
+        if existing_states[:shared] != requested_states[:shared]:
+            raise InvalidTransitionError(
+                "durable job lifecycle differs from the requested replay prefix"
+            )
+        if len(existing_states) >= len(requested_states):
+            return existing
+
+        previous_time = _parse_timestamp(existing[-1].occurred_at)
+        for state, occurred_at in requested[len(existing_states) - 1 :]:
+            timestamp = _normalise_timestamp(occurred_at)
+            parsed = _parse_timestamp(timestamp)
+            if parsed < previous_time or (
+                existing[-1].to_state is JobState.PREQUERY_SEALED
+                and state is JobState.QUERY_REVEALED
+                and parsed <= previous_time
+            ):
+                raise InvalidTransitionError(
+                    "job lifecycle timestamps are not valid for the requested boundary"
+                )
+            self.transition_job(
+                job_id,
+                state,
+                occurred_at=timestamp,
+                frozen_legacy_fallback_c1_retry=(
+                    frozen_legacy_fallback_c1_retry
+                    and existing[-1].to_state is JobState.PREQUERY_SEALED
+                    and state is JobState.GENERATED
+                ),
+            )
+            previous_time = parsed
+            existing = self.transitions(job_id)
+        return self.transitions(job_id)
 
     @staticmethod
     def _transition_from_row(job_id: str, row: sqlite3.Row) -> JobTransition:
@@ -3431,6 +4091,15 @@ class Ledger:
         ).fetchall()
         return tuple(self._gpu_allocation_journal_from_row(row) for row in rows)
 
+    def gpu_allocation_journal_records(self) -> tuple[GpuAllocationJournalRecord, ...]:
+        """Return the complete immutable allocation journal in logical row order."""
+
+        rows = self._connection.execute(
+            """SELECT * FROM gpu_allocation_journal
+               ORDER BY allocation_id, sequence, journal_id"""
+        ).fetchall()
+        return tuple(self._gpu_allocation_journal_from_row(row) for row in rows)
+
     def recover_unclosed_gpu_allocations(self, *, recovered_at: Any) -> tuple[GpuEvent, ...]:
         """Conservatively charge crash-open intervals before any new allocation."""
 
@@ -3739,7 +4408,20 @@ class Ledger:
                         GpuServiceJournalState.RECOVERED,
                     },
                 }
-                if journal_state not in allowed_states[previous_record.state]:
+                contradicted_stop_reverification = (
+                    previous_record.state is GpuServiceJournalState.PROCESS_STOPPED
+                    and journal_state is GpuServiceJournalState.PROCESS_STOPPED
+                    and isinstance(details, Mapping)
+                    and details.get("prior_stop_contradicted_by_exact_live_identity")
+                    is True
+                    and _parse_timestamp(timestamp)
+                    > _parse_timestamp(previous_record.observed_at)
+                    and elapsed > previous_record.elapsed_microseconds
+                )
+                if (
+                    journal_state not in allowed_states[previous_record.state]
+                    and not contradicted_stop_reverification
+                ):
                     raise ValueError(
                         "invalid GPU service journal transition "
                         f"{previous_record.state.value}->{journal_state.value}"
@@ -4231,6 +4913,487 @@ class Ledger:
         return int(row["count"])
 
 
+def _validate_artifact_record_metadata(record: ArtifactRecord) -> None:
+    """Reject malformed ledger metadata before it is used as a filesystem capability."""
+
+    try:
+        digest = _normalise_hash("content_hash", record.content_hash)
+        compression = Compression(record.compression)
+        release = ReleaseClass(record.release_class)
+        raw_size = _nonnegative_int("raw_size_bytes", record.raw_size_bytes)
+        stored_size = _nonnegative_int("stored_size_bytes", record.stored_size_bytes)
+        created_at = _normalise_timestamp(record.created_at)
+    except (TypeError, ValueError) as exc:
+        raise ArtifactIntegrityError("artifact ledger metadata is invalid") from exc
+    if not isinstance(record.media_type, str) or not record.media_type:
+        raise ArtifactIntegrityError("artifact media type is invalid")
+    if any(character in record.media_type for character in ("\n", "\r", "\x00")):
+        raise ArtifactIntegrityError("artifact media type is invalid")
+    if not isinstance(record.created_at, str) or created_at != record.created_at:
+        raise ArtifactIntegrityError("artifact creation timestamp is not canonical")
+    if stored_size == 0:
+        raise ArtifactIntegrityError("artifact stored size must be positive")
+    if release is not record.release_class or compression is not record.compression:
+        raise ArtifactIntegrityError("artifact enum metadata is not canonical")
+    suffix = ".jsonl.zst" if compression is Compression.ZSTD else ".jsonl.gz"
+    if not isinstance(record.relative_path, str):
+        raise ArtifactIntegrityError("artifact path is invalid")
+    expected_path = PurePosixPath(digest[:2], digest + suffix).as_posix()
+    relative = PurePosixPath(record.relative_path)
+    if (
+        not record.relative_path
+        or relative.is_absolute()
+        or ".." in relative.parts
+        or relative.as_posix() != record.relative_path
+        or record.relative_path != expected_path
+    ):
+        raise ArtifactIntegrityError("artifact path does not match its content address")
+    if raw_size != record.raw_size_bytes or stored_size != record.stored_size_bytes:
+        raise ArtifactIntegrityError("artifact size metadata is not canonical")
+
+
+class ReadOnlyBlobStore:
+    """Strictly read-only view of a fixed-codec content-addressed blob directory.
+
+    Construction never creates a directory. Reads walk the CAS with ``O_NOFOLLOW``
+    and validate every byte against the immutable ledger record.
+    """
+
+    def __init__(
+        self,
+        root: Path,
+        *,
+        compression: Compression = Compression.ZSTD,
+        max_raw_bytes: int = DEFAULT_MAX_BLOB_RAW_BYTES,
+    ) -> None:
+        supplied_root = Path(root)
+        if supplied_root.is_symlink():
+            raise ArtifactIntegrityError("blob root cannot be a symbolic link")
+        try:
+            resolved_root = supplied_root.resolve(strict=True)
+        except OSError as exc:
+            raise ArtifactIntegrityError("blob root does not exist") from exc
+        if not resolved_root.is_dir():
+            raise ArtifactIntegrityError("blob root must be a directory")
+        self.root = resolved_root
+        self.compression = Compression(compression)
+        self.max_raw_bytes = _nonnegative_int("max_raw_bytes", max_raw_bytes)
+        if self.max_raw_bytes == 0:
+            raise ValueError("max_raw_bytes must be positive")
+        self._zstandard = (
+            _import_zstandard() if self.compression is Compression.ZSTD else None
+        )
+
+    @property
+    def suffix(self) -> str:
+        return ".jsonl.zst" if self.compression is Compression.ZSTD else ".jsonl.gz"
+
+    @staticmethod
+    def _open_flags(*, directory: bool) -> int:
+        flags = os.O_RDONLY
+        flags |= getattr(os, "O_CLOEXEC", 0)
+        flags |= getattr(os, "O_NOFOLLOW", 0)
+        if directory:
+            flags |= getattr(os, "O_DIRECTORY", 0)
+        return flags
+
+    def _read_encoded(self, relative: PurePosixPath, *, expected_size: int) -> bytes:
+        """Read one regular CAS file without following any path-component symlink."""
+
+        descriptors: list[int] = []
+        try:
+            current = os.open(self.root, self._open_flags(directory=True))
+            descriptors.append(current)
+            for component in relative.parts[:-1]:
+                current = os.open(
+                    component,
+                    self._open_flags(directory=True),
+                    dir_fd=current,
+                )
+                descriptors.append(current)
+            artifact_fd = os.open(
+                relative.parts[-1],
+                self._open_flags(directory=False),
+                dir_fd=current,
+            )
+            descriptors.append(artifact_fd)
+            metadata = os.fstat(artifact_fd)
+            if not stat.S_ISREG(metadata.st_mode):
+                raise ArtifactIntegrityError("artifact path is not a regular file")
+            if metadata.st_size != expected_size:
+                raise ArtifactIntegrityError(
+                    "artifact stored size does not match ledger metadata"
+                )
+            with os.fdopen(os.dup(artifact_fd), "rb") as stream:
+                encoded = stream.read(expected_size + 1)
+            if len(encoded) != expected_size:
+                raise ArtifactIntegrityError(
+                    "artifact stored size does not match ledger metadata"
+                )
+            return encoded
+        except ArtifactIntegrityError:
+            raise
+        except OSError as exc:
+            raise ArtifactIntegrityError("cannot safely open artifact path") from exc
+        finally:
+            for descriptor in reversed(descriptors):
+                os.close(descriptor)
+
+    def _decompress_bounded(self, encoded: bytes) -> bytes:
+        try:
+            if self.compression is Compression.GZIP:
+                with gzip.GzipFile(fileobj=io.BytesIO(encoded), mode="rb") as stream:
+                    return stream.read(self.max_raw_bytes + 1)
+            assert self._zstandard is not None
+            return self._zstandard.ZstdDecompressor().decompress(
+                encoded,
+                max_output_size=self.max_raw_bytes + 1,
+            )
+        except Exception as exc:
+            raise ArtifactIntegrityError("cannot decode stored artifact") from exc
+
+    def read_bytes(self, record: ArtifactRecord, *, allow_restricted: bool = False) -> bytes:
+        _validate_artifact_record_metadata(record)
+        if record.compression is not self.compression:
+            raise ArtifactIntegrityError(
+                f"record codec {record.compression.value} does not match store codec "
+                f"{self.compression.value}"
+            )
+        if record.raw_size_bytes > self.max_raw_bytes:
+            raise BlobTooLargeError(
+                f"artifact declares {record.raw_size_bytes} raw bytes; "
+                f"bound is {self.max_raw_bytes} bytes"
+            )
+        if record.release_class is ReleaseClass.RESTRICTED and not allow_restricted:
+            raise ReleaseViolationError("restricted artifact requires explicit restricted access")
+        relative = PurePosixPath(record.relative_path)
+        encoded = self._read_encoded(relative, expected_size=record.stored_size_bytes)
+        decoded = self._decompress_bounded(encoded)
+        if len(decoded) != record.raw_size_bytes:
+            raise ArtifactIntegrityError("artifact raw size does not match ledger metadata")
+        if sha256_bytes(decoded) != record.content_hash:
+            raise ArtifactIntegrityError("artifact content hash verification failed")
+        return decoded
+
+
+class ReadOnlyLedger:
+    """Typed query view opened with SQLite ``mode=ro`` and ``immutable=1``.
+
+    This is intentionally a small verification surface, not a writable Ledger
+    subtype. It assumes a closed/checkpointed database and refuses a nonempty
+    rollback journal or WAL rather than making SQLite recover either sidecar.
+    """
+
+    def __init__(self, path: Path) -> None:
+        supplied_path = Path(path)
+        if supplied_path.is_symlink():
+            raise ArtifactIntegrityError("read-only ledger cannot be a symbolic link")
+        try:
+            resolved_path = supplied_path.resolve(strict=True)
+        except OSError as exc:
+            raise ArtifactIntegrityError("read-only ledger does not exist") from exc
+        if not resolved_path.is_file():
+            raise ArtifactIntegrityError("read-only ledger must be a regular file")
+        for suffix in ("-wal", "-journal"):
+            sidecar = Path(str(resolved_path) + suffix)
+            if sidecar.is_symlink():
+                raise ArtifactIntegrityError("SQLite sidecar cannot be a symbolic link")
+            if sidecar.exists() and (
+                not sidecar.is_file() or sidecar.stat().st_size
+            ):
+                raise ArtifactIntegrityError(
+                    "read-only ledger must be closed and checkpointed"
+                )
+        self.path = resolved_path
+        self._closed = False
+        uri = self.path.as_uri() + "?mode=ro&immutable=1"
+        try:
+            self._connection = sqlite3.connect(
+                uri,
+                uri=True,
+                isolation_level=None,
+                timeout=30,
+                check_same_thread=False,
+            )
+            self._connection.row_factory = sqlite3.Row
+            self._connection.execute("PRAGMA query_only = ON")
+            versions = self._connection.execute(
+                "SELECT schema_version FROM schema_metadata ORDER BY schema_version"
+            ).fetchall()
+            schema_versions = tuple(int(row["schema_version"]) for row in versions)
+            if (
+                not schema_versions
+                or schema_versions != tuple(sorted(set(schema_versions)))
+                or schema_versions[-1] != SCHEMA_VERSION
+            ):
+                raise ArtifactIntegrityError("read-only ledger schema version is unsupported")
+        except (sqlite3.Error, ArtifactIntegrityError) as exc:
+            connection = getattr(self, "_connection", None)
+            if connection is not None:
+                connection.close()
+            self._closed = True
+            if isinstance(exc, ArtifactIntegrityError):
+                raise
+            raise ArtifactIntegrityError("cannot open read-only ledger") from exc
+
+    @property
+    def closed(self) -> bool:
+        return self._closed
+
+    def close(self) -> None:
+        if not self._closed:
+            self._connection.close()
+            self._closed = True
+
+    def __enter__(self) -> ReadOnlyLedger:
+        if self._closed:
+            raise StoreError("read-only ledger is closed")
+        return self
+
+    def __exit__(self, exc_type: Any, exc: Any, traceback: Any) -> None:
+        self.close()
+
+    def _execute(self, sql: str, parameters: Sequence[Any] = ()) -> sqlite3.Cursor:
+        if self._closed:
+            raise StoreError("read-only ledger is closed")
+        return self._connection.execute(sql, parameters)
+
+    @staticmethod
+    def _convert_artifact(row: sqlite3.Row) -> ArtifactRecord:
+        try:
+            record = Ledger._artifact_from_row(row)
+            _validate_artifact_record_metadata(record)
+            return record
+        except ArtifactIntegrityError:
+            raise
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ArtifactIntegrityError("artifact ledger metadata is invalid") from exc
+
+    def get_artifact(
+        self, content_hash: str, *, for_public_release: bool = False
+    ) -> ArtifactRecord:
+        try:
+            digest = _normalise_hash("content_hash", content_hash)
+        except (TypeError, ValueError) as exc:
+            raise ArtifactIntegrityError("requested artifact hash is invalid") from exc
+        row = self._execute(
+            "SELECT * FROM artifacts WHERE content_hash = ?", (digest,)
+        ).fetchone()
+        if row is None:
+            raise KeyError(f"unknown artifact {digest}")
+        record = self._convert_artifact(row)
+        if for_public_release and record.release_class is ReleaseClass.RESTRICTED:
+            raise ReleaseViolationError("restricted artifact cannot enter a public release")
+        return record
+
+    def gpu_events(self) -> tuple[GpuEvent, ...]:
+        rows = self._execute(
+            "SELECT * FROM gpu_events ORDER BY started_at, event_id"
+        ).fetchall()
+        try:
+            return tuple(Ledger._gpu_event_from_row(row) for row in rows)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ArtifactIntegrityError("GPU event metadata is invalid") from exc
+
+    def gpu_allocation_journal_records(self) -> tuple[GpuAllocationJournalRecord, ...]:
+        rows = self._execute(
+            """SELECT * FROM gpu_allocation_journal
+               ORDER BY allocation_id, sequence, journal_id"""
+        ).fetchall()
+        try:
+            return tuple(Ledger._gpu_allocation_journal_from_row(row) for row in rows)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ArtifactIntegrityError("GPU allocation journal metadata is invalid") from exc
+
+    def unresolved_gpu_allocations(self) -> tuple[GpuAllocationJournalRecord, ...]:
+        rows = self._execute(
+            """SELECT journal.*
+               FROM gpu_allocation_journal AS journal
+               JOIN (
+                   SELECT allocation_id, MAX(sequence) AS maximum_sequence
+                   FROM gpu_allocation_journal GROUP BY allocation_id
+               ) AS latest
+                 ON latest.allocation_id = journal.allocation_id
+                AND latest.maximum_sequence = journal.sequence
+               LEFT JOIN gpu_events AS event ON event.event_id = journal.allocation_id
+               WHERE event.event_id IS NULL
+                 AND journal.state IN ('opened', 'heartbeat')
+               ORDER BY journal.observed_at, journal.allocation_id"""
+        ).fetchall()
+        try:
+            return tuple(Ledger._gpu_allocation_journal_from_row(row) for row in rows)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ArtifactIntegrityError("GPU allocation journal metadata is invalid") from exc
+
+    def gpu_service_journal_records(self) -> tuple[GpuServiceJournalRecord, ...]:
+        rows = self._execute(
+            """SELECT * FROM gpu_service_journal
+               ORDER BY service_session_id, sequence, journal_id"""
+        ).fetchall()
+        try:
+            return tuple(Ledger._gpu_service_journal_from_row(row) for row in rows)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ArtifactIntegrityError("GPU service journal metadata is invalid") from exc
+
+    def unresolved_gpu_service_journals(self) -> tuple[GpuServiceJournalRecord, ...]:
+        rows = self._execute(
+            """SELECT journal.*
+               FROM gpu_service_journal AS journal
+               JOIN (
+                   SELECT service_session_id, MAX(sequence) AS maximum_sequence
+                   FROM gpu_service_journal GROUP BY service_session_id
+               ) AS latest
+                 ON latest.service_session_id = journal.service_session_id
+                AND latest.maximum_sequence = journal.sequence
+               WHERE journal.state NOT IN ('closed','recovered')
+               ORDER BY journal.service_started_at, journal.service_session_id"""
+        ).fetchall()
+        try:
+            return tuple(Ledger._gpu_service_journal_from_row(row) for row in rows)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ArtifactIntegrityError("GPU service journal metadata is invalid") from exc
+
+    def gpu_service_sessions(self) -> tuple[GpuServiceSession, ...]:
+        rows = self._execute(
+            "SELECT * FROM gpu_service_sessions ORDER BY service_session_id"
+        ).fetchall()
+        try:
+            return tuple(Ledger._gpu_service_session_from_row(row) for row in rows)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ArtifactIntegrityError("GPU service session metadata is invalid") from exc
+
+    def gpu_summary(self) -> GpuSummary:
+        rows = self._execute(
+            """SELECT event_kind, SUM(allocated_microseconds) AS total, COUNT(*) AS count
+               FROM gpu_events GROUP BY event_kind ORDER BY event_kind"""
+        ).fetchall()
+        try:
+            by_kind_values = {
+                GpuEventKind(row["event_kind"]): int(row["total"]) for row in rows
+            }
+            service_row = self._execute(
+                """SELECT COALESCE(SUM(overhead_microseconds), 0) AS total,
+                          COUNT(*) AS count
+                   FROM gpu_service_sessions"""
+            ).fetchone()
+            assert service_row is not None
+            service_overhead = int(service_row["total"])
+            if service_overhead:
+                by_kind_values[GpuEventKind.SERVICE_OVERHEAD] = (
+                    by_kind_values.get(GpuEventKind.SERVICE_OVERHEAD, 0)
+                    + service_overhead
+                )
+            by_kind = tuple(sorted(by_kind_values.items(), key=lambda item: item[0].value))
+            return GpuSummary(
+                total_allocated_microseconds=sum(value for _, value in by_kind),
+                event_count=sum(int(row["count"]) for row in rows),
+                by_kind_microseconds=by_kind,
+                service_session_count=int(service_row["count"]),
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ArtifactIntegrityError("GPU accounting metadata is invalid") from exc
+
+    def storage_samples_with_phase_prefix(
+        self, phase_prefix: str
+    ) -> tuple[StorageSampleRecord, ...]:
+        if not phase_prefix:
+            raise ValueError("phase_prefix must be nonempty")
+        rows = self._execute(
+            "SELECT * FROM storage_samples ORDER BY sampled_at, sample_id"
+        ).fetchall()
+        records: list[StorageSampleRecord] = []
+        for row in rows:
+            if not row["phase"].startswith(phase_prefix):
+                continue
+            try:
+                violations = json.loads(row["violations_json"])
+                if not isinstance(violations, list) or not all(
+                    isinstance(item, str) for item in violations
+                ):
+                    raise ValueError
+                records.append(
+                    StorageSampleRecord(
+                        sample_id=row["sample_id"],
+                        phase=row["phase"],
+                        sampled_at=row["sampled_at"],
+                        current_occupied_bytes=row["current_occupied_bytes"],
+                        additional_reserved_bytes=row["additional_reserved_bytes"],
+                        projected_occupied_bytes=row["projected_occupied_bytes"],
+                        filesystem_free_bytes=row["filesystem_free_bytes"],
+                        effective_projected_headroom_bytes=row[
+                            "effective_projected_headroom_bytes"
+                        ],
+                        allowed=bool(row["allowed"]),
+                        violations=tuple(violations),
+                    )
+                )
+            except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+                raise ArtifactIntegrityError("storage sample metadata is invalid") from exc
+        return tuple(records)
+
+    def storage_samples(self) -> tuple[StorageSampleRecord, ...]:
+        rows = self._execute(
+            "SELECT DISTINCT phase FROM storage_samples ORDER BY phase"
+        ).fetchall()
+        return tuple(
+            sample
+            for row in rows
+            for sample in self.storage_samples_with_phase_prefix(row["phase"])
+            if sample.phase == row["phase"]
+        )
+
+    def count_rows(self, table: str) -> int:
+        if table not in Ledger._APPEND_ONLY_TABLES:
+            raise ValueError("unknown or non-scientific table")
+        row = self._execute(f"SELECT COUNT(*) AS count FROM {table}").fetchone()
+        assert row is not None
+        return int(row["count"])
+
+
+class ReadOnlyArtifactStore:
+    """ArtifactStore-compatible read surface with explicit ownership semantics."""
+
+    def __init__(self, blobs: ReadOnlyBlobStore, ledger: ReadOnlyLedger) -> None:
+        self.blobs = blobs
+        self.ledger = ledger
+        self._owns_ledger = False
+
+    @classmethod
+    def from_paths(
+        cls,
+        *,
+        blob_root: Path,
+        ledger_path: Path,
+        compression: Compression = Compression.ZSTD,
+        max_raw_bytes: int = DEFAULT_MAX_BLOB_RAW_BYTES,
+    ) -> ReadOnlyArtifactStore:
+        ledger = ReadOnlyLedger(ledger_path)
+        try:
+            blobs = ReadOnlyBlobStore(
+                blob_root,
+                compression=compression,
+                max_raw_bytes=max_raw_bytes,
+            )
+        except Exception:
+            ledger.close()
+            raise
+        instance = cls(blobs, ledger)
+        instance._owns_ledger = True
+        return instance
+
+    def close(self) -> None:
+        if self._owns_ledger:
+            self.ledger.close()
+
+    def __enter__(self) -> ReadOnlyArtifactStore:
+        if self.ledger.closed:
+            raise StoreError("read-only artifact store is closed")
+        return self
+
+    def __exit__(self, exc_type: Any, exc: Any, traceback: Any) -> None:
+        self.close()
+
+
 class ArtifactStore:
     """Coordinates atomic CAS writes with append-only artifact registration."""
 
@@ -4281,8 +5444,39 @@ class StoragePreflight:
                 candidate.relative_to(self.quota_root)
             except ValueError as exc:
                 raise ValueError("every controlled path must be within quota_root") from exc
+            self._require_quota_device(candidate)
             normalised.append(candidate)
         self.controlled_paths = tuple(normalised)
+
+    @staticmethod
+    def _nearest_existing_ancestor(path: Path) -> tuple[Path, os.stat_result]:
+        candidate = path
+        while True:
+            try:
+                return candidate, candidate.stat()
+            except FileNotFoundError:
+                parent = candidate.parent
+                if parent == candidate:
+                    raise ValueError(
+                        "controlled path has no inspectable existing ancestor"
+                    ) from None
+                candidate = parent
+            except OSError as exc:
+                raise ValueError(
+                    "controlled path's nearest existing ancestor cannot be inspected"
+                ) from exc
+
+    def _require_quota_device(self, controlled: Path) -> None:
+        try:
+            quota_device = self.quota_root.stat().st_dev
+        except OSError as exc:
+            raise ValueError("quota_root device cannot be inspected") from exc
+        _ancestor, ancestor_stat = self._nearest_existing_ancestor(controlled)
+        if ancestor_stat.st_dev != quota_device:
+            raise ValueError(
+                "controlled path's nearest existing ancestor is on a different device "
+                "from quota_root"
+            )
 
     def measure_occupied_bytes(self) -> int:
         """Measure allocated filesystem blocks once, deduplicating hard links."""
@@ -4290,15 +5484,27 @@ class StoragePreflight:
         seen = set()
         total = 0
         for controlled in self.controlled_paths:
+            # Recheck on every sample so a future output path cannot become a
+            # cross-device mount after the admission preflight.
+            self._require_quota_device(controlled)
             if not controlled.exists():
                 continue
             candidates: Iterator[Path]
             if controlled.is_file():
                 candidates = iter((controlled,))
             else:
+                def traversal_error(error: OSError) -> None:
+                    raise OSError(
+                        "cannot completely traverse project-controlled storage"
+                    ) from error
+
                 candidates = (
                     Path(directory) / filename
-                    for directory, _, filenames in os.walk(controlled, followlinks=False)
+                    for directory, _, filenames in os.walk(
+                        controlled,
+                        followlinks=False,
+                        onerror=traversal_error,
+                    )
                     for filename in filenames
                 )
             for candidate in candidates:
@@ -4321,6 +5527,10 @@ class StoragePreflight:
         current_occupied_bytes: int | None = None,
         filesystem_free_bytes: int | None = None,
     ) -> StorageReport:
+        # An explicit occupancy observation must not bypass device-boundary
+        # enforcement if a controlled path became a mount after construction.
+        for controlled in self.controlled_paths:
+            self._require_quota_device(controlled)
         growth = _nonnegative_int("declared_growth_bytes", declared_growth_bytes)
         temporary = _nonnegative_int(
             "largest_atomic_temporary_bytes", largest_atomic_temporary_bytes
@@ -4425,10 +5635,14 @@ __all__ = [
     "PrequeryBarrierRecord",
     "ProjectionRecord",
     "QueryAccessRecord",
+    "ReadOnlyArtifactStore",
+    "ReadOnlyBlobStore",
+    "ReadOnlyLedger",
     "ReleaseClass",
     "ReleaseViolationError",
     "ResourceSampleRecord",
     "RetryClass",
+    "SemanticAssessmentScope",
     "StorageBudget",
     "StorageBudgetExceeded",
     "StoragePreflight",

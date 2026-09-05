@@ -15,6 +15,7 @@ from .alignment import (
     AlignmentPlan,
     AlignmentResult,
     OntologyDecisionScore,
+    audit_qualified_assertion_grounding,
     score_alignment,
     score_ontology_decisions,
 )
@@ -110,6 +111,7 @@ __all__ = [
     "adapt_projection_for_metrics",
     "aggregate_contrastive_collapse",
     "analysis_observations_from_scores",
+    "audit_qualified_assertion_grounding",
     "compile_and_verify_decision_states",
     "compile_gold_contrast_invariants",
     "compile_gold_decision_targets",

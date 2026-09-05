@@ -16,7 +16,9 @@ from story_projection_onto.case_study_execution import (
     CaseStudyExecutionError,
     CaseStudyProductionController,
     _persist_record,
+    _total_allocated_seconds,
 )
+from story_projection_onto.case_study_factory import CaseStudyProductionPreflight
 from story_projection_onto.case_study_runtime import (
     CaseC0PreparationEnvelope,
     CaseC0ProjectionEnvelope,
@@ -45,6 +47,7 @@ from story_projection_onto.store import (
     ArtifactStore,
     BlobStore,
     Compression,
+    GpuEventKind,
     Ledger,
 )
 
@@ -87,6 +90,30 @@ class _Clock:
 
 def _artifact(label: str) -> str:
     return canonical_sha256({"fixture": label})
+
+
+def test_case_gpu_total_includes_classified_events_and_service_overhead(
+    tmp_path: Path,
+) -> None:
+    with Ledger(tmp_path / "accounting.sqlite3") as ledger:
+        ledger.record_gpu_event(
+            event_id="classified-call",
+            event_kind=GpuEventKind.INFERENCE,
+            allocated_seconds=2,
+            started_at=datetime(2026, 9, 4, 12, 0, tzinfo=UTC),
+            ended_at=datetime(2026, 9, 4, 12, 0, 2, tzinfo=UTC),
+            succeeded=True,
+        )
+        ledger.record_gpu_service_session(
+            service_session_id="model-service",
+            session_id="model-session",
+            service_seconds=5,
+            classified_event_seconds=2,
+            started_at=datetime(2026, 9, 4, 12, 0, tzinfo=UTC),
+            ended_at=datetime(2026, 9, 4, 12, 0, 5, tzinfo=UTC),
+        )
+
+        assert _total_allocated_seconds(ledger) == 5
 
 
 @dataclass
@@ -485,6 +512,7 @@ def test_query_provider_and_stopped_incomplete_state_fail_closed(tmp_path: Path)
 def test_controller_cli_validates_and_execute_requires_exact_inputs(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     module = _case_fixture_module()
     fixture = module.case_fixture.__wrapped__(tmp_path)
@@ -505,8 +533,15 @@ def test_controller_cli_validates_and_execute_requires_exact_inputs(
     payload = capsys.readouterr().out
     assert '"adapter_factory_available": true' in payload
     assert '"case_gpu_call_count": 13' in payload
-    assert '"execute_enabled": true' in payload
+    assert '"execute_enabled": false' in payload
+    assert '"execution_ready": false' in payload
+    assert '"state": "contract_only"' in payload
+    assert '"validation_scope": "contract_only"' in payload
     assert '"service_start_watchdog_seconds": 300' in payload
+    assert cli.main([*arguments, "--validate-only"]) == 2
+    validate_blocked = capsys.readouterr().out
+    assert '"state": "blocked"' in validate_blocked
+    assert "--index" in validate_blocked
     assert cli.main([*arguments, "--execute"]) == 2
     blocked = capsys.readouterr().out
     assert '"state": "blocked"' in blocked
@@ -516,3 +551,66 @@ def test_controller_cli_validates_and_execute_requires_exact_inputs(
     sanitized = cli._redacted_error(ValueError(secret), cli.parse_args(arguments))
     assert sanitized == "case command blocked; diagnostics retained in restricted storage"
     assert "hidden sentence" not in sanitized
+
+    observed: list[dict[str, object]] = []
+    preflight = CaseStudyProductionPreflight(
+        execution_plan_hash=fixture.plan.content_hash,
+        staging_transition_receipt_hash="1" * 64,
+        current_ledger_sha256="2" * 64,
+        actual_allocated_gpu_seconds=12.0,
+        remaining_required_gpu_seconds=2_850.0,
+        projected_storage_bytes=123,
+        filesystem_free_bytes=456,
+        selected_snapshot_manifest_hash="3" * 64,
+        launcher_configuration_hash="4" * 64,
+        bootstrap_state="fresh",
+        controller_state="not_started",
+    )
+
+    def fake_preflight(**values: object) -> CaseStudyProductionPreflight:
+        observed.append(values)
+        return preflight
+
+    monkeypatch.setattr(
+        cli,
+        "preflight_frozen_production_case_study_bundle",
+        fake_preflight,
+    )
+    required_paths = (
+        "index",
+        "index-manifest",
+        "preregistration",
+        "input-attestation",
+        "admission-attestation",
+        "semantic-gate-bundle",
+        "selected-model-freeze",
+        "admission-evidence-bundle",
+        "admission-evidence-bundle-reference",
+        "ledger",
+        "artifact-root",
+        "staging-transition-directory",
+        "runtime-root",
+        "quota-root",
+        "snapshot",
+        "shared-cache",
+        "verified-model-manifest",
+        "source-association",
+    )
+    full_arguments = [*arguments, "--validate-only"]
+    for flag in required_paths:
+        full_arguments.extend((f"--{flag}", str(plan_path)))
+    full_arguments.extend(
+        (
+            "--expected-predecessor-ledger-sha256",
+            "5" * 64,
+            "--source-revision",
+            "fixture-source",
+        )
+    )
+    assert cli.main(full_arguments) == 0
+    ready = capsys.readouterr().out
+    assert '"execution_ready": true' in ready
+    assert '"state": "ready"' in ready
+    assert '"validation_scope": "full_production_preflight"' in ready
+    assert '"writes_performed": false' in ready
+    assert observed and observed[0]["ledger_path"] == plan_path

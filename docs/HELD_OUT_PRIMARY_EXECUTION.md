@@ -142,7 +142,8 @@ For example, the private arguments include the common containment boundary:
 --ledger artifacts/restricted/ledger/study.sqlite3 \
 --artifact-root artifacts/restricted/cas \
 --runtime-root artifacts/restricted/held_out_primary/runtime \
---output-root artifacts/restricted/held_out_primary
+--output-root artifacts/restricted/held_out_primary \
+--results-gate-root artifacts/restricted/held_out
 ```
 
 ## Append-only recovery
@@ -175,4 +176,11 @@ journal performs no CPU or model calls and reproduces the same execution hash.
 
 The output root is restricted by default:
 `artifacts/restricted/held_out_primary`. It must not be included in public
-bundles. The current repository contains no held-out execution outputs.
+bundles. After the terminal journal is replayed, the runner atomically publishes
+a byte-identical execution-manifest copy, the hash-only scorer authorization,
+and `primary_results_gate.json` in the separate restricted
+`artifacts/restricted/held_out` namespace. Keeping this closure outside the
+execution journal preserves the journal's strict no-extra-files audit. A restart
+reuses the retained authorization and freeze timestamps and accepts only
+byte-identical files. The current repository contains no held-out execution
+outputs.

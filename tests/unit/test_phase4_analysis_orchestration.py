@@ -17,9 +17,11 @@ from story_projection_onto.scorer_only.phase4_analysis import (
     Phase4TableEntry,
     Phase4TableManifest,
     ScoredMetricObservation,
+    WorldMetricRow,
     _append_exact,
     _comparison_csv,
     _entropy_multiplicity,
+    _exploratory_comparisons,
     _ScoreCollection,
     _world_metric_rows,
 )
@@ -170,6 +172,52 @@ def test_entropy_family_uses_planned_ten_test_bh_denominator() -> None:
     assert len(adjusted) == 10
     assert all(row.status == "adjusted" for row in adjusted)
     assert all(row.benjamini_hochberg_adjusted_p_value == pytest.approx(0.1) for row in adjusted)
+
+
+def test_mechanism_support_adds_fixed_select_change_and_collapse_world_tests() -> None:
+    rows = tuple(
+        WorldMetricRow(
+            condition=condition,
+            world_id=f"world-{world:02d}",
+            metric_name=metric,
+            value=(
+                0.8
+                if condition is ConditionName.C2_LLM_QUERY
+                else 0.4
+                if metric == "contrastive_decision_change_f1"
+                else 0.7
+            ),
+            context_count=1,
+            row_count=2,
+            undefined_context_count=0,
+        )
+        for metric in (
+            "contrastive_decision_change_f1",
+            "contrastive_collapse",
+        )
+        for condition in (
+            ConditionName.C0_CLASSICAL_PRE,
+            ConditionName.C1_LLM_PRE,
+            ConditionName.C2_LLM_QUERY,
+            ConditionName.A_FIXED_SELECT,
+        )
+        for world in range(1, 13)
+    )
+
+    comparisons = _exploratory_comparisons(rows, bootstrap_root_seed=7331)
+    mechanism = {
+        item.metric_name: item
+        for item in comparisons
+        if item.comparison == "C2-A-FixedSelect"
+    }
+
+    assert set(mechanism) == {
+        "contrastive_decision_change_f1",
+        "contrastive_collapse",
+    }
+    assert all(item.status == "estimated" for item in mechanism.values())
+    assert all(item.retained_world_count == 12 for item in mechanism.values())
+    assert all(item.estimate["two_sided_p_value"] is not None for item in mechanism.values())
 
 
 def test_table_manifest_is_self_hashed_sorted_and_selection_explicit() -> None:

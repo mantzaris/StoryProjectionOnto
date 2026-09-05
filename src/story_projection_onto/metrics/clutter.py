@@ -342,6 +342,7 @@ def clutter_profile(
     *,
     positions: Mapping[str, Point],
     label_rectangles: Sequence[LabelRectangle],
+    label_semantic_ids: Mapping[str, str] | None = None,
     visible_semantic_ids: Sequence[str],
     irrelevant_semantic_ids: frozenset[str],
     rare_pivotal_discoverability: Mapping[str, int],
@@ -388,11 +389,16 @@ def clutter_profile(
     known_semantic_ids = (
         set(nodes) | {edge.edge_id for edge in edges} | set(assertion_semantic_ids)
     )
-    unknown_label_ids = sorted(
-        {rectangle.label_id for rectangle in label_rectangles} - known_semantic_ids
-    )
+    rectangle_ids = [rectangle.label_id for rectangle in label_rectangles]
+    if label_semantic_ids is None:
+        resolved_label_ids = set(rectangle_ids)
+    else:
+        if set(label_semantic_ids) != set(rectangle_ids):
+            raise ValueError("label semantic bindings must exactly cover label rectangles")
+        resolved_label_ids = set(label_semantic_ids.values())
+    unknown_label_ids = sorted(resolved_label_ids - known_semantic_ids)
     if unknown_label_ids:
-        raise ValueError("label rectangles must reference a graph node or assertion")
+        raise ValueError("label rectangles must resolve to a graph node or assertion")
     unknown_visible_ids = sorted(set(visible) - known_semantic_ids)
     if unknown_visible_ids:
         raise ValueError("visible semantic IDs must reference a graph node or assertion")

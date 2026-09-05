@@ -274,6 +274,7 @@ def _development_c1_requests() -> tuple[PreconstructionRequest, ...]:
             build_c1_preconstruction_request(
                 snapshot_hash=neutral.snapshot.content_hash,
                 snapshot_sealed_at=neutral.snapshot.sealed_at,
+                sealed_horizon=neutral.snapshot.horizon,
                 ordered_snapshot_evidence_ids=neutral.snapshot.eligible_evidence_ids,
                 evidence=neutral.evidence,
                 upper_ontology=configuration.upper_ontology,
@@ -289,6 +290,23 @@ def _no_context_request(
     tokenizer_manifest: TokenizerManifest,
 ) -> tuple[ConstructionRequest, dict[str, object]]:
     original = json.loads(NO_CONTEXT_BASE_REQUEST.read_text(encoding="utf-8"))
+    for index, evidence in enumerate(original["packet"]["evidence"], start=1):
+        text_hash = hashlib.sha256(evidence["text"].encode("utf-8")).hexdigest()
+        evidence.update(
+            {
+                "passage_id": f"development-test-passage-{index}",
+                "text_hash": text_hash,
+                "confidence": 1.0,
+                "provenance": {
+                    "provenance_id": f"development-test-provenance-{index}",
+                    "evidence_id": evidence["evidence_id"],
+                    "extraction_method": "hand-authored synthetic test lineage",
+                    "locator": f"development-test:{index}",
+                    "source_artifact_hash": text_hash,
+                    "confidence": 1.0,
+                },
+            }
+        )
     original_context = dict(original["context"])
     runtime = development_request_runtime(
         root=ROOT,
@@ -319,6 +337,23 @@ def _fixed_request(tokenizer_manifest: TokenizerManifest) -> ConstructionRequest
             encoding="utf-8"
         )
     )
+    for index, evidence in enumerate(raw["packet"]["evidence"], start=1):
+        text_hash = hashlib.sha256(evidence["text"].encode("utf-8")).hexdigest()
+        evidence.update(
+            {
+                "passage_id": f"development-test-passage-{index}",
+                "text_hash": text_hash,
+                "confidence": 1.0,
+                "provenance": {
+                    "provenance_id": f"development-test-provenance-{index}",
+                    "evidence_id": evidence["evidence_id"],
+                    "extraction_method": "hand-authored synthetic test lineage",
+                    "locator": f"development-test:{index}",
+                    "source_artifact_hash": text_hash,
+                    "confidence": 1.0,
+                },
+            }
+        )
     fixed = FixedOntologyInput.model_validate(raw["fixed_ontology"])
     packet = ModelVisibleEvidencePacket.model_validate(raw["packet"])
     runtime = development_request_runtime(
@@ -345,6 +380,23 @@ def _repair_request_and_input(
     tokenizer_manifest: TokenizerManifest,
 ) -> tuple[ConstructionRequest, DevelopmentRepairProbeInput]:
     raw = json.loads(NO_CONTEXT_BASE_REQUEST.read_text(encoding="utf-8"))
+    for index, evidence in enumerate(raw["packet"]["evidence"], start=1):
+        text_hash = hashlib.sha256(evidence["text"].encode("utf-8")).hexdigest()
+        evidence.update(
+            {
+                "passage_id": f"development-test-passage-{index}",
+                "text_hash": text_hash,
+                "confidence": 1.0,
+                "provenance": {
+                    "provenance_id": f"development-test-provenance-{index}",
+                    "evidence_id": evidence["evidence_id"],
+                    "extraction_method": "hand-authored synthetic test lineage",
+                    "locator": f"development-test:{index}",
+                    "source_artifact_hash": text_hash,
+                    "confidence": 1.0,
+                },
+            }
+        )
     runtime = development_request_runtime(
         root=ROOT,
         condition=ConditionName.C2_LLM_QUERY,
@@ -573,7 +625,10 @@ def test_codec_rejects_semantic_mutation_and_unregistered_or_duplicate_aliases()
     first_row = evidence_rows[0]
     assert isinstance(first_row, list)
     first_row[1] = f"{first_row[1]} [tampered]"
-    with pytest.raises(DevelopmentAdapterIntegrityError, match="round trip changed"):
+    with pytest.raises(
+        DevelopmentAdapterIntegrityError,
+        match="compact evidence failed typed lossless decoding",
+    ):
         decode_development_semantic_request(
             EncodedSemanticRequest(
                 sections=mutated_sections,

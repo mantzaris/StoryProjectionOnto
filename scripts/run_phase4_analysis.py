@@ -38,6 +38,7 @@ def parse_arguments(arguments: Sequence[str] | None = None) -> argparse.Namespac
     parser.add_argument("--ledger", type=Path, required=True)
     parser.add_argument("--artifact-root", type=Path, required=True)
     parser.add_argument("--source-association", type=Path, required=True)
+    parser.add_argument("--geometry-source-root", type=Path, required=True)
     parser.add_argument("--geometry-root", type=Path, required=True)
     parser.add_argument("--output-root", type=Path, required=True)
     mode = parser.add_mutually_exclusive_group(required=True)
@@ -82,6 +83,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
                 "ledger",
                 "artifact_root",
                 "source_association",
+                "geometry_source_root",
                 "geometry_root",
                 "output_root",
             )
@@ -97,6 +99,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
             "ledger_path": values["ledger"],
             "artifact_root": values["artifact_root"],
             "source_association_path": values["source_association"],
+            "geometry_source_root": values["geometry_source_root"],
             "geometry_root": values["geometry_root"],
         }
         if options.validate_only:
