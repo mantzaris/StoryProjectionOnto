@@ -462,13 +462,23 @@ def test_cpu_only_cli_builds_same_deterministic_incident(
     assert load_fallback_v5_control_plane_incident(output) == _build(paths)
 
 
-def test_checked_in_v5_incident_binds_exact_terminal_evidence() -> None:
+def test_checked_in_v5_incident_binds_exact_terminal_evidence(tmp_path: Path) -> None:
     path = (
         ROOT
         / "artifacts/public/manifests/"
         "fallback_gpu_acceptance_development_v5_control_plane_incident.json"
     )
     incident = load_fallback_v5_control_plane_incident(path)
+    # The canonical ledger advances after every later recovery.  The immutable
+    # post-v5 bytes survive as the byte-identical pre-v6 snapshot; copy them to
+    # the historical basename required by the incident contract.
+    post_v5_ledger = tmp_path / "phase1_acceptance.sqlite"
+    shutil.copyfile(
+        ROOT
+        / "artifacts/restricted/recovery_validation/v6_control_plane_incident/"
+        "phase1_acceptance.before-v6.sqlite",
+        post_v5_ledger,
+    )
     rebuilt = build_fallback_v5_control_plane_incident(
         run_id=FALLBACK_V5_RUN_ID,
         source_association_path=(
@@ -494,7 +504,7 @@ def test_checked_in_v5_incident_binds_exact_terminal_evidence() -> None:
             / "artifacts/restricted/recovery_validation/v5_control_plane_incident/"
             "phase1_acceptance.before-v5.sqlite"
         ),
-        ledger_after_path=ROOT / "artifacts/restricted/phase1_acceptance.sqlite",
+        ledger_after_path=post_v5_ledger,
         audited_at=incident.audited_at,
     )
 

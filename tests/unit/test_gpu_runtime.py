@@ -10,7 +10,7 @@ import threading
 import time
 from collections.abc import Callable
 from contextlib import suppress
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -804,6 +804,134 @@ def test_resource_watchdog_surfaces_first_violation() -> None:
     assert len(seen) == 1
 
 
+def test_resource_watchdog_drains_sample_that_spans_old_two_second_join() -> None:
+    entered = threading.Event()
+    release = threading.Event()
+
+    @dataclass
+    class SlowStorageSampler:
+        def sample(self, **kwargs: object) -> object:
+            del kwargs
+            entered.set()
+            if not release.wait(5):
+                raise RuntimeError("test sampler was not released")
+            return object()
+
+    watchdog = ResourceWatchdog(
+        sampler=cast(ResourceSampler, SlowStorageSampler()),
+        root_pid=12,
+        sample_prefix="slow-storage",
+        interval_seconds=1,
+        sample_completion_timeout_seconds=3,
+    ).start()
+    assert entered.wait(0.5)
+    release_timer = threading.Timer(2.1, release.set)
+    release_timer.start()
+    started = time.monotonic()
+    try:
+        assert watchdog.stop()
+    finally:
+        release.set()
+        release_timer.cancel()
+    elapsed = time.monotonic() - started
+
+    assert elapsed >= 2
+    assert elapsed < 3
+    assert watchdog.sample_count == 1
+    assert watchdog.sample_in_flight is False
+    assert watchdog.running is False
+
+
+def test_resource_watchdog_stop_deadline_retains_in_flight_ownership() -> None:
+    entered = threading.Event()
+    release = threading.Event()
+
+    @dataclass
+    class WedgedSampler:
+        def sample(self, **kwargs: object) -> object:
+            del kwargs
+            entered.set()
+            release.wait(5)
+            return object()
+
+    watchdog = ResourceWatchdog(
+        sampler=cast(ResourceSampler, WedgedSampler()),
+        root_pid=12,
+        sample_prefix="wedged-storage",
+        interval_seconds=30,
+        sample_completion_timeout_seconds=0.02,
+    ).start()
+    assert entered.wait(0.5)
+    started = time.monotonic()
+    try:
+        assert watchdog.stop(raise_failure=False) is False
+        elapsed = time.monotonic() - started
+        assert elapsed < 0.5
+        assert watchdog.running is True
+        assert watchdog.sample_in_flight is True
+        assert isinstance(watchdog.failure, RuntimeError)
+        assert "bounded shutdown deadline" in str(watchdog.failure)
+    finally:
+        release.set()
+    deadline = time.monotonic() + 0.5
+    while watchdog.running and time.monotonic() < deadline:
+        time.sleep(0.001)
+    assert watchdog.stop(raise_failure=False) is True
+    assert watchdog.running is False
+    assert watchdog.sample_in_flight is False
+
+
+def test_resource_watchdog_dispatches_sample_limit_after_prior_drain_timeout() -> None:
+    entered = threading.Event()
+    release = threading.Event()
+    callbacks_completed = threading.Event()
+    snapshot = cast(
+        gpu_runtime.ResourceSnapshot,
+        SimpleNamespace(violations=("gpu_vram_not_below_limit",)),
+    )
+    seen_limits: list[object] = []
+    seen_failures: list[BaseException] = []
+
+    @dataclass
+    class LateFailingSampler:
+        def sample(self, **kwargs: object) -> object:
+            del kwargs
+            entered.set()
+            if not release.wait(1):
+                raise RuntimeError("test sampler was not released")
+            raise RuntimeResourceLimitExceeded(snapshot)
+
+    def record_failure(failure: BaseException) -> None:
+        seen_failures.append(failure)
+        callbacks_completed.set()
+
+    watchdog = ResourceWatchdog(
+        sampler=cast(ResourceSampler, LateFailingSampler()),
+        root_pid=12,
+        sample_prefix="late-limit",
+        interval_seconds=30,
+        sample_completion_timeout_seconds=0.02,
+        on_limit=seen_limits.append,
+        on_failure=record_failure,
+    ).start()
+    assert entered.wait(0.5)
+    assert watchdog.stop(raise_failure=False) is False
+    timeout_failure = watchdog.drain_timeout_failure
+    assert isinstance(timeout_failure, RuntimeError)
+
+    release.set()
+    assert callbacks_completed.wait(0.5)
+    deadline = time.monotonic() + 0.5
+    while watchdog.running and time.monotonic() < deadline:
+        time.sleep(0.001)
+
+    assert watchdog.stop(raise_failure=False) is True
+    assert watchdog.failure is seen_failures[0]
+    assert isinstance(watchdog.failure, RuntimeResourceLimitExceeded)
+    assert seen_limits == [snapshot]
+    assert seen_failures == [watchdog.failure]
+
+
 @dataclass
 class FakeClock:
     monotonic_value: float = 100.0
@@ -884,18 +1012,117 @@ def _write_fake_proc_identity(
     pid: int,
     start_ticks: int,
     configuration: VLLMLaunchConfiguration,
+    process_group_id: int = 0,
+    process_session_id: int = 0,
+    service_instance_token: str | None = None,
+    command: tuple[str, ...] | None = None,
 ) -> None:
     process_root = proc_root / str(pid)
     process_root.mkdir(parents=True)
     fields = ["S", *(["0"] * 18), str(start_ticks)]
+    fields[2] = str(process_group_id)
+    fields[3] = str(process_session_id)
     (process_root / "stat").write_text(
         f"{pid} (vllm worker) {' '.join(fields)}\n",
         encoding="ascii",
     )
-    command = b"\0".join(
-        argument.encode("utf-8") for argument in configuration.command()
+    encoded_command = b"\0".join(
+        argument.encode("utf-8")
+        for argument in (configuration.command() if command is None else command)
     )
-    (process_root / "cmdline").write_bytes(command + b"\0")
+    (process_root / "cmdline").write_bytes(encoded_command + b"\0")
+    if service_instance_token is not None:
+        (process_root / "environ").write_bytes(
+            (
+                f"{gpu_runtime.SERVICE_INSTANCE_ENVIRONMENT_KEY}="
+                f"{service_instance_token}\0"
+            ).encode("ascii")
+        )
+
+
+def _seed_token_bound_live_lease(
+    service: VLLMService,
+    *,
+    clock: FakeClock,
+    process: FakeProcess,
+    proc_root: Path,
+    start_ticks: int,
+    observed_command: tuple[str, ...],
+) -> tuple[str, str]:
+    instance_token = "unit-test-vllm-instance-token"
+    instance_token_sha256 = hashlib.sha256(instance_token.encode("ascii")).hexdigest()
+    expected_command_sha256 = canonical_sha256(list(service.configuration.command()))
+    _write_fake_proc_identity(
+        proc_root,
+        pid=process.pid,
+        start_ticks=start_ticks,
+        configuration=service.configuration,
+        process_group_id=process.pid,
+        process_session_id=process.pid,
+        service_instance_token=instance_token,
+        command=observed_command,
+    )
+    service._acquire_service_lock()
+    service._session_id = "pilot"
+    service._accounting_session_id = "load"
+    service._started_at = clock.wall()
+    service._allocated_at_start = service.meter.actual_allocated_gpu_seconds
+    service._last_service_pid = process.pid
+    service._last_process_start_ticks = start_ticks
+    service._last_process_command_sha256 = expected_command_sha256
+    service._last_process_group_id = process.pid
+    service._last_process_session_id = process.pid
+    service._service_instance_token_sha256 = instance_token_sha256
+    service._process_identity_proc_root = proc_root
+    service._open_service_journal()
+    service._write_service_lock_metadata(lease_state="live", service_pid=process.pid)
+    service._release_service_lock()
+    return expected_command_sha256, instance_token_sha256
+
+
+def _seed_terminal_journal_and_null_lease(
+    *,
+    configuration: VLLMLaunchConfiguration,
+    meter: AllocatedGPUMeter,
+    clock: FakeClock,
+) -> None:
+    started_at = clock.wall()
+    meter.open_service_journal(
+        service_session_id="load",
+        session_id="pilot",
+        configuration_hash=configuration.configuration_hash,
+        started_at=started_at,
+        ledger_allocated_seconds_before_session=meter.actual_allocated_gpu_seconds,
+    )
+    clock.advance(4)
+    meter.observe_service_journal(
+        service_session_id="load",
+        elapsed_seconds=4,
+        observed_at=clock.wall(),
+        process_stopped=True,
+    )
+    meter.reconcile_service_session(
+        service_session_id="load",
+        session_id="pilot",
+        service_seconds=4,
+        classified_event_seconds=0,
+        started_at=started_at,
+        ended_at=clock.wall(),
+        details={"fixture": "terminal-before-null-lease"},
+    )
+    damaging_controller = VLLMService(
+        configuration=configuration,
+        client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+        meter=meter,
+        monotonic_clock=clock.monotonic,
+        wall_clock=clock.wall,
+    )
+    damaging_controller._acquire_service_lock()
+    damaging_controller._write_service_lock_metadata(
+        lease_state="shutdown_unverified",
+        service_pid=None,
+    )
+    damaging_controller._release_service_lock()
 
 
 def _live_process_command_sha256(pid: int) -> str:
@@ -909,6 +1136,21 @@ def _live_process_command_sha256(pid: int) -> str:
 def _assert_process_group_is_gone(process_group: int) -> None:
     with pytest.raises(ProcessLookupError):
         os.killpg(process_group, 0)
+
+
+def _published_emergency_thread(
+    service: VLLMService,
+    *,
+    timeout_seconds: float = 0.5,
+) -> threading.Thread:
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        with service._emergency_stop_lock:
+            thread = service._emergency_stop_thread
+        if thread is not None:
+            return thread
+        time.sleep(0.001)
+    raise AssertionError("emergency-stop coordinator was not safely published")
 
 
 def test_default_cpu_affinity_sampler_uses_current_process_sentinel(
@@ -930,6 +1172,610 @@ def test_default_cpu_affinity_sampler_uses_current_process_sentinel(
 
     assert available
     assert all(isinstance(cpu, int) and cpu >= 0 for cpu in available)
+
+
+def test_service_start_deadline_retains_process_until_startup_sample_drains(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    entered = threading.Event()
+    release = threading.Event()
+    process = FakeProcess(999)
+    signals: list[int] = []
+
+    @dataclass
+    class BlockingStartupSampler:
+        def sample(self, **kwargs: object) -> object:
+            del kwargs
+            entered.set()
+            release.wait(5)
+            return object()
+
+    def signal_group(pid: int, signal_number: int) -> None:
+        del pid
+        signals.append(signal_number)
+        process.running = False
+
+    with Ledger(tmp_path / "startup-sample-ledger.sqlite3") as ledger:
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(FakeClock())),
+            meter=AllocatedGPUMeter(ledger),
+            startup_resource_sampler=cast(ResourceSampler, BlockingStartupSampler()),
+            startup_sample_interval_seconds=1,
+            readiness_check=lambda: entered.wait(0.5),
+            popen_factory=lambda *args, **kwargs: process,
+            process_group_signaler=signal_group,
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        started = time.monotonic()
+        with pytest.raises(RuntimeError, match="retaining service and lease ownership"):
+            service.start(
+                session_id="pilot",
+                event_id="slow-startup-sample",
+                watchdog_seconds=0.1,
+            )
+        elapsed = time.monotonic() - started
+
+        assert elapsed < 0.5
+        assert process.running is True
+        assert signals == []
+        assert service._service_lock_stream is not None
+        assert service._startup_resource_watchdog is not None
+        assert service._startup_resource_watchdog.sample_in_flight is True
+
+        release.set()
+        deadline = time.monotonic() + 0.5
+        while service._startup_resource_watchdog.running and time.monotonic() < deadline:
+            time.sleep(0.001)
+        uptime = service.shutdown(shutdown_seconds=0.1)
+        assert uptime is not None
+        assert process.running is False
+        assert signals
+        assert service._startup_resource_watchdog is None
+        assert ledger.unresolved_gpu_service_journals() == ()
+
+
+def test_service_start_absolute_deadline_includes_endpoint_preflight(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    spawned: list[FakeProcess] = []
+
+    def slow_preflight() -> bool:
+        clock.advance(0.2)
+        return False
+
+    with Ledger(tmp_path / "preflight-deadline.sqlite3") as ledger:
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=AllocatedGPUMeter(
+                ledger,
+                monotonic_clock=clock.monotonic,
+                wall_clock=clock.wall,
+            ),
+            preflight_endpoint_check=slow_preflight,
+            popen_factory=lambda *args, **kwargs: spawned.append(FakeProcess(1_090)),
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            sleep=clock.advance,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        with pytest.raises(RuntimeWatchdogTimeout, match="during endpoint preflight"):
+            service.start(session_id="pilot", event_id="load", watchdog_seconds=0.1)
+
+        assert spawned == []
+        assert service._service_lock_stream is None
+
+
+def test_durable_exec_wait_is_clipped_to_absolute_service_start_deadline(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = FakeClock()
+    with Ledger(tmp_path / "durable-exec-deadline.sqlite3") as ledger:
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=AllocatedGPUMeter(
+                ledger,
+                monotonic_clock=clock.monotonic,
+                wall_clock=clock.wall,
+            ),
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            sleep=clock.advance,
+        )
+        service._process = FakeProcess(1_096)
+        service._last_process_command_sha256 = "a" * 64
+        monkeypatch.setattr(
+            gpu_runtime,
+            "_process_start_ticks",
+            lambda pid, proc_root=gpu_runtime.PROC_ROOT: 71_021,
+        )
+        monkeypatch.setattr(
+            gpu_runtime,
+            "_process_command_sha256",
+            lambda pid, proc_root=gpu_runtime.PROC_ROOT: "b" * 64,
+        )
+
+        with pytest.raises(RuntimeWatchdogTimeout, match="service-start wall deadline"):
+            service._wait_for_durable_exec(
+                1_096,
+                71_021,
+                startup_deadline=clock.monotonic() + 0.03,
+            )
+
+        assert clock.monotonic() < 100.1
+
+
+@pytest.mark.parametrize("caller_path", ("fallback", "phase1"))
+def test_periodic_watchdog_drain_timeout_blocks_every_runner_shutdown_path(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+    caller_path: str,
+) -> None:
+    entered = threading.Event()
+    release = threading.Event()
+    process = FakeProcess(1_091)
+    signals: list[int] = []
+    proc_root = tmp_path / f"proc-{caller_path}"
+
+    @dataclass
+    class BlockingPeriodicSampler:
+        def sample(self, **kwargs: object) -> object:
+            del kwargs
+            entered.set()
+            release.wait(2)
+            return object()
+
+    def signal_group(pid: int, signal_number: int) -> None:
+        assert pid == process.pid
+        signals.append(signal_number)
+        process.running = False
+
+    with Ledger(tmp_path / f"{caller_path}-periodic.sqlite3") as ledger:
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(FakeClock())),
+            meter=AllocatedGPUMeter(ledger),
+            popen_factory=lambda *args, **kwargs: process,
+            process_group_signaler=signal_group,
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        service.start(session_id="pilot", event_id="load", watchdog_seconds=1)
+
+        instance_token = f"{caller_path}-periodic-token"
+        token_sha256 = hashlib.sha256(instance_token.encode("ascii")).hexdigest()
+        _write_fake_proc_identity(
+            proc_root,
+            pid=process.pid,
+            start_ticks=71_020,
+            configuration=launch_configuration,
+            process_group_id=process.pid,
+            process_session_id=process.pid,
+            service_instance_token=instance_token,
+        )
+        service._last_process_start_ticks = 71_020
+        service._last_process_command_sha256 = canonical_sha256(
+            list(launch_configuration.command())
+        )
+        service._last_process_group_id = process.pid
+        service._last_process_session_id = process.pid
+        service._service_instance_token_sha256 = token_sha256
+        service._process_identity_proc_root = proc_root
+        service._write_service_lock_metadata(lease_state="live", service_pid=process.pid)
+
+        watchdog = ResourceWatchdog(
+            sampler=cast(ResourceSampler, BlockingPeriodicSampler()),
+            root_pid=process.pid,
+            sample_prefix=f"{caller_path}-periodic",
+            interval_seconds=30,
+            sample_completion_timeout_seconds=0.02,
+        )
+        service.start_periodic_resource_watchdog(watchdog)
+        assert entered.wait(0.5)
+
+        # Both registered runners now use this service-owned stop before their
+        # finally-block shutdown.  A timeout must remain a shutdown barrier.
+        assert (
+            service.stop_periodic_resource_watchdog(watchdog, raise_failure=False)
+            is False
+        )
+        with pytest.raises(RuntimeError, match="periodic resource sample remains"):
+            service.shutdown(shutdown_seconds=0.1)
+
+        assert signals == []
+        assert process.running is True
+        assert service._service_lock_stream is not None
+        assert service._periodic_resource_watchdog is watchdog
+        lease = service.read_authoritative_service_lease()
+        assert lease is not None
+        assert lease["lease_state"] == "live"
+        assert lease["service_pid"] == process.pid
+        assert lease["process_start_ticks"] == 71_020
+        assert lease["process_group_id"] == process.pid
+        assert lease["process_session_id"] == process.pid
+        assert lease["service_instance_token_sha256"] == token_sha256
+
+        release.set()
+        deadline = time.monotonic() + 0.5
+        while watchdog.running and time.monotonic() < deadline:
+            time.sleep(0.001)
+        uptime = service.shutdown(shutdown_seconds=0.1)
+
+        assert uptime is not None
+        assert signals == [signal.SIGTERM]
+        assert process.running is False
+        assert service._periodic_resource_watchdog is None
+        assert ledger.unresolved_gpu_service_journals() == ()
+
+
+def test_periodic_watchdog_callback_cannot_unregister_its_own_live_thread(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    process = FakeProcess(1_092)
+    callback_completed = threading.Event()
+    callback_results: list[bool] = []
+    holder: dict[str, ResourceWatchdog] = {}
+
+    with Ledger(tmp_path / "callback-ownership.sqlite3") as ledger:
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(FakeClock())),
+            meter=AllocatedGPUMeter(ledger),
+            popen_factory=lambda *args, **kwargs: process,
+            process_group_signaler=lambda pid, signal_number: setattr(
+                process,
+                "running",
+                False,
+            ),
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        service.start(session_id="pilot", event_id="load", watchdog_seconds=1)
+
+        @dataclass
+        class FailingSampler:
+            def sample(self, **kwargs: object) -> object:
+                del kwargs
+                raise RuntimeError("periodic sample failed")
+
+        def callback(failure: BaseException) -> None:
+            del failure
+            callback_results.append(
+                service.stop_periodic_resource_watchdog(
+                    holder["watchdog"],
+                    raise_failure=False,
+                )
+            )
+            callback_completed.set()
+
+        watchdog = ResourceWatchdog(
+            sampler=cast(ResourceSampler, FailingSampler()),
+            root_pid=process.pid,
+            sample_prefix="callback-owner",
+            interval_seconds=30,
+            on_failure=callback,
+        )
+        holder["watchdog"] = watchdog
+        service.start_periodic_resource_watchdog(watchdog)
+        assert callback_completed.wait(0.5)
+
+        assert callback_results == [False]
+        assert service._periodic_resource_watchdog is watchdog
+        deadline = time.monotonic() + 0.5
+        while watchdog.running and time.monotonic() < deadline:
+            time.sleep(0.001)
+        assert (
+            service.stop_periodic_resource_watchdog(watchdog, raise_failure=False)
+            is True
+        )
+        assert service._periodic_resource_watchdog is None
+        service.shutdown(shutdown_seconds=0.1)
+
+
+def test_heartbeat_failure_never_signals_while_periodic_sample_owns_ledger(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    entered = threading.Event()
+    release = threading.Event()
+    process = FakeProcess(1_093)
+    signals: list[int] = []
+
+    @dataclass
+    class BlockingPeriodicSampler:
+        def sample(self, **kwargs: object) -> object:
+            del kwargs
+            entered.set()
+            release.wait(2)
+            return object()
+
+    def signal_group(pid: int, signal_number: int) -> None:
+        del pid
+        signals.append(signal_number)
+        process.running = False
+
+    with Ledger(tmp_path / "heartbeat-periodic.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(ledger)
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(FakeClock())),
+            meter=meter,
+            service_heartbeat_interval_seconds=0.01,
+            popen_factory=lambda *args, **kwargs: process,
+            process_group_signaler=signal_group,
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        service.start(session_id="pilot", event_id="load", watchdog_seconds=1)
+        watchdog = ResourceWatchdog(
+            sampler=cast(ResourceSampler, BlockingPeriodicSampler()),
+            root_pid=process.pid,
+            sample_prefix="heartbeat-blocked",
+            interval_seconds=30,
+            sample_completion_timeout_seconds=0.05,
+        )
+        service.start_periodic_resource_watchdog(watchdog)
+        assert entered.wait(0.5)
+
+        # Force the next heartbeat through the protected hard-stop margin.
+        meter.hard_limit_seconds = 1
+        deadline = time.monotonic() + 0.5
+        while service._service_heartbeat_failure is None and time.monotonic() < deadline:
+            time.sleep(0.001)
+        assert service._service_heartbeat_failure is not None
+        emergency_thread = _published_emergency_thread(service)
+        emergency_thread.join(timeout=0.5)
+
+        assert emergency_thread.is_alive() is False
+        assert isinstance(service._emergency_stop_failure, RuntimeError)
+        assert signals == []
+        assert process.running is True
+        assert service._service_lock_stream is not None
+        assert service._periodic_resource_watchdog is watchdog
+
+        meter.hard_limit_seconds = 36_000
+        release.set()
+        deadline = time.monotonic() + 0.5
+        while watchdog.running and time.monotonic() < deadline:
+            time.sleep(0.001)
+        with pytest.raises(RuntimeError, match="heartbeat failed"):
+            service.shutdown(shutdown_seconds=0.1)
+
+        assert signals == [signal.SIGTERM]
+        assert process.running is False
+        assert service.state is ServiceState.STOPPED
+        assert ledger.unresolved_gpu_service_journals() == ()
+
+
+def test_emergency_coordinator_is_started_before_publication_and_blocks_handoff(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    process = FakeProcess(1_097)
+    coordinator_start_entered = threading.Event()
+    allow_coordinator_start = threading.Event()
+    coordinator_body_entered = threading.Event()
+    allow_coordinator_finish = threading.Event()
+    detach_failures: list[BaseException] = []
+
+    with Ledger(tmp_path / "coordinator-publication.sqlite3") as ledger:
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(FakeClock())),
+            meter=AllocatedGPUMeter(ledger),
+            popen_factory=lambda *args, **kwargs: process,
+            process_group_signaler=lambda pid, signal_number: setattr(
+                process,
+                "running",
+                False,
+            ),
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        service.start(session_id="pilot", event_id="load", watchdog_seconds=1)
+        original_thread_start = threading.Thread.start
+
+        def delayed_thread_start(thread: threading.Thread) -> None:
+            if thread.name.startswith("vllm-emergency-stop-"):
+                coordinator_start_entered.set()
+                if not allow_coordinator_start.wait(1):
+                    raise RuntimeError("test did not release coordinator start")
+            original_thread_start(thread)
+
+        def delayed_emergency_stop(self: VLLMService) -> None:
+            del self
+            coordinator_body_entered.set()
+            if not allow_coordinator_finish.wait(1):
+                raise RuntimeError("test did not release coordinator body")
+
+        with monkeypatch.context() as scoped:
+            scoped.setattr(threading.Thread, "start", delayed_thread_start)
+            scoped.setattr(VLLMService, "emergency_stop", delayed_emergency_stop)
+            requester = threading.Thread(target=service.request_emergency_stop)
+            requester.start()
+            assert coordinator_start_entered.wait(0.5)
+            # The coordinator is deliberately between construction and start;
+            # it must not yet be visible outside the publication lock.
+            assert service._emergency_stop_thread is None
+
+            def attempt_detach() -> None:
+                try:
+                    service.detach_for_controller_restart(
+                        tmp_path / "race.checkpoint.json"
+                    )
+                except BaseException as exc:
+                    detach_failures.append(exc)
+
+            detacher = threading.Thread(target=attempt_detach)
+            detacher.start()
+            time.sleep(0.02)
+            assert detacher.is_alive() is True
+
+            allow_coordinator_start.set()
+            assert coordinator_body_entered.wait(0.5)
+            requester.join(timeout=0.5)
+            detacher.join(timeout=0.5)
+            assert requester.is_alive() is False
+            assert detacher.is_alive() is False
+            assert len(detach_failures) == 1
+            assert "coordinator forbids controller detach" in str(detach_failures[0])
+            with pytest.raises(RuntimeError, match="coordinator forbids controller handoff"):
+                service.handoff_resume(tmp_path / "race-handoff.json")
+
+            coordinator = _published_emergency_thread(service)
+            # Publication implies Python has accepted Thread.start(), so join
+            # can never raise "cannot join thread before it is started".
+            allow_coordinator_finish.set()
+            coordinator.join(timeout=0.5)
+            assert coordinator.is_alive() is False
+
+        assert not (tmp_path / "race.checkpoint.json").exists()
+        assert not (tmp_path / "race-handoff.json").exists()
+        service.shutdown(shutdown_seconds=0.1)
+
+
+def test_periodic_failure_callback_and_runner_shutdown_serialize_one_signal(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    entered = threading.Event()
+    release = threading.Event()
+    process = FakeProcess(1_094)
+    signals: list[int] = []
+    runner_results: list[ServiceUptime | None] = []
+    runner_failures: list[BaseException] = []
+
+    @dataclass
+    class BlockingFailureSampler:
+        def sample(self, **kwargs: object) -> object:
+            del kwargs
+            entered.set()
+            if not release.wait(2):
+                raise RuntimeError("test sampler was not released")
+            raise RuntimeError("late periodic failure")
+
+    def signal_group(pid: int, signal_number: int) -> None:
+        del pid
+        signals.append(signal_number)
+        process.running = False
+
+    with Ledger(tmp_path / "concurrent-periodic-shutdown.sqlite3") as ledger:
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(FakeClock())),
+            meter=AllocatedGPUMeter(ledger),
+            popen_factory=lambda *args, **kwargs: process,
+            process_group_signaler=signal_group,
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        service.start(session_id="pilot", event_id="load", watchdog_seconds=1)
+        watchdog = ResourceWatchdog(
+            sampler=cast(ResourceSampler, BlockingFailureSampler()),
+            root_pid=process.pid,
+            sample_prefix="concurrent-shutdown",
+            interval_seconds=30,
+            sample_completion_timeout_seconds=1,
+            on_failure=lambda failure: service.request_emergency_stop(),
+        )
+        service.start_periodic_resource_watchdog(watchdog)
+        assert entered.wait(0.5)
+
+        def runner_shutdown() -> None:
+            try:
+                runner_results.append(service.shutdown(shutdown_seconds=0.1))
+            except BaseException as exc:
+                runner_failures.append(exc)
+
+        runner_thread = threading.Thread(target=runner_shutdown)
+        runner_thread.start()
+        time.sleep(0.01)
+        assert signals == []
+        release.set()
+        runner_thread.join(timeout=1)
+        assert runner_thread.is_alive() is False
+        emergency_thread = _published_emergency_thread(service)
+        emergency_thread.join(timeout=1)
+
+        assert emergency_thread.is_alive() is False
+        assert runner_failures == []
+        assert len(runner_results) == 1
+        assert runner_results[0] is not None
+        assert signals == [signal.SIGTERM]
+        assert service.state is ServiceState.STOPPED
+        assert ledger.unresolved_gpu_service_journals() == ()
+
+
+def test_controller_handoff_rejects_owned_periodic_watchdog(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    entered = threading.Event()
+    release = threading.Event()
+    process = FakeProcess(1_095)
+
+    @dataclass
+    class BlockingSampler:
+        def sample(self, **kwargs: object) -> object:
+            del kwargs
+            entered.set()
+            release.wait(1)
+            return object()
+
+    with Ledger(tmp_path / "handoff-watchdog.sqlite3") as ledger:
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(FakeClock())),
+            meter=AllocatedGPUMeter(ledger),
+            popen_factory=lambda *args, **kwargs: process,
+            process_group_signaler=lambda pid, signal_number: setattr(
+                process,
+                "running",
+                False,
+            ),
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        service.start(session_id="pilot", event_id="load", watchdog_seconds=1)
+        watchdog = ResourceWatchdog(
+            sampler=cast(ResourceSampler, BlockingSampler()),
+            root_pid=process.pid,
+            sample_prefix="handoff-owned",
+            interval_seconds=30,
+        )
+        service.start_periodic_resource_watchdog(watchdog)
+        assert entered.wait(0.5)
+
+        with pytest.raises(RuntimeError, match="must stop before controller detach"):
+            service.detach_for_controller_restart(
+                tmp_path / "detached-service.checkpoint.json"
+            )
+        assert not (tmp_path / "detached-service.checkpoint.json").exists()
+        with pytest.raises(RuntimeError, match="must stop before controller handoff"):
+            service.handoff_resume(tmp_path / "service.checkpoint.json")
+        assert not (tmp_path / "service.checkpoint.json").exists()
+
+        release.set()
+        assert service.stop_periodic_resource_watchdog(watchdog, raise_failure=False)
+        service.shutdown(shutdown_seconds=0.1)
 
 
 def test_service_meters_mutually_exclusive_lifecycle_and_safe_shutdown(
@@ -1341,6 +2187,351 @@ def test_cleanup_adopts_token_bound_group_after_service_leader_exits(
                     os.killpg(leader.pid, signal.SIGKILL)
 
 
+def test_cleanup_only_adopts_token_bound_service_after_argv_drift(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(6011)
+    proc_root = tmp_path / "proc"
+    drifted_command = (sys.executable, "renamed-vllm-process-title")
+    with Ledger(tmp_path / "argv-drift-cleanup.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        original = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        expected_command_sha256, instance_token_sha256 = _seed_token_bound_live_lease(
+            original,
+            clock=clock,
+            process=process,
+            proc_root=proc_root,
+            start_ticks=71_001,
+            observed_command=drifted_command,
+        )
+        # setproctitle-style padding can leave an empty argv element rather than
+        # merely a different valid argv hash.
+        (proc_root / str(process.pid) / "cmdline").write_bytes(
+            b"VLLM::EngineCore\0\0"
+        )
+        clock.advance(3)
+
+        def signal_group(pid: int, signal_number: int) -> None:
+            assert pid == process.pid
+            assert signal_number in {signal.SIGTERM, signal.SIGKILL}
+            process.running = False
+
+        recovering = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            sleep=clock.advance,
+            process_group_signaler=signal_group,
+            process_liveness_check=lambda pid: process.running,
+            process_group_liveness_check=lambda pid: process.running,
+        )
+        assert recovering.resume_live_service_lease(
+            expected_session_id="pilot",
+            expected_event_id="load",
+            watchdog_seconds=180,
+            proc_root=proc_root,
+            adopted_factory=lambda pid: process,
+            cleanup_only=True,
+        )
+        assert recovering.state is ServiceState.FAILED
+        assert recovering._last_process_start_ticks == 71_001
+        assert recovering._last_process_command_sha256 == expected_command_sha256
+        assert recovering._last_process_group_id == process.pid
+        assert recovering._last_process_session_id == process.pid
+        assert recovering._service_instance_token_sha256 == instance_token_sha256
+
+        uptime = recovering.shutdown(shutdown_seconds=0.1)
+        assert uptime is not None
+        assert uptime.service_seconds == 3
+        assert process.running is False
+        assert ledger.unresolved_gpu_service_journals() == ()
+
+
+def test_scientific_adoption_remains_strict_after_argv_drift(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(6012)
+    proc_root = tmp_path / "proc"
+    with Ledger(tmp_path / "argv-drift-scientific.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        original = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        expected_command_sha256, _ = _seed_token_bound_live_lease(
+            original,
+            clock=clock,
+            process=process,
+            proc_root=proc_root,
+            start_ticks=71_002,
+            observed_command=(sys.executable, "renamed-vllm-process-title"),
+        )
+        recovering = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_liveness_check=lambda pid: process.running,
+            process_group_liveness_check=lambda pid: process.running,
+        )
+
+        with pytest.raises(RuntimeConfigurationError, match="command line changed"):
+            recovering.resume_live_service_lease(
+                expected_session_id="pilot",
+                expected_event_id="load",
+                watchdog_seconds=180,
+                proc_root=proc_root,
+                adopted_factory=lambda pid: process,
+            )
+        lease = recovering.read_authoritative_service_lease()
+        assert lease is not None
+        assert lease["process_command_sha256"] == expected_command_sha256
+        assert recovering._process is None
+        assert recovering._session_id is None
+
+        process.running = False
+        recovering.shutdown(shutdown_seconds=0.1)
+
+
+def test_failed_cleanup_adoption_and_emergency_stop_preserve_exact_lease_identity(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(6013)
+    proc_root = tmp_path / "proc"
+    signaled: list[tuple[int, int]] = []
+    with Ledger(tmp_path / "failed-cleanup-adoption.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        original = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        command_sha256, token_sha256 = _seed_token_bound_live_lease(
+            original,
+            clock=clock,
+            process=process,
+            proc_root=proc_root,
+            start_ticks=71_003,
+            observed_command=(sys.executable, "renamed-vllm-process-title"),
+        )
+        clock.advance(2)
+        recovering = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            sleep=clock.advance,
+            process_group_signaler=lambda pid, signal_number: signaled.append(
+                (pid, signal_number)
+            ),
+            process_liveness_check=lambda pid: process.running,
+            process_group_liveness_check=lambda pid: process.running,
+        )
+
+        with pytest.raises(RuntimeError, match="simulated adopter failure"):
+            recovering.resume_live_service_lease(
+                expected_session_id="pilot",
+                expected_event_id="load",
+                watchdog_seconds=180,
+                proc_root=proc_root,
+                adopted_factory=lambda pid: (_ for _ in ()).throw(
+                    RuntimeError("simulated adopter failure")
+                ),
+                cleanup_only=True,
+            )
+        with pytest.raises(RuntimeError, match="still live: process_group"):
+            recovering.emergency_stop()
+
+        lease = recovering.read_authoritative_service_lease()
+        assert lease is not None
+        assert lease["lease_state"] == "shutdown_unverified"
+        assert lease["session_id"] == "pilot"
+        assert lease["accounting_session_id"] == "load"
+        assert lease["service_pid"] == process.pid
+        assert lease["process_start_ticks"] == 71_003
+        assert lease["process_command_sha256"] == command_sha256
+        assert lease["process_group_id"] == process.pid
+        assert lease["process_session_id"] == process.pid
+        assert lease["service_instance_token_sha256"] == token_sha256
+        assert signaled == [
+            (process.pid, signal.SIGKILL),
+        ]
+
+        process.running = False
+        recovering.shutdown(shutdown_seconds=0.1)
+        assert ledger.unresolved_gpu_service_journals() == ()
+
+
+def test_failed_prebind_adoption_emergency_never_nulls_prior_exact_lease(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(6014)
+    proc_root = tmp_path / "proc"
+    with Ledger(tmp_path / "prebind-emergency.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        original = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        command_sha256, token_sha256 = _seed_token_bound_live_lease(
+            original,
+            clock=clock,
+            process=process,
+            proc_root=proc_root,
+            start_ticks=71_004,
+            observed_command=launch_configuration.command(),
+        )
+        client = FakeServiceClient(clock)
+        client.endpoint_is_live = True
+        recovering = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, client),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            sleep=clock.advance,
+            process_liveness_check=lambda pid: process.running,
+            process_group_liveness_check=lambda pid: process.running,
+        )
+        with pytest.raises(RuntimeConfigurationError, match="activation identity"):
+            recovering.resume_live_service_lease(
+                expected_session_id="different-pilot",
+                expected_event_id="load",
+                watchdog_seconds=180,
+                proc_root=proc_root,
+                cleanup_only=True,
+            )
+        with pytest.raises(RuntimeError, match="still live: endpoint"):
+            recovering.emergency_stop()
+
+        lease = recovering.read_authoritative_service_lease()
+        assert lease is not None
+        assert lease["lease_state"] == "shutdown_unverified"
+        assert lease["session_id"] == "pilot"
+        assert lease["accounting_session_id"] == "load"
+        assert lease["service_pid"] == process.pid
+        assert lease["process_start_ticks"] == 71_004
+        assert lease["process_command_sha256"] == command_sha256
+        assert lease["process_group_id"] == process.pid
+        assert lease["process_session_id"] == process.pid
+        assert lease["service_instance_token_sha256"] == token_sha256
+
+        client.endpoint_is_live = False
+        process.running = False
+        recovering._release_service_lock()
+
+
+def test_mismatched_configuration_emergency_failure_cannot_hybridize_exact_lease(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(6_015)
+    proc_root = tmp_path / "proc"
+
+    class FailingEndpointClient(FakeServiceClient):
+        def endpoint_live(self, timeout_seconds: float = 0.25) -> bool:
+            del timeout_seconds
+            raise RuntimeError("simulated endpoint probe failure")
+
+    with Ledger(tmp_path / "configuration-carry-forward.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        original = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        command_sha256, token_sha256 = _seed_token_bound_live_lease(
+            original,
+            clock=clock,
+            process=process,
+            proc_root=proc_root,
+            start_ticks=71_005,
+            observed_command=launch_configuration.command(),
+        )
+        original_configuration_hash = launch_configuration.configuration_hash
+        mismatched_configuration = replace(
+            launch_configuration,
+            verified_snapshot_manifest_sha256="f" * 64,
+        )
+        assert mismatched_configuration.configuration_hash != original_configuration_hash
+        recovering = VLLMService(
+            configuration=mismatched_configuration,
+            client=cast(VLLMGuidedJSONClient, FailingEndpointClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        recovering._acquire_service_lock()
+
+        with pytest.raises(RuntimeError, match="endpoint probe failure"):
+            recovering.emergency_stop()
+
+        lease = recovering.read_authoritative_service_lease()
+        assert lease is not None
+        assert lease["lease_state"] == "shutdown_unverified"
+        assert lease["configuration_hash"] == original_configuration_hash
+        assert lease["session_id"] == "pilot"
+        assert lease["accounting_session_id"] == "load"
+        assert lease["service_pid"] == process.pid
+        assert lease["process_start_ticks"] == 71_005
+        assert lease["process_command_sha256"] == command_sha256
+        assert lease["process_group_id"] == process.pid
+        assert lease["process_session_id"] == process.pid
+        assert lease["service_instance_token_sha256"] == token_sha256
+
+        process.running = False
+        recovering._release_service_lock()
+
+
 def test_atomic_lease_snapshot_rejects_hash_inconsistent_metadata(
     tmp_path: Path,
     launch_configuration: VLLMLaunchConfiguration,
@@ -1513,6 +2704,235 @@ def test_stale_service_recovery_requires_absence_and_charges_through_recovery(
 
         assert replayed_record == record
         assert replaying.last_recovered_process_identity == recovered_identity
+
+
+def test_terminal_null_lease_restoration_requires_absence_and_exact_accounting(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    service_pid = 60_310
+    command_sha256 = canonical_sha256(list(launch_configuration.command()))
+    token_sha256 = "d" * 64
+    lock_path = launch_configuration.shared_cache / ".story-projection-onto-vllm.lock"
+    with Ledger(tmp_path / "terminal-null-lease.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        _seed_terminal_journal_and_null_lease(
+            configuration=launch_configuration,
+            meter=meter,
+            clock=clock,
+        )
+        damaged_lease = json.loads(lock_path.read_text(encoding="utf-8"))
+        assert damaged_lease["lease_state"] == "shutdown_unverified"
+        assert damaged_lease["service_pid"] is None
+        assert damaged_lease["process_start_ticks"] is None
+        assert damaged_lease["process_group_id"] is None
+        assert damaged_lease["service_instance_token_sha256"] is None
+
+        recovering = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_liveness_check=lambda pid: False,
+            process_group_liveness_check=lambda pid: False,
+        )
+        record = recovering.restore_terminal_service_lease_from_identity(
+            expected_session_id="pilot",
+            expected_event_id="load",
+            service_pid=service_pid,
+            process_start_ticks=71_010,
+            observed_process_command_sha256="a" * 64,
+            process_group_id=service_pid,
+            process_session_id=service_pid,
+            service_instance_token_sha256=token_sha256,
+        )
+
+        assert record == ledger.get_gpu_service_session("load")
+        assert ledger.unresolved_gpu_allocations() == ()
+        assert ledger.unresolved_gpu_service_journals() == ()
+        restored_lease = json.loads(lock_path.read_text(encoding="utf-8"))
+        assert restored_lease["lease_state"] == "stopped_verified"
+        assert restored_lease["session_id"] == "pilot"
+        assert restored_lease["accounting_session_id"] == "load"
+        assert restored_lease["service_pid"] == service_pid
+        assert restored_lease["process_start_ticks"] == 71_010
+        assert restored_lease["process_command_sha256"] == command_sha256
+        assert restored_lease["process_group_id"] == service_pid
+        assert restored_lease["process_session_id"] == service_pid
+        assert restored_lease["service_instance_token_sha256"] == token_sha256
+        assert datetime.fromisoformat(restored_lease["service_started_at"]) == (
+            datetime.fromisoformat(record.started_at)
+        )
+        assert datetime.fromisoformat(restored_lease["service_ended_at"]) == (
+            datetime.fromisoformat(record.ended_at)
+        )
+        assert restored_lease["ledger_allocated_seconds_before_session"] == 0
+        recovered_identity = recovering.last_recovered_process_identity
+        assert recovered_identity is not None
+        assert recovered_identity.pid == service_pid
+        assert recovered_identity.process_start_ticks == 71_010
+
+        replaying = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        assert replaying.recover_stale_service_lease() == record
+
+
+def test_terminal_null_lease_restoration_rejects_live_or_unresolved_state(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    service_pid = 60_311
+    with Ledger(tmp_path / "terminal-null-rejections.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        _seed_terminal_journal_and_null_lease(
+            configuration=launch_configuration,
+            meter=meter,
+            clock=clock,
+        )
+        live = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_liveness_check=lambda pid: True,
+            process_group_liveness_check=lambda pid: False,
+        )
+        with pytest.raises(RuntimeConfigurationError, match="live service state: pid"):
+            live.restore_terminal_service_lease_from_identity(
+                expected_session_id="pilot",
+                expected_event_id="load",
+                service_pid=service_pid,
+                process_start_ticks=71_011,
+                observed_process_command_sha256="a" * 64,
+                process_group_id=service_pid,
+                process_session_id=service_pid,
+                service_instance_token_sha256="e" * 64,
+            )
+
+        meter.open_service_journal(
+            service_session_id="another-load",
+            session_id="another-pilot",
+            configuration_hash=launch_configuration.configuration_hash,
+            started_at=clock.wall(),
+            ledger_allocated_seconds_before_session=meter.actual_allocated_gpu_seconds,
+        )
+        unresolved = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_liveness_check=lambda pid: False,
+            process_group_liveness_check=lambda pid: False,
+        )
+        with pytest.raises(RuntimeConfigurationError, match="unresolved service accounting"):
+            unresolved.restore_terminal_service_lease_from_identity(
+                expected_session_id="pilot",
+                expected_event_id="load",
+                service_pid=service_pid,
+                process_start_ticks=71_011,
+                observed_process_command_sha256="a" * 64,
+                process_group_id=service_pid,
+                process_session_id=service_pid,
+                service_instance_token_sha256="e" * 64,
+            )
+
+
+@pytest.mark.parametrize("corruption", ["configuration", "timestamp", "baseline"])
+def test_terminal_null_lease_restoration_rejects_inconsistent_terminal_rows(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+    corruption: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = FakeClock()
+    with Ledger(tmp_path / f"terminal-null-{corruption}.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        _seed_terminal_journal_and_null_lease(
+            configuration=launch_configuration,
+            meter=meter,
+            clock=clock,
+        )
+        journal_records = ledger.gpu_service_journal_records()
+        record = ledger.get_gpu_service_session("load")
+        assert record is not None
+        if corruption == "configuration":
+            corrupted_journals = (
+                *journal_records[:-1],
+                replace(journal_records[-1], configuration_hash="f" * 64),
+            )
+            monkeypatch.setattr(
+                ledger,
+                "gpu_service_journal_records",
+                lambda: corrupted_journals,
+            )
+            expected_message = "journal identity"
+        elif corruption == "timestamp":
+            monkeypatch.setattr(
+                ledger,
+                "get_gpu_service_session",
+                lambda service_session_id: replace(
+                    record,
+                    ended_at=(clock.wall() + timedelta(seconds=1)).isoformat(),
+                ),
+            )
+            expected_message = "timestamps"
+        else:
+            corrupted_journals = (
+                *journal_records[:-1],
+                replace(
+                    journal_records[-1],
+                    ledger_allocated_microseconds_before_session=1,
+                ),
+            )
+            monkeypatch.setattr(
+                ledger,
+                "gpu_service_journal_records",
+                lambda: corrupted_journals,
+            )
+            expected_message = "journal identity"
+        recovering = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_liveness_check=lambda pid: False,
+            process_group_liveness_check=lambda pid: False,
+        )
+
+        with pytest.raises(RuntimeConfigurationError, match=expected_message):
+            recovering.restore_terminal_service_lease_from_identity(
+                expected_session_id="pilot",
+                expected_event_id="load",
+                service_pid=60_312,
+                process_start_ticks=71_012,
+                observed_process_command_sha256="a" * 64,
+                process_group_id=60_312,
+                process_session_id=60_312,
+                service_instance_token_sha256="e" * 64,
+            )
 
 
 def test_stale_service_recovery_refuses_a_still_live_pid(
@@ -2237,7 +3657,12 @@ def test_production_exec_gate_persists_pidless_intent_before_popen(
     lock_path = launch_configuration.shared_cache / ".story-projection-onto-vllm.lock"
     observed_intents: list[dict[str, object]] = []
 
-    def interrupt_before_popen(self: VLLMService) -> None:
+    def interrupt_before_popen(
+        self: VLLMService,
+        *,
+        startup_deadline: float,
+    ) -> None:
+        del startup_deadline
         assert self._process is None
         observed_intents.append(json.loads(lock_path.read_text(encoding="utf-8")))
         raise RuntimeError("simulated controller death before Popen")
@@ -3054,7 +4479,7 @@ def test_spawn_failure_stops_child_and_preserves_restricted_log(
     assert log_path.stat().st_mode & 0o777 == 0o600
 
 
-def test_service_capacity_reserves_shutdown_time(
+def test_service_capacity_reserves_sampler_drain_and_shutdown_time(
     tmp_path: Path,
     launch_configuration: VLLMLaunchConfiguration,
 ) -> None:
@@ -3064,12 +4489,13 @@ def test_service_capacity_reserves_shutdown_time(
             client=cast(VLLMGuidedJSONClient, FakeServiceClient(FakeClock())),
             meter=AllocatedGPUMeter(
                 ledger,
-                scheduled_limit_seconds=90,
-                hard_limit_seconds=100,
+                scheduled_limit_seconds=500,
+                hard_limit_seconds=600,
             ),
         )
+        assert gpu_runtime.RESOURCE_AWARE_HARD_STOP_RESERVE_SECONDS == 180
         with pytest.raises(GpuBudgetExceeded, match="hard GPU-service limit"):
-            service.require_service_capacity(40)
+            service.require_service_capacity(420)
 
 
 def test_exact_eight_call_plan_and_dry_cli_never_start_model(tmp_path: Path) -> None:
@@ -3448,6 +4874,8 @@ class FakeAcceptanceService:
     recovery_count: int = 0
     shutdown_count: int = 0
     settlement_calls: list[str] = field(default_factory=list)
+    periodic_resource_watchdog: ResourceWatchdog | None = None
+    periodic_drain_allowed: bool = True
 
     def start(self, *, event_id: str, watchdog_seconds: float, **kwargs: object) -> None:
         self.start_count += 1
@@ -3542,6 +4970,39 @@ class FakeAcceptanceService:
 
     def emergency_stop(self) -> None:
         self.state = ServiceState.STOPPED
+
+    def request_emergency_stop(self) -> None:
+        self.emergency_stop()
+
+    def start_periodic_resource_watchdog(
+        self,
+        watchdog: ResourceWatchdog,
+    ) -> ResourceWatchdog:
+        if self.periodic_resource_watchdog is not None:
+            raise RuntimeError("test service already owns a resource watchdog")
+        self.periodic_resource_watchdog = watchdog
+        return watchdog.start()
+
+    def stop_periodic_resource_watchdog(
+        self,
+        watchdog: ResourceWatchdog,
+        *,
+        raise_failure: bool = True,
+        completion_timeout_seconds: float | None = None,
+    ) -> bool:
+        owned = self.periodic_resource_watchdog
+        if owned is not None and owned is not watchdog:
+            raise RuntimeError("test service does not own this resource watchdog")
+        if not self.periodic_drain_allowed:
+            watchdog._stop.set()
+            return False
+        drained = watchdog.stop(
+            raise_failure=raise_failure,
+            completion_timeout_seconds=completion_timeout_seconds,
+        )
+        if drained:
+            self.periodic_resource_watchdog = None
+        return drained
 
     def shutdown(self) -> ServiceUptime | None:
         self.settlement_calls.append("shutdown")
@@ -3638,6 +5099,59 @@ def test_acceptance_runner_executes_exact_calls_lifecycle_forecast_and_gates(
         assert ledger.count_rows("model_calls") == 9
         assert service.start_count == 1
         assert service.restart_count == 1
+
+
+def test_phase1_runner_surfaces_periodic_drain_refusal_before_shutdown(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    with Ledger(tmp_path / "phase1-drain-refusal.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        service = FakeAcceptanceService(
+            configuration=launch_configuration,
+            client=FixtureAcceptanceClient(clock),
+            meter=meter,
+            periodic_drain_allowed=False,
+        )
+        sampler = ResourceSampler(
+            limits=limits(),
+            storage=StoragePreflight(tmp_path),
+            ledger=ledger,
+            process_sampler=lambda pid: ProcessTreeUsage(frozenset({pid}), 10_000),
+            system_ram_sampler=lambda: 100_000_000_000,
+            gpu_sampler=lambda pids: 1_000,
+            filesystem_free_sampler=lambda: 100_000_000_000,
+            wall_clock=clock.wall,
+        )
+        runner = AcceptanceRunner(
+            root=ROOT,
+            run_id="phase1-drain-refusal",
+            service=cast(VLLMService, service),
+            ledger=ledger,
+            artifacts=ArtifactStore(
+                BlobStore(tmp_path / "blobs", compression=Compression.GZIP),
+                ledger,
+            ),
+            resource_sampler=sampler,
+            tokenizer=FakeTokenizer(),
+            tokenizer_manifest=_tokenizer_manifest(),
+            checkpoint_path=tmp_path / "checkpoint.json",
+        )
+
+        with pytest.raises(RuntimeError, match="periodic resource sample exceeded"):
+            runner.run()
+
+        assert service.shutdown_count == 0
+        watchdog = service.periodic_resource_watchdog
+        assert watchdog is not None
+        service.periodic_drain_allowed = True
+        assert service.stop_periodic_resource_watchdog(watchdog, raise_failure=False)
+        service.shutdown()
 
 
 def test_acceptance_failed_transport_is_accounted_but_not_a_timing_proxy(

@@ -16,6 +16,7 @@ from story_projection_onto.development_adapter import (
     persist_opaque_json,
 )
 from story_projection_onto.development_artifacts import (
+    HISTORICAL_SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
     SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
     DevelopmentAssessmentBundle,
     DevelopmentPackingPreflight,
@@ -93,10 +94,15 @@ class _TickingClock:
         return self.value
 
 
-def test_second_recovery_service_start_ids_are_exactly_v3_and_v7() -> None:
+def test_second_recovery_service_start_ids_preserve_v7_and_extend_v8() -> None:
+    assert HISTORICAL_SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS == (
+        "fallback-qwen3-8b-awq-development-v3-service-start-001",
+        "fallback-qwen3-8b-awq-development-v7-service-start-001",
+    )
     assert SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS == (
         "fallback-qwen3-8b-awq-development-v3-service-start-001",
         "fallback-qwen3-8b-awq-development-v7-service-start-001",
+        "fallback-qwen3-8b-awq-development-v8-service-start-001",
     )
 
 
@@ -139,7 +145,7 @@ def test_production_factory_rejects_service_id_derived_from_zero_start_v6(
     )
     with Ledger(tmp_path / "ledger.sqlite3") as ledger, pytest.raises(
         DevelopmentContinuationError,
-        match=r"exact ordered v3\+v7 service IDs",
+        match=r"exact ordered v3\+v7\[/v8\] service lineage",
     ):
         create_production_development_adopter(
             root=ROOT,
@@ -161,16 +167,22 @@ def test_production_factory_rejects_service_id_derived_from_zero_start_v6(
         )
 
 
+@pytest.mark.parametrize(
+    "recovery_ids",
+    (
+        HISTORICAL_SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
+        SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
+    ),
+)
 def test_second_recovery_factory_and_forecast_bind_exact_ordered_service_ids(
     tmp_path: Path,
+    recovery_ids: tuple[str, ...],
 ) -> None:
     amendment_hash = _digest("v3-retry-amendment")
     overlay_hash = _digest("v5-second-recovery-overlay")
     started = datetime(2026, 9, 5, tzinfo=UTC)
     with Ledger(tmp_path / "ledger.sqlite3") as ledger:
-        for ordinal, event_id in enumerate(
-            SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS
-        ):
+        for ordinal, event_id in enumerate(recovery_ids):
             ledger.record_gpu_event(
                 event_id=event_id,
                 event_kind=GpuEventKind.GPU_SESSION_START,
@@ -203,9 +215,7 @@ def test_second_recovery_factory_and_forecast_bind_exact_ordered_service_ids(
             assessment_factory=_unreachable_assessment_factory,
             retry_amendment_sha256=amendment_hash,
             second_recovery_overlay_sha256=overlay_hash,
-            recovery_service_start_event_ids=(
-                SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS
-            ),
+            recovery_service_start_event_ids=recovery_ids,
         )
         receipt = build_development_forecast_receipt(
             root=ROOT,
@@ -215,14 +225,12 @@ def test_second_recovery_factory_and_forecast_bind_exact_ordered_service_ids(
             clock=lambda: started,
             retry_amendment_sha256=amendment_hash,
             second_recovery_overlay_sha256=overlay_hash,
-            recovery_service_start_event_ids=(
-                SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS
-            ),
+            recovery_service_start_event_ids=recovery_ids,
         )
 
     assert adopter.second_recovery_overlay_sha256 == overlay_hash
-    assert receipt.authorized_additional_service_start_events == 2
-    assert receipt.effective_accounting_events == 288
+    assert receipt.authorized_additional_service_start_events == len(recovery_ids)
+    assert receipt.effective_accounting_events == 286 + len(recovery_ids)
     service_row = next(
         row for row in receipt.inventory_rows if row.call_class == "gpu_session_start"
     )

@@ -50,6 +50,7 @@ def test_schema_generation_is_deterministic_and_hash_manifested(tmp_path: Path) 
         "fallback_control_plane_incident.schema.json",
         "fallback_v5_control_plane_incident.schema.json",
         "fallback_v6_control_plane_incident.schema.json",
+        "fallback_v7_runtime_incident.schema.json",
     ]
 
 

@@ -84,13 +84,19 @@ from story_projection_onto.fallback_v6_control_plane_incident import (
     FALLBACK_V6_CONTROL_PLANE_ERROR_CLASS,
     validate_fallback_v6_control_plane_incident,
 )
+from story_projection_onto.fallback_v7_runtime_incident import (
+    FALLBACK_V7_SAFE_ERROR_CLASS,
+    validate_fallback_v7_runtime_incident,
+)
 from story_projection_onto.gpu_runtime import (
+    DEFAULT_RESOURCE_SAMPLE_COMPLETION_SECONDS,
     DEFAULT_SHUTDOWN_SECONDS,
     DURABLE_EXEC_GATE_PROTOCOL,
     FALLBACK_MODEL_REPOSITORY,
     FALLBACK_MODEL_REVISION,
     FALLBACK_SERVED_MODEL_NAME,
     PINNED_RUNTIME_VERSION,
+    RESOURCE_AWARE_HARD_STOP_RESERVE_SECONDS,
     ChatMessage,
     GenerationResult,
     GPUHardwareIdentity,
@@ -226,6 +232,26 @@ SECOND_RECOVERY_V6_RUN_ID = "fallback-qwen3-8b-awq-development-v6"
 SECOND_RECOVERY_V6_SOURCE_REVISION = "fallback-second-recovery-v6"
 SECOND_RECOVERY_V7_RUN_ID = "fallback-qwen3-8b-awq-development-v7"
 SECOND_RECOVERY_V7_SOURCE_REVISION = "fallback-second-recovery-v7"
+SECOND_RECOVERY_V8_RUN_ID = "fallback-qwen3-8b-awq-development-v8"
+SECOND_RECOVERY_V8_SOURCE_REVISION = "fallback-second-recovery-v8"
+SECOND_RECOVERY_V7_SOURCE_ASSOCIATION_MANIFEST_SHA256 = (
+    "021158e5ad00f9759300aa58ae4142e64db6f083bafac41de2f401fde9cecf41"
+)
+SECOND_RECOVERY_V7_OVERLAY_MANIFEST_SHA256 = (
+    "96d5526d8160e4d84bac6e0b0044a4e4e5fe0bb7eff40698aa6615afcc869c0a"
+)
+SECOND_RECOVERY_V7_PREFLIGHT_MANIFEST_SHA256 = (
+    "7bbe4886ca1bf363fa049f3f3426379ea9e6fab8bdea57e4c0e20c8b54a6086e"
+)
+SECOND_RECOVERY_V7_TERMINAL_LEDGER_FILE_SHA256 = (
+    "742adfdf6c9ffe97da4ba898848e1a642b7808d0e22f119d20cb924efcc60f22"
+)
+SECOND_RECOVERY_V7_INCIDENT_FILE_SHA256 = (
+    "222c4011d458be9776d75214db59a9da567a5406480735425e62cffa61fa2edf"
+)
+SECOND_RECOVERY_V7_INCIDENT_MANIFEST_SHA256 = (
+    "4a550f74c1627e196d07db475acf9200fda2127f59516a59ad14b40e4867aa15"
+)
 SECOND_RECOVERY_V4_SOURCE_ASSOCIATION_MANIFEST_SHA256 = (
     "461135158f0ab9fb526bfff4dd5767e743d76359822f971a61bca1ea5ac6d33a"
 )
@@ -526,10 +552,13 @@ _FALLBACK_CORE_IMPLEMENTATION_FILES = (
     "prompts/repair/prompt_v1.md",
     "schemas/jsonschema/fallback_control_plane_incident.schema.json",
     "schemas/jsonschema/fallback_v6_control_plane_incident.schema.json",
+    "schemas/jsonschema/fallback_v7_runtime_incident.schema.json",
     "schemas/jsonschema/ontology_draft.schema.json",
     "scripts/authorize_fallback_model.py",
     "scripts/build_fallback_control_plane_incident.py",
     "scripts/build_fallback_v6_control_plane_incident.py",
+    "scripts/build_fallback_v7_runtime_incident.py",
+    "scripts/restore_fallback_v7_terminal_lease.py",
     "scripts/generate_schemas.py",
     "scripts/run_development_block.py",
     "scripts/run_fallback_gpu_acceptance.py",
@@ -554,6 +583,8 @@ _FALLBACK_CORE_IMPLEMENTATION_FILES = (
     "src/story_projection_onto/fallback_acceptance.py",
     "src/story_projection_onto/fallback_control_plane_incident.py",
     "src/story_projection_onto/fallback_v6_control_plane_incident.py",
+    "src/story_projection_onto/fallback_v7_runtime_incident.py",
+    "src/story_projection_onto/fallback_v7_lease_repair.py",
     "src/story_projection_onto/gpu_runtime.py",
     "src/story_projection_onto/held_out_execution.py",
     "src/story_projection_onto/ledger_verify.py",
@@ -583,6 +614,9 @@ _FALLBACK_CORE_IMPLEMENTATION_FILES = (
     "tests/unit/test_fallback_acceptance.py",
     "tests/unit/test_fallback_control_plane_incident.py",
     "tests/unit/test_fallback_v6_control_plane_incident.py",
+    "tests/unit/test_fallback_v7_runtime_incident.py",
+    "tests/unit/test_fallback_v7_lease_repair.py",
+    "tests/unit/test_gpu_runtime.py",
     "tests/unit/test_held_out_execution.py",
     "tests/unit/test_ledger_verify.py",
     "tests/unit/test_metrics_alignment.py",
@@ -623,10 +657,13 @@ FORBIDDEN_ADAPTER_LIFECYCLE_MEMBERS = (
     "emergency_stop",
     "kill",
     "load",
+    "request_emergency_stop",
     "restart",
     "shutdown",
     "start",
+    "start_periodic_resource_watchdog",
     "stop",
+    "stop_periodic_resource_watchdog",
     "terminate",
 )
 
@@ -782,7 +819,7 @@ class SecondRecoverySourceBinding(_StrictOverlayRecord):
 
 
 class SecondRecoveryDelta(_StrictOverlayRecord):
-    additional_fallback_service_loads: Literal[1]
+    additional_fallback_service_loads: Literal[1, 2]
     recovery_service_start_watchdog_seconds: Literal[300]
     authorized_retry_inference_attempts: Literal[1]
     retry_call_id: Literal["fallback-c1-01"]
@@ -791,8 +828,8 @@ class SecondRecoveryDelta(_StrictOverlayRecord):
     retry_watchdog_seconds: Literal[240]
     additional_unreserved_inference_attempts: Literal[0]
     original_accounting_events: Literal[286]
-    prior_effective_accounting_events: Literal[287]
-    amended_effective_accounting_events: Literal[288]
+    prior_effective_accounting_events: Literal[287, 288]
+    amended_effective_accounting_events: Literal[288, 289]
     original_maximum_inference_attempts: Literal[278]
     amended_maximum_inference_attempts: Literal[278]
     prior_consumed_reserve_long_slots: Literal[1]
@@ -816,9 +853,83 @@ class SecondRecoveryForecast(_StrictOverlayRecord):
     scheduled_limit_seconds: float = Field(gt=0)
     scheduled_reserve_seconds: float
     protected_shutdown_seconds: float = Field(ge=0)
+    protected_resource_sample_drain_seconds: float | None = Field(default=None, ge=0)
+    protected_hard_stop_reserve_seconds: float | None = Field(default=None, ge=0)
     hard_limit_seconds: float = Field(gt=0)
     hard_contingency_after_start_and_shutdown_seconds: float
     admitted: Literal[True]
+
+    def manifest_payload(self) -> dict[str, object]:
+        """Preserve the exact pre-1.6 field surface for historical overlays."""
+
+        payload = self.model_dump(mode="json")
+        if self.protected_resource_sample_drain_seconds is None:
+            payload.pop("protected_resource_sample_drain_seconds", None)
+        if self.protected_hard_stop_reserve_seconds is None:
+            payload.pop("protected_hard_stop_reserve_seconds", None)
+        return payload
+
+    @model_validator(mode="after")
+    def validate_forecast_arithmetic(self) -> Self:
+        expected_service = max(
+            self.service_start_watchdog_seconds,
+            self.successful_service_start_p95_seconds,
+        )
+        if not math.isclose(
+            self.additional_service_allocation_forecast_seconds,
+            expected_service,
+            rel_tol=0.0,
+            abs_tol=1e-6,
+        ):
+            raise ValueError("second-recovery service allocation forecast changed")
+        if not math.isclose(
+            self.scheduled_reserve_seconds,
+            self.scheduled_limit_seconds
+            - self.actual_plus_remaining_and_service_start_seconds,
+            rel_tol=0.0,
+            abs_tol=1e-6,
+        ):
+            raise ValueError("second-recovery scheduled reserve does not reconcile")
+
+        drain = self.protected_resource_sample_drain_seconds
+        total_reserve = self.protected_hard_stop_reserve_seconds
+        if (drain is None) != (total_reserve is None):
+            raise ValueError("second-recovery hard-stop reserve fields must appear together")
+        if drain is None or total_reserve is None:
+            hard_reserve = self.protected_shutdown_seconds
+        else:
+            if not math.isclose(
+                drain,
+                DEFAULT_RESOURCE_SAMPLE_COMPLETION_SECONDS,
+                rel_tol=0.0,
+                abs_tol=1e-9,
+            ) or not math.isclose(
+                total_reserve,
+                drain + self.protected_shutdown_seconds,
+                rel_tol=0.0,
+                abs_tol=1e-9,
+            ):
+                raise ValueError("second-recovery resource-aware hard-stop reserve changed")
+            hard_reserve = total_reserve
+        expected_hard_contingency = (
+            self.hard_limit_seconds
+            - self.actual_plus_remaining_and_service_start_seconds
+            - hard_reserve
+        )
+        if not math.isclose(
+            self.hard_contingency_after_start_and_shutdown_seconds,
+            expected_hard_contingency,
+            rel_tol=0.0,
+            abs_tol=1e-6,
+        ):
+            raise ValueError("second-recovery hard contingency does not reconcile")
+        if (
+            self.actual_plus_remaining_and_service_start_seconds
+            > self.scheduled_limit_seconds
+            or expected_hard_contingency <= 0
+        ):
+            raise ValueError("second-recovery admitted forecast exceeds a hard gate")
+        return self
 
 
 class SecondRecoveryC0PreDataCorrection(_StrictOverlayRecord):
@@ -1174,10 +1285,31 @@ class SecondRecoveryV6ControlPlaneIncidentBinding(_StrictOverlayRecord):
     fresh_repaired_source_required: Literal[True]
 
 
+class SecondRecoveryV7RuntimeIncidentBinding(_StrictOverlayRecord):
+    """Typed terminal provenance for the metered v7 startup failure."""
+
+    run_id: Literal["fallback-qwen3-8b-awq-development-v7"]
+    incident_file_sha256: Sha256Digest
+    incident_manifest_sha256: Sha256Digest
+    classification: Literal[
+        "slow_in_flight_storage_resource_sample_exceeded_poll_derived_watchdog_stop_join"
+    ]
+    inference_attempts_consumed: Literal[0]
+    accepted_output_count: Literal[0]
+    model_output_count: Literal[0]
+    allocated_gpu_microseconds_delta: Literal[692635556]
+    classified_failure_microseconds: Literal[224234089]
+    conservative_service_overhead_microseconds: Literal[468401467]
+    physical_shutdown_verified: Literal[True]
+    ledger_recovery_completed: Literal[True]
+    resume_permitted: Literal[False]
+    terminal_gpu_accounting: SecondRecoveryGpuAccounting
+
+
 class SecondFallbackRecoveryOverlay(_StrictOverlayRecord):
     """Strict proposed-or-authorized overlay for the one v3 transport retry."""
 
-    schema_version: Literal["1.2.0", "1.3.0", "1.4.0", "1.5.0"] = "1.5.0"
+    schema_version: Literal["1.2.0", "1.3.0", "1.4.0", "1.5.0", "1.6.0"] = "1.6.0"
     kind: Literal["phase1_fallback_second_recovery_overlay"]
     authorization: SecondRecoveryAuthorization
     authorized_recovery_run_id: str = Field(pattern=r"^[a-z0-9][a-z0-9._-]{0,95}$")
@@ -1206,6 +1338,7 @@ class SecondFallbackRecoveryOverlay(_StrictOverlayRecord):
     intervening_v6_control_plane_incident: (
         SecondRecoveryV6ControlPlaneIncidentBinding | None
     ) = None
+    intervening_v7_runtime_incident: SecondRecoveryV7RuntimeIncidentBinding | None = None
     unchanged_scientific_controls: dict[str, bool]
     scope: str = Field(min_length=1)
     authoritative_plans_rewritten: Literal[False]
@@ -1220,7 +1353,10 @@ class SecondFallbackRecoveryOverlay(_StrictOverlayRecord):
             excluded.add("intervening_v5_control_plane_incident")
         if self.intervening_v6_control_plane_incident is None:
             excluded.add("intervening_v6_control_plane_incident")
+        if self.intervening_v7_runtime_incident is None:
+            excluded.add("intervening_v7_runtime_incident")
         immutable = self.model_dump(mode="json", exclude=excluded)
+        immutable["corrected_forecast"] = self.corrected_forecast.manifest_payload()
         if self.manifest_sha256 != canonical_sha256(immutable):
             raise ValueError("second recovery overlay manifest hash changed")
         return self
@@ -1970,8 +2106,10 @@ def _second_recovery_corrected_forecast(
     predecessor: Mapping[str, object],
     inventory: GPUCallInventory,
     limits: ResourceLimits,
+    cumulative_gpu_accounting: Mapping[str, object] | None = None,
+    consumed_recovery_service_starts: int = 1,
 ) -> dict[str, object]:
-    """Rebuild the v3 forecast without treating its failed transport as latency."""
+    """Rebuild the forecast without treating failed transport as generation latency."""
 
     raw_timings = predecessor.get("timing_by_call_class")
     if not isinstance(raw_timings, list) or not all(
@@ -2005,14 +2143,35 @@ def _second_recovery_corrected_forecast(
         (TimingObservation("gpu_session_start", service_start_seconds),),
         limits=limits,
     )
+    # The observed service-start p95 is charged once for the immediately
+    # proposed recovery allocation.  V8 must not also substitute that same
+    # observation across every future registered service row: those rows remain
+    # at their frozen inventory forecast, matching the runtime continuation
+    # calculation used after terminal v7.
+    remaining_forecast = (
+        forecast_gpu_schedule(inventory, limits=limits)
+        if consumed_recovery_service_starts == 2
+        else forecast
+    )
     runtime = predecessor.get("runtime")
-    accounting = runtime.get("gpu_accounting") if isinstance(runtime, Mapping) else None
-    if not isinstance(accounting, Mapping):
+    predecessor_accounting = (
+        runtime.get("gpu_accounting") if isinstance(runtime, Mapping) else None
+    )
+    if not isinstance(predecessor_accounting, Mapping):
         raise ValueError("v3 predecessor lacks cumulative GPU accounting")
+    accounting = (
+        predecessor_accounting
+        if cumulative_gpu_accounting is None
+        else cumulative_gpu_accounting
+    )
     service_session_count = accounting.get("service_session_count")
-    if service_session_count != 4:
-        raise ValueError("v3 predecessor service-session count changed")
-    base_service_starts = cast(int, service_session_count) - 1
+    if (
+        isinstance(consumed_recovery_service_starts, bool)
+        or consumed_recovery_service_starts not in {1, 2}
+        or service_session_count != 3 + consumed_recovery_service_starts
+    ):
+        raise ValueError("second-recovery service-session accounting changed")
+    base_service_starts = cast(int, service_session_count) - consumed_recovery_service_starts
     reserve_rows = predecessor.get("reserve_consumption")
     if not isinstance(reserve_rows, list) or reserve_rows != [
         {
@@ -2031,7 +2190,7 @@ def _second_recovery_corrected_forecast(
     consumed["gpu_session_start"] = base_service_starts
     corrected_rows: list[dict[str, object]] = []
     remaining = 0.0
-    for row in forecast.rows:
+    for row in remaining_forecast.rows:
         superseded = row.call_class in NORMAL_ACCEPTANCE_CLASSES
         consumed_count = row.count if superseded else min(row.count, consumed[row.call_class])
         remaining_count = max(0, row.count - consumed_count)
@@ -2053,8 +2212,14 @@ def _second_recovery_corrected_forecast(
     )
     projected = actual + service_allocation_forecast + remaining
     protected_shutdown = float(2 * DEFAULT_SHUTDOWN_SECONDS)
-    hard_projection = projected + protected_shutdown
-    return {
+    resource_aware_hard_stop = consumed_recovery_service_starts == 2
+    protected_hard_stop_reserve = (
+        float(RESOURCE_AWARE_HARD_STOP_RESERVE_SECONDS)
+        if resource_aware_hard_stop
+        else protected_shutdown
+    )
+    hard_projection = projected + protected_hard_stop_reserve
+    payload: dict[str, object] = {
         "prior_actual_allocated_seconds": actual,
         "successful_service_start_p95_seconds": service_start_seconds,
         "corrected_remaining_mandatory_forecast_seconds": remaining,
@@ -2078,6 +2243,12 @@ def _second_recovery_corrected_forecast(
             projected <= limits.scheduled_gpu_seconds and hard_projection < limits.hard_gpu_seconds
         ),
     }
+    if resource_aware_hard_stop:
+        payload["protected_resource_sample_drain_seconds"] = float(
+            DEFAULT_RESOURCE_SAMPLE_COMPLETION_SECONDS
+        )
+        payload["protected_hard_stop_reserve_seconds"] = protected_hard_stop_reserve
+    return payload
 
 
 def _second_recovery_c0_pre_data_correction(
@@ -3189,15 +3360,98 @@ def _second_recovery_v6_control_plane_incident_binding(
     }
 
 
-def _second_recovery_service_start_event_ids(run_id: str) -> tuple[str, str]:
-    """Derive the only executable second-recovery service identity lineage."""
+def _second_recovery_v7_runtime_incident_binding(path: Path) -> dict[str, object]:
+    """Validate and reduce the terminal metered v7 incident for the v8 overlay."""
 
-    if run_id != SECOND_RECOVERY_V7_RUN_ID:
-        raise ValueError("second-recovery service identity derivation is restricted to v7")
-    return (
-        f"{SECOND_RECOVERY_V3_RUN_ID}-service-start-001",
-        f"{SECOND_RECOVERY_V7_RUN_ID}-service-start-001",
+    incident = validate_fallback_v7_runtime_incident(
+        path,
+        expected_source_association_manifest_sha256=(
+            SECOND_RECOVERY_V7_SOURCE_ASSOCIATION_MANIFEST_SHA256
+        ),
+        expected_overlay_manifest_sha256=SECOND_RECOVERY_V7_OVERLAY_MANIFEST_SHA256,
+        expected_preflight_manifest_sha256=SECOND_RECOVERY_V7_PREFLIGHT_MANIFEST_SHA256,
+        expected_terminal_ledger_file_sha256=(
+            SECOND_RECOVERY_V7_TERMINAL_LEDGER_FILE_SHA256
+        ),
     )
+    if (
+        _file_sha256(path) != SECOND_RECOVERY_V7_INCIDENT_FILE_SHA256
+        or incident.manifest_sha256 != SECOND_RECOVERY_V7_INCIDENT_MANIFEST_SHA256
+    ):
+        raise ValueError("v7 runtime incident differs from its frozen public bytes")
+    terminal = incident.terminal_state
+    delta = incident.accounting.delta
+    service = incident.accounting.service
+    summary = incident.accounting.terminal.summary
+    if (
+        incident.failure_sequence.safe_error_class != FALLBACK_V7_SAFE_ERROR_CLASS
+        or terminal.accepted_output_count != 0
+        or terminal.inference_attempt_count_delta != 0
+        or terminal.inference_model_call_count_delta != 0
+        or terminal.manual_physical_stop_verified is not True
+        or terminal.endpoint_live is not False
+        or terminal.gpu_process_live is not False
+        or terminal.exact_service_process_live is not False
+        or terminal.unresolved_gpu_allocation_count != 0
+        or terminal.unresolved_gpu_service_count != 0
+        or terminal.terminal_ledger_verified is not True
+        or terminal.resume_allowed is not False
+        or terminal.source_bound_v7_resume_permitted is not False
+        or terminal.fresh_repaired_source_required is not True
+        or service.recovery_journal_state != "recovered"
+        or delta.allocated_gpu_microseconds != 692_635_556
+        or delta.classified_failure_microseconds != 224_234_089
+        or delta.conservative_service_overhead_microseconds != 468_401_467
+        or delta.attempts != 0
+        or delta.inference_model_calls != 0
+        or delta.accepted_outputs != 0
+        or summary.total_allocated_microseconds != 1_507_850_965
+        or summary.event_count != 6
+        or summary.service_session_count != 5
+    ):
+        raise ValueError("v7 incident no longer proves its terminal metered failure")
+    terminal_gpu_accounting = {
+        "total_allocated_microseconds": summary.total_allocated_microseconds,
+        "event_count": summary.event_count,
+        "service_session_count": summary.service_session_count,
+        "by_kind_microseconds": summary.by_kind_microseconds,
+    }
+    SecondRecoveryGpuAccounting.model_validate(terminal_gpu_accounting)
+    return {
+        "run_id": SECOND_RECOVERY_V7_RUN_ID,
+        "incident_file_sha256": SECOND_RECOVERY_V7_INCIDENT_FILE_SHA256,
+        "incident_manifest_sha256": SECOND_RECOVERY_V7_INCIDENT_MANIFEST_SHA256,
+        "classification": FALLBACK_V7_SAFE_ERROR_CLASS,
+        "inference_attempts_consumed": 0,
+        "accepted_output_count": 0,
+        "model_output_count": 0,
+        "allocated_gpu_microseconds_delta": delta.allocated_gpu_microseconds,
+        "classified_failure_microseconds": delta.classified_failure_microseconds,
+        "conservative_service_overhead_microseconds": (
+            delta.conservative_service_overhead_microseconds
+        ),
+        "physical_shutdown_verified": True,
+        "ledger_recovery_completed": True,
+        "resume_permitted": False,
+        "terminal_gpu_accounting": terminal_gpu_accounting,
+    }
+
+
+def _second_recovery_service_start_event_ids(run_id: str) -> tuple[str, ...]:
+    """Derive a historical v7 or executable v8 service identity lineage."""
+
+    if run_id == SECOND_RECOVERY_V7_RUN_ID:
+        return (
+            f"{SECOND_RECOVERY_V3_RUN_ID}-service-start-001",
+            f"{SECOND_RECOVERY_V7_RUN_ID}-service-start-001",
+        )
+    if run_id == SECOND_RECOVERY_V8_RUN_ID:
+        return (
+            f"{SECOND_RECOVERY_V3_RUN_ID}-service-start-001",
+            f"{SECOND_RECOVERY_V7_RUN_ID}-service-start-001",
+            f"{SECOND_RECOVERY_V8_RUN_ID}-service-start-001",
+        )
+    raise ValueError("second-recovery service identity derivation is restricted to v7/v8")
 
 
 def validate_second_fallback_recovery_overlay(
@@ -3209,6 +3463,7 @@ def validate_second_fallback_recovery_overlay(
     prior_control_plane_incident_path: Path | None = None,
     prior_v5_control_plane_incident_path: Path | None = None,
     prior_v6_control_plane_incident_path: Path | None = None,
+    prior_v7_runtime_incident_path: Path | None = None,
     prior_retry_amendment_path: Path,
     prior_retry_failure_path: Path,
     run_id: str,
@@ -3336,13 +3591,12 @@ def validate_second_fallback_recovery_overlay(
         != SECOND_RECOVERY_V3_FAILED_CALL_MICROSECONDS
     ):
         raise ValueError("v3 incident and result GPU accounting differ")
-    if observed is not None and _gpu_summary_payload(observed) != accounting_payload:
-        raise RuntimeError("second recovery ledger differs from the terminal v3 ledger")
     if run_id == SECOND_RECOVERY_V4_RUN_ID:
         if (
             prior_control_plane_incident_path is not None
             or prior_v5_control_plane_incident_path is not None
             or prior_v6_control_plane_incident_path is not None
+            or prior_v7_runtime_incident_path is not None
         ):
             raise ValueError("historical v4 recovery cannot bind a later incident")
     elif run_id == SECOND_RECOVERY_V5_RUN_ID:
@@ -3351,6 +3605,7 @@ def validate_second_fallback_recovery_overlay(
         if (
             prior_v5_control_plane_incident_path is not None
             or prior_v6_control_plane_incident_path is not None
+            or prior_v7_runtime_incident_path is not None
         ):
             raise ValueError("historical v5 recovery cannot bind its own later incident")
     elif run_id == SECOND_RECOVERY_V6_RUN_ID:
@@ -3368,6 +3623,8 @@ def validate_second_fallback_recovery_overlay(
             raise ValueError("v6 recovery requires its fresh exact source revision")
         if prior_v6_control_plane_incident_path is not None:
             raise ValueError("historical v6 recovery cannot bind its own later incident")
+        if prior_v7_runtime_incident_path is not None:
+            raise ValueError("historical v6 recovery cannot bind a later v7 incident")
     elif run_id == SECOND_RECOVERY_V7_RUN_ID:
         if (
             prior_control_plane_incident_path is None
@@ -3382,8 +3639,25 @@ def validate_second_fallback_recovery_overlay(
             != "source_tree_fallback_second_recovery_v7.association.json"
         ):
             raise ValueError("v7 recovery requires its fresh exact source revision")
+        if prior_v7_runtime_incident_path is not None:
+            raise ValueError("historical v7 recovery cannot bind its own terminal incident")
+    elif run_id == SECOND_RECOVERY_V8_RUN_ID:
+        if (
+            prior_control_plane_incident_path is None
+            or prior_v5_control_plane_incident_path is None
+            or prior_v6_control_plane_incident_path is None
+            or prior_v7_runtime_incident_path is None
+        ):
+            raise ValueError("v8 recovery requires the exact terminal v4/v5/v6/v7 incident chain")
+        if (
+            source_association.get("revision_label")
+            != SECOND_RECOVERY_V8_SOURCE_REVISION
+            or source_association_path.name
+            != "source_tree_fallback_second_recovery_v8.association.json"
+        ):
+            raise ValueError("v8 recovery requires its fresh exact source revision")
     else:
-        raise ValueError("second recovery is restricted to the exact v4/v5/v6/v7 lineage")
+        raise ValueError("second recovery is restricted to the exact v4/v5/v6/v7/v8 lineage")
     expected_control_plane_incident = (
         None
         if prior_control_plane_incident_path is None
@@ -3405,6 +3679,24 @@ def validate_second_fallback_recovery_overlay(
             prior_v6_control_plane_incident_path
         )
     )
+    expected_v7_runtime_incident = (
+        None
+        if prior_v7_runtime_incident_path is None
+        else _second_recovery_v7_runtime_incident_binding(
+            prior_v7_runtime_incident_path
+        )
+    )
+    effective_accounting_payload = (
+        accounting_payload
+        if expected_v7_runtime_incident is None
+        else cast(
+            dict[str, object],
+            expected_v7_runtime_incident["terminal_gpu_accounting"],
+        )
+    )
+    if observed is not None and _gpu_summary_payload(observed) != effective_accounting_payload:
+        expected_name = "terminal v7" if expected_v7_runtime_incident is not None else "terminal v3"
+        raise RuntimeError(f"second recovery ledger differs from the {expected_name} ledger")
 
     try:
         overlay = SecondFallbackRecoveryOverlay.model_validate(
@@ -3432,8 +3724,15 @@ def validate_second_fallback_recovery_overlay(
         if overlay.intervening_v6_control_plane_incident is None
         else overlay.intervening_v6_control_plane_incident.model_dump(mode="json")
     )
+    observed_v7_runtime_incident = (
+        None
+        if overlay.intervening_v7_runtime_incident is None
+        else overlay.intervening_v7_runtime_incident.model_dump(mode="json")
+    )
     expected_overlay_schema = (
-        "1.5.0"
+        "1.6.0"
+        if expected_v7_runtime_incident is not None
+        else "1.5.0"
         if expected_v6_control_plane_incident is not None
         else "1.4.0"
         if expected_v5_control_plane_incident is not None
@@ -3446,6 +3745,7 @@ def validate_second_fallback_recovery_overlay(
         or observed_control_plane_incident != expected_control_plane_incident
         or observed_v5_control_plane_incident != expected_v5_control_plane_incident
         or observed_v6_control_plane_incident != expected_v6_control_plane_incident
+        or observed_v7_runtime_incident != expected_v7_runtime_incident
     ):
         raise ValueError("second recovery overlay changed its control-plane incident chain")
     if require_authorized and overlay.authorization.status != "authorized":
@@ -3502,7 +3802,10 @@ def validate_second_fallback_recovery_overlay(
     }
     if overlay.predecessor.model_dump(mode="json") != expected_predecessor_binding:
         raise ValueError("second recovery overlay changed its v3 predecessor binding")
-    if overlay.cumulative_gpu_accounting.model_dump(mode="json") != accounting_payload:
+    if (
+        overlay.cumulative_gpu_accounting.model_dump(mode="json")
+        != effective_accounting_payload
+    ):
         raise ValueError("second recovery overlay changed cumulative GPU accounting")
 
     compatible_schema = base_condition_output_schema(ConditionName.C1_LLM_PRE)
@@ -3573,8 +3876,9 @@ def validate_second_fallback_recovery_overlay(
     if overlay.source.model_dump(mode="json") != expected_source:
         raise ValueError("second recovery source association changed")
 
+    v8_lineage = run_id == SECOND_RECOVERY_V8_RUN_ID
     expected_delta = {
-        "additional_fallback_service_loads": 1,
+        "additional_fallback_service_loads": 2 if v8_lineage else 1,
         "recovery_service_start_watchdog_seconds": (AMENDED_FALLBACK_STARTUP_WATCHDOG_SECONDS),
         "authorized_retry_inference_attempts": 1,
         "retry_call_id": SECOND_RECOVERY_RETRY_CALL_ID,
@@ -3583,8 +3887,10 @@ def validate_second_fallback_recovery_overlay(
         "retry_watchdog_seconds": SECOND_RECOVERY_RETRY_WATCHDOG_SECONDS,
         "additional_unreserved_inference_attempts": 0,
         "original_accounting_events": inventory.accounting_events,
-        "prior_effective_accounting_events": inventory.accounting_events + 1,
-        "amended_effective_accounting_events": inventory.accounting_events + 2,
+        "prior_effective_accounting_events": inventory.accounting_events
+        + (2 if v8_lineage else 1),
+        "amended_effective_accounting_events": inventory.accounting_events
+        + (3 if v8_lineage else 2),
         "original_maximum_inference_attempts": inventory.maximum_inference_attempts,
         "amended_maximum_inference_attempts": inventory.maximum_inference_attempts,
         "prior_consumed_reserve_long_slots": 1,
@@ -3672,19 +3978,24 @@ def validate_second_fallback_recovery_overlay(
         predecessor=predecessor,
         inventory=inventory,
         limits=limits,
+        cumulative_gpu_accounting=effective_accounting_payload,
+        consumed_recovery_service_starts=2 if v8_lineage else 1,
     )
     if (
-        overlay.corrected_forecast.model_dump(mode="json") != expected_forecast
+        overlay.corrected_forecast.manifest_payload() != expected_forecast
         or expected_forecast["admitted"] is not True
     ):
         raise ValueError("second recovery lacks the corrected admitted GPU forecast")
     overlay_payload = overlay.model_dump(mode="json")
+    overlay_payload["corrected_forecast"] = overlay.corrected_forecast.manifest_payload()
     if overlay.intervening_control_plane_incident is None:
         overlay_payload.pop("intervening_control_plane_incident", None)
     if overlay.intervening_v5_control_plane_incident is None:
         overlay_payload.pop("intervening_v5_control_plane_incident", None)
     if overlay.intervening_v6_control_plane_incident is None:
         overlay_payload.pop("intervening_v6_control_plane_incident", None)
+    if overlay.intervening_v7_runtime_incident is None:
+        overlay_payload.pop("intervening_v7_runtime_incident", None)
     return overlay_payload, predecessor, incident
 
 
@@ -3821,6 +4132,7 @@ def build_second_fallback_recovery_overlay(
     prior_control_plane_incident_path: Path | None = None,
     prior_v5_control_plane_incident_path: Path | None = None,
     prior_v6_control_plane_incident_path: Path | None = None,
+    prior_v7_runtime_incident_path: Path | None = None,
     prior_retry_amendment_path: Path,
     prior_retry_failure_path: Path,
     run_id: str,
@@ -3908,6 +4220,7 @@ def build_second_fallback_recovery_overlay(
             prior_control_plane_incident_path is not None
             or prior_v5_control_plane_incident_path is not None
             or prior_v6_control_plane_incident_path is not None
+            or prior_v7_runtime_incident_path is not None
         ):
             raise ValueError("historical v4 recovery cannot bind a later incident")
     elif run_id == SECOND_RECOVERY_V5_RUN_ID:
@@ -3918,6 +4231,7 @@ def build_second_fallback_recovery_overlay(
         if (
             prior_v5_control_plane_incident_path is not None
             or prior_v6_control_plane_incident_path is not None
+            or prior_v7_runtime_incident_path is not None
         ):
             raise ValueError("historical v5 recovery cannot bind its own later incident")
     elif run_id == SECOND_RECOVERY_V6_RUN_ID:
@@ -3935,6 +4249,8 @@ def build_second_fallback_recovery_overlay(
             raise ValueError("v6 recovery builder requires its fresh exact source revision")
         if prior_v6_control_plane_incident_path is not None:
             raise ValueError("historical v6 recovery cannot bind its own later incident")
+        if prior_v7_runtime_incident_path is not None:
+            raise ValueError("historical v6 recovery cannot bind a later v7 incident")
     elif run_id == SECOND_RECOVERY_V7_RUN_ID:
         if (
             prior_control_plane_incident_path is None
@@ -3951,8 +4267,29 @@ def build_second_fallback_recovery_overlay(
             != "source_tree_fallback_second_recovery_v7.association.json"
         ):
             raise ValueError("v7 recovery builder requires its fresh exact source revision")
+        if prior_v7_runtime_incident_path is not None:
+            raise ValueError("historical v7 recovery cannot bind its own terminal incident")
+    elif run_id == SECOND_RECOVERY_V8_RUN_ID:
+        if (
+            prior_control_plane_incident_path is None
+            or prior_v5_control_plane_incident_path is None
+            or prior_v6_control_plane_incident_path is None
+            or prior_v7_runtime_incident_path is None
+        ):
+            raise ValueError(
+                "v8 recovery builder requires the exact terminal v4/v5/v6/v7 incident chain"
+            )
+        if (
+            source_association.get("revision_label")
+            != SECOND_RECOVERY_V8_SOURCE_REVISION
+            or source_association_path.name
+            != "source_tree_fallback_second_recovery_v8.association.json"
+        ):
+            raise ValueError("v8 recovery builder requires its fresh exact source revision")
     else:
-        raise ValueError("second recovery builder is restricted to the exact v4/v5/v6/v7 lineage")
+        raise ValueError(
+            "second recovery builder is restricted to the exact v4/v5/v6/v7/v8 lineage"
+        )
     control_plane_incident = (
         None
         if prior_control_plane_incident_path is None
@@ -3974,9 +4311,32 @@ def build_second_fallback_recovery_overlay(
             prior_v6_control_plane_incident_path
         )
     )
+    v7_runtime_incident = (
+        None
+        if prior_v7_runtime_incident_path is None
+        else _second_recovery_v7_runtime_incident_binding(
+            prior_v7_runtime_incident_path
+        )
+    )
+    v8_lineage = run_id == SECOND_RECOVERY_V8_RUN_ID
+    effective_accounting = (
+        dict(accounting)
+        if v7_runtime_incident is None
+        else cast(
+            dict[str, object],
+            v7_runtime_incident["terminal_gpu_accounting"],
+        )
+    )
+    if _gpu_summary_payload(observed) != effective_accounting:
+        expected_name = "terminal v7" if v8_lineage else "terminal v3"
+        raise RuntimeError(
+            f"second recovery builder ledger differs from the {expected_name} ledger"
+        )
     payload: dict[str, object] = {
         "schema_version": (
-            "1.5.0"
+            "1.6.0"
+            if v7_runtime_incident is not None
+            else "1.5.0"
             if v6_control_plane_incident is not None
             else "1.4.0"
             if v5_control_plane_incident is not None
@@ -4022,7 +4382,7 @@ def build_second_fallback_recovery_overlay(
             "consumed_reserve_class": SECOND_RECOVERY_RETRY_RESERVE_CLASS,
             "consumed_reserve_slots": 1,
         },
-        "cumulative_gpu_accounting": dict(accounting),
+        "cumulative_gpu_accounting": effective_accounting,
         "decoder_compatibility": {
             "protocol": "vllm-0.10.2-xgrammar-ignored-string-keywords-v1",
             "vllm_version": "0.10.2",
@@ -4062,7 +4422,7 @@ def build_second_fallback_recovery_overlay(
             "current_tree_sha256": source_association.get("local_tree_sha256"),
         },
         "amendment": {
-            "additional_fallback_service_loads": 1,
+            "additional_fallback_service_loads": 2 if v8_lineage else 1,
             "recovery_service_start_watchdog_seconds": (AMENDED_FALLBACK_STARTUP_WATCHDOG_SECONDS),
             "authorized_retry_inference_attempts": 1,
             "retry_call_id": SECOND_RECOVERY_RETRY_CALL_ID,
@@ -4071,8 +4431,10 @@ def build_second_fallback_recovery_overlay(
             "retry_watchdog_seconds": SECOND_RECOVERY_RETRY_WATCHDOG_SECONDS,
             "additional_unreserved_inference_attempts": 0,
             "original_accounting_events": inventory.accounting_events,
-            "prior_effective_accounting_events": inventory.accounting_events + 1,
-            "amended_effective_accounting_events": inventory.accounting_events + 2,
+            "prior_effective_accounting_events": inventory.accounting_events
+            + (2 if v8_lineage else 1),
+            "amended_effective_accounting_events": inventory.accounting_events
+            + (3 if v8_lineage else 2),
             "original_maximum_inference_attempts": (inventory.maximum_inference_attempts),
             "amended_maximum_inference_attempts": inventory.maximum_inference_attempts,
             "prior_consumed_reserve_long_slots": 1,
@@ -4085,6 +4447,8 @@ def build_second_fallback_recovery_overlay(
             predecessor=predecessor,
             inventory=inventory,
             limits=limits,
+            cumulative_gpu_accounting=effective_accounting,
+            consumed_recovery_service_starts=2 if v8_lineage else 1,
         ),
         "c0_pre_data_correction": _second_recovery_c0_pre_data_correction(
             root=root,
@@ -4128,8 +4492,13 @@ def build_second_fallback_recovery_overlay(
             "immutable_v3_fallback_input_comparison_required": True,
         },
         "scope": (
-            "One reserve-long retry of the exact v3 fallback C1 transport failure "
-            "and one additional recovery service start; no other retry is authorized."
+            "One reserve-long retry of the exact v3 fallback C1 transport failure and "
+            + (
+                "two post-v3 recovery service starts; "
+                if v8_lineage
+                else "one additional recovery service start; "
+            )
+            + "no other retry is authorized."
         ),
         "authoritative_plans_rewritten": False,
     }
@@ -4139,16 +4508,21 @@ def build_second_fallback_recovery_overlay(
         payload["intervening_v5_control_plane_incident"] = v5_control_plane_incident
     if v6_control_plane_incident is not None:
         payload["intervening_v6_control_plane_incident"] = v6_control_plane_incident
+    if v7_runtime_incident is not None:
+        payload["intervening_v7_runtime_incident"] = v7_runtime_incident
     typed_candidate = SecondFallbackRecoveryOverlay.model_validate(
         {**payload, "manifest_sha256": canonical_sha256(payload)}
     )
     candidate = typed_candidate.model_dump(mode="json")
+    candidate["corrected_forecast"] = typed_candidate.corrected_forecast.manifest_payload()
     if typed_candidate.intervening_control_plane_incident is None:
         candidate.pop("intervening_control_plane_incident", None)
     if typed_candidate.intervening_v5_control_plane_incident is None:
         candidate.pop("intervening_v5_control_plane_incident", None)
     if typed_candidate.intervening_v6_control_plane_incident is None:
         candidate.pop("intervening_v6_control_plane_incident", None)
+    if typed_candidate.intervening_v7_runtime_incident is None:
+        candidate.pop("intervening_v7_runtime_incident", None)
 
     with tempfile.TemporaryDirectory(
         dir=output_path.parent,
@@ -4164,6 +4538,7 @@ def build_second_fallback_recovery_overlay(
             prior_control_plane_incident_path=prior_control_plane_incident_path,
             prior_v5_control_plane_incident_path=prior_v5_control_plane_incident_path,
             prior_v6_control_plane_incident_path=prior_v6_control_plane_incident_path,
+            prior_v7_runtime_incident_path=prior_v7_runtime_incident_path,
             prior_retry_amendment_path=prior_retry_amendment_path,
             prior_retry_failure_path=prior_retry_failure_path,
             run_id=run_id,
@@ -4533,8 +4908,15 @@ def fallback_plan_manifest(root: Path) -> dict[str, object]:
             "predecessor_run_id": SECOND_RECOVERY_V3_RUN_ID,
             "predecessor_result_manifest_sha256": (SECOND_RECOVERY_V3_RESULT_MANIFEST_SHA256),
             "predecessor_incident_manifest_sha256": (SECOND_RECOVERY_V3_INCIDENT_MANIFEST_SHA256),
-            "additional_service_start_events": 1,
+            "additional_service_start_events": 2,
             "recovery_startup_watchdog_seconds": (AMENDED_FALLBACK_STARTUP_WATCHDOG_SECONDS),
+            "protected_resource_sample_drain_seconds": (
+                DEFAULT_RESOURCE_SAMPLE_COMPLETION_SECONDS
+            ),
+            "protected_process_shutdown_seconds": 2 * DEFAULT_SHUTDOWN_SECONDS,
+            "protected_hard_stop_reserve_seconds": (
+                RESOURCE_AWARE_HARD_STOP_RESERVE_SECONDS
+            ),
             "additional_service_allocation_forecast_basis": (
                 "max(recovery_startup_watchdog,observed_successful_service_start_p95)"
             ),
@@ -4546,14 +4928,15 @@ def fallback_plan_manifest(root: Path) -> dict[str, object]:
             "proposed_overlay_validation_is_cpu_only": True,
             "deterministic_cpu_only_builder_available": True,
             "builder_output_policy": "restricted_append_only_exact_replay",
-            "overlay_schema_version": "1.5.0",
-            "authorized_recovery_run_id": SECOND_RECOVERY_V7_RUN_ID,
-            "authorized_source_revision": SECOND_RECOVERY_V7_SOURCE_REVISION,
+            "overlay_schema_version": "1.6.0",
+            "authorized_recovery_run_id": SECOND_RECOVERY_V8_RUN_ID,
+            "authorized_source_revision": SECOND_RECOVERY_V8_SOURCE_REVISION,
             "intervening_zero_gpu_control_plane_incident_required": True,
             "intervening_v4_control_plane_incident_required": True,
             "intervening_v5_control_plane_incident_required": True,
             "intervening_v6_control_plane_incident_required": True,
-            "terminal_v4_v5_and_v6_runs_must_not_resume": True,
+            "intervening_v7_runtime_incident_required": True,
+            "terminal_v4_through_v7_runs_must_not_resume": True,
             "evidence_provenance_bridge_binding_required": True,
             "retry_wire_delta_scope": (
                 "guided_schema_schema_derived_runtime_hashes_and_"
@@ -5487,9 +5870,10 @@ class FallbackAcceptanceRunner:
             SECOND_RECOVERY_V4_RUN_ID,
             SECOND_RECOVERY_V5_RUN_ID,
             SECOND_RECOVERY_V6_RUN_ID,
+            SECOND_RECOVERY_V7_RUN_ID,
         }:
             raise ValueError(
-                "fallback v4/v5/v6 are terminal control-plane incidents and cannot execute"
+                "fallback v4/v5/v6/v7 are terminal incidents and cannot execute"
             )
         self.root = self.root.resolve(strict=True)
         self.legacy_provenance_bridge = _require_phase1_legacy_provenance_bridge(
@@ -5539,10 +5923,13 @@ class FallbackAcceptanceRunner:
             intervening_v6_incident = self.second_recovery_overlay.get(
                 "intervening_v6_control_plane_incident"
             )
+            intervening_v7_incident = self.second_recovery_overlay.get(
+                "intervening_v7_runtime_incident"
+            )
             if (
                 not isinstance(authorization, Mapping)
                 or authorization.get("status") != "authorized"
-                or self.run_id != SECOND_RECOVERY_V7_RUN_ID
+                or self.run_id != SECOND_RECOVERY_V8_RUN_ID
                 or self.second_recovery_overlay.get("authorized_recovery_run_id") != self.run_id
                 or self.second_recovery_v3_result.get("manifest_sha256")
                 != SECOND_RECOVERY_V3_RESULT_MANIFEST_SHA256
@@ -5551,7 +5938,7 @@ class FallbackAcceptanceRunner:
             ):
                 raise ValueError("second fallback recovery is not explicitly authorized")
             if (
-                self.second_recovery_overlay.get("schema_version") != "1.5.0"
+                self.second_recovery_overlay.get("schema_version") != "1.6.0"
                 or not isinstance(intervening_incident, Mapping)
                 or intervening_incident.get("ledger_unchanged") is not True
                 or not isinstance(intervening_v5_incident, Mapping)
@@ -5563,9 +5950,15 @@ class FallbackAcceptanceRunner:
                 is not True
                 or intervening_v6_incident.get("resume_permitted") is not False
                 or intervening_v6_incident.get("fresh_repaired_source_required") is not True
+                or not isinstance(intervening_v7_incident, Mapping)
+                or intervening_v7_incident.get("inference_attempts_consumed") != 0
+                or intervening_v7_incident.get("accepted_output_count") != 0
+                or intervening_v7_incident.get("physical_shutdown_verified") is not True
+                or intervening_v7_incident.get("ledger_recovery_completed") is not True
+                or intervening_v7_incident.get("resume_permitted") is not False
             ):
                 raise ValueError(
-                    "v7 recovery lacks its terminal v4/v5/v6 incident bindings"
+                    "v8 recovery lacks its terminal v4/v5/v6/v7 incident bindings"
                 )
 
     @property
@@ -5603,6 +5996,15 @@ class FallbackAcceptanceRunner:
         if self.second_recovery_overlay is None:
             return None
         incident = self.second_recovery_overlay.get("intervening_v6_control_plane_incident")
+        if not isinstance(incident, Mapping):
+            return None
+        return cast(str, incident["incident_manifest_sha256"])
+
+    @property
+    def prior_v7_runtime_incident_hash(self) -> str | None:
+        if self.second_recovery_overlay is None:
+            return None
+        incident = self.second_recovery_overlay.get("intervening_v7_runtime_incident")
         if not isinstance(incident, Mapping):
             return None
         return cast(str, incident["incident_manifest_sha256"])
@@ -5677,7 +6079,7 @@ class FallbackAcceptanceRunner:
         inventory_path = self.root / "configs/study/gpu_call_inventory.json"
         inventory = GPUCallInventory.load(inventory_path)
         recovery_count = (
-            2
+            len(self._recovery_service_start_event_ids())
             if self.second_recovery_overlay is not None
             else 1
             if self.retry_amendment is not None
@@ -5757,6 +6159,7 @@ class FallbackAcceptanceRunner:
             "prior_v6_control_plane_incident_sha256": (
                 self.prior_v6_control_plane_incident_hash
             ),
+            "prior_v7_runtime_incident_sha256": self.prior_v7_runtime_incident_hash,
             "service_start_watchdog_seconds": self.service_start_watchdog_seconds,
             "launcher_configuration_sha256": self.service.configuration.configuration_hash,
             "tokenizer_manifest_sha256": self.tokenizer_manifest.manifest_sha256,
@@ -8273,9 +8676,9 @@ class FallbackAcceptanceRunner:
                 root_pid=self.service.pid,
                 sample_prefix=f"{self.run_id}-periodic-{state['resume_sequence']:03d}",
                 allocation_guard=getattr(self.service, "require_hard_stop_margin", None),
-                on_failure=lambda _: self.service.emergency_stop(),
+                on_failure=lambda _: self.service.request_emergency_stop(),
             )
-            resource_watchdog.start()
+            self.service.start_periodic_resource_watchdog(resource_watchdog)
         except BaseException:
             self.service.shutdown()
             raise
@@ -8601,7 +9004,14 @@ class FallbackAcceptanceRunner:
             raise
         finally:
             try:
-                resource_watchdog.stop(raise_failure=False)
+                sampler_drained = self.service.stop_periodic_resource_watchdog(
+                    resource_watchdog,
+                    raise_failure=False,
+                )
+                if not sampler_drained:
+                    raise RuntimeError(
+                        "fallback periodic resource sample exceeded its bounded drain deadline"
+                    )
                 # Do not mask a pending fallback exception by invoking downstream
                 # work.  On a clean micro-pilot return, evaluate the complete gate
                 # while the exact service is still live, bootstrap the development-
@@ -9072,6 +9482,7 @@ class FallbackAcceptanceRunner:
             "prior_v6_control_plane_incident_sha256": (
                 self.prior_v6_control_plane_incident_hash
             ),
+            "prior_v7_runtime_incident_sha256": self.prior_v7_runtime_incident_hash,
             "effective_gpu_call_inventory": self._effective_inventory_manifest(),
             "recovery_service_start_events_consumed": recovery_service_starts,
             "normal_acceptance_block_executed": False,
@@ -9548,6 +9959,7 @@ class FallbackAcceptanceRunner:
             "prior_v6_control_plane_incident_sha256": (
                 self.prior_v6_control_plane_incident_hash
             ),
+            "prior_v7_runtime_incident_sha256": self.prior_v7_runtime_incident_hash,
             "effective_gpu_call_inventory": self._effective_inventory_manifest(),
             "recovery_service_start_events_consumed": recovery_service_starts,
             "execution_identity": dict(execution_identity),
@@ -9673,6 +10085,10 @@ def _controller_execution_arguments(options: argparse.Namespace) -> dict[str, ob
     if options.prior_v6_control_plane_incident is not None:
         identity["prior_v6_control_plane_incident"] = str(
             options.prior_v6_control_plane_incident.resolve()
+        )
+    if options.prior_v7_runtime_incident is not None:
+        identity["prior_v7_runtime_incident"] = str(
+            options.prior_v7_runtime_incident.resolve()
         )
     return identity
 
@@ -10009,7 +10425,7 @@ def _new_orchestration_identity(
     with ReadOnlyLedger(options.ledger) as ledger:
         actual = ledger.gpu_summary().total_allocated_seconds
     protected_seconds = (
-        2 * DEFAULT_SHUTDOWN_SECONDS
+        RESOURCE_AWARE_HARD_STOP_RESERVE_SECONDS
         + FALLBACK_GUARDIAN_POLL_SECONDS
         + FALLBACK_CONTROL_GROUP_TERM_SECONDS
         + FALLBACK_CONTROL_GROUP_KILL_SECONDS
@@ -10277,6 +10693,7 @@ def _internal_controller_command(
         "prior_control_plane_incident",
         "prior_v5_control_plane_incident",
         "prior_v6_control_plane_incident",
+        "prior_v7_runtime_incident",
     ):
         if name in arguments:
             command.extend((f"--{name.replace('_', '-')}", cast(str, arguments[name])))
@@ -11671,6 +12088,7 @@ def parse_arguments(arguments: Sequence[str] | None = None) -> argparse.Namespac
     parser.add_argument("--prior-control-plane-incident", type=Path)
     parser.add_argument("--prior-v5-control-plane-incident", type=Path)
     parser.add_argument("--prior-v6-control-plane-incident", type=Path)
+    parser.add_argument("--prior-v7-runtime-incident", type=Path)
     parser.add_argument("--restricted-output-root", type=Path)
     parser.add_argument(
         "--second-recovery-authorization-status",
@@ -11734,15 +12152,24 @@ def _require_second_recovery_builder_arguments(options: argparse.Namespace) -> N
         "ledger",
     )
     missing = [name for name in required if getattr(options, name) is None]
-    if options.run_id in {SECOND_RECOVERY_V6_RUN_ID, SECOND_RECOVERY_V7_RUN_ID} and (
+    if options.run_id in {
+        SECOND_RECOVERY_V6_RUN_ID,
+        SECOND_RECOVERY_V7_RUN_ID,
+        SECOND_RECOVERY_V8_RUN_ID,
+    } and (
         options.prior_v5_control_plane_incident is None
     ):
         missing.append("prior_v5_control_plane_incident")
     if (
-        options.run_id == SECOND_RECOVERY_V7_RUN_ID
+        options.run_id in {SECOND_RECOVERY_V7_RUN_ID, SECOND_RECOVERY_V8_RUN_ID}
         and options.prior_v6_control_plane_incident is None
     ):
         missing.append("prior_v6_control_plane_incident")
+    if (
+        options.run_id == SECOND_RECOVERY_V8_RUN_ID
+        and options.prior_v7_runtime_incident is None
+    ):
+        missing.append("prior_v7_runtime_incident")
     if missing:
         raise SystemExit(
             "second recovery overlay builder requires: "
@@ -11817,6 +12244,7 @@ def _build_second_recovery_overlay_from_cli(
         prior_v6_control_plane_incident_path=(
             options.prior_v6_control_plane_incident
         ),
+        prior_v7_runtime_incident_path=options.prior_v7_runtime_incident,
         prior_retry_amendment_path=options.retry_amendment,
         prior_retry_failure_path=options.prior_fallback_failure,
         run_id=options.run_id,
@@ -11892,19 +12320,26 @@ def _require_execution_arguments(
         and options.second_recovery_overlay is None
     ):
         raise SystemExit("a prior v6 control-plane incident requires second recovery")
+    if (
+        options.prior_v7_runtime_incident is not None
+        and options.second_recovery_overlay is None
+    ):
+        raise SystemExit("a prior v7 runtime incident requires second recovery")
     if options.execute and options.run_id in {
         SECOND_RECOVERY_V4_RUN_ID,
         SECOND_RECOVERY_V5_RUN_ID,
         SECOND_RECOVERY_V6_RUN_ID,
+        SECOND_RECOVERY_V7_RUN_ID,
     }:
         raise SystemExit(
-            "fallback v4/v5/v6 are terminal control-plane incidents and cannot execute"
+            "fallback v4/v5/v6/v7 are terminal incidents and cannot execute"
         )
     if options.run_id == SECOND_RECOVERY_V5_RUN_ID and (
         options.second_recovery_overlay is None
         or options.prior_control_plane_incident is None
         or options.prior_v5_control_plane_incident is not None
         or options.prior_v6_control_plane_incident is not None
+        or options.prior_v7_runtime_incident is not None
     ):
         raise SystemExit("historical v5 requires only its prior v4 control-plane incident")
     if options.run_id == SECOND_RECOVERY_V6_RUN_ID and (
@@ -11912,6 +12347,7 @@ def _require_execution_arguments(
         or options.prior_control_plane_incident is None
         or options.prior_v5_control_plane_incident is None
         or options.prior_v6_control_plane_incident is not None
+        or options.prior_v7_runtime_incident is not None
     ):
         raise SystemExit("v6 requires both prior v4 and v5 control-plane incidents")
     if options.run_id == SECOND_RECOVERY_V7_RUN_ID and (
@@ -11919,15 +12355,25 @@ def _require_execution_arguments(
         or options.prior_control_plane_incident is None
         or options.prior_v5_control_plane_incident is None
         or options.prior_v6_control_plane_incident is None
+        or options.prior_v7_runtime_incident is not None
     ):
-        raise SystemExit("v7 requires the exact prior v4/v5/v6 control-plane incident chain")
+        raise SystemExit("historical v7 requires the exact prior v4/v5/v6 incident chain")
+    if options.run_id == SECOND_RECOVERY_V8_RUN_ID and (
+        options.second_recovery_overlay is None
+        or options.prior_control_plane_incident is None
+        or options.prior_v5_control_plane_incident is None
+        or options.prior_v6_control_plane_incident is None
+        or options.prior_v7_runtime_incident is None
+    ):
+        raise SystemExit("v8 requires the exact prior v4/v5/v6/v7 incident chain")
     if options.second_recovery_overlay is not None and options.run_id not in {
         SECOND_RECOVERY_V4_RUN_ID,
         SECOND_RECOVERY_V5_RUN_ID,
         SECOND_RECOVERY_V6_RUN_ID,
         SECOND_RECOVERY_V7_RUN_ID,
+        SECOND_RECOVERY_V8_RUN_ID,
     }:
-        raise SystemExit("second recovery is restricted to the exact v4/v5/v6/v7 lineage")
+        raise SystemExit("second recovery is restricted to the exact v4/v5/v6/v7/v8 lineage")
     if options.resume_orchestrator and options.controller_stage != "orchestrate":
         raise SystemExit("--resume-orchestrator requires --controller-stage orchestrate")
     if options.guardian_ticket is not None and options.controller_stage != "guardian":
@@ -12113,6 +12559,9 @@ def _validate_execution_preflight(
                     prior_v6_control_plane_incident_path=(
                         options.prior_v6_control_plane_incident
                     ),
+                    prior_v7_runtime_incident_path=(
+                        options.prior_v7_runtime_incident
+                    ),
                     prior_retry_amendment_path=options.retry_amendment,
                     prior_retry_failure_path=cast(Path, options.prior_fallback_failure),
                     run_id=options.run_id,
@@ -12170,7 +12619,7 @@ def _validate_execution_preflight(
         actual = observed.total_allocated_seconds
 
     projected = actual + next_service_allocation_forecast + remaining
-    protected_hard_projection = projected + 2 * DEFAULT_SHUTDOWN_SECONDS
+    protected_hard_projection = projected + RESOURCE_AWARE_HARD_STOP_RESERVE_SECONDS
     if projected > limits.scheduled_gpu_seconds:
         raise RuntimeError("fallback recovery no longer fits the scheduled GPU envelope")
     if protected_hard_projection >= limits.hard_gpu_seconds:
@@ -12197,6 +12646,11 @@ def _validate_execution_preflight(
         None
         if second_overlay is None
         else second_overlay.get("intervening_v6_control_plane_incident")
+    )
+    v7_runtime_binding = (
+        None
+        if second_overlay is None
+        else second_overlay.get("intervening_v7_runtime_incident")
     )
     payload: dict[str, object] = {
         "schema_version": SCHEMA_VERSION,
@@ -12239,6 +12693,11 @@ def _validate_execution_preflight(
             if not isinstance(v6_control_plane_binding, Mapping)
             else v6_control_plane_binding["incident_manifest_sha256"]
         ),
+        "prior_v7_runtime_incident_sha256": (
+            None
+            if not isinstance(v7_runtime_binding, Mapping)
+            else v7_runtime_binding["incident_manifest_sha256"]
+        ),
         "authorization_status": (None if authorization is None else authorization.get("status")),
         "authorization_basis": (None if authorization is None else authorization.get("basis")),
         "execution_authorized": execution_authorized,
@@ -12252,13 +12711,27 @@ def _validate_execution_preflight(
         "actual_plus_next_and_remaining_seconds": projected,
         "scheduled_limit_seconds": float(limits.scheduled_gpu_seconds),
         "scheduled_reserve_seconds": float(limits.scheduled_gpu_seconds) - projected,
+        "protected_resource_sample_drain_seconds": float(
+            DEFAULT_RESOURCE_SAMPLE_COMPLETION_SECONDS
+        ),
         "protected_shutdown_seconds": float(2 * DEFAULT_SHUTDOWN_SECONDS),
+        "protected_hard_stop_reserve_seconds": float(
+            RESOURCE_AWARE_HARD_STOP_RESERVE_SECONDS
+        ),
         "hard_limit_seconds": float(limits.hard_gpu_seconds),
         "hard_contingency_after_next_and_shutdown_seconds": (
             float(limits.hard_gpu_seconds) - protected_hard_projection
         ),
         "effective_accounting_events": inventory.accounting_events
-        + (2 if second_overlay is not None else 1 if amendment_hash is not None else 0),
+        + (
+            3
+            if options.run_id == SECOND_RECOVERY_V8_RUN_ID
+            else 2
+            if second_overlay is not None
+            else 1
+            if amendment_hash is not None
+            else 0
+        ),
         "maximum_inference_attempts": inventory.maximum_inference_attempts,
         "authorized_retry_inference_attempts": (1 if second_overlay is not None else 0),
         "additional_unreserved_inference_attempts": 0,
@@ -12442,6 +12915,9 @@ def main(
                 ),
                 prior_v6_control_plane_incident_path=(
                     options.prior_v6_control_plane_incident
+                ),
+                prior_v7_runtime_incident_path=(
+                    options.prior_v7_runtime_incident
                 ),
                 prior_retry_amendment_path=cast(Path, options.retry_amendment),
                 prior_retry_failure_path=cast(Path, options.prior_fallback_failure),
@@ -12680,8 +13156,12 @@ __all__ = [
     "SECOND_RECOVERY_V6_INCIDENT_MANIFEST_SHA256",
     "SECOND_RECOVERY_V6_RUN_ID",
     "SECOND_RECOVERY_V6_SOURCE_REVISION",
+    "SECOND_RECOVERY_V7_INCIDENT_FILE_SHA256",
+    "SECOND_RECOVERY_V7_INCIDENT_MANIFEST_SHA256",
     "SECOND_RECOVERY_V7_RUN_ID",
     "SECOND_RECOVERY_V7_SOURCE_REVISION",
+    "SECOND_RECOVERY_V8_RUN_ID",
+    "SECOND_RECOVERY_V8_SOURCE_REVISION",
     "SECOND_RECOVERY_VALIDATE_IMPLEMENTATION_PATH",
     "DevelopmentAdopterRegistration",
     "DevelopmentContinuationAdopter",
@@ -12705,6 +13185,7 @@ __all__ = [
     "SecondRecoverySemanticValidationUnchangedControls",
     "SecondRecoveryV5ControlPlaneIncidentBinding",
     "SecondRecoveryV6ControlPlaneIncidentBinding",
+    "SecondRecoveryV7RuntimeIncidentBinding",
     "build_fallback_repair_request",
     "build_second_fallback_recovery_overlay",
     "establish_fallback_orchestrator_process_group",

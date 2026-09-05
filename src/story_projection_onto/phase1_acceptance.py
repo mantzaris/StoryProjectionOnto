@@ -1577,9 +1577,9 @@ class AcceptanceRunner:
             root_pid=self.service.pid,
             sample_prefix=f"{self.run_id}-periodic-{resume_sequence:03d}",
             allocation_guard=getattr(self.service, "require_hard_stop_margin", None),
-            on_failure=lambda _: self.service.emergency_stop(),
+            on_failure=lambda _: self.service.request_emergency_stop(),
         )
-        resource_watchdog.start()
+        self.service.start_periodic_resource_watchdog(resource_watchdog)
         try:
             self.resource_sampler.sample(
                 sample_id=f"{self.run_id}-after-load-{resume_sequence:03d}",
@@ -2129,7 +2129,14 @@ class AcceptanceRunner:
             )
             raise
         finally:
-            resource_watchdog.stop(raise_failure=False)
+            sampler_drained = self.service.stop_periodic_resource_watchdog(
+                resource_watchdog,
+                raise_failure=False,
+            )
+            if not sampler_drained:
+                raise RuntimeError(
+                    "phase-1 periodic resource sample exceeded its bounded drain deadline"
+                )
             uptime = self.service.shutdown()
         resource_failure = resource_watchdog.failure
         if resource_failure is not None:

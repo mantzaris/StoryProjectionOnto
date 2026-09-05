@@ -1,0 +1,1121 @@
+{
+  "$defs": {
+    "FallbackV7AbsenceInventory": {
+      "additionalProperties": false,
+      "properties": {
+        "absent_basenames": {
+          "items": {
+            "maxLength": 255,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9.][A-Za-z0-9._-]*$",
+            "type": "string"
+          },
+          "title": "Absent Basenames",
+          "type": "array"
+        },
+        "all_required_paths_absent": {
+          "const": true,
+          "title": "All Required Paths Absent",
+          "type": "boolean"
+        },
+        "observed_run_root_basenames": {
+          "items": {
+            "maxLength": 255,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9.][A-Za-z0-9._-]*$",
+            "type": "string"
+          },
+          "title": "Observed Run Root Basenames",
+          "type": "array"
+        }
+      },
+      "required": [
+        "observed_run_root_basenames",
+        "absent_basenames",
+        "all_required_paths_absent"
+      ],
+      "title": "FallbackV7AbsenceInventory",
+      "type": "object"
+    },
+    "FallbackV7Accounting": {
+      "additionalProperties": false,
+      "properties": {
+        "before_manual_recovery": {
+          "$ref": "#/$defs/FallbackV7LedgerBinding"
+        },
+        "before_v7": {
+          "$ref": "#/$defs/FallbackV7LedgerBinding"
+        },
+        "delta": {
+          "$ref": "#/$defs/FallbackV7AccountingDelta"
+        },
+        "failure_event": {
+          "$ref": "#/$defs/FallbackV7FailureEvent"
+        },
+        "service": {
+          "$ref": "#/$defs/FallbackV7ServiceAccounting"
+        },
+        "terminal": {
+          "$ref": "#/$defs/FallbackV7LedgerBinding"
+        }
+      },
+      "required": [
+        "before_v7",
+        "before_manual_recovery",
+        "terminal",
+        "failure_event",
+        "service",
+        "delta"
+      ],
+      "title": "FallbackV7Accounting",
+      "type": "object"
+    },
+    "FallbackV7AccountingDelta": {
+      "additionalProperties": false,
+      "properties": {
+        "accepted_outputs": {
+          "const": 0,
+          "title": "Accepted Outputs",
+          "type": "integer"
+        },
+        "allocated_gpu_microseconds": {
+          "const": 692635556,
+          "title": "Allocated Gpu Microseconds",
+          "type": "integer"
+        },
+        "allocation_journal_rows": {
+          "const": 46,
+          "title": "Allocation Journal Rows",
+          "type": "integer"
+        },
+        "artifacts": {
+          "const": 0,
+          "title": "Artifacts",
+          "type": "integer"
+        },
+        "attempts": {
+          "const": 0,
+          "title": "Attempts",
+          "type": "integer"
+        },
+        "classified_failure_microseconds": {
+          "const": 224234089,
+          "title": "Classified Failure Microseconds",
+          "type": "integer"
+        },
+        "conservative_service_overhead_microseconds": {
+          "const": 468401467,
+          "title": "Conservative Service Overhead Microseconds",
+          "type": "integer"
+        },
+        "gpu_events": {
+          "const": 1,
+          "title": "Gpu Events",
+          "type": "integer"
+        },
+        "inference_model_calls": {
+          "const": 0,
+          "title": "Inference Model Calls",
+          "type": "integer"
+        },
+        "resource_samples": {
+          "const": 5,
+          "title": "Resource Samples",
+          "type": "integer"
+        },
+        "service_journal_rows": {
+          "const": 46,
+          "title": "Service Journal Rows",
+          "type": "integer"
+        },
+        "service_sessions": {
+          "const": 1,
+          "title": "Service Sessions",
+          "type": "integer"
+        },
+        "storage_samples": {
+          "const": 8,
+          "title": "Storage Samples",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "allocated_gpu_microseconds",
+        "classified_failure_microseconds",
+        "conservative_service_overhead_microseconds",
+        "gpu_events",
+        "service_sessions",
+        "attempts",
+        "inference_model_calls",
+        "artifacts",
+        "storage_samples",
+        "resource_samples",
+        "allocation_journal_rows",
+        "service_journal_rows",
+        "accepted_outputs"
+      ],
+      "title": "FallbackV7AccountingDelta",
+      "type": "object"
+    },
+    "FallbackV7FailureEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "admitted_maximum_microseconds": {
+          "const": 300000000,
+          "title": "Admitted Maximum Microseconds",
+          "type": "integer"
+        },
+        "allocated_microseconds": {
+          "const": 224234089,
+          "title": "Allocated Microseconds",
+          "type": "integer"
+        },
+        "ended_at": {
+          "format": "date-time",
+          "title": "Ended At",
+          "type": "string"
+        },
+        "event_id": {
+          "const": "fallback-qwen3-8b-awq-development-v7-service-start-001",
+          "title": "Event Id",
+          "type": "string"
+        },
+        "event_kind": {
+          "const": "failure",
+          "title": "Event Kind",
+          "type": "string"
+        },
+        "exception_type": {
+          "const": "RuntimeConfigurationError",
+          "title": "Exception Type",
+          "type": "string"
+        },
+        "intended_event_kind": {
+          "const": "gpu_session_start",
+          "title": "Intended Event Kind",
+          "type": "string"
+        },
+        "started_at": {
+          "format": "date-time",
+          "title": "Started At",
+          "type": "string"
+        },
+        "succeeded": {
+          "const": false,
+          "title": "Succeeded",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "event_id",
+        "event_kind",
+        "allocated_microseconds",
+        "started_at",
+        "ended_at",
+        "succeeded",
+        "intended_event_kind",
+        "exception_type",
+        "admitted_maximum_microseconds"
+      ],
+      "title": "FallbackV7FailureEvent",
+      "type": "object"
+    },
+    "FallbackV7FailureSequence": {
+      "additionalProperties": false,
+      "properties": {
+        "automated_physical_shutdown_verification_failed": {
+          "const": true,
+          "title": "Automated Physical Shutdown Verification Failed",
+          "type": "boolean"
+        },
+        "cleanup_controller_failure_type": {
+          "const": "RuntimeError",
+          "title": "Cleanup Controller Failure Type",
+          "type": "string"
+        },
+        "command_line_public": {
+          "const": false,
+          "title": "Command Line Public",
+          "type": "boolean"
+        },
+        "completed_startup_resource_samples": {
+          "const": 5,
+          "title": "Completed Startup Resource Samples",
+          "type": "integer"
+        },
+        "endpoint_healthy_at": {
+          "format": "date-time",
+          "title": "Endpoint Healthy At",
+          "type": "string"
+        },
+        "exact_live_lease_recovery_failed": {
+          "const": true,
+          "title": "Exact Live Lease Recovery Failed",
+          "type": "boolean"
+        },
+        "failure_event_ended_at": {
+          "format": "date-time",
+          "title": "Failure Event Ended At",
+          "type": "string"
+        },
+        "failure_stage": {
+          "const": "service_start_post_health_watchdog_stop",
+          "title": "Failure Stage",
+          "type": "string"
+        },
+        "full_log_text_public": {
+          "const": false,
+          "title": "Full Log Text Public",
+          "type": "boolean"
+        },
+        "guardian_terminal_failure_type": {
+          "const": "RuntimeError",
+          "title": "Guardian Terminal Failure Type",
+          "type": "string"
+        },
+        "healthy_endpoint_before_failure": {
+          "const": true,
+          "title": "Healthy Endpoint Before Failure",
+          "type": "boolean"
+        },
+        "in_flight_storage_resource_sample_operator_observed": {
+          "const": true,
+          "title": "In Flight Storage Resource Sample Operator Observed",
+          "type": "boolean"
+        },
+        "prepare_controller_failure_type": {
+          "const": "RuntimeConfigurationError",
+          "title": "Prepare Controller Failure Type",
+          "type": "string"
+        },
+        "root_cause": {
+          "const": "slow in-flight storage resource sample exceeded poll-derived watchdog stop join",
+          "title": "Root Cause",
+          "type": "string"
+        },
+        "root_cause_basis": {
+          "const": "operator_observation_and_source_bound_control_flow",
+          "title": "Root Cause Basis",
+          "type": "string"
+        },
+        "safe_error_class": {
+          "const": "slow_in_flight_storage_resource_sample_exceeded_poll_derived_watchdog_stop_join",
+          "title": "Safe Error Class",
+          "type": "string"
+        },
+        "scientific_inference_reached": {
+          "const": false,
+          "title": "Scientific Inference Reached",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "safe_error_class",
+        "root_cause",
+        "root_cause_basis",
+        "failure_stage",
+        "healthy_endpoint_before_failure",
+        "endpoint_healthy_at",
+        "failure_event_ended_at",
+        "completed_startup_resource_samples",
+        "in_flight_storage_resource_sample_operator_observed",
+        "exact_live_lease_recovery_failed",
+        "automated_physical_shutdown_verification_failed",
+        "prepare_controller_failure_type",
+        "cleanup_controller_failure_type",
+        "guardian_terminal_failure_type",
+        "scientific_inference_reached",
+        "command_line_public",
+        "full_log_text_public"
+      ],
+      "title": "FallbackV7FailureSequence",
+      "type": "object"
+    },
+    "FallbackV7LedgerBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "basename": {
+          "maxLength": 255,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9.][A-Za-z0-9._-]*$",
+          "title": "Basename",
+          "type": "string"
+        },
+        "file_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "File Sha256",
+          "type": "string"
+        },
+        "size_bytes": {
+          "exclusiveMinimum": 0,
+          "title": "Size Bytes",
+          "type": "integer"
+        },
+        "summary": {
+          "$ref": "#/$defs/FallbackV7LedgerSummary"
+        }
+      },
+      "required": [
+        "basename",
+        "size_bytes",
+        "file_sha256",
+        "summary"
+      ],
+      "title": "FallbackV7LedgerBinding",
+      "type": "object"
+    },
+    "FallbackV7LedgerSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "allocation_journal_count": {
+          "minimum": 0,
+          "title": "Allocation Journal Count",
+          "type": "integer"
+        },
+        "artifact_count": {
+          "minimum": 0,
+          "title": "Artifact Count",
+          "type": "integer"
+        },
+        "attempt_count": {
+          "minimum": 0,
+          "title": "Attempt Count",
+          "type": "integer"
+        },
+        "by_kind_microseconds": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "By Kind Microseconds",
+          "type": "object"
+        },
+        "event_count": {
+          "minimum": 0,
+          "title": "Event Count",
+          "type": "integer"
+        },
+        "model_call_count": {
+          "minimum": 0,
+          "title": "Model Call Count",
+          "type": "integer"
+        },
+        "resource_sample_count": {
+          "minimum": 0,
+          "title": "Resource Sample Count",
+          "type": "integer"
+        },
+        "service_journal_count": {
+          "minimum": 0,
+          "title": "Service Journal Count",
+          "type": "integer"
+        },
+        "service_session_count": {
+          "minimum": 0,
+          "title": "Service Session Count",
+          "type": "integer"
+        },
+        "storage_sample_count": {
+          "minimum": 0,
+          "title": "Storage Sample Count",
+          "type": "integer"
+        },
+        "total_allocated_microseconds": {
+          "minimum": 0,
+          "title": "Total Allocated Microseconds",
+          "type": "integer"
+        },
+        "unresolved_gpu_allocation_count": {
+          "minimum": 0,
+          "title": "Unresolved Gpu Allocation Count",
+          "type": "integer"
+        },
+        "unresolved_gpu_service_count": {
+          "minimum": 0,
+          "title": "Unresolved Gpu Service Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "total_allocated_microseconds",
+        "event_count",
+        "service_session_count",
+        "attempt_count",
+        "model_call_count",
+        "artifact_count",
+        "storage_sample_count",
+        "resource_sample_count",
+        "allocation_journal_count",
+        "service_journal_count",
+        "unresolved_gpu_allocation_count",
+        "unresolved_gpu_service_count",
+        "by_kind_microseconds"
+      ],
+      "title": "FallbackV7LedgerSummary",
+      "type": "object"
+    },
+    "FallbackV7ManualStopEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "endpoint_absence_verified": {
+          "const": true,
+          "title": "Endpoint Absence Verified",
+          "type": "boolean"
+        },
+        "evidence_source": {
+          "const": "terminal_ledger_service_details_and_bound_vllm_log",
+          "title": "Evidence Source",
+          "type": "string"
+        },
+        "gpu_process_absence_verified": {
+          "const": true,
+          "title": "Gpu Process Absence Verified",
+          "type": "boolean"
+        },
+        "identity": {
+          "$ref": "#/$defs/FallbackV7OperatorObservedIdentity"
+        },
+        "manual_exact_process_group_stop": {
+          "const": true,
+          "title": "Manual Exact Process Group Stop",
+          "type": "boolean"
+        },
+        "pid_absence_verified": {
+          "const": true,
+          "title": "Pid Absence Verified",
+          "type": "boolean"
+        },
+        "process_group_absence_verified": {
+          "const": true,
+          "title": "Process Group Absence Verified",
+          "type": "boolean"
+        },
+        "recovered_from_open_service_journal": {
+          "const": true,
+          "title": "Recovered From Open Service Journal",
+          "type": "boolean"
+        },
+        "stop_signal": {
+          "const": "SIGTERM",
+          "title": "Stop Signal",
+          "type": "string"
+        },
+        "stopped_at": {
+          "format": "date-time",
+          "title": "Stopped At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "identity",
+        "stop_signal",
+        "stopped_at",
+        "manual_exact_process_group_stop",
+        "pid_absence_verified",
+        "process_group_absence_verified",
+        "gpu_process_absence_verified",
+        "endpoint_absence_verified",
+        "recovered_from_open_service_journal",
+        "evidence_source"
+      ],
+      "title": "FallbackV7ManualStopEvidence",
+      "type": "object"
+    },
+    "FallbackV7OperatorObservedIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "command_line_public": {
+          "const": false,
+          "title": "Command Line Public",
+          "type": "boolean"
+        },
+        "observation_basis": {
+          "const": "operator_observed_then_bound_in_terminal_ledger_recovery",
+          "title": "Observation Basis",
+          "type": "string"
+        },
+        "process_cmdline_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Process Cmdline Sha256",
+          "type": "string"
+        },
+        "process_group_id": {
+          "exclusiveMinimum": 0,
+          "title": "Process Group Id",
+          "type": "integer"
+        },
+        "process_session_id": {
+          "exclusiveMinimum": 0,
+          "title": "Process Session Id",
+          "type": "integer"
+        },
+        "process_start_ticks": {
+          "exclusiveMinimum": 0,
+          "title": "Process Start Ticks",
+          "type": "integer"
+        },
+        "remote_absolute_paths_public": {
+          "const": false,
+          "title": "Remote Absolute Paths Public",
+          "type": "boolean"
+        },
+        "service_instance_token_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Service Instance Token Sha256",
+          "type": "string"
+        },
+        "service_pid": {
+          "exclusiveMinimum": 0,
+          "title": "Service Pid",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "observation_basis",
+        "service_pid",
+        "process_group_id",
+        "process_session_id",
+        "process_start_ticks",
+        "process_cmdline_sha256",
+        "service_instance_token_sha256",
+        "command_line_public",
+        "remote_absolute_paths_public"
+      ],
+      "title": "FallbackV7OperatorObservedIdentity",
+      "type": "object"
+    },
+    "FallbackV7OrchestrationIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "cleanup_controller_receipt_manifest_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Cleanup Controller Receipt Manifest Sha256",
+          "type": "string"
+        },
+        "closed_orchestrator_guard_manifest_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Closed Orchestrator Guard Manifest Sha256",
+          "type": "string"
+        },
+        "execution_arguments_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Execution Arguments Sha256",
+          "type": "string"
+        },
+        "guardian_command_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Guardian Command Sha256",
+          "type": "string"
+        },
+        "guardian_ready_manifest_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Guardian Ready Manifest Sha256",
+          "type": "string"
+        },
+        "guardian_terminal_request_manifest_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Guardian Terminal Request Manifest Sha256",
+          "type": "string"
+        },
+        "guardian_ticket_manifest_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Guardian Ticket Manifest Sha256",
+          "type": "string"
+        },
+        "orchestration_invocation_manifest_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Orchestration Invocation Manifest Sha256",
+          "type": "string"
+        },
+        "orchestrator_command_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Orchestrator Command Sha256",
+          "type": "string"
+        },
+        "orchestrator_guard_manifest_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Orchestrator Guard Manifest Sha256",
+          "type": "string"
+        },
+        "prepare_controller_receipt_manifest_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Prepare Controller Receipt Manifest Sha256",
+          "type": "string"
+        },
+        "service_event_id": {
+          "const": "fallback-qwen3-8b-awq-development-v7-service-start-001",
+          "title": "Service Event Id",
+          "type": "string"
+        },
+        "service_session_id": {
+          "const": "fallback-qwen3-8b-awq-development-v7",
+          "title": "Service Session Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "execution_arguments_sha256",
+        "orchestration_invocation_manifest_sha256",
+        "guardian_ticket_manifest_sha256",
+        "guardian_ready_manifest_sha256",
+        "guardian_terminal_request_manifest_sha256",
+        "orchestrator_guard_manifest_sha256",
+        "closed_orchestrator_guard_manifest_sha256",
+        "prepare_controller_receipt_manifest_sha256",
+        "cleanup_controller_receipt_manifest_sha256",
+        "guardian_command_sha256",
+        "orchestrator_command_sha256",
+        "service_session_id",
+        "service_event_id"
+      ],
+      "title": "FallbackV7OrchestrationIdentity",
+      "type": "object"
+    },
+    "FallbackV7PublicFailureEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "controller_handoff": {
+          "$ref": "#/$defs/SelfHashedFileBinding"
+        },
+        "orphan_cleanup": {
+          "$ref": "#/$defs/SelfHashedFileBinding"
+        }
+      },
+      "required": [
+        "controller_handoff",
+        "orphan_cleanup"
+      ],
+      "title": "FallbackV7PublicFailureEvidence",
+      "type": "object"
+    },
+    "FallbackV7RestrictedEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "checkpoint": {
+          "$ref": "#/$defs/OpaqueFileBinding"
+        },
+        "cleanup_controller_receipt": {
+          "$ref": "#/$defs/SelfHashedFileBinding"
+        },
+        "closed_orchestrator_guard": {
+          "$ref": "#/$defs/SelfHashedFileBinding"
+        },
+        "guardian_log": {
+          "$ref": "#/$defs/OpaqueFileBinding"
+        },
+        "guardian_ready": {
+          "$ref": "#/$defs/SelfHashedFileBinding"
+        },
+        "guardian_terminal_request": {
+          "$ref": "#/$defs/SelfHashedFileBinding"
+        },
+        "guardian_ticket": {
+          "$ref": "#/$defs/SelfHashedFileBinding"
+        },
+        "orchestration_invocation": {
+          "$ref": "#/$defs/SelfHashedFileBinding"
+        },
+        "orchestrator_guard": {
+          "$ref": "#/$defs/SelfHashedFileBinding"
+        },
+        "orchestrator_log": {
+          "$ref": "#/$defs/OpaqueFileBinding"
+        },
+        "prepare_controller_receipt": {
+          "$ref": "#/$defs/SelfHashedFileBinding"
+        },
+        "run_root_inventory_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Run Root Inventory Sha256",
+          "type": "string"
+        },
+        "vllm_log": {
+          "$ref": "#/$defs/OpaqueFileBinding"
+        }
+      },
+      "required": [
+        "orchestration_invocation",
+        "guardian_ticket",
+        "guardian_ready",
+        "guardian_terminal_request",
+        "orchestrator_guard",
+        "closed_orchestrator_guard",
+        "prepare_controller_receipt",
+        "cleanup_controller_receipt",
+        "checkpoint",
+        "guardian_log",
+        "orchestrator_log",
+        "vllm_log",
+        "run_root_inventory_sha256"
+      ],
+      "title": "FallbackV7RestrictedEvidence",
+      "type": "object"
+    },
+    "FallbackV7ServiceAccounting": {
+      "additionalProperties": false,
+      "properties": {
+        "accounting_method": {
+          "const": "conservative_service_journal_recovery",
+          "title": "Accounting Method",
+          "type": "string"
+        },
+        "classified_event_microseconds": {
+          "const": 224234089,
+          "title": "Classified Event Microseconds",
+          "type": "integer"
+        },
+        "ended_at": {
+          "format": "date-time",
+          "title": "Ended At",
+          "type": "string"
+        },
+        "overhead_microseconds": {
+          "const": 468401467,
+          "title": "Overhead Microseconds",
+          "type": "integer"
+        },
+        "recovery_journal_sequence": {
+          "const": 45,
+          "title": "Recovery Journal Sequence",
+          "type": "integer"
+        },
+        "recovery_journal_state": {
+          "const": "recovered",
+          "title": "Recovery Journal State",
+          "type": "string"
+        },
+        "service_microseconds": {
+          "const": 692635556,
+          "title": "Service Microseconds",
+          "type": "integer"
+        },
+        "service_session_id": {
+          "const": "fallback-qwen3-8b-awq-development-v7-service-start-001",
+          "title": "Service Session Id",
+          "type": "string"
+        },
+        "session_id": {
+          "const": "fallback-qwen3-8b-awq-development-v7",
+          "title": "Session Id",
+          "type": "string"
+        },
+        "started_at": {
+          "format": "date-time",
+          "title": "Started At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "service_session_id",
+        "session_id",
+        "service_microseconds",
+        "classified_event_microseconds",
+        "overhead_microseconds",
+        "started_at",
+        "ended_at",
+        "accounting_method",
+        "recovery_journal_sequence",
+        "recovery_journal_state"
+      ],
+      "title": "FallbackV7ServiceAccounting",
+      "type": "object"
+    },
+    "FallbackV7SourceAndAuthorization": {
+      "additionalProperties": false,
+      "properties": {
+        "authorization_overlay": {
+          "$ref": "#/$defs/SelfHashedFileBinding"
+        },
+        "execution_preflight": {
+          "$ref": "#/$defs/SelfHashedFileBinding"
+        },
+        "source_association": {
+          "$ref": "#/$defs/SelfHashedFileBinding"
+        },
+        "source_git_commit": {
+          "pattern": "^[0-9a-f]{40}$",
+          "title": "Source Git Commit",
+          "type": "string"
+        },
+        "source_revision": {
+          "const": "fallback-second-recovery-v7",
+          "title": "Source Revision",
+          "type": "string"
+        },
+        "source_tree_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Source Tree Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_revision",
+        "source_git_commit",
+        "source_tree_sha256",
+        "source_association",
+        "authorization_overlay",
+        "execution_preflight"
+      ],
+      "title": "FallbackV7SourceAndAuthorization",
+      "type": "object"
+    },
+    "FallbackV7TerminalState": {
+      "additionalProperties": false,
+      "properties": {
+        "accepted_output_count": {
+          "const": 0,
+          "title": "Accepted Output Count",
+          "type": "integer"
+        },
+        "automated_cleanup_succeeded": {
+          "const": false,
+          "title": "Automated Cleanup Succeeded",
+          "type": "boolean"
+        },
+        "endpoint_live": {
+          "const": false,
+          "title": "Endpoint Live",
+          "type": "boolean"
+        },
+        "exact_service_process_live": {
+          "const": false,
+          "title": "Exact Service Process Live",
+          "type": "boolean"
+        },
+        "fresh_repaired_source_required": {
+          "const": true,
+          "title": "Fresh Repaired Source Required",
+          "type": "boolean"
+        },
+        "gpu_process_live": {
+          "const": false,
+          "title": "Gpu Process Live",
+          "type": "boolean"
+        },
+        "guardian_result_present": {
+          "const": false,
+          "title": "Guardian Result Present",
+          "type": "boolean"
+        },
+        "inference_attempt_count_delta": {
+          "const": 0,
+          "title": "Inference Attempt Count Delta",
+          "type": "integer"
+        },
+        "inference_model_call_count_delta": {
+          "const": 0,
+          "title": "Inference Model Call Count Delta",
+          "type": "integer"
+        },
+        "manual_physical_stop_verified": {
+          "const": true,
+          "title": "Manual Physical Stop Verified",
+          "type": "boolean"
+        },
+        "phase1_gate_passed": {
+          "const": false,
+          "title": "Phase1 Gate Passed",
+          "type": "boolean"
+        },
+        "public_final_result_present": {
+          "const": false,
+          "title": "Public Final Result Present",
+          "type": "boolean"
+        },
+        "resume_allowed": {
+          "const": false,
+          "title": "Resume Allowed",
+          "type": "boolean"
+        },
+        "source_bound_v7_resume_permitted": {
+          "const": false,
+          "title": "Source Bound V7 Resume Permitted",
+          "type": "boolean"
+        },
+        "terminal_ledger_verified": {
+          "const": true,
+          "title": "Terminal Ledger Verified",
+          "type": "boolean"
+        },
+        "unresolved_gpu_allocation_count": {
+          "const": 0,
+          "title": "Unresolved Gpu Allocation Count",
+          "type": "integer"
+        },
+        "unresolved_gpu_service_count": {
+          "const": 0,
+          "title": "Unresolved Gpu Service Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "public_final_result_present",
+        "accepted_output_count",
+        "inference_attempt_count_delta",
+        "inference_model_call_count_delta",
+        "phase1_gate_passed",
+        "guardian_result_present",
+        "automated_cleanup_succeeded",
+        "manual_physical_stop_verified",
+        "endpoint_live",
+        "gpu_process_live",
+        "exact_service_process_live",
+        "unresolved_gpu_allocation_count",
+        "unresolved_gpu_service_count",
+        "terminal_ledger_verified",
+        "resume_allowed",
+        "source_bound_v7_resume_permitted",
+        "fresh_repaired_source_required"
+      ],
+      "title": "FallbackV7TerminalState",
+      "type": "object"
+    },
+    "OpaqueFileBinding": {
+      "additionalProperties": false,
+      "description": "Safe public identity for one restricted non-JSON artifact.",
+      "properties": {
+        "basename": {
+          "maxLength": 255,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9.][A-Za-z0-9._-]*$",
+          "title": "Basename",
+          "type": "string"
+        },
+        "file_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "File Sha256",
+          "type": "string"
+        },
+        "size_bytes": {
+          "exclusiveMinimum": 0,
+          "title": "Size Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "basename",
+        "size_bytes",
+        "file_sha256"
+      ],
+      "title": "OpaqueFileBinding",
+      "type": "object"
+    },
+    "SelfHashedFileBinding": {
+      "additionalProperties": false,
+      "description": "Safe public identity for one private or public self-hashed JSON file.",
+      "properties": {
+        "basename": {
+          "maxLength": 255,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9.][A-Za-z0-9._-]*$",
+          "title": "Basename",
+          "type": "string"
+        },
+        "file_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "File Sha256",
+          "type": "string"
+        },
+        "kind": {
+          "maxLength": 255,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9.][A-Za-z0-9._-]*$",
+          "title": "Kind",
+          "type": "string"
+        },
+        "manifest_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Manifest Sha256",
+          "type": "string"
+        },
+        "size_bytes": {
+          "exclusiveMinimum": 0,
+          "title": "Size Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "basename",
+        "size_bytes",
+        "file_sha256",
+        "kind",
+        "manifest_sha256"
+      ],
+      "title": "SelfHashedFileBinding",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Self-hashed public description of the exact fallback-v7 incident.",
+  "properties": {
+    "absence_inventory": {
+      "$ref": "#/$defs/FallbackV7AbsenceInventory"
+    },
+    "accounting": {
+      "$ref": "#/$defs/FallbackV7Accounting"
+    },
+    "audited_at": {
+      "format": "date-time",
+      "title": "Audited At",
+      "type": "string"
+    },
+    "failure_sequence": {
+      "$ref": "#/$defs/FallbackV7FailureSequence"
+    },
+    "kind": {
+      "const": "fallback_gpu_acceptance_v7_runtime_incident",
+      "title": "Kind",
+      "type": "string"
+    },
+    "manifest_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Manifest Sha256",
+      "type": "string"
+    },
+    "manual_stop": {
+      "$ref": "#/$defs/FallbackV7ManualStopEvidence"
+    },
+    "orchestration_identity": {
+      "$ref": "#/$defs/FallbackV7OrchestrationIdentity"
+    },
+    "public_failure_evidence": {
+      "$ref": "#/$defs/FallbackV7PublicFailureEvidence"
+    },
+    "restricted_evidence": {
+      "$ref": "#/$defs/FallbackV7RestrictedEvidence"
+    },
+    "run_id": {
+      "const": "fallback-qwen3-8b-awq-development-v7",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1.0.0",
+      "default": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "source_and_authorization": {
+      "$ref": "#/$defs/FallbackV7SourceAndAuthorization"
+    },
+    "terminal_state": {
+      "$ref": "#/$defs/FallbackV7TerminalState"
+    }
+  },
+  "required": [
+    "kind",
+    "run_id",
+    "audited_at",
+    "source_and_authorization",
+    "public_failure_evidence",
+    "restricted_evidence",
+    "orchestration_identity",
+    "accounting",
+    "failure_sequence",
+    "manual_stop",
+    "absence_inventory",
+    "terminal_state",
+    "manifest_sha256"
+  ],
+  "title": "FallbackV7RuntimeIncident",
+  "type": "object"
+}

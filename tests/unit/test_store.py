@@ -972,6 +972,55 @@ def test_storage_measurement_deduplicates_hardlinks(tmp_path: Path) -> None:
     assert occupied == allocated_once
 
 
+def test_storage_preflight_minimizes_nested_trees_deterministically(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    first_tree = tmp_path / "first"
+    nested = first_tree / "nested"
+    second_tree = tmp_path / "second"
+    nested.mkdir(parents=True)
+    second_tree.mkdir()
+    (nested / "payload.bin").write_bytes(b"nested payload")
+    (second_tree / "payload.bin").write_bytes(b"separate payload")
+
+    preflight = StoragePreflight(
+        tmp_path,
+        controlled_paths=(nested, second_tree, first_tree, nested),
+    )
+
+    assert preflight.controlled_paths == (first_tree, second_tree)
+    real_walk = os.walk
+    walked_roots: list[Path] = []
+
+    def recording_walk(root: Path, **kwargs: object):
+        walked_roots.append(Path(root))
+        return real_walk(root, **kwargs)
+
+    monkeypatch.setattr(store_module.os, "walk", recording_walk)
+    occupied = preflight.measure_occupied_bytes()
+
+    expected = sum(
+        path.stat().st_blocks * 512 or path.stat().st_size
+        for path in (nested / "payload.bin", second_tree / "payload.bin")
+    )
+    assert occupied == expected
+    assert walked_roots == [first_tree, second_tree]
+
+
+def test_storage_preflight_minimizes_missing_future_subtrees(tmp_path: Path) -> None:
+    future_tree = tmp_path / "future"
+    future_result = future_tree / "nested" / "result.json"
+
+    preflight = StoragePreflight(
+        tmp_path,
+        controlled_paths=(future_result, future_tree),
+    )
+
+    assert preflight.controlled_paths == (future_tree,)
+    assert preflight.measure_occupied_bytes() == 0
+
+
 def test_storage_preflight_allows_missing_future_path_on_quota_device(
     tmp_path: Path,
 ) -> None:
@@ -984,6 +1033,40 @@ def test_storage_preflight_allows_missing_future_path_on_quota_device(
 
     assert preflight.controlled_paths == (future_output,)
     assert preflight.measure_occupied_bytes() == 0
+
+
+def test_storage_preflight_rechecks_device_for_deduplicated_nested_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    controlled_tree = tmp_path / "controlled"
+    controlled_tree.mkdir()
+    nested_result = controlled_tree / "future" / "result.json"
+    preflight = StoragePreflight(
+        tmp_path,
+        controlled_paths=(controlled_tree, nested_result),
+    )
+    assert preflight.controlled_paths == (controlled_tree,)
+
+    foreign_ancestor = nested_result.parent
+    foreign_ancestor.mkdir()
+    original_stat = Path.stat
+
+    def device_overridden_stat(path: Path, *args: object, **kwargs: object):
+        observed = original_stat(path, *args, **kwargs)
+        if path == foreign_ancestor:
+            fields = list(observed)
+            fields[2] = observed.st_dev + 1
+            return os.stat_result(fields)
+        return observed
+
+    monkeypatch.setattr(Path, "stat", device_overridden_stat)
+
+    with pytest.raises(ValueError, match="different device from quota_root"):
+        preflight.check(
+            current_occupied_bytes=0,
+            filesystem_free_bytes=30_000_000_000,
+        )
 
 
 def test_storage_preflight_rejects_controlled_ancestor_on_another_device(

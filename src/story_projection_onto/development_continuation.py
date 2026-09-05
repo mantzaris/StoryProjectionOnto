@@ -69,6 +69,7 @@ from story_projection_onto.development_adapter import (
     persist_opaque_json,
 )
 from story_projection_onto.development_artifacts import (
+    HISTORICAL_SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
     SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
     DevelopmentAssessmentBundle,
     DevelopmentCPUProjectionReceipt,
@@ -180,10 +181,14 @@ def _validate_recovery_service_start_binding(
     if second_recovery_overlay_sha256 is not None:
         if (
             retry_amendment_sha256 is None
-            or identifiers != SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS
+            or identifiers
+            not in {
+                HISTORICAL_SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
+                SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
+            }
         ):
             raise DevelopmentContinuationError(
-                "second recovery requires the exact ordered v3+v7 service IDs"
+                "second recovery requires an exact ordered v3+v7[/v8] service lineage"
             )
         return
     if len(identifiers) > 1 or bool(identifiers) != bool(retry_amendment_sha256):

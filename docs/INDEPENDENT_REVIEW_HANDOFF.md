@@ -1,14 +1,43 @@
 # Independent review completion handoff
 
 This workflow completes—but never performs—the mandatory independent review of
-the nine condition-blind held-out projections. The authoritative plans require
-one independent, condition-blind review, followed by adjudication and freezing
-of disagreements and permissible alternatives before condition outputs. They do
-not require a second reviewer or an institutionally independent adjudicator, and
-they do not prohibit the project researcher or user from adjudicating after
-another human has authored the substantive independent review. Both records
-must be authored outside the model runtime. Test fixtures are not scientific
-reviews and cannot authorize a held-out run.
+the nine condition-blind held-out projections. The methodological plan calls
+the human who performs it a **second reviewer**: one recorded seed selects one
+held-out world per difficulty stratum, and that reviewer assesses all three
+contexts in each selected world while blind to method outputs and condition
+identities. This means one human second reviewer, not two external reviewers.
+Disagreements must then be logged and adjudicated, and disagreements and
+permissible alternatives must be frozen before condition outputs are opened.
+
+The plans do not specify that the adjudicator must be institutionally
+independent or prohibit the project researcher or user from adjudicating after
+another human has authored the substantive second review. The implementation
+does require the reviewer and adjudicator to be different people, represented
+by different pseudonyms, for auditable role separation. Both substantive
+records must be human-authored outside the model runtime. Test fixtures are not
+scientific reviews and cannot authorize a held-out run.
+
+## Authoritative-plan requirements
+
+The requirements below are the complete review-specific requirements in the
+two authoritative plans; this handoff does not add a second external review or
+an institutional-independence criterion:
+
+- the recorded selection seed chooses one held-out world at random within each
+  easy, medium, and hard stratum;
+- one second reviewer covers those three worlds and all nine projections while
+  blind to method outputs and condition identities;
+- the reviewer checks evidence support, identity partitions, event choices,
+  temporal scope, contrast deltas, rare-pivotal labels, communities, and
+  alternatives;
+- disagreements are logged and adjudicated, and disagreements and alternatives
+  are frozen before condition outputs are opened; and
+- held-out execution does not begin without the reviewer and cannot begin until
+  all nine projections are completed, adjudicated, and frozen.
+
+These requirements are stated in Methodological Plan §8.3 and acceptance
+criterion 1, and Implementation Plan §9.1. Neither plan assigns an identity or
+independence criterion to the adjudicator.
 
 ## Inputs and roles
 
@@ -31,13 +60,14 @@ reviews and cannot authorize a held-out run.
 2. Save their completed `IndependentReviewResponse` in a restricted location.
    Notes and the reviewer pseudonym are restricted by default.
 3. An adjudicator receives the response and writes a `ReviewAdjudication`. The
-   project researcher or user may fill this role. The current validator requires
-   its `adjudicator_pseudonym` to differ from the response's
-   `reviewer_pseudonym`; it compares them case-insensitively and fails closed.
-   Distinct pseudonyms are an implementation mechanism for auditable role
-   separation, not a claim that the plans require a second reviewer or an
-   institutionally independent adjudicator. Every `DISAGREE` or `UNCERTAIN`
-   item must be resolved; agreed items must not be included.
+   project researcher or user may fill this role if they were not the second
+   reviewer. The current validator requires its `adjudicator_pseudonym` to
+   differ from the response's `reviewer_pseudonym`; it compares them
+   case-insensitively and fails closed. This distinct-person rule is an
+   implementation mechanism for auditable role separation; the plans
+   themselves state no institutional-independence requirement for the
+   adjudicator. Every `DISAGREE` or `UNCERTAIN` item must be resolved; agreed
+   items must not be included.
 4. `RETAIN` keeps the original sealed scorer semantics. `AMEND` requires a
    `ReviewAmendmentBundle` containing the complete amended
    `GoldContextualProjection` and `GoldAlternativeSet`. Each AMEND item must name

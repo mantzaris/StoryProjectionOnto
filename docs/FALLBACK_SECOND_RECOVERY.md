@@ -1,11 +1,12 @@
 # Second fallback recovery overlay
 
-This repository supports, but does not itself authorize, one fresh v7 recovery
+This repository supports, but does not itself authorize, one fresh v8 recovery
 after the terminal `fallback-qwen3-8b-awq-development-v3` decoder-transport
-incident and the later zero-GPU v4, v5, and v6 control-plane incidents. V4,
-v5, and v6 are immutable terminal attempts and cannot execute or resume. The
+incident, the later zero-GPU v4, v5, and v6 control-plane incidents, and the
+metered terminal v7 startup incident. V4 through v7 are immutable terminal
+attempts and cannot execute or resume. The
 existing v3 amendment, its validator, the v3 failed result and incident
-association, and all three later public incident records remain immutable
+association, and all four later public incident records remain immutable
 provenance.
 
 The second overlay is intentionally fail-closed. It must bind all of the
@@ -14,10 +15,12 @@ following before a model process can start:
 - the exact v3 result and incident file and manifest hashes;
 - the exact self-hashed v4 zero-GPU control-plane incident;
 - the exact self-hashed v5 and v6 zero-GPU control-plane incidents;
+- the exact self-hashed v7 runtime incident, including zero inference/output,
+  verified physical shutdown, and conservative terminal ledger recovery;
 - the original v3 retry amendment and its predecessor through the original
   amendment validator;
-- the cumulative 815.215409 GPU seconds, five ledger events, and four service
-  sessions recorded after v3;
+- the cumulative 1,507.850965 GPU seconds, six ledger events, five service
+  sessions, and exact per-kind totals recorded after v7 recovery;
 - the failed request and decoder-schema hashes;
 - the finalized local/remote source association and current compatibility
   implementation hashes;
@@ -49,7 +52,7 @@ following before a model process can start:
   append-only lifecycle/accounting sources and tests;
 - zero accepted, base, or development predecessor outputs and zero model/GPU
   calls made by either new correction;
-- one additional service allocation forecasted conservatively as the greater
+- one next service allocation forecasted conservatively as the greater
   of the 300-second startup watchdog and the observed successful service
   allocation p95, plus exactly one `AttemptKind.RETRY` for `fallback-c1-01`
   charged to the next registered `reserve_long` slot;
@@ -57,21 +60,30 @@ following before a model process can start:
 
 The retry does not add unreserved inference capacity. It moves cumulative
 `reserve_long` consumption from one to two of four registered slots. The global
-maximum remains 278 inference attempts. Only the second recovery service start
-is new, moving the effective accounting-event ceiling from 287 to 288.
+maximum remains 278 inference attempts. The v7 and v8 post-v3 recovery starts
+move the effective accounting-event ceiling from 287 through 288 to 289.
 
 The corrected forecast retains the successful v3 service-start observation and
 excludes the 0.852878-second request rejection from successful C1 timing. Before
 any further allocation, the values are:
 
-- actual allocation: 815.215409 seconds;
-- remaining mandatory forecast: 30,516.0027264791 seconds;
+- actual allocation: 1,507.850965 seconds;
+- exact cumulative kinds: failure 225.183297 seconds, GPU-session start
+  214.034494 seconds, service overhead 645.767518 seconds, and timeout
+  422.865656 seconds;
+- remaining mandatory forecast: 29,459.0 seconds;
 - service-start watchdog: 300 seconds;
 - observed successful service allocation p95: 391.40054529582005 seconds;
 - additional service allocation forecast:
   `max(300, 391.40054529582005) = 391.40054529582005` seconds;
-- projected scheduled allocation: 31,722.61868077492 seconds;
-- scheduled reserve: 677.38131922508 seconds.
+- projected scheduled allocation: 31,358.25151029582 seconds;
+- scheduled reserve: 1,041.74848970418 seconds;
+- protected in-flight resource-sample drain: 120 seconds;
+- protected process shutdown: 60 seconds;
+- total protected hard-stop reserve: 180 seconds;
+- hard contingency after the next start and total hard-stop reserve:
+  4,461.74848970418
+  seconds.
 
 These values must be recomputed by the validator from immutable inputs; copying
 them into an overlay is not sufficient.
@@ -273,10 +285,10 @@ binding.
 
 ## Authorization and dry validation
 
-`SecondFallbackRecoveryOverlay` schema version 1.5.0 requires the typed evidence
+`SecondFallbackRecoveryOverlay` schema version 1.6.0 requires the typed evidence
 provenance bridge binding, projection-dependency correction,
-concurrent-integrity disclosure, and the exact v4, v5, and v6 control-plane
-incident bindings. It
+concurrent-integrity disclosure, the exact v4, v5, and v6 control-plane
+incident bindings, and the terminal v7 runtime-incident binding. It
 accepts either `proposed` or `authorized` so a complete proposal can be checked
 without inventing approval. A proposal must
 leave `authorized_by` and `recorded_at` null. An authorized overlay must name
@@ -295,6 +307,7 @@ arguments:
 --prior-control-plane-incident artifacts/public/manifests/fallback_gpu_acceptance_development_v4_control_plane_incident.json
 --prior-v5-control-plane-incident artifacts/public/manifests/fallback_gpu_acceptance_development_v5_control_plane_incident.json
 --prior-v6-control-plane-incident artifacts/public/manifests/fallback_gpu_acceptance_development_v6_control_plane_incident.json
+--prior-v7-runtime-incident artifacts/public/manifests/fallback_gpu_acceptance_development_v7_runtime_incident.json
 ```
 
 Validation is CPU-only. It verifies the bridge certificate and every registered
@@ -555,10 +568,11 @@ closed.
 
 A valid dry preflight must
 report `execution_authorized: true`, `passed: true`, no GPU allocation or model
-process start, the exact 815.215409-second predecessor accounting, the corrected
-31,722.61868077492-second projection, 677.38131922508 seconds of scheduled
-reserve, 4,217.38131922508 seconds of hard contingency after protected
-shutdown, 288 effective accounting events, and 278 maximum inference attempts.
+process start, the exact 1,507.850965-second terminal-v7 accounting, the corrected
+31,358.25151029582-second projection, 1,041.74848970418 seconds of scheduled
+reserve, 4,461.74848970418 seconds of hard contingency after the 180-second
+resource-aware hard-stop reserve, 289 effective accounting events, and 278
+maximum inference attempts.
 
 After the micro-pilot passes and before the automatic 24-call development
 continuation prepares any input or invokes its adopter, the fallback owner loads
@@ -624,7 +638,7 @@ after deriving and verifying the exact guardian argv, PID, process group, and
 session; attempted-start resume additionally requires exactly one matching open
 service journal. Any failed proof keeps `resume_allowed` false.
 
-## Fresh v7 execution after the terminal v6 control-plane incident
+## Historical v7 launch record (terminal; do not execute or resume)
 
 V6 failed during guardian construction, before readiness, because the frozen
 development-continuation service-start identity still named v3+v5 while the
@@ -636,7 +650,8 @@ The public incident is preserved at
 Its post-failure status has `resume_allowed: false`; its run root, invocation,
 ticket, guard, log, status, run ID, and output names must not be reused.
 
-V7 is the only executable second-recovery run. It retains the unchanged 288
+V7 was the only executable second-recovery run at that historical source
+revision. It retained 288
 effective accounting events, 278 maximum inference attempts, one additional
 service load, and the single reserve-long retry. Before overlay construction,
 generate and independently associate byte-identical local and remote manifests
@@ -655,9 +670,37 @@ all use the same complete v4+v5+v6 incident chain. Use fresh v7 paths:
 `artifacts/restricted/fallback-second-recovery-v7.authorized.json`,
 `artifacts/public/manifests/fallback_gpu_acceptance_development_v7.preflight.json`,
 `artifacts/public/results/fallback_gpu_acceptance_development_v7.json`, and
-tmux session `storyprojection-study-v7`. Only v7 may resume, and only if its own
-status reports `resume_allowed: true`; terminal v4, v5, and v6 state can never
-be converted into v7 state or used as a resumable checkpoint.
+tmux session `storyprojection-study-v7`. The attempted v7 startup reached a
+healthy model endpoint but failed before any inference call or accepted output
+when a slow in-flight storage sample exceeded the old poll-derived watchdog
+join. Automated cleanup lost its exact lease proof. The exact process identity
+was subsequently verified, stopped with SIGTERM, and conservatively recovered
+into the ledger. The public terminal record is
+`artifacts/public/manifests/fallback_gpu_acceptance_development_v7_runtime_incident.json`.
+V7 has `resume_allowed: false`; none of its run paths may be reused.
+
+## Fresh v8 execution after the terminal v7 runtime incident
+
+V8 is the only executable second-recovery run. It retains the 278-attempt
+ceiling and the same one reserve-long retry. Its accounting history contains
+three recovery service identities in exact order: v3, v7, and the proposed v8
+start. This yields 289 effective accounting events without adding an inference
+attempt or replenishing a reserve.
+
+Generate and associate byte-identical local and remote source manifests under
+revision `fallback-second-recovery-v8`; the association basename must be
+`source_tree_fallback_second_recovery_v8.association.json`. Build schema 1.6.0
+with run ID `fallback-qwen3-8b-awq-development-v8`, the complete v4/v5/v6
+chain, and:
+
+```text
+--prior-v7-runtime-incident <project-root>/artifacts/public/manifests/fallback_gpu_acceptance_development_v7_runtime_incident.json
+```
+
+The overlay must bind the terminal cumulative total of 1,507.850965 seconds,
+six GPU events, five service sessions, and its exact per-kind totals. Use only
+fresh v8 run, overlay, preflight, result, checkpoint, log, and tmux names. V4
+through v7 remain validation-only provenance and can never execute or resume.
 
 ## Fields finalized only after approval
 

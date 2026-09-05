@@ -64,6 +64,10 @@ MAXIMUM_CPU_WORKERS = 8
 GPU_MEMORY_UTILIZATION = 0.88
 DEFAULT_SERVICE_START_WATCHDOG_SECONDS = 180
 DEFAULT_SHUTDOWN_SECONDS = 30
+DEFAULT_RESOURCE_SAMPLE_COMPLETION_SECONDS = 120.0
+RESOURCE_AWARE_HARD_STOP_RESERVE_SECONDS = (
+    DEFAULT_RESOURCE_SAMPLE_COMPLETION_SECONDS + 2 * DEFAULT_SHUTDOWN_SECONDS
+)
 DURABLE_EXEC_GATE_PROTOCOL = "pipe-eof-before-exec-v1"
 DURABLE_EXEC_GATE_WATCHDOG_SECONDS = 5.0
 SERVICE_INSTANCE_ENVIRONMENT_KEY = "STORY_PROJECTION_ONTO_SERVICE_INSTANCE"
@@ -89,6 +93,28 @@ MODEL_CANDIDATES = (
         FALLBACK_MODEL_REVISION,
         FALLBACK_SERVED_MODEL_NAME,
     ),
+)
+
+# A failed controller must never replace durable kill/accounting identity with
+# ``null`` merely because its in-memory adoption did not finish.  These fields
+# are copied forward only for unresolved terminalization states; normal live and
+# terminal writes continue to be complete snapshots of the current controller.
+_UNRESOLVED_LEASE_IDENTITY_FIELDS = (
+    "session_id",
+    "accounting_session_id",
+    "service_pid",
+    "process_start_ticks",
+    "process_command_sha256",
+    "process_group_id",
+    "process_session_id",
+    "service_instance_token_sha256",
+    "launch_protocol",
+    "launch_gate_token_sha256",
+    "launch_supervisor_command_sha256",
+    "service_started_at",
+    "service_ended_at",
+    "ledger_allocated_seconds_before_session",
+    "observed_service_seconds",
 )
 
 
@@ -1495,6 +1521,7 @@ class ResourceWatchdog:
     root_pid: int
     sample_prefix: str
     interval_seconds: float = 1.0
+    sample_completion_timeout_seconds: float = DEFAULT_RESOURCE_SAMPLE_COMPLETION_SECONDS
     job_id: str | None = None
     gpu_event_id: str | None = None
     allocation_guard: Callable[[], None] | None = None
@@ -1504,6 +1531,27 @@ class ResourceWatchdog:
     _thread: threading.Thread | None = field(default=None, init=False, repr=False)
     _failure: BaseException | None = field(default=None, init=False, repr=False)
     _sample_count: int = field(default=0, init=False)
+    _sample_in_flight: threading.Event = field(
+        default_factory=threading.Event,
+        init=False,
+        repr=False,
+    )
+    _failure_lock: threading.Lock = field(
+        default_factory=threading.Lock,
+        init=False,
+        repr=False,
+    )
+    _drain_timeout_failure: BaseException | None = field(
+        default=None,
+        init=False,
+        repr=False,
+    )
+    _completion_deadline_monotonic: float | None = field(
+        default=None,
+        init=False,
+        repr=False,
+    )
+    _failure_callback_dispatched: bool = field(default=False, init=False, repr=False)
 
     def __post_init__(self) -> None:
         _require_plain_identifier("sample_prefix", self.sample_prefix)
@@ -1511,6 +1559,13 @@ class ResourceWatchdog:
             raise RuntimeConfigurationError("resource watchdog root PID must be positive")
         if self.interval_seconds <= 0:
             raise RuntimeConfigurationError("resource watchdog interval must be positive")
+        if (
+            not math.isfinite(self.sample_completion_timeout_seconds)
+            or self.sample_completion_timeout_seconds <= 0
+        ):
+            raise RuntimeConfigurationError(
+                "resource watchdog sample-completion timeout must be positive and finite"
+            )
 
     @property
     def sample_count(self) -> int:
@@ -1518,11 +1573,73 @@ class ResourceWatchdog:
 
     @property
     def failure(self) -> BaseException | None:
-        return self._failure
+        with self._failure_lock:
+            # A sampler/resource failure is scientifically authoritative and
+            # supersedes the controller's earlier drain-timeout diagnostic.
+            return self._failure or self._drain_timeout_failure
+
+    @property
+    def drain_timeout_failure(self) -> BaseException | None:
+        """Return a bounded-drain diagnostic without masking sample failure."""
+
+        with self._failure_lock:
+            return self._drain_timeout_failure
+
+    @property
+    def sample_in_flight(self) -> bool:
+        """Return whether this watchdog still owns a sampler invocation."""
+
+        return self._sample_in_flight.is_set()
+
+    @property
+    def running(self) -> bool:
+        """Return whether the owned watchdog thread has not yet terminated."""
+
+        return self._thread is not None and self._thread.is_alive()
+
+    def _record_failure(self, failure: BaseException) -> bool:
+        """Retain the first failure raised by sampling or its allocation guard."""
+
+        with self._failure_lock:
+            if self._failure is not None:
+                return False
+            self._failure = failure
+            return True
+
+    def _record_drain_timeout(self, failure: BaseException) -> None:
+        with self._failure_lock:
+            if self._drain_timeout_failure is None:
+                self._drain_timeout_failure = failure
+
+    def _dispatch_sample_failure(
+        self,
+        failure: BaseException,
+        *,
+        limit_snapshot: ResourceSnapshot | None,
+    ) -> None:
+        """Dispatch callbacks once even if a prior controller drain timed out."""
+
+        with self._failure_lock:
+            if self._failure_callback_dispatched:
+                return
+            self._failure_callback_dispatched = True
+        if limit_snapshot is not None and self.on_limit is not None:
+            # The sampled limit remains the primary failure.  The general
+            # failure callback must still receive it exactly once.
+            with suppress(BaseException):
+                self.on_limit(limit_snapshot)
+        if self.on_failure is not None:
+            # Shutdown coordination records its own durable failure state;
+            # never replace the resource failure with a callback exception.
+            with suppress(BaseException):
+                self.on_failure(failure)
 
     def _run(self) -> None:
         while not self._stop.is_set():
             self._sample_count += 1
+            self._sample_in_flight.set()
+            sample_failure: BaseException | None = None
+            limit_snapshot: ResourceSnapshot | None = None
             try:
                 if self.allocation_guard is not None:
                     self.allocation_guard()
@@ -1533,17 +1650,19 @@ class ResourceWatchdog:
                     gpu_event_id=self.gpu_event_id,
                 )
             except RuntimeResourceLimitExceeded as exc:
-                self._failure = exc
-                if self.on_limit is not None:
-                    self.on_limit(exc.snapshot)
-                if self.on_failure is not None:
-                    self.on_failure(exc)
-                self._stop.set()
-                return
+                self._record_failure(exc)
+                sample_failure = exc
+                limit_snapshot = exc.snapshot
             except BaseException as exc:
-                self._failure = exc
-                if self.on_failure is not None:
-                    self.on_failure(exc)
+                self._record_failure(exc)
+                sample_failure = exc
+            finally:
+                self._sample_in_flight.clear()
+            if sample_failure is not None:
+                self._dispatch_sample_failure(
+                    sample_failure,
+                    limit_snapshot=limit_snapshot,
+                )
                 self._stop.set()
                 return
             self._stop.wait(self.interval_seconds)
@@ -1562,15 +1681,57 @@ class ResourceWatchdog:
         self._thread.start()
         return self
 
-    def stop(self, *, raise_failure: bool = True) -> None:
+    def stop(
+        self,
+        *,
+        raise_failure: bool = True,
+        completion_timeout_seconds: float | None = None,
+    ) -> bool:
+        """Request stop and drain one in-flight sample within an explicit bound.
+
+        The sampling interval controls cadence only.  Storage accounting may
+        legitimately take much longer than that interval, so shutdown owns the
+        sampler thread until its separate completion deadline.  A deadline miss
+        is retained as the watchdog's first failure and reported through the
+        boolean return even when an outer exception asks not to be masked.
+        """
+
         self._stop.set()
         if self._thread is None:
-            return
-        self._thread.join(timeout=max(1.0, self.interval_seconds * 2))
-        if self._thread.is_alive() and raise_failure:
-            raise RuntimeError("resource watchdog did not stop")
-        if self._failure is not None and raise_failure:
-            raise self._failure
+            return True
+        completion_timeout = self.sample_completion_timeout_seconds
+        if completion_timeout_seconds is not None:
+            if (
+                not math.isfinite(completion_timeout_seconds)
+                or completion_timeout_seconds < 0
+            ):
+                raise RuntimeConfigurationError(
+                    "resource watchdog stop timeout must be nonnegative and finite"
+                )
+            completion_timeout = min(completion_timeout, completion_timeout_seconds)
+        with self._failure_lock:
+            if self._completion_deadline_monotonic is None:
+                self._completion_deadline_monotonic = time.monotonic() + completion_timeout
+            completion_deadline = self._completion_deadline_monotonic
+        if self._thread is threading.current_thread():
+            # A callback runs only after the sample releases ledger ownership,
+            # but the watchdog thread still owns its lifecycle.  A distinct
+            # coordinator must join it before unregistering or signaling vLLM.
+            return False
+        self._thread.join(timeout=max(0.0, completion_deadline - time.monotonic()))
+        if self._thread.is_alive():
+            timeout_failure = RuntimeError(
+                "resource watchdog in-flight sample did not complete before its "
+                "bounded shutdown deadline"
+            )
+            self._record_drain_timeout(timeout_failure)
+            if raise_failure:
+                raise timeout_failure
+            return False
+        failure = self.failure
+        if failure is not None and raise_failure:
+            raise failure
+        return True
 
     def __exit__(
         self,
@@ -1977,6 +2138,31 @@ class VLLMService:
         init=False,
         repr=False,
     )
+    _startup_resource_watchdog: ResourceWatchdog | None = field(
+        default=None,
+        init=False,
+        repr=False,
+    )
+    _periodic_resource_watchdog: ResourceWatchdog | None = field(
+        default=None,
+        init=False,
+        repr=False,
+    )
+    _emergency_stop_thread: threading.Thread | None = field(
+        default=None,
+        init=False,
+        repr=False,
+    )
+    _emergency_stop_failure: BaseException | None = field(
+        default=None,
+        init=False,
+        repr=False,
+    )
+    _emergency_stop_lock: threading.Lock = field(
+        default_factory=threading.Lock,
+        init=False,
+        repr=False,
+    )
 
     def __post_init__(self) -> None:
         if self.log_path is not None:
@@ -2105,6 +2291,33 @@ class VLLMService:
             ),
             "updated_at": updated_at.isoformat(),
         }
+        prior_lease = self._prior_service_lease
+        if (
+            lease_state in {"accounting_pending", "shutdown_unverified"}
+            and prior_lease is not None
+            and prior_lease.get("lease_state") != "stopped_verified"
+        ):
+            # An adoption or emergency-stop error can reach this writer before
+            # every in-memory field has been installed.  The authoritative
+            # snapshot already holds stronger kill/accounting identity, and an
+            # unresolved rewrite must never weaken that identity to null.
+            prior_configuration_hash = prior_lease.get("configuration_hash")
+            configuration_changed = (
+                isinstance(prior_configuration_hash, str)
+                and prior_configuration_hash != payload["configuration_hash"]
+            )
+            if configuration_changed:
+                # A controller constructed with the wrong frozen model/config
+                # may still be asked to make a best-effort emergency stop.  Its
+                # failure record must remain wholly attributable to the prior
+                # exact lease rather than hybridizing old process identity with
+                # the new configuration hash.
+                payload["configuration_hash"] = prior_configuration_hash
+            for field_name in _UNRESOLVED_LEASE_IDENTITY_FIELDS:
+                if prior_lease.get(field_name) is not None and (
+                    configuration_changed or payload[field_name] is None
+                ):
+                    payload[field_name] = prior_lease[field_name]
         snapshot_payload = {
             **payload,
             "lease_manifest_sha256": canonical_sha256(payload),
@@ -2362,13 +2575,12 @@ class VLLMService:
             except BaseException as exc:
                 self._service_heartbeat_failure = exc
                 self._service_heartbeat_stop.set()
-                process = self._process
-                if process is not None and process.poll() is None:
-                    with suppress(Exception):
-                        self._signal_bound_service_process_group(
-                            process.pid,
-                            signal.SIGKILL,
-                        )
+                # Never signal directly from the heartbeat thread.  A periodic
+                # resource sample may still own a ledger transaction, and the
+                # ordinary stop path would also try to join this thread.  The
+                # coordinator drains both owners before using the one bound
+                # process-control path.
+                self.request_emergency_stop()
                 return
 
     def _start_service_heartbeat(self) -> None:
@@ -2585,11 +2797,18 @@ class VLLMService:
                 raise RuntimeError("durable vLLM exec gate accepted no bytes")
             offset += written
 
-    def _wait_for_durable_exec(self, pid: int, expected_start_ticks: int) -> None:
+    def _wait_for_durable_exec(
+        self,
+        pid: int,
+        expected_start_ticks: int,
+        *,
+        startup_deadline: float,
+    ) -> None:
         expected_command_sha256 = self._last_process_command_sha256
         if expected_command_sha256 is None:
             raise RuntimeError("durable vLLM exec gate lacks its target command hash")
-        deadline = time.monotonic() + DURABLE_EXEC_GATE_WATCHDOG_SECONDS
+        exec_gate_deadline = self.monotonic_clock() + DURABLE_EXEC_GATE_WATCHDOG_SECONDS
+        deadline = min(exec_gate_deadline, startup_deadline)
         while True:
             process = self._process
             if process is None or process.poll() is not None:
@@ -2608,13 +2827,21 @@ class VLLMService:
                 )
             if observed_command_sha256 == expected_command_sha256:
                 return
-            if time.monotonic() >= deadline:
+            if self.monotonic_clock() >= deadline:
+                if deadline == startup_deadline:
+                    raise RuntimeWatchdogTimeout(
+                        "durable vLLM exec exhausted the service-start wall deadline"
+                    )
                 raise RuntimeConfigurationError(
                     "durable vLLM launch supervisor did not exec the frozen target argv"
                 )
-            time.sleep(0.01)
+            self.sleep(0.01)
 
-    def _spawn(self) -> None:
+    def _spawn(self, *, startup_deadline: float) -> None:
+        if self.monotonic_clock() >= startup_deadline:
+            raise RuntimeWatchdogTimeout(
+                "vLLM service startup exhausted its wall deadline before process spawn"
+            )
         output = self._open_log_stream()
         command = self.configuration.command()
         if self.popen_factory is not subprocess.Popen:
@@ -2710,6 +2937,7 @@ class VLLMService:
             self._wait_for_durable_exec(
                 self._process.pid,
                 cast(int, self._last_process_start_ticks),
+                startup_deadline=startup_deadline,
             )
             self._write_service_lock_metadata(
                 lease_state="starting",
@@ -2757,8 +2985,15 @@ class VLLMService:
             raise RuntimeTransportError("vLLM readiness check returned no result")
         return result[0]
 
-    def _wait_until_healthy(self, watchdog_seconds: float) -> None:
+    def _wait_until_healthy(
+        self,
+        watchdog_seconds: float,
+        *,
+        absolute_deadline: float | None = None,
+    ) -> None:
         deadline = self.monotonic_clock() + watchdog_seconds
+        if absolute_deadline is not None:
+            deadline = min(deadline, absolute_deadline)
         while self.monotonic_clock() < deadline:
             self._raise_service_heartbeat_failure()
             if self._process is None or self._process.poll() is not None:
@@ -2781,6 +3016,11 @@ class VLLMService:
     ) -> None:
         if self.state is not ServiceState.STOPPED:
             raise RuntimeError("vLLM service can start only from stopped state")
+        if not math.isfinite(watchdog_seconds) or watchdog_seconds <= 0:
+            raise RuntimeConfigurationError(
+                "vLLM service-start watchdog must be positive and finite"
+            )
+        startup_deadline = self.monotonic_clock() + watchdog_seconds
         acquired_here = self._acquire_service_lock()
         prior_state = (
             None
@@ -2793,7 +3033,14 @@ class VLLMService:
                 "an unresolved prior vLLM service lease forbids a new launch"
             )
         try:
-            endpoint_already_live = self._endpoint_live(0.25)
+            remaining_preflight_seconds = startup_deadline - self.monotonic_clock()
+            if remaining_preflight_seconds <= 0:
+                raise RuntimeWatchdogTimeout(
+                    "vLLM service startup exhausted its wall deadline before endpoint preflight"
+                )
+            endpoint_already_live = self._endpoint_live(
+                max(0.001, min(0.25, remaining_preflight_seconds))
+            )
             if self.preflight_endpoint_check is not None:
                 endpoint_already_live = (
                     bool(self.preflight_endpoint_check()) or endpoint_already_live
@@ -2805,6 +3052,11 @@ class VLLMService:
             self._release_service_lock()
             raise RuntimeConfigurationError(
                 "configured loopback port already exposes a service; refusing a duplicate launch"
+            )
+        if self.monotonic_clock() >= startup_deadline:
+            self._release_service_lock()
+            raise RuntimeWatchdogTimeout(
+                "vLLM service startup exhausted its wall deadline during endpoint preflight"
             )
         startup_watchdog: ResourceWatchdog | None = None
         try:
@@ -2827,25 +3079,67 @@ class VLLMService:
             )
             self._open_service_journal()
             self._start_service_heartbeat()
-            self._spawn()
+            self._spawn(startup_deadline=startup_deadline)
             self._raise_service_heartbeat_failure()
             self._write_service_lock_metadata(lease_state="live", service_pid=self.pid)
+            remaining_startup_seconds = startup_deadline - self.monotonic_clock()
+            if remaining_startup_seconds <= 0:
+                raise RuntimeWatchdogTimeout(
+                    "vLLM service startup exhausted its wall deadline before readiness"
+                )
             if self.startup_resource_sampler is not None:
                 startup_watchdog = ResourceWatchdog(
                     sampler=self.startup_resource_sampler,
                     root_pid=self.pid,
                     sample_prefix=f"{event_id}-startup",
                     interval_seconds=self.startup_sample_interval_seconds,
+                    sample_completion_timeout_seconds=max(
+                        0.001,
+                        min(
+                            DEFAULT_RESOURCE_SAMPLE_COMPLETION_SECONDS,
+                            remaining_startup_seconds,
+                        ),
+                    ),
                     allocation_guard=self.require_hard_stop_margin,
-                    on_failure=lambda _: self.emergency_stop(),
+                    on_failure=lambda _: self.request_emergency_stop(),
                 )
+                self._startup_resource_watchdog = startup_watchdog
                 startup_watchdog.start()
-            self._wait_until_healthy(watchdog_seconds)
+            remaining_startup_seconds = startup_deadline - self.monotonic_clock()
+            if remaining_startup_seconds <= 0:
+                raise RuntimeWatchdogTimeout(
+                    "vLLM service startup exhausted its wall deadline before readiness"
+                )
+            self._wait_until_healthy(
+                remaining_startup_seconds,
+                absolute_deadline=startup_deadline,
+            )
             if startup_watchdog is not None:
-                startup_watchdog.stop()
-        except BaseException:
+                startup_watchdog.stop(
+                    completion_timeout_seconds=max(
+                        0.0,
+                        startup_deadline - self.monotonic_clock(),
+                    )
+                )
+                self._startup_resource_watchdog = None
+        except BaseException as start_error:
             if startup_watchdog is not None:
-                startup_watchdog.stop(raise_failure=False)
+                sampler_drained = startup_watchdog.stop(
+                    raise_failure=False,
+                    completion_timeout_seconds=max(
+                        0.0,
+                        startup_deadline - self.monotonic_clock(),
+                    ),
+                )
+                if sampler_drained:
+                    if self._startup_resource_watchdog is startup_watchdog:
+                        self._startup_resource_watchdog = None
+                else:
+                    self.state = ServiceState.FAILED
+                    raise RuntimeError(
+                        "startup resource sample exceeded the service-start deadline; "
+                        "retaining service and lease ownership without concurrent cleanup"
+                    ) from start_error
             self._stop_process(release_lock=False)
             raise
 
@@ -2864,6 +3158,14 @@ class VLLMService:
             or self._accounting_session_id is not None
         ):
             raise RuntimeError("a prior vLLM service session must be reconciled before a new start")
+        with self._emergency_stop_lock:
+            emergency_thread = self._emergency_stop_thread
+            if emergency_thread is not None and emergency_thread.is_alive():
+                raise RuntimeError("an emergency-stop coordinator is still active")
+            # A terminally reconciled prior session may reuse this controller;
+            # its completed coordinator must not contaminate the new lifecycle.
+            self._emergency_stop_thread = None
+            self._emergency_stop_failure = None
         with self.meter.session_start(
             event_id=event_id,
             maximum_seconds=watchdog_seconds,
@@ -2969,6 +3271,14 @@ class VLLMService:
         """
 
         self.require_ready()
+        if self._periodic_resource_watchdog is not None:
+            raise RuntimeError(
+                "periodic resource watchdog must stop before controller detach"
+            )
+        with self._emergency_stop_lock:
+            emergency_thread = self._emergency_stop_thread
+            if emergency_thread is not None:
+                raise RuntimeError("emergency-stop coordinator forbids controller detach")
         self.write_resume_checkpoint(
             path,
             proc_root=proc_root,
@@ -3199,6 +3509,33 @@ class VLLMService:
                 raise RuntimeConfigurationError(
                     "live vLLM lease and service journal identities differ"
                 )
+            if cleanup_only and process_group_identity_present:
+                # Install the already-validated durable kill identity before
+                # procfs/liveness inspection.  If one of those fallible checks
+                # fails, emergency cleanup can still address only the exact
+                # token/start-tick/PGID/SID-bound group, and any unresolved
+                # lease rewrite retains these fields.
+                self._last_service_pid = pid
+                self._last_process_start_ticks = start_ticks
+                self._last_process_command_sha256 = command_sha256
+                self._last_process_group_id = bound_process_group
+                self._last_process_session_id = cast(int, process_session_id)
+                self._service_instance_token = None
+                self._service_instance_token_sha256 = cast(
+                    str,
+                    instance_token_sha256,
+                )
+                self._process_identity_proc_root = proc_root
+                self._launch_gate_token_sha256 = (
+                    cast(str, launch_token_sha256)
+                    if isinstance(launch_token_sha256, str)
+                    else None
+                )
+                self._launch_supervisor_command_sha256 = (
+                    cast(str, launch_supervisor_sha256)
+                    if isinstance(launch_supervisor_sha256, str)
+                    else None
+                )
             try:
                 pid_live = self.process_liveness_check(pid)
                 process_group_live = self.process_group_liveness_check(bound_process_group)
@@ -3225,6 +3562,49 @@ class VLLMService:
                 raise RuntimeConfigurationError(
                     "non-ready vLLM lease can only be adopted for cleanup"
                 )
+            resumed_at = self.wall_clock()
+            if resumed_at.tzinfo is None or resumed_at.utcoffset() is None:
+                raise RuntimeConfigurationError("live-lease recovery clock must be aware")
+            wall_service_seconds = (resumed_at - started_at).total_seconds()
+            if wall_service_seconds < 0:
+                raise RuntimeConfigurationError(
+                    "live-lease recovery predates the service session"
+                )
+            if cleanup_only:
+                # Once liveness is positive, carry the matching journal identity
+                # too.  A later argv/adopter failure can then kill and account
+                # the service rather than detaching an unowned live allocation.
+                self._last_service_pid = pid
+                self._last_process_start_ticks = start_ticks
+                self._last_process_command_sha256 = command_sha256
+                self._last_process_group_id = (
+                    bound_process_group if process_group_identity_present else None
+                )
+                self._last_process_session_id = (
+                    cast(int, process_session_id)
+                    if process_group_identity_present
+                    else None
+                )
+                self._service_instance_token = None
+                self._service_instance_token_sha256 = (
+                    cast(str, instance_token_sha256)
+                    if process_group_identity_present
+                    else None
+                )
+                self._process_identity_proc_root = proc_root
+                self._session_id = expected_session_id
+                self._accounting_session_id = expected_event_id
+                self._started_at = started_at
+                self._started_monotonic = self.monotonic_clock()
+                self._allocated_at_start = float(baseline)
+                self._carried_service_seconds = wall_service_seconds
+                self._service_journal_opened = True
+                if latest.state is GpuServiceJournalState.PROCESS_STOPPED:
+                    self._carried_service_seconds = max(
+                        self._carried_service_seconds,
+                        latest.elapsed_microseconds / 1_000_000,
+                    )
+                    self._prior_process_stop_contradicted = True
             group_only_adoption = not pid_live and process_group_live
             if group_only_adoption:
                 if not cleanup_only or not process_group_identity_present:
@@ -3256,18 +3636,12 @@ class VLLMService:
                     )
                 try:
                     observed_start_ticks = _process_start_ticks(pid, proc_root)
-                    observed_command_sha256 = _process_command_sha256(pid, proc_root)
                 except (OSError, RuntimeError) as exc:
                     raise RuntimeConfigurationError(
-                        "cannot inspect the leased vLLM process"
+                        "cannot inspect the leased vLLM process start identity"
                     ) from exc
                 if observed_start_ticks != start_ticks:
                     raise RuntimeConfigurationError("live vLLM lease PID was reused")
-                allowed_command_hashes = {command_sha256}
-                if lease_state == "launch_gate_pending":
-                    allowed_command_hashes.add(cast(str, launch_supervisor_sha256))
-                if observed_command_sha256 not in allowed_command_hashes:
-                    raise RuntimeConfigurationError("live vLLM lease command line changed")
                 if process_group_identity_present:
                     members = _bound_process_group_members(
                         bound_process_group,
@@ -3279,15 +3653,27 @@ class VLLMService:
                         raise RuntimeConfigurationError(
                             "live vLLM leader is absent from its bound process group"
                         )
+                try:
+                    observed_command_sha256 = _process_command_sha256(pid, proc_root)
+                except (OSError, RuntimeError) as exc:
+                    if not (cleanup_only and process_group_identity_present):
+                        raise RuntimeConfigurationError(
+                            "cannot inspect the leased vLLM process command line"
+                        ) from exc
+                    # ``setproctitle`` can intentionally make argv unparsable.
+                    # Cleanup authority instead comes from the independently
+                    # checked start ticks and token-bound PGID/SID membership.
+                    observed_command_sha256 = None
+                allowed_command_hashes = {command_sha256}
+                if lease_state == "launch_gate_pending":
+                    allowed_command_hashes.add(cast(str, launch_supervisor_sha256))
+                if observed_command_sha256 not in allowed_command_hashes and not (
+                    cleanup_only and process_group_identity_present
+                ):
+                    raise RuntimeConfigurationError("live vLLM lease command line changed")
                 adopted = adopted_factory(pid)
             if adopted.poll() is not None:
                 return False
-            resumed_at = self.wall_clock()
-            if resumed_at.tzinfo is None or resumed_at.utcoffset() is None:
-                raise RuntimeConfigurationError("live-lease recovery clock must be aware")
-            wall_service_seconds = (resumed_at - started_at).total_seconds()
-            if wall_service_seconds < 0:
-                raise RuntimeConfigurationError("live-lease recovery predates the service session")
             self._process = adopted
             self._last_service_pid = pid
             self._last_process_start_ticks = start_ticks
@@ -3587,6 +3973,14 @@ class VLLMService:
     ) -> VLLMService:
         """Exercise checkpoint/resume by transferring the live controlled handle."""
 
+        if self._periodic_resource_watchdog is not None:
+            raise RuntimeError(
+                "periodic resource watchdog must stop before controller handoff"
+            )
+        with self._emergency_stop_lock:
+            emergency_thread = self._emergency_stop_thread
+            if emergency_thread is not None:
+                raise RuntimeError("emergency-stop coordinator forbids controller handoff")
         self.write_resume_checkpoint(path, proc_root=proc_root)
         self._stop_service_heartbeat()
         process = self._process
@@ -3851,7 +4245,7 @@ class VLLMService:
         if next_maximum_seconds <= 0 or remaining_required_seconds < 0:
             raise RuntimeConfigurationError("GPU capacity values must be positive/nonnegative")
         actual = self.actual_allocated_service_seconds
-        shutdown_reserve_seconds = 2 * DEFAULT_SHUTDOWN_SECONDS
+        shutdown_reserve_seconds = RESOURCE_AWARE_HARD_STOP_RESERVE_SECONDS
         if (
             actual + next_maximum_seconds + shutdown_reserve_seconds
             >= self.meter.hard_limit_seconds
@@ -3868,7 +4262,7 @@ class VLLMService:
     def require_hard_stop_margin(self) -> None:
         """Leave enough allocation to terminate and, if needed, kill the service."""
 
-        shutdown_reserve_seconds = 2 * DEFAULT_SHUTDOWN_SECONDS
+        shutdown_reserve_seconds = RESOURCE_AWARE_HARD_STOP_RESERVE_SECONDS
         if (
             self.actual_allocated_service_seconds + shutdown_reserve_seconds
             >= self.meter.hard_limit_seconds
@@ -3880,6 +4274,130 @@ class VLLMService:
         if not callable(probe):
             raise RuntimeError("vLLM client cannot verify endpoint shutdown")
         return bool(probe(timeout_seconds))
+
+    def _drain_startup_resource_watchdog(
+        self,
+        *,
+        completion_timeout_seconds: float | None = None,
+    ) -> None:
+        """Finish owned sampler ledger work before any process-tree signal."""
+
+        watchdog = self._startup_resource_watchdog
+        if watchdog is None:
+            return
+        if not watchdog.stop(
+            raise_failure=False,
+            completion_timeout_seconds=completion_timeout_seconds,
+        ):
+            self.state = ServiceState.FAILED
+            raise RuntimeError(
+                "cannot terminate vLLM while its owned resource sample remains in flight"
+            )
+        self._startup_resource_watchdog = None
+
+    def start_periodic_resource_watchdog(
+        self,
+        watchdog: ResourceWatchdog,
+    ) -> ResourceWatchdog:
+        """Start and own the one periodic sampler for this live service.
+
+        Registration and thread start occur under the process-control lock, so
+        shutdown cannot pass its sampler barrier while a runner concurrently
+        starts an unowned watchdog.
+        """
+
+        with self._process_control_lock:
+            if (
+                self.state is not ServiceState.READY
+                or self._process is None
+                or self._process.poll() is not None
+            ):
+                raise RuntimeError("periodic resource sampling requires a ready service")
+            if watchdog.root_pid != self._process.pid:
+                raise RuntimeConfigurationError(
+                    "periodic resource watchdog PID differs from the controlled service"
+                )
+            if self._periodic_resource_watchdog is not None:
+                raise RuntimeError("vLLM service already owns a periodic resource watchdog")
+            self._periodic_resource_watchdog = watchdog
+            try:
+                watchdog.start()
+            except BaseException:
+                self._periodic_resource_watchdog = None
+                raise
+            return watchdog
+
+    def stop_periodic_resource_watchdog(
+        self,
+        watchdog: ResourceWatchdog,
+        *,
+        raise_failure: bool = True,
+        completion_timeout_seconds: float | None = None,
+    ) -> bool:
+        """Boundedly drain and release an exactly owned periodic sampler."""
+
+        with self._process_control_lock:
+            owned = self._periodic_resource_watchdog
+            if owned is None:
+                if watchdog.running or watchdog.sample_in_flight:
+                    raise RuntimeError(
+                        "cannot release a running resource watchdog not owned by this service"
+                    )
+                return True
+            if owned is not watchdog:
+                raise RuntimeError("resource watchdog is not owned by this service")
+            drained = watchdog.stop(
+                raise_failure=raise_failure,
+                completion_timeout_seconds=completion_timeout_seconds,
+            )
+            if not drained:
+                return False
+            if watchdog.running or watchdog.sample_in_flight:
+                raise RuntimeError(
+                    "resource watchdog reported completion while retaining sampler ownership"
+                )
+            self._periodic_resource_watchdog = None
+            return True
+
+    def _drain_periodic_resource_watchdog(self) -> None:
+        """Enforce the periodic sampler barrier before process-tree signaling."""
+
+        watchdog = self._periodic_resource_watchdog
+        if watchdog is None:
+            return
+        if not self.stop_periodic_resource_watchdog(watchdog, raise_failure=False):
+            self.state = ServiceState.FAILED
+            raise RuntimeError(
+                "cannot terminate vLLM while its periodic resource sample remains in flight"
+            )
+
+    def request_emergency_stop(self) -> None:
+        """Request sampler-aware emergency cleanup from a distinct coordinator."""
+
+        with self._emergency_stop_lock:
+            thread = self._emergency_stop_thread
+            if thread is not None and thread.is_alive():
+                return
+
+            def coordinate() -> None:
+                try:
+                    self.emergency_stop()
+                except BaseException as exc:
+                    # A bounded sampler-drain failure deliberately leaves the
+                    # exact process and lease owned for guardian cleanup.
+                    self._emergency_stop_failure = exc
+
+            self._emergency_stop_failure = None
+            thread = threading.Thread(
+                target=coordinate,
+                name=f"vllm-emergency-stop-{self._accounting_session_id or 'unmetered'}",
+                daemon=True,
+            )
+            # Publish only after ``start`` succeeds.  Every production reader
+            # takes this same lock, so none can observe a Thread in Python's
+            # pre-start state and mistakenly join/approve handoff against it.
+            thread.start()
+            self._emergency_stop_thread = thread
 
     def _shutdown_status(
         self,
@@ -3924,6 +4442,8 @@ class VLLMService:
             raise RuntimeConfigurationError(
                 "an intermediate restart cannot terminalize the service journal"
             )
+        self._drain_startup_resource_watchdog()
+        self._drain_periodic_resource_watchdog()
         heartbeat_stop_error: BaseException | None = None
         try:
             self._stop_service_heartbeat()
@@ -4090,6 +4610,256 @@ class VLLMService:
             release_lock=False,
             journal_process_stopped=False,
         )
+
+    def restore_terminal_service_lease_from_identity(
+        self,
+        *,
+        expected_session_id: str,
+        expected_event_id: str,
+        service_pid: int,
+        process_start_ticks: int,
+        observed_process_command_sha256: str,
+        process_group_id: int,
+        process_session_id: int,
+        service_instance_token_sha256: str,
+    ) -> GpuServiceSession:
+        """Repair only the known null-identity/terminal-accounting failure state.
+
+        This is not general stale-lease recovery.  It accepts exactly a
+        ``shutdown_unverified`` lease whose durable service and process fields
+        were all weakened to null, and only after the named journal and service
+        row are already terminal.  The caller supplies the process identity
+        captured before that overwrite, including the observed command hash
+        even when process-title rewriting made it differ from the frozen launch
+        argv.  No accounting row is created and no live process is ever adopted
+        or signalled here.
+        """
+
+        _require_plain_identifier("expected_session_id", expected_session_id)
+        _require_plain_identifier("expected_event_id", expected_event_id)
+        if (
+            isinstance(service_pid, bool)
+            or not isinstance(service_pid, int)
+            or service_pid <= 0
+            or isinstance(process_start_ticks, bool)
+            or not isinstance(process_start_ticks, int)
+            or process_start_ticks <= 0
+            or isinstance(process_group_id, bool)
+            or not isinstance(process_group_id, int)
+            or process_group_id != service_pid
+            or isinstance(process_session_id, bool)
+            or not isinstance(process_session_id, int)
+            or process_session_id != service_pid
+            or not _is_canonical_sha256(observed_process_command_sha256)
+            or not _is_canonical_sha256(service_instance_token_sha256)
+        ):
+            raise RuntimeConfigurationError(
+                "terminal lease restoration process identity is invalid"
+            )
+        if (
+            self.state is not ServiceState.STOPPED
+            or self._process is not None
+            or self._service_lock_stream is not None
+            or self._started_at is not None
+            or self._accounting_session_id is not None
+        ):
+            raise RuntimeError(
+                "terminal lease restoration requires a fresh stopped controller"
+            )
+
+        self._last_recovered_process_identity = None
+        self._acquire_service_lock()
+        restored = False
+        try:
+            lease = self._prior_service_lease
+            if lease is None or lease.get("lease_state") != "shutdown_unverified":
+                raise RuntimeConfigurationError(
+                    "terminal lease restoration requires shutdown_unverified state"
+                )
+            null_damage_fields = _UNRESOLVED_LEASE_IDENTITY_FIELDS
+            if any(
+                field_name not in lease or lease[field_name] is not None
+                for field_name in null_damage_fields
+            ):
+                raise RuntimeConfigurationError(
+                    "terminal lease restoration requires the exact null-identity failure pattern"
+                )
+            if (
+                lease.get("schema_version") != SCHEMA_VERSION
+                or lease.get("configuration_hash")
+                != self.configuration.configuration_hash
+            ):
+                raise RuntimeConfigurationError(
+                    "terminal lease restoration configuration identity differs"
+                )
+            _parse_aware_datetime(
+                "damaged terminal lease update",
+                lease.get("updated_at"),
+            )
+
+            ledger = self.meter.ledger
+            if ledger.unresolved_gpu_allocations():
+                raise RuntimeConfigurationError(
+                    "terminal lease restoration forbids unresolved GPU allocations"
+                )
+            if ledger.unresolved_gpu_service_journals():
+                raise RuntimeConfigurationError(
+                    "terminal lease restoration forbids unresolved service accounting"
+                )
+            latest = ledger.latest_gpu_service_journal(expected_event_id)
+            record = ledger.get_gpu_service_session(expected_event_id)
+            journal_records = tuple(
+                row
+                for row in ledger.gpu_service_journal_records()
+                if row.service_session_id == expected_event_id
+            )
+            if (
+                latest is None
+                or record is None
+                or not journal_records
+                or latest.state
+                not in {GpuServiceJournalState.CLOSED, GpuServiceJournalState.RECOVERED}
+            ):
+                raise RuntimeConfigurationError(
+                    "terminal lease restoration requires a terminal journal and service row"
+                )
+            first = journal_records[0]
+            stable_journal_identity = all(
+                row.session_id == expected_session_id
+                and row.configuration_hash == self.configuration.configuration_hash
+                and row.service_started_at == first.service_started_at
+                and row.ledger_allocated_microseconds_before_session
+                == first.ledger_allocated_microseconds_before_session
+                and row.hard_limit_microseconds == first.hard_limit_microseconds
+                for row in journal_records
+            )
+            if (
+                first.sequence != 0
+                or first.state is not GpuServiceJournalState.OPENED
+                or first.elapsed_microseconds != 0
+                or first.observed_at != first.service_started_at
+                or latest != journal_records[-1]
+                or not stable_journal_identity
+                or record.service_session_id != expected_event_id
+                or record.session_id != expected_session_id
+                or record.started_at != first.service_started_at
+                or record.service_microseconds != latest.elapsed_microseconds
+            ):
+                raise RuntimeConfigurationError(
+                    "terminal lease restoration journal identity is inconsistent"
+                )
+            started_at = _parse_aware_datetime(
+                "terminal restoration service start",
+                record.started_at,
+            )
+            ended_at = _parse_aware_datetime(
+                "terminal restoration service end",
+                record.ended_at,
+            )
+            latest_observed_at = _parse_aware_datetime(
+                "terminal restoration journal end",
+                latest.observed_at,
+            )
+            if (
+                ended_at < started_at
+                or latest_observed_at < ended_at
+                or (
+                    latest.state is GpuServiceJournalState.CLOSED
+                    and latest_observed_at != ended_at
+                )
+            ):
+                raise RuntimeConfigurationError(
+                    "terminal lease restoration timestamps are inconsistent"
+                )
+            baseline_microseconds = first.ledger_allocated_microseconds_before_session
+            total_microseconds = ledger.gpu_summary().total_allocated_microseconds
+            expected_hard_microseconds = round(self.meter.hard_limit_seconds * 1_000_000)
+            if (
+                baseline_microseconds < 0
+                or baseline_microseconds + record.service_microseconds > total_microseconds
+                or first.hard_limit_microseconds != expected_hard_microseconds
+            ):
+                raise RuntimeConfigurationError(
+                    "terminal lease restoration accounting baseline is inconsistent"
+                )
+            try:
+                pid_live = self.process_liveness_check(service_pid)
+                process_group_live = self.process_group_liveness_check(process_group_id)
+                endpoint_live = self._endpoint_live(0.25)
+            except BaseException as exc:
+                raise RuntimeConfigurationError(
+                    "cannot prove terminal restoration process and endpoint absence"
+                ) from exc
+            if pid_live or process_group_live or endpoint_live:
+                live_parts = [
+                    name
+                    for name, live in (
+                        ("pid", pid_live),
+                        ("process_group", process_group_live),
+                        ("endpoint", endpoint_live),
+                    )
+                    if live
+                ]
+                raise RuntimeConfigurationError(
+                    "terminal lease restoration found live service state: "
+                    + ", ".join(live_parts)
+                )
+
+            self._session_id = expected_session_id
+            self._accounting_session_id = expected_event_id
+            self._started_at = started_at
+            self._allocated_at_start = baseline_microseconds / 1_000_000
+            self._carried_service_seconds = record.service_seconds
+            self._physically_stopped_at = ended_at
+            self._physically_stopped_seconds = record.service_seconds
+            self._last_service_pid = service_pid
+            self._last_process_start_ticks = process_start_ticks
+            # The captured observed hash may reflect a legitimate setproctitle
+            # rewrite.  Preserve the frozen launch-command hash in the standard
+            # lease field so terminal replay remains configuration-bound; the
+            # caller's immutable incident record retains the observed hash.
+            expected_process_command_sha256 = canonical_sha256(
+                list(self.configuration.command())
+            )
+            self._last_process_command_sha256 = expected_process_command_sha256
+            self._last_process_group_id = process_group_id
+            self._last_process_session_id = process_session_id
+            self._service_instance_token = None
+            self._service_instance_token_sha256 = service_instance_token_sha256
+            self._write_service_lock_metadata(
+                lease_state="stopped_verified",
+                service_pid=service_pid,
+                ended_at=ended_at,
+            )
+            self._last_recovered_process_identity = RecoveredServiceProcessIdentity(
+                configuration_hash=self.configuration.configuration_hash,
+                session_id=expected_session_id,
+                accounting_session_id=expected_event_id,
+                pid=service_pid,
+                process_start_ticks=process_start_ticks,
+                process_command_sha256=expected_process_command_sha256,
+                service_started_at=started_at,
+            )
+            restored = True
+            return record
+        finally:
+            self.state = ServiceState.STOPPED if restored else ServiceState.FAILED
+            self._session_id = None
+            self._accounting_session_id = None
+            self._started_at = None
+            self._started_monotonic = None
+            self._allocated_at_start = None
+            self._carried_service_seconds = 0.0
+            self._physically_stopped_at = None
+            self._physically_stopped_seconds = None
+            self._last_service_pid = None
+            self._last_process_start_ticks = None
+            self._last_process_command_sha256 = None
+            self._last_process_group_id = None
+            self._last_process_session_id = None
+            self._service_instance_token = None
+            self._service_instance_token_sha256 = None
+            self._release_service_lock()
 
     def shutdown(
         self,
@@ -4692,6 +5462,7 @@ def public_runtime_manifest(
 
 
 __all__ = [
+    "DEFAULT_RESOURCE_SAMPLE_COMPLETION_SECONDS",
     "DEFAULT_SERVICE_START_WATCHDOG_SECONDS",
     "DEFAULT_SHUTDOWN_SECONDS",
     "DURABLE_EXEC_GATE_PROTOCOL",
@@ -4707,6 +5478,7 @@ __all__ = [
     "PINNED_MODEL_REVISION",
     "PINNED_RUNTIME_VERSION",
     "PROC_ROOT",
+    "RESOURCE_AWARE_HARD_STOP_RESERVE_SECONDS",
     "SCHEMA_VERSION",
     "SERVED_MODEL_NAME",
     "ChatMessage",

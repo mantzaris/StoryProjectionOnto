@@ -53,7 +53,8 @@ hash-addressed artifact or a passing test; prose-only completion does not count.
   normal eight-call primary-model block under the registered symmetric fallback;
   validate packing, structured C1/C2/FixedSelect output, grounding, operators,
   horizon integrity, restart/resume, p50/nearest-rank p95, VRAM <23 GB, and
-  process RAM <25 GB.
+  process RAM <25 GB. The current fresh execution lineage is v8; v3 through v7
+  remain preserved terminal provenance, and v4 through v7 are nonexecutable.
 - [ ] Admit the study only if the complete measured forecast is <=9 hours
   (operational target approximately <=8.25 hours); otherwise execute only the
   single permitted symmetric 7B/8B AWQ fallback procedure or stop.

@@ -5472,7 +5472,28 @@ class StoragePreflight:
                 raise ValueError("every controlled path must be within quota_root") from exc
             self._require_quota_device(candidate)
             normalised.append(candidate)
-        self.controlled_paths = tuple(normalised)
+        # Keep every declared location for later device-boundary checks, even
+        # when an outer tree makes a nested location redundant for occupancy
+        # traversal.  In particular, this preserves detection if a missing
+        # future nested path later appears on a different mounted device.
+        self._device_check_paths = tuple(sorted(set(normalised), key=os.fspath))
+        self.controlled_paths = self._minimal_controlled_paths(
+            self._device_check_paths
+        )
+
+    @staticmethod
+    def _minimal_controlled_paths(paths: Sequence[Path]) -> tuple[Path, ...]:
+        """Return deterministic non-overlapping filesystem namespace roots."""
+
+        return tuple(
+            candidate
+            for candidate in paths
+            if not any(
+                candidate != possible_parent
+                and candidate.is_relative_to(possible_parent)
+                for possible_parent in paths
+            )
+        )
 
     @staticmethod
     def _nearest_existing_ancestor(path: Path) -> tuple[Path, os.stat_result]:
@@ -5509,10 +5530,11 @@ class StoragePreflight:
 
         seen = set()
         total = 0
-        for controlled in self.controlled_paths:
-            # Recheck on every sample so a future output path cannot become a
-            # cross-device mount after the admission preflight.
+        # Recheck every originally declared location, including nested paths
+        # removed from the traversal roots by semantic deduplication.
+        for controlled in self._device_check_paths:
             self._require_quota_device(controlled)
+        for controlled in self.controlled_paths:
             if not controlled.exists():
                 continue
             candidates: Iterator[Path]
@@ -5555,7 +5577,7 @@ class StoragePreflight:
     ) -> StorageReport:
         # An explicit occupancy observation must not bypass device-boundary
         # enforcement if a controlled path became a mount after construction.
-        for controlled in self.controlled_paths:
+        for controlled in self._device_check_paths:
             self._require_quota_device(controlled)
         growth = _nonnegative_int("declared_growth_bytes", declared_growth_bytes)
         temporary = _nonnegative_int(

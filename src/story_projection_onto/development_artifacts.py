@@ -20,9 +20,13 @@ from story_projection_onto.contracts import (
 )
 from story_projection_onto.development_runtime import DEVELOPMENT_CALL_COUNT
 
-SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS = (
+HISTORICAL_SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS = (
     "fallback-qwen3-8b-awq-development-v3-service-start-001",
     "fallback-qwen3-8b-awq-development-v7-service-start-001",
+)
+SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS = (
+    *HISTORICAL_SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
+    "fallback-qwen3-8b-awq-development-v8-service-start-001",
 )
 
 
@@ -331,7 +335,7 @@ class DevelopmentForecastReceipt(ImmutableRecord):
     retry_amendment_sha256: Sha256Digest | None = None
     second_recovery_overlay_sha256: Sha256Digest | None = None
     recovery_service_start_event_ids: tuple[str, ...] = ()
-    authorized_additional_service_start_events: int = Field(default=0, ge=0, le=2)
+    authorized_additional_service_start_events: int = Field(default=0, ge=0, le=3)
     effective_accounting_events: int = Field(gt=0)
     effective_inference_attempts: int = Field(gt=0)
     normal_acceptance_superseded: Literal[True] = True
@@ -363,10 +367,13 @@ class DevelopmentForecastReceipt(ImmutableRecord):
             if (
                 self.retry_amendment_sha256 is None
                 or self.recovery_service_start_event_ids
-                != SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS
+                not in {
+                    HISTORICAL_SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
+                    SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
+                }
             ):
                 raise ValueError(
-                    "second recovery must bind the exact ordered v3+v7 service starts"
+                    "second recovery must bind an exact ordered v3+v7[/v8] lineage"
                 )
         elif (
             len(self.recovery_service_start_event_ids) > 1
@@ -471,6 +478,7 @@ class DevelopmentAssessmentBundle(ImmutableRecord):
 
 
 __all__ = [
+    "HISTORICAL_SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS",
     "SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS",
     "DevelopmentAssessmentBundle",
     "DevelopmentCPUProjectionReceipt",
