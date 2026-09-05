@@ -1,6 +1,6 @@
 # Run status
 
-Updated: 2026-09-05 20:13 UTC
+Updated: 2026-09-05 22:09 UTC
 
 ## Verified durable state
 
@@ -21,13 +21,17 @@ Updated: 2026-09-05 20:13 UTC
   `703cede70a45b97452b4d68f7612bf5a467fb1d6`.
 - Tested fixed-mode RunPod lease-storage checkpoint:
   `4b5b0cc768844f7661fc7ca316bd7e63cc15a2a6`.
+- Tested v8 authorization/preflight checkpoint:
+  `ef1049927cdc247b5ffb6d838658f64467f0c5ae`.
+- Tested v8 incident/lease and blind-review alignment checkpoint:
+  `232ed1624f9175dd84e0ff36be6082e479a4bbd0`.
 - Local project: `/home/resort/Documents/repos/StoryProjectionOnto`.
 - Remote project: `/workspace/StoryProjectionOnto`.
 - The reconciled canonical Phase 1 ledger is schema v8, file SHA-256
-  `742adfdf6c9ffe97da4ba898848e1a642b7808d0e22f119d20cb924efcc60f22`.
+  `33b18e16478b8c73951ff0269479ae697874ca1772669d87539ff2d7ac8884e2`.
   Its read-only ledger/CAS audit passes with 17 artifacts, one failed attempt/model call,
-  six closed GPU events, five closed service sessions, and no unresolved allocation or
-  service journal. V7 added no inference attempt, model call, output, or checkpoint.
+  seven closed GPU events, six closed service sessions, and no unresolved allocation or
+  service journal. V8 added no inference attempt, model call, accepted output, or repair.
 - The stale 422.961986-second local ledger remains preserved in ignored recovery storage;
   it was not discarded or used for admission.
 - The authorized v4 orchestration failed before guardian readiness because an internal
@@ -114,16 +118,64 @@ Updated: 2026-09-05 20:13 UTC
   `2f59e51263f352dafd212d575d492bec21528b823b5bb83e75c5758074bba1c2`,
   and logical manifest SHA-256 is
   `070da9bf50161c43cfec94d7880b51f9e550bb614140746786d4857ee58a3305`.
+- The persistent v8 launch then reached a healthy pinned Qwen3-8B-AWQ endpoint. Before any
+  inference request, controller-restart adoption rejected the EngineCore member because
+  vLLM 0.10.2 had replaced that child's inherited token-bearing argv/environment region with
+  its `VLLM::EngineCore` process title. The strict owner check and automated shutdown failed
+  closed. The public result, controller handoff, and cleanup records are preserved with file
+  SHA-256s `c023b29626bae21421f5bc26e307bf47e6973cd7164cda38ab9d9a7813ef112e`,
+  `c5ca07fe734898766c053d08a8c1bac14511a2f1b17370016cad50ed6350e003`,
+  and `d0738f06692a94833ab1cf12177308b64a6c9cfde3d6ff5be2e3cc668d3a290a`.
+  The result records zero completed calls, zero accepted outputs, and zero repairs.
+- After all controllers and the guardian were terminal, an exact-identity, one-shot restricted
+  utility verified the three-member process group, the sole GPU owner, and port owner, wrote
+  its stop intent durably, and sent only `SIGTERM` to that exact group. Its outcome verifies no
+  remaining group member, GPU process, or port-8000 listener at
+  2026-09-05 20:40:09.324832 UTC. vLLM is stopped and the GPU is idle.
+- V8 terminal accounting has been reconstructed conservatively from the service start and
+  verified stop: 1,073.416738 service seconds, comprising 227.686586 seconds already
+  classified as successful service start and 845.730152 seconds of additional service
+  overhead. The terminal recovery receipt has file SHA-256
+  `0cd173be577f5c66717dc6a9365075b3471a860e8dd3432601f0f098ef87e420`
+  and logical SHA-256
+  `8588ad6cda3531a8d7a53052248c910d977b6127a3a4daa1a2e9dbd1c05d3041`.
+  Replay is idempotent and the final ledger has no unresolved allocation or service row.
+- The exact typed public v8 runtime incident has file SHA-256
+  `c44f34c0599a00264235d13c1f8c9ad80e27a81751102ea09ae759ce9631a3e0`
+  and logical SHA-256
+  `fa5c75d67c690db828b1eaefebfb6d291908fb89ad6b534bc8d251633519136e`.
+  It binds all public and restricted controller evidence, exact manual-stop and accounting
+  receipts, all three immutable ledger states, zero-inference deltas, resource maxima, and
+  terminal absence without publishing commands, tokens, absolute remote paths, or log text.
+  The earlier underbound draft remains preserved in restricted recovery storage with file
+  SHA-256 `2caee1ca1f0c3331abc16da7936ce20912e8f1109ad44b121bb371804f388d1d`.
+- A bounded source repair accepts only a tokenless, exact NUL-padded `VLLM::EngineCore`
+  immediate child of the still-live token-bound PGID/SID leader, after repeated stable
+  identity/title/token reads. Wrong tokens, arbitrary tokenless members, ancestry/session/title
+  near-misses, zombies, missing leaders, and observed races fail closed. A separate V8-only
+  CPU utility can restore the exact incident-bound terminal lease without starting/adopting a
+  service or opening the canonical ledger as SQLite. It rejects symlinked inventory entries,
+  unreceipted already-restored leases, identity drift, live processes/endpoints/GPU compute,
+  and ledger drift; scratch and canonical ledger invariants run on exceptional exit.
+- That utility restored the exact remote V8 lease from `shutdown_unverified` to
+  `stopped_verified` at 2026-09-05 22:05:57.996391 UTC. The canonical ledger remained
+  byte-identical at
+  `33b18e16478b8c73951ff0269479ae697874ca1772669d87539ff2d7ac8884e2`;
+  zero GPU events, accounting rows, inference attempts, or model calls were added. The
+  restricted receipt has file SHA-256
+  `544ffd07e57c9bd0c4c3915b8329ce46389e874564364d42edeeec7e2eaa7a58`
+  and logical SHA-256
+  `99550aa3bbc7a9d921d069cc6c1c1a6542330b400ec5e00f3c1a74c8fb8076e9`.
+  Immediate replay preserved the receipt, restored lease, and ledger byte-for-byte.
 - Four interrupted remote quarantine directories were packed losslessly before their exact
   unpacked copies were removed. The retained local and remote archive has 94,138 members,
   file SHA-256
   `617a13b5dabf7376f342550d217168d705ab328f0517cf44d663525c6562d721`,
   and passed full decompression/member-count validation.
-- The latest read-only remote audit at 2026-09-05 19:35 UTC found one NVIDIA RTX 4090
+- The latest terminal remote observation at 2026-09-05 22:08 UTC found one NVIDIA RTX 4090
   (24,564 MiB), 1 MiB used, 0% utilization, no study/vLLM process, no `tmux` or `screen`
-  session, and no listener on port 8000. The v6 public result and guardian-result receipt are
-  absent. vLLM is stopped.
-- The latest bounded remote project-tree allocated-byte measurement is 16,303,746,560 bytes;
+  session, and no listener on port 8000. vLLM is stopped; the pod remains active.
+- The latest bounded remote project-tree allocated-byte measurement is 16,313,550,336 bytes;
   the immutable v4 preflight's controlled-path sample was 10,337,457,664 apparent bytes. Both are
   safely below the 25 GB occupied limit and preserve the required 5 GB headroom inside the
   registered 30 GB allocation.
@@ -132,22 +184,25 @@ Updated: 2026-09-05 20:13 UTC
 
 ## Validation state
 
-- Complete collected test inventory: 1,104 tests.
-- Unit suite: 1,016 passed in 347.06 seconds on the final isolated stable-tree run.
-- Property suite: 16 passed in 46.89 seconds.
-- Integration suite: 69 passed and three expected environment skips across 72 tests.
+- Current collected test inventory: 1,235 tests. The last complete stable pre-v8 tree had
+  1,101 passes and three expected local-environment skips; the bounded v8 recovery and review
+  changes were verified with the focused current-tree selections below rather than another
+  broad execution cycle.
+- On that last full stable-tree run, the unit suite had 1,016 passes in 347.06 seconds, the
+  property suite had 16 passes in 46.89 seconds, and the integration suite had 69 passes plus
+  three expected environment skips across 72 tests.
   The skipped local checks are two XGrammar checks (package absent locally) and one pinned
   tokenizer-snapshot check (remote-only snapshot). The renderer, real-browser, and six API
   interface tests were rerun with loopback access and all eight passed.
-- Aggregate verified result: 1,101 passed, three expected local-environment skips, zero
-  implementation failures.
+- Prior full-tree aggregate: 1,101 passed, three expected local-environment skips, zero
+  implementation failures at that checkpoint.
 - The post-v6 affected suite has 109 passing focused tests for fallback orchestration,
   development lineage, live read-only ledger status, typed incidents, and schema replay.
   A separate complete run of the five directly changed test modules has 108 passing tests.
   The final post-repair run of those modules has 109 passing tests. Independent v6 incident
   reconstruction and v7 prelaunch review found no remaining launch blocker in scope.
 - The final v7 incident and lease-repair suite has 25 passing tests; the independent-review
-  handoff suite has six passing tests. After the final periodic-watchdog and coordinator
+  handoff/runtime/benchmark suites now pass 27 targeted tests. After the final periodic-watchdog and coordinator
   publication hardening, the stable focused lineage/runtime suite passed 203 tests, the full
   runtime/fallback pair passed 182 tests, and independent targeted audit runs passed 45/45
   lineage checks plus 16/16 repeated publication-race checks.
@@ -155,16 +210,25 @@ Updated: 2026-09-05 20:13 UTC
   heartbeat-test polling-window miss under concurrent local test load; the isolated test then
   passed 11/11 and the clean full rerun passed. No production exception or remote activity was
   involved.
+- The post-v8 bounded EngineCore repair previously passed all 118 GPU-runtime tests and Ruff.
+  The final changed-runtime selection passes 18 tests, and the combined V7/V8 incident,
+  lease, schema, review, benchmark, and release selection passes 99 tests. One broader
+  213-test run had 212 passes plus the known one-second heartbeat polling-window miss under
+  parallel local load; that exact test passed immediately in isolation. Independent integrity
+  reviews found and closed the run-root symlink and unreceipted-restored-lease gaps before
+  remote use.
 - Ruff, Python compilation, JSON parsing, `git diff --check`, package/CLI import smoke,
   report ingestion replay, report replay, and public-release hash checks pass.
-- Twenty-six generated JSON Schemas reproduce byte-for-byte; together with their manifest,
-  the checked directory has 27 JSON files. Schema logical manifest SHA-256:
-  `6ed55b1ec1e94954743e9fe4661f4c81a31832f83a151fdb5f569e63b7a34ae9`.
-- Synthetic benchmark verify-only and the semantic refresh guard pass. Benchmark logical
-  manifest SHA-256:
-  `c5bce978a9006b67f13c40701fca2d7b558d62239615c49a2c035221cd1b723f`.
-  Refresh receipt SHA-256:
-  `2396c3a7c308a964b348022a6811cde1dc0b0f1d4af05f3838c68a73bc6f9696`.
+- Twenty-eight generated JSON Schemas reproduce byte-for-byte; together with their manifest,
+  the checked directory has 29 JSON files. Schema logical manifest SHA-256:
+  `57cea3d884ef286b7bec3f02dbf92f2e7a5d4e9a5f75228d51cab288728d7a9b`.
+- Synthetic benchmark verify-only and the lineage-only semantic guard pass. Removing the
+  implementation-only adjudicator identity restriction changed only compiler lineage: every
+  substantive artifact proved byte-identical, and only the draft seal and benchmark manifest
+  changed. Benchmark logical manifest SHA-256:
+  `98589db781a254cfa2524c85e59a7bbc048bedf99accc0bdccd812b5aeef2514`;
+  draft-seal logical SHA-256:
+  `2d928894e6154b0a0fe4b8922fb8c98cb1d58c94d3fab77d97a197564864651d`.
 - The report-ingestion receipt verifies at
   `dd64d597f3497c2b9ad7fc60205e90ad5540716e586f885b7aa0aada90b245fd`.
   The interim report remains explicitly incomplete and contains no fabricated efficacy
@@ -173,18 +237,22 @@ Updated: 2026-09-05 20:13 UTC
   `bb2644ebd0460efe8eaa7b566a86603ff6c423c5710f026ed194fc5a997c3ead`.
 - The condition-blind human review handoff is materialized in ignored restricted scorer-only
   storage. It contains three worlds, nine projections, all shared evidence and proposed gold
-  structures, 72 exact questions, and a blank response worksheet; it contains no method
-  outputs, reviewer judgments, or launch authorization. The packet and worksheet SHA-256s are
-  `5003724e1dae0909b729980eb334b19b32073a2df03dc33ea17aa7f96a021ac1`
-  and `780b62b49076f68dfd592db864de25fee24abb6916aa239d1e63e27649bdeae2`.
+  structures—including 18 readable executable alternative representations—72 exact questions,
+  and a blank response worksheet; it contains no method outputs, reviewer judgments, or launch
+  authorization. The packet and worksheet SHA-256s are
+  `38c3b76ed5deb8afdf2aa34fdaa4e1801109e85344911edc802c8d09e26e9e94`
+  and `780b62b49076f68dfd592db864de25fee24abb6916aa239d1e63e27649bdeae2`;
+  handoff logical SHA-256 is
+  `4744303d9f081e913a05d46ceac7b3fb8d010ac2db95dd6af91103912e70eb56`.
+  The prior fingerprint-only rendering is preserved in restricted recovery storage.
 
 ## Phase state
 
 | Phase | State | Verified position |
 |---|---|---|
-| 1 — contracts and GPU acceptance | In progress | Contracts, ledgers/CAS, storage and GPU controls, evidence/ontology boundary, provenance bridge, decoder projection, and process-group hardening pass. V4–v6 are preserved zero-GPU control-plane incidents; v7 is a preserved terminal runtime incident with no inference. The v7 lease repair, fresh v8 source association, schema-1.6.0 overlay, and CPU-only v8 preflight pass. The persistent v8 acceptance/development execution is next. |
+| 1 — contracts and GPU acceptance | Blocked at scheduled-budget gate | Contracts, ledgers/CAS, storage and GPU controls, evidence/ontology boundary, provenance bridge, decoder projection, and process-group hardening pass. V4–v6 are preserved zero-GPU control-plane incidents; v7 and v8 are preserved terminal runtime incidents with no inference. V8 reached a healthy endpoint, then failed closed at strict EngineCore adoption; its bounded repair passes and its remote lease is verified terminal. A fresh service start is forbidden while the all-in forecast exceeds 9 hours by 31.668248 seconds. |
 | 2 — synthetic benchmark | Software/data complete; independent review pending | Four development worlds, 12 held-out worlds, 36 primary contexts, contrastive pairs, rare-pivotal/temporal/epistemic gold, mutation tests, and the condition-blind 3-world/9-projection review package reproduce. |
-| 3 — conditions and primary run | Software complete; execution pending | C0, C1, C2, and A-FixedSelect pathways and timing/capability/equal-evidence gates pass. The 24 development and 168 held-out calls remain. |
+| 3 — conditions and primary run | Software complete; execution/calibration pending | C0, C1, C2, and A-FixedSelect pathways and timing/capability/equal-evidence implementations pass. C0 implementation is complete; its four-world competence calibration is intentionally still unfrozen. The 24 development and 168 held-out calls remain. |
 | 4 — metrics and ablations | Software complete; execution pending | Registered metrics, world-level inference, 4,096 sign flips, Holm correction, bootstrap sensitivity, community analysis, and three reduced ablations are implemented. |
 | 5 — interface and feedback | Software complete; execution pending | Cytoscape interface, two registered actions, six scripted revisions, three trace captures, fixed anchors, and provenance-aware before/after views pass local tests. |
 | 6 — one-novel case study | Software complete; lawful input pending | Query-blind indexing, window/C1/C2 control planes, restricted storage, and descriptive analysis are implemented. No novel inference has run. |
@@ -192,7 +260,14 @@ Updated: 2026-09-05 20:13 UTC
 
 ## GPU and call accounting
 
-- Actual allocated GPU time consumed: 1,507.850965 seconds.
+- Actual allocated GPU time consumed: 2,581.267703 seconds.
+- In the historical v5 preflight, `31,722.618681` seconds was the complete
+  all-in projection, not a remaining-work value. Its exact decomposition was
+  `815.215409` seconds already consumed + `30,516.0027264791` seconds of
+  remaining mandatory work + `391.40054529582005` seconds for the next service
+  allocation. Adding the consumed allocation to `31,722.618681` a second time
+  double-counts it. The corresponding scheduled reserve was
+  `32,400 - 31,722.618681 = 677.381319` seconds.
 - Recovered unattended-allocation uncertainty: zero seconds.
 - The v4 control-plane launch consumed zero GPU seconds and did not consume an inference,
   retry, or service-start slot; it remains visible as one operational failure row.
@@ -204,28 +279,35 @@ Updated: 2026-09-05 20:13 UTC
   remains visible as a distinct operational failure.
 - The v7 service allocation consumed 692.635556 seconds and one recovery service-start slot,
   but zero inference or retry attempts and zero accepted model outputs.
-- Peak recorded v3 GPU VRAM: 22,525,509,632 bytes.
-- Peak recorded v3 process RAM: 2,955,644,928 bytes.
+- The v8 service allocation consumed 1,073.416738 seconds and one recovery service-start
+  slot, but zero inference or retry attempts and zero accepted model outputs. All three
+  currently authorized post-v3 recovery service starts are therefore consumed.
+- Peak recorded GPU VRAM: 22,525,509,632 bytes (20.98 GiB), below 23 GB.
+- Peak recorded process RAM: 2,972,696,576 bytes (2.77 GiB), below 25 GB.
+- Peak recorded project-controlled storage during v8: 10,344,769,024 bytes (9.63 GiB),
+  below 25 GB with the required headroom.
 - Remaining registered scientific generations: 258: four fallback acceptance calls,
   24 development calls, 168 held-out primary calls, 49 combined synthetic calls
   (12 paraphrase, nine feedback/interface, 28 ablation), and 13 case-study calls.
 - The authoritative admission calculation is all-in: actual allocation already consumed,
   plus the forecast for every remaining mandatory call, plus the next service-load allowance.
-  For v8 this is `1,507.850965 + 29,459.000000 + 391.40054529582005 =
-  31,358.25151029582` seconds. The registered scheduled reserve is therefore
-  `1,041.74848970418` seconds, and the hard contingency after protecting the 60-second
-  shutdown allowance would be `4,581.74848970418` seconds. The hardened runtime also
-  reserves a bounded 120-second sampler drain before that shutdown allowance, leaving a
-  conservative hard contingency of `4,461.74848970418` seconds. This corrects the prior
-  ambiguous presentation without changing the registered limits or removing any mandatory
-  call.
+  After terminal v8 accounting, the unchanged calculation for any fresh start is
+  `2,581.267703 + 29,459.000000 + 391.40054529582005 =
+  32,431.66824829582005` seconds (9.008796736 hours). The registered scheduled reserve is
+  therefore `-31.66824829582005` seconds: the 9-hour admission gate fails. The conservative
+  hard contingency after the bounded 120-second sampler drain and 60-second shutdown reserve
+  is still `3,388.33175170417995` seconds, but hard-cap headroom does not override the failed
+  scheduled gate. Every mandatory call remains in the forecast; no budget or inventory has
+  been silently changed.
 - No new GPU call is admitted merely because platform credit changed. The registered
   9-hour scheduled ceiling and hard stop before 10 actual allocated hours remain binding.
 
 ## Gates and blockers
 
-- Before the v8 GPU service start: commit the public v8 source association and preflight, then
-  repeat the exact remote idle/resource audit. All other registered v8 admission gates pass.
+- A fresh GPU start is forbidden: the all-in forecast exceeds the registered 9-hour scheduled
+  ceiling by 31.668248 seconds, and the currently authorized recovery service-start inventory
+  is exhausted. Proceeding requires an explicit methodological/budget decision and a newly
+  validated recovery lineage; mandatory calls cannot be silently removed.
 - Held-out inference is forbidden until the mandatory independent review and adjudication
   reproduce. No second review has been fabricated.
 - Phase 6 requires the exact lawful local novel path only when synthetic work is complete.
@@ -234,11 +316,15 @@ Updated: 2026-09-05 20:13 UTC
 
 ## Exact resume command
 
-V7 is terminal and has no permitted resume command. The v8 association, authorization overlay,
-and CPU-only preflight now pass. The next real-output job is the checked-in
-`scripts/run_fallback_gpu_acceptance.py --execute` launcher in detached tmux session
-`storyprojection-study-v8`, using run ID
-`fallback-qwen3-8b-awq-development-v8`, fresh restricted run root
-`artifacts/restricted/fallback-development-v8`, and public result
-`artifacts/public/results/fallback_gpu_acceptance_development_v8.json`. Do not reuse any
-v4/v5/v6/v7 run root, result path, tmux session, overlay, or invocation state.
+V7 and v8 are terminal and have no permitted resume command. No GPU resume command is
+authorized while the scheduled-budget gate above fails. The existing 24-call development
+block can still be checked without model load, service start, or artifact writes with:
+
+```bash
+PYTHONPATH=src /tmp/spo-refresh-venv/bin/python scripts/run_development_block.py \
+  --project-root /home/resort/Documents/repos/StoryProjectionOnto --validate-only
+```
+
+Any later GPU recovery must use a fresh run ID, run root, result path, source association,
+incident binding, authorization overlay, and detached persistent session. It must first pass
+the all-in 9-hour admission calculation and may not reuse v4/v5/v6/v7/v8 mutable state.
