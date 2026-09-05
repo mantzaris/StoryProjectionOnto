@@ -1,12 +1,12 @@
 {
   "schema_version": "1.0.0",
   "ingestion_id": "conference-report-ingestion-v1",
-  "compiled_at_utc": "2026-09-04T23:24:55Z",
+  "compiled_at_utc": "2026-09-05T15:10:14Z",
   "predecessors": [
     {
       "family": "fallback",
       "status": "incomplete",
-      "reason": "The permitted fallback is activated and downloaded, but fallback v3 was rejected by decoder-schema validation before generation and its acceptance gate remains incomplete.",
+      "reason": "The permitted fallback is activated and downloaded, but fallback v3 was rejected by decoder-schema validation before generation, the subsequent v4 recovery failed in the control plane before model start, and the acceptance gate remains incomplete.",
       "artifacts": [
         {
           "artifact_id": "fallback-activation",
@@ -83,7 +83,7 @@
     {
       "family": "runtime",
       "status": "incomplete",
-      "reason": "The recovered cumulative ledger covers the rejected primary pilots, fallback-v1 watchdog attempt, and fallback-v3 decoder-schema rejection; final runtime accounting is absent.",
+      "reason": "The recovered cumulative ledger covers the rejected primary pilots, fallback-v1 watchdog attempt, and fallback-v3 decoder-schema rejection; the v4 control-plane incident added zero GPU seconds, attempts, retries, or service sessions; final runtime accounting is absent.",
       "artifacts": [
         {
           "artifact_id": "primary-pilot-v1-failure",
@@ -149,6 +149,19 @@
           "logical_hash_mode": "canonical_without_field",
           "required_json_fields": ["accounting", "diagnosis", "terminal_state", "resource_maxima", "run_id"],
           "measurement_domains": []
+        },
+        {
+          "artifact_id": "fallback-v4-control-plane-incident",
+          "family": "runtime",
+          "relative_path": "artifacts/public/manifests/fallback_gpu_acceptance_development_v4_control_plane_incident.json",
+          "file_sha256": "ff74489a367c6e24c693ba8c00ccc3de505ef9af1f84f3a90518ef573ad06052",
+          "media_type": "application/json",
+          "release_class": "public",
+          "logical_hash": "e8b30397068a97f4f169395ec0a70ec1f709515c1df07b6a17400c7568c2993c",
+          "logical_hash_field": "manifest_sha256",
+          "logical_hash_mode": "canonical_without_field",
+          "required_json_fields": ["accounting", "failure", "terminal_state", "run_id"],
+          "measurement_domains": []
         }
       ]
     },
@@ -199,13 +212,13 @@
     {
       "table_id": "failure_accounting",
       "status": "complete",
-      "reason": "Observed incremental allocations for the two rejected primary pilots, fallback-v1 watchdog attempt, and fallback-v3 decoder-schema rejection; this remains interim rather than final accounting.",
+      "reason": "Observed incremental allocations for the two rejected primary pilots, fallback-v1 watchdog attempt, and fallback-v3 decoder-schema rejection, plus the explicit zero-second fallback-v4 operational failure; this remains interim rather than final accounting.",
       "scope": "interim",
       "relative_path": "tables/failure_accounting.csv",
-      "file_sha256": "339b205aa3ea22d6bca593b76fb0bd9ecf4a2641961b902d9b1ccee4452ef75a",
-      "row_count": 4,
+      "file_sha256": "b268d277b6e992a4f50b68d718f7db05e5b22a084bb0ca25a16e8342dc2d45ef",
+      "row_count": 5,
       "required_columns": ["run_id", "model_repository", "immutable_revision", "failure_type", "completed_generation_calls", "gate_passed", "vllm_service_stopped", "allocated_gpu_seconds", "interpretation"],
-      "source_artifact_ids": ["primary-pilot-v1-failure", "primary-pilot-v2-failure", "fallback-pilot-v1-failure", "fallback-pilot-v3-failure", "fallback-pilot-v3-incident"]
+      "source_artifact_ids": ["primary-pilot-v1-failure", "primary-pilot-v2-failure", "fallback-pilot-v1-failure", "fallback-pilot-v3-failure", "fallback-pilot-v3-incident", "fallback-v4-control-plane-incident"]
     },
     {"table_id": "primary_c2_vs_c1", "status": "incomplete", "reason": "No frozen held-out primary analysis table exists.", "scope": "final", "relative_path": null, "file_sha256": null, "row_count": null, "required_columns": [], "source_artifact_ids": []},
     {"table_id": "secondary_c2_vs_c0", "status": "incomplete", "reason": "No frozen held-out secondary analysis table exists.", "scope": "final", "relative_path": null, "file_sha256": null, "row_count": null, "required_columns": [], "source_artifact_ids": []},
@@ -219,5 +232,5 @@
     {"table_id": "novel_case", "status": "blocked", "reason": "The lawful first-novel study has not executed.", "scope": "final", "relative_path": null, "file_sha256": null, "row_count": null, "required_columns": [], "source_artifact_ids": []},
     {"table_id": "qualitative_examples", "status": "incomplete", "reason": "Registered qualitative selections cannot be materialized before their source runs.", "scope": "final", "relative_path": null, "file_sha256": null, "row_count": null, "required_columns": [], "source_artifact_ids": []}
   ],
-  "manifest_sha256": "5393f43861b8d5cdab7bc5a2f08153d81db98b118310e7848d004e120a2f2917"
+  "manifest_sha256": "12c83b603ac1fca541677a24379297259c7972e6a1480e9189b73153264e6aa6"
 }

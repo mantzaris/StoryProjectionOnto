@@ -26,12 +26,13 @@
       "include_extensionless_names": [],
       "required_paths": [
         "schemas/jsonschema/evidence_packet.schema.json",
+        "schemas/jsonschema/fallback_control_plane_incident.schema.json",
         "schemas/jsonschema/ontology_projection.schema.json",
         "schemas/jsonschema/qualified_assertion.schema.json",
         "schemas/jsonschema/schema_manifest.json"
       ],
-      "expected_path_count": 23,
-      "path_inventory_sha256": "65e2b663b2c762ca2db795dd77b925cb1f4c37a77c04e2a6b873513ba3167eb5"
+      "expected_path_count": 24,
+      "path_inventory_sha256": "4acef2b6ba45c513e90a966cbde062b8de79c899a16859337f9c28c870cf0ba1"
     },
     {
       "category": "project_metadata",
@@ -85,6 +86,7 @@
         "docs/PHASE7_REPORTING.md",
         "plan_notes/IMPLEMENTATION_PLAN_QUERY_DEPENDENT_TEMPORAL_ONTOLOGY.md",
         "plan_notes/METHODOLOGICAL_PLAN_QUERY_DEPENDENT_TEMPORAL_ONTOLOGY.md",
+        "scripts/build_fallback_control_plane_incident.py",
         "scripts/build_final_accounting_source_recipe.py",
         "scripts/build_public_bundle.py",
         "scripts/build_results_report.py",
@@ -93,8 +95,8 @@
         "scripts/run_phase4_analysis.py",
         "scripts/run_phase5_feedback.py"
       ],
-      "expected_path_count": 58,
-      "path_inventory_sha256": "8570fe0a7013ea593240c8aed13e7b48974c5f36b86a3d555a3f12467351fd23"
+      "expected_path_count": 59,
+      "path_inventory_sha256": "7e6d81448dd000d08d20760fa5e2281a6cd862912c53f694b8d387580118764f"
     },
     {
       "category": "science_code",
@@ -109,6 +111,7 @@
         "src/story_projection_onto/conditions/c2.py",
         "src/story_projection_onto/conditions/fixed_select.py",
         "src/story_projection_onto/contracts.py",
+        "src/story_projection_onto/fallback_control_plane_incident.py",
         "src/story_projection_onto/final_accounting.py",
         "src/story_projection_onto/metrics/pipeline.py",
         "src/story_projection_onto/phase7_compiler.py",
@@ -117,8 +120,8 @@
         "src/story_projection_onto/scorer_only/phase5_report.py",
         "src/story_projection_onto/synthetic_benchmark.py"
       ],
-      "expected_path_count": 96,
-      "path_inventory_sha256": "5e01777bd52385bb4ee24435900f3f3f9ce0000106f7ff03deee2270b43cfd51"
+      "expected_path_count": 97,
+      "path_inventory_sha256": "8ed85a3cf08edf07d04e25ad8628ca360ee29ea6ec42ab8750946b40b23d198a"
     },
     {
       "category": "study_configuration",
@@ -192,14 +195,15 @@
         "tests/integration/ui_browser_smoke.mjs",
         "tests/property/test_benchmark_properties.py",
         "tests/property/test_metric_structure_properties.py",
+        "tests/unit/test_fallback_control_plane_incident.py",
         "tests/unit/test_final_accounting.py",
         "tests/unit/test_gpu_runtime.py",
         "tests/unit/test_phase7_compiler.py",
         "tests/unit/test_public_release.py"
       ],
-      "expected_path_count": 120,
-      "path_inventory_sha256": "b011b0994198e06ecbd66d03c64a9e7c17ddaf52ebc18d36be598f00ed669c88"
+      "expected_path_count": 121,
+      "path_inventory_sha256": "ad3d6ee9daf54077b11dc547669288c88bbf90ed88a66ed56f32ce6928ab1469"
     }
   ],
-  "manifest_sha256": "43776da2ce17e009cb1f43d9dd8515912a366fb6414c158e07f9ca8399f2ac70"
+  "manifest_sha256": "4f0fbb9252170cb93ca47be2873d82f649ed77b11c461aef776a155aa65ef9a1"
 }

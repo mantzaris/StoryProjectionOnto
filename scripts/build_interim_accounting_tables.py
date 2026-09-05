@@ -16,6 +16,10 @@ from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
+from story_projection_onto.fallback_control_plane_incident import (
+    load_fallback_control_plane_incident,
+)
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -50,6 +54,14 @@ def parse_args() -> argparse.Namespace:
         default=Path(
             "artifacts/public/manifests/"
             "fallback_gpu_acceptance_development_v3_incident.json"
+        ),
+    )
+    parser.add_argument(
+        "--fallback-v4-control-plane-incident",
+        type=Path,
+        default=Path(
+            "artifacts/public/manifests/"
+            "fallback_gpu_acceptance_development_v4_control_plane_incident.json"
         ),
     )
     parser.add_argument("--output-root", type=Path, default=Path("reports/tables"))
@@ -121,6 +133,7 @@ def build_tables(
     fallback_v1: Path,
     fallback_v3: Path,
     fallback_v3_incident: Path,
+    fallback_v4_control_plane_incident: Path,
     output_root: Path,
 ) -> None:
     first = _load_rejected_result(pilot_v1)
@@ -128,6 +141,9 @@ def build_tables(
     third = _load_rejected_result(fallback_v1)
     fourth = _load_rejected_result(fallback_v3)
     incident = _load_v3_incident(fallback_v3_incident, fallback_v3)
+    control_plane_incident = load_fallback_control_plane_incident(
+        fallback_v4_control_plane_incident
+    )
     first_accounting = first["runtime"]["gpu_accounting"]
     second_accounting = second["runtime"]["gpu_accounting"]
     third_accounting = third["runtime"]["gpu_accounting"]
@@ -155,6 +171,31 @@ def build_tables(
         != cumulative_microseconds[-1] - cumulative_microseconds[-2]
     ):
         raise ValueError("fallback-v3 incident disagrees with cumulative GPU accounting")
+    control_plane_summary = control_plane_incident.accounting.after.summary
+    v3_terminal = incident["terminal_state"]
+    if (
+        control_plane_incident.accounting.before
+        != control_plane_incident.accounting.after
+        or control_plane_summary.total_allocated_microseconds != total_microseconds
+        or control_plane_summary.event_count
+        != int(incident_accounting["gpu_event_count"])
+        or control_plane_summary.service_session_count
+        != int(incident_accounting["gpu_service_session_count"])
+        or control_plane_summary.model_call_count
+        != int(incident_accounting["model_call_count"])
+        or control_plane_summary.unresolved_gpu_allocation_count
+        != int(v3_terminal["unresolved_gpu_allocation_count"])
+        or control_plane_summary.unresolved_gpu_service_count
+        != int(v3_terminal["unresolved_gpu_service_count"])
+        or control_plane_summary.by_kind_microseconds
+        != {
+            str(kind): int(microseconds)
+            for kind, microseconds in fourth_accounting["by_kind_microseconds"].items()
+        }
+    ):
+        raise ValueError(
+            "fallback-v4 control-plane incident changes cumulative GPU accounting"
+        )
     v3_provenance = incident["provenance"]["failed_result"]
     if v3_provenance.get("manifest_sha256") != fourth.get("manifest_sha256"):
         raise ValueError("fallback-v3 incident names another logical failed result")
@@ -303,6 +344,21 @@ def build_tables(
                 interpretation,
             ]
         )
+    failures.append(
+        [
+            control_plane_incident.run_id,
+            "not_applicable",
+            "not_applicable",
+            control_plane_incident.failure.safe_error_class,
+            control_plane_incident.terminal_state.accepted_output_count,
+            "false",
+            "true",
+            _seconds(control_plane_incident.accounting.delta.allocated_gpu_microseconds),
+            "Operational control-plane failure before guardian readiness; no model "
+            "process, service start, GPU allocation, inference attempt, authorized "
+            "retry slot, or scientific generation.",
+        ]
+    )
     _write_csv(
         output_root / "failure_accounting.csv",
         [
@@ -328,6 +384,7 @@ def main() -> int:
         args.fallback_v1,
         args.fallback_v3,
         args.fallback_v3_incident,
+        args.fallback_v4_control_plane_incident,
         args.output_root,
     )
     return 0

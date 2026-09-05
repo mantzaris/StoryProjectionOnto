@@ -1,12 +1,12 @@
 {
   "schema_version": "1.0.0",
-  "source_manifest_sha256": "5393f43861b8d5cdab7bc5a2f08153d81db98b118310e7848d004e120a2f2917",
-  "source_manifest_file_sha256": "7277cee6e82483a2972757cb60329cbbe104451db11500e6f8ae1e29240db346",
+  "source_manifest_sha256": "12c83b603ac1fca541677a24379297259c7972e6a1480e9189b73153264e6aa6",
+  "source_manifest_file_sha256": "92cbfae90ab15b13ce2adaea44c02d0cdaf9e6cb93ccf2a1efc53c024f88782d",
   "predecessors": [
     {
       "family": "fallback",
       "status": "incomplete",
-      "reason": "The permitted fallback is activated and downloaded, but fallback v3 was rejected by decoder-schema validation before generation and its acceptance gate remains incomplete.",
+      "reason": "The permitted fallback is activated and downloaded, but fallback v3 was rejected by decoder-schema validation before generation, the subsequent v4 recovery failed in the control plane before model start, and the acceptance gate remains incomplete.",
       "artifact_ids": [
         "fallback-activation",
         "fallback-model-snapshot"
@@ -47,13 +47,14 @@
     {
       "family": "runtime",
       "status": "incomplete",
-      "reason": "The recovered cumulative ledger covers the rejected primary pilots, fallback-v1 watchdog attempt, and fallback-v3 decoder-schema rejection; final runtime accounting is absent.",
+      "reason": "The recovered cumulative ledger covers the rejected primary pilots, fallback-v1 watchdog attempt, and fallback-v3 decoder-schema rejection; the v4 control-plane incident added zero GPU seconds, attempts, retries, or service sessions; final runtime accounting is absent.",
       "artifact_ids": [
         "primary-pilot-v1-failure",
         "primary-pilot-v2-failure",
         "fallback-pilot-v1-failure",
         "fallback-pilot-v3-failure",
-        "fallback-pilot-v3-incident"
+        "fallback-pilot-v3-incident",
+        "fallback-v4-control-plane-incident"
       ]
     },
     {
@@ -145,6 +146,14 @@
       "measurement_domains": []
     },
     {
+      "artifact_id": "fallback-v4-control-plane-incident",
+      "family": "runtime",
+      "file_sha256": "ff74489a367c6e24c693ba8c00ccc3de505ef9af1f84f3a90518ef573ad06052",
+      "logical_hash": "e8b30397068a97f4f169395ec0a70ec1f709515c1df07b6a17400c7568c2993c",
+      "media_type": "application/json",
+      "measurement_domains": []
+    },
+    {
       "artifact_id": "phase1-environment",
       "family": "storage",
       "file_sha256": "90bbb5279e99bc9fe39d92332e70c2e431c42e2131df3cbb816db6ba43861bef",
@@ -170,7 +179,7 @@
         "reason"
       ],
       "source_artifact_hashes": [
-        "5393f43861b8d5cdab7bc5a2f08153d81db98b118310e7848d004e120a2f2917"
+        "12c83b603ac1fca541677a24379297259c7972e6a1480e9189b73153264e6aa6"
       ]
     },
     {
@@ -201,11 +210,11 @@
     {
       "table_id": "failure_accounting",
       "status": "complete",
-      "reason": "Observed incremental allocations for the two rejected primary pilots, fallback-v1 watchdog attempt, and fallback-v3 decoder-schema rejection; this remains interim rather than final accounting.",
+      "reason": "Observed incremental allocations for the two rejected primary pilots, fallback-v1 watchdog attempt, and fallback-v3 decoder-schema rejection, plus the explicit zero-second fallback-v4 operational failure; this remains interim rather than final accounting.",
       "scope": "interim",
       "relative_path": "tables/failure_accounting.csv",
-      "file_sha256": "339b205aa3ea22d6bca593b76fb0bd9ecf4a2641961b902d9b1ccee4452ef75a",
-      "row_count": 4,
+      "file_sha256": "b268d277b6e992a4f50b68d718f7db05e5b22a084bb0ca25a16e8342dc2d45ef",
+      "row_count": 5,
       "columns": [
         "run_id",
         "model_repository",
@@ -222,7 +231,8 @@
         "4b870ec47668105badd32528d6fb6997fc0221618097e048ff28d27716f78050",
         "c2d84fe31a2e4da613b5d7af418ba9d5c11d1b1c8f8e22583fba5f47ecaa42c3",
         "9279cdcb048be6bf44da6570d26df9ffd048d839a3bb9f5d76a328f6ea62108a",
-        "fd42f197b88bef61ad5696280fd6b4a72f256fd3b0991a069771c5074c9b50e7"
+        "fd42f197b88bef61ad5696280fd6b4a72f256fd3b0991a069771c5074c9b50e7",
+        "ff74489a367c6e24c693ba8c00ccc3de505ef9af1f84f3a90518ef573ad06052"
       ]
     },
     {
@@ -347,7 +357,7 @@
       "source_artifact_hashes": []
     }
   ],
-  "compiled_at_utc": "2026-09-04T23:24:55Z",
+  "compiled_at_utc": "2026-09-05T15:10:14Z",
   "gpu_service_time_artifact_ids": [
     "primary-pilot-v1-failure",
     "primary-pilot-v2-failure",
@@ -355,5 +365,5 @@
     "fallback-pilot-v3-failure"
   ],
   "runpod_wall_time_artifact_ids": [],
-  "receipt_sha256": "004b2e7ace7c75d1fcabd3f59a7f5686e1f088c4038db1f07ef6a5fc6a25bfef"
+  "receipt_sha256": "dd64d597f3497c2b9ad7fc60205e90ad5540716e586f885b7aa0aada90b245fd"
 }

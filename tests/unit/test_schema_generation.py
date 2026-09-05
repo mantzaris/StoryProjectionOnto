@@ -4,7 +4,7 @@ import hashlib
 import json
 from pathlib import Path
 
-from scripts.generate_schemas import emit_schemas
+from scripts.generate_schemas import OPERATIONAL_SCHEMA_TYPES, emit_schemas
 from story_projection_onto.contracts import (
     MODEL_VISIBLE_SCHEMA_TYPES,
     PUBLIC_SCHEMA_TYPES,
@@ -25,7 +25,9 @@ def test_schema_generation_is_deterministic_and_hash_manifested(tmp_path: Path) 
 
     assert first_manifest == second_manifest
     assert emitted_files(first_directory) == emitted_files(second_directory)
-    expected_count = len(set(MODEL_VISIBLE_SCHEMA_TYPES) | set(PUBLIC_SCHEMA_TYPES))
+    expected_count = len(
+        set(MODEL_VISIBLE_SCHEMA_TYPES) | set(PUBLIC_SCHEMA_TYPES) | set(OPERATIONAL_SCHEMA_TYPES)
+    )
     assert len(first_manifest["schemas"]) == expected_count
 
     for entry in first_manifest["schemas"]:
@@ -38,6 +40,15 @@ def test_schema_generation_is_deterministic_and_hash_manifested(tmp_path: Path) 
     }
     assert first_manifest["manifest_hash"] == canonical_sha256(manifest_payload)
     assert not list(first_directory.glob("*.tmp"))
+
+    operational_entries = [
+        entry
+        for entry in first_manifest["schemas"]
+        if entry["surface"] == "public_operational_contract"
+    ]
+    assert [entry["file"] for entry in operational_entries] == [
+        "fallback_control_plane_incident.schema.json"
+    ]
 
 
 def test_emitted_schemas_exclude_all_scorer_only_contracts(tmp_path: Path) -> None:

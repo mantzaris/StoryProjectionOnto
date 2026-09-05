@@ -274,11 +274,15 @@ def test_checked_in_configuration_and_incomplete_template_are_self_hashed() -> N
         "data/synthetic/manifests/benchmark_manifest.json",
         "data/synthetic/scorer_only/held_out/syn-test-12.json",
         "prompts/c2_query/prompt_v1.md",
+        "schemas/jsonschema/fallback_control_plane_incident.schema.json",
         "schemas/jsonschema/ontology_projection.schema.json",
+        "scripts/build_fallback_control_plane_incident.py",
         "scripts/build_final_accounting_source_recipe.py",
+        "src/story_projection_onto/fallback_control_plane_incident.py",
         "src/story_projection_onto/scorer_only/phase4_analysis.py",
         "tests/integration/ui_browser_smoke.mjs",
         "tests/property/test_benchmark_properties.py",
+        "tests/unit/test_fallback_control_plane_incident.py",
         "tests/unit/test_phase7_compiler.py",
         "ui/index.html",
     }.issubset(public_paths)
@@ -405,8 +409,8 @@ def test_verification_test_inventory_is_exact_and_public_safe() -> None:
     )
     public_paths = expand_public_reproduction_source_paths(manifest, source_root=ROOT)
     verification_paths = tuple(path for path in public_paths if path.startswith("tests/"))
-    assert len(verification_paths) == 120
-    assert sum(path.endswith(".py") for path in verification_paths) == 107
+    assert len(verification_paths) == 121
+    assert sum(path.endswith(".py") for path in verification_paths) == 108
     assert sum(path.endswith(".json") for path in verification_paths) == 12
     assert sum(path.endswith(".mjs") for path in verification_paths) == 1
     records = scan_public_entries(
@@ -421,7 +425,7 @@ def test_verification_test_inventory_is_exact_and_public_safe() -> None:
             for relative in verification_paths
         ),
     )
-    assert len(records) == 120
+    assert len(records) == 121
 
 
 def test_phase6_guide_is_public_safe_and_recovery_guide_remains_excluded() -> None:

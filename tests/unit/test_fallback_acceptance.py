@@ -246,7 +246,8 @@ def test_fallback_plan_binds_exact_calls_reserves_and_no_primary_block() -> None
     assert plan["fresh_gpu_ledger_forbidden"] is True
     assert plan["normal_acceptance_block"]["executed"] is False
     second_recovery = plan["second_recovery_overlay_support"]
-    assert second_recovery["overlay_schema_version"] == "1.2.0"
+    assert second_recovery["overlay_schema_version"] == "1.3.0"
+    assert second_recovery["intervening_zero_gpu_control_plane_incident_required"] is True
     assert second_recovery["evidence_provenance_bridge_binding_required"] is True
     assert second_recovery["retry_wire_delta_scope"] == (
         "guided_schema_schema_derived_runtime_hashes_and_hash_bound_provenance_only"
@@ -1583,6 +1584,38 @@ def test_second_recovery_overlay_is_exact_and_proposed_cannot_execute(
         **builder_arguments,
     )
     assert built_authorized["authorization"]["status"] == "authorized"
+    v4_control_plane_incident = (
+        ROOT
+        / "artifacts/public/manifests/"
+        "fallback_gpu_acceptance_development_v4_control_plane_incident.json"
+    )
+    built_v5 = build_second_fallback_recovery_overlay(
+        output_path=restricted_root / "second-recovery-v5-built.authorized.json",
+        authorization_status="authorized",
+        authorization_basis="The user authorized continued GPU execution in this test.",
+        authorized_at=datetime(2026, 9, 5, 14, 45, tzinfo=UTC),
+        **{
+            **builder_arguments,
+            "run_id": "fallback-qwen3-8b-awq-development-v5",
+            "prior_control_plane_incident_path": v4_control_plane_incident,
+        },
+    )
+    assert built_v5["schema_version"] == "1.3.0"
+    assert built_v5["intervening_control_plane_incident"] == (
+        fallback_acceptance_module._second_recovery_control_plane_incident_binding(
+            v4_control_plane_incident
+        )
+    )
+    with pytest.raises(ValueError, match="intervening v4 incident"):
+        build_second_fallback_recovery_overlay(
+            output_path=restricted_root / "v5-missing-incident.json",
+            **{**builder_arguments, "run_id": "fallback-qwen3-8b-awq-development-v5"},
+        )
+    with pytest.raises(ValueError, match="intervening v4 incident"):
+        build_second_fallback_recovery_overlay(
+            output_path=restricted_root / "v6-missing-incident.json",
+            **{**builder_arguments, "run_id": "fallback-qwen3-8b-awq-development-v6"},
+        )
     with pytest.raises(ValueError, match="aware timestamp"):
         build_second_fallback_recovery_overlay(
             output_path=restricted_root / "missing-time.json",
@@ -2646,11 +2679,11 @@ def _runner(
     )
 
 
-def test_v4_prepare_reaches_mocked_service_start_with_registered_adopter(
+def test_v5_prepare_reaches_mocked_service_start_with_registered_adopter(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The production v4 factory must accept its exact two-start lineage."""
+    """The production v5 factory must accept its exact v3+v5 start lineage."""
 
     configuration = _fallback_launch_configuration(tmp_path)
     live: dict[str, object] = {}
@@ -2669,11 +2702,11 @@ def test_v4_prepare_reaches_mocked_service_start_with_registered_adopter(
             raise reached_start
 
         monkeypatch.setattr(service, "start", forbid_gpu_start)
-        source_manifest = build_source_manifest(ROOT, "v4-factory-path-test")
+        source_manifest = build_source_manifest(ROOT, "v5-factory-path-test")
         source_association = {
             "manifest_sha256": "d" * 64,
             "local_tree_sha256": source_manifest.tree_sha256,
-            "revision_label": "v4-factory-path-test",
+            "revision_label": "v5-factory-path-test",
         }
         amendment_hash = SECOND_RECOVERY_V3_RETRY_AMENDMENT_SHA256
         overlay_hash = "f" * 64
@@ -2697,7 +2730,7 @@ def test_v4_prepare_reaches_mocked_service_start_with_registered_adopter(
         runner = FallbackAcceptanceRunner(
             root=ROOT,
             legacy_provenance_bridge=legacy_provenance_bridge(),
-            run_id="fallback-qwen3-8b-awq-development-v4",
+            run_id="fallback-qwen3-8b-awq-development-v5",
             service=cast(object, service),
             ledger=ledger,
             artifacts=ArtifactStore(BlobStore(tmp_path / "blobs"), ledger),
@@ -2720,8 +2753,10 @@ def test_v4_prepare_reaches_mocked_service_start_with_registered_adopter(
             prior_fallback_failure={"manifest_sha256": "e" * 64},
             second_recovery_overlay={
                 "manifest_sha256": overlay_hash,
-                "authorized_recovery_run_id": ("fallback-qwen3-8b-awq-development-v4"),
+                "schema_version": "1.3.0",
+                "authorized_recovery_run_id": ("fallback-qwen3-8b-awq-development-v5"),
                 "authorization": {"status": "authorized"},
+                "intervening_control_plane_incident": {"ledger_unchanged": True},
             },
             second_recovery_v3_result={
                 "manifest_sha256": SECOND_RECOVERY_V3_RESULT_MANIFEST_SHA256
@@ -4125,6 +4160,213 @@ def _orchestrator_options(tmp_path: Path) -> object:
     return parse_arguments(arguments)
 
 
+def test_guardian_cli_preserves_outer_result_identity_across_fresh_interpreter(
+    tmp_path: Path,
+) -> None:
+    options = _orchestrator_options(tmp_path)
+    paths = fallback_acceptance_module._orchestration_paths(options)
+    created_at = datetime.now(UTC).isoformat()
+    invocation_payload = {
+        "schema_version": "1.0.0",
+        "kind": "fallback_controller_orchestration_invocation",
+        "run_id": options.run_id,
+        "execution_arguments_sha256": canonical_sha256(
+            fallback_acceptance_module._controller_execution_arguments(options)
+        ),
+        "result_output": str(paths.result_output),
+        "handoff_output": str(paths.handoff_output),
+        "cleanup_output": str(paths.cleanup_output),
+        "checkpoint": str(paths.checkpoint),
+        "service_session_id": options.run_id,
+        "service_event_id": f"{options.run_id}-service-start-001",
+        "invocation_nonce": "a" * 64,
+        "gpu_seconds_before_invocation": 0.0,
+        "protected_shutdown_seconds": 70.0,
+        "hard_stop_at": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
+        "resume_grace_seconds": 300.0,
+        "created_at": created_at,
+    }
+    invocation = {
+        **invocation_payload,
+        "manifest_sha256": canonical_sha256(invocation_payload),
+    }
+    fallback_acceptance_module._write_append_only_json(paths.invocation, invocation)
+    ticket = fallback_acceptance_module._guardian_ticket_for_invocation(
+        options,
+        paths=paths,
+        invocation=invocation,
+    )
+    fallback_acceptance_module._write_append_only_json(paths.guardian_ticket, ticket)
+    command = fallback_acceptance_module._guardian_controller_command(
+        options,
+        output=paths.guardian_result,
+        ticket=paths.guardian_ticket,
+    )
+    program = (
+        "import sys; "
+        "from story_projection_onto import fallback_acceptance as module; "
+        "options=module.parse_arguments(sys.argv[1:]); "
+        "module._require_execution_arguments(options); "
+        "module._validate_guardian_ticket(options); "
+        "print('guardian-cli-identity-valid')"
+    )
+
+    completed = subprocess.run(
+        (sys.executable, "-c", program, *command[2:]),
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout.strip() == "guardian-cli-identity-valid"
+
+    tampered = list(command[2:])
+    result_index = tampered.index("--orchestration-result-output") + 1
+    tampered[result_index] = str(tmp_path / "different-final-result.json")
+    rejected = subprocess.run(
+        (sys.executable, "-c", program, *tampered),
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert rejected.returncode != 0
+    assert "fallback orchestration invocation identity changed" in rejected.stderr
+
+
+def test_guardian_launcher_creates_an_independent_exact_process_session(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    options = _orchestrator_options(tmp_path)
+    paths = fallback_acceptance_module._orchestration_paths(options)
+    receipt = tmp_path / "guardian-process.json"
+    program = (
+        "import hashlib,json,os,sys; "
+        "raw=open(f'/proc/{os.getpid()}/cmdline','rb').read(); "
+        "payload={'pid':os.getpid(),'pgrp':os.getpgrp(),'sid':os.getsid(0),"
+        "'command_sha256':hashlib.sha256(raw).hexdigest()}; "
+        "open(sys.argv[1],'w',encoding='utf-8').write(json.dumps(payload))"
+    )
+    command = (sys.executable, "-c", program, str(receipt))
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_guardian_controller_command",
+        lambda *args, **kwargs: command,
+    )
+
+    process = fallback_acceptance_module._launch_guardian_process(
+        options,
+        paths=paths,
+    )
+    assert process.wait(timeout=5) == 0
+    identity = json.loads(receipt.read_text(encoding="utf-8"))
+    assert identity["pid"] == process.pid
+    assert identity["pgrp"] == process.pid
+    assert identity["sid"] == process.pid
+    assert identity["command_sha256"] == fallback_acceptance_module._raw_command_sha256(
+        command
+    )
+
+
+def test_guardian_process_identity_binds_raw_command_group_and_session(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    options = _orchestrator_options(tmp_path)
+    paths = fallback_acceptance_module._orchestration_paths(options)
+    expected_command = (sys.executable, "guardian-sentinel.py", "--bounded")
+    expected_hash = fallback_acceptance_module._raw_command_sha256(expected_command)
+    pid = os.getpid()
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_guardian_controller_command",
+        lambda *args, **kwargs: expected_command,
+    )
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_process_identity",
+        lambda observed_pid: (12345, expected_hash),
+    )
+    monkeypatch.setattr(os, "getpgrp", lambda: pid)
+    monkeypatch.setattr(os, "getsid", lambda observed_pid: pid)
+
+    assert fallback_acceptance_module._guardian_process_identity(
+        options,
+        paths=paths,
+    ) == (pid, 12345, expected_hash, pid, pid)
+
+    monkeypatch.setattr(os, "getsid", lambda observed_pid: pid + 1)
+    with pytest.raises(RuntimeError, match="not isolated"):
+        fallback_acceptance_module._guardian_process_identity(options, paths=paths)
+
+
+@pytest.mark.parametrize(
+    ("stage", "expected_suffix"),
+    (
+        ("prepare", ".controller-handoff.json"),
+        ("recover-prepare", ".controller-handoff.json"),
+        ("run", "result.json"),
+        ("cleanup", ".orphan-cleanup.json"),
+        ("guardian", ".guardian-result.json"),
+    ),
+)
+def test_internal_controller_cli_requires_exact_stage_output(
+    tmp_path: Path,
+    stage: str,
+    expected_suffix: str,
+) -> None:
+    outer = _orchestrator_options(tmp_path)
+    paths = fallback_acceptance_module._orchestration_paths(outer)
+    expected_output = {
+        "prepare": paths.handoff_output,
+        "recover-prepare": paths.handoff_output,
+        "run": paths.result_output,
+        "cleanup": paths.cleanup_output,
+        "guardian": paths.guardian_result,
+    }[stage]
+    command = fallback_acceptance_module._internal_controller_command(
+        outer,
+        stage=stage,
+        output=expected_output,
+        guard=None,
+    )
+    if stage == "guardian":
+        command = (*command, "--guardian-ticket", str(paths.guardian_ticket))
+    parsed = parse_arguments(command[2:])
+    fallback_acceptance_module._require_execution_arguments(parsed)
+    assert str(parsed.output).endswith(expected_suffix)
+    assert parsed.orchestration_result_output.resolve() == paths.result_output
+
+    parsed.output = tmp_path / "wrong-stage-output.json"
+    with pytest.raises(SystemExit, match="does not match its orchestration stage"):
+        fallback_acceptance_module._require_execution_arguments(parsed)
+
+
+def test_public_orchestrator_rejects_private_result_path_and_wrong_process_group(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    options = _orchestrator_options(tmp_path)
+    paths = fallback_acceptance_module._orchestration_paths(options)
+    options.orchestration_result_output = tmp_path / "injected-result.json"
+    with pytest.raises(SystemExit, match="reserved for internal controllers"):
+        fallback_acceptance_module._require_execution_arguments(options)
+
+    options.orchestration_result_output = None
+    options.run_id = fallback_acceptance_module.SECOND_RECOVERY_V4_RUN_ID
+    with pytest.raises(SystemExit, match="terminal control-plane incident"):
+        fallback_acceptance_module._require_execution_arguments(options)
+
+    options.run_id = "fallback-orchestration-test"
+    monkeypatch.setattr(os, "getpgrp", lambda: os.getpid() + 1)
+    with pytest.raises(RuntimeError, match="dedicated process group"):
+        fallback_acceptance_module._orchestrate_controller_processes(options)
+    assert not paths.invocation.exists()
+    assert not paths.guardian_ticket.exists()
+
+
 def test_status_requires_and_verifies_complete_durable_invocation_arguments(
     tmp_path: Path,
 ) -> None:
@@ -4244,6 +4486,7 @@ def test_orchestrator_supervises_two_controllers_and_closes_guard(
         "_close_orchestrator_guard",
         lambda *args, **kwargs: closed.append(dict(kwargs)),
     )
+    monkeypatch.setattr(os, "getpgrp", os.getpid)
     assert _orchestrate_controller_processes(options) == 2
     assert stages == ["prepare", "run"]
     assert len(closed) == 1
@@ -4314,6 +4557,7 @@ def test_orchestrator_invokes_cleanup_when_run_does_not_verify_shutdown(
         "_close_orchestrator_guard",
         lambda *args, **kwargs: None,
     )
+    monkeypatch.setattr(os, "getpgrp", os.getpid)
     with pytest.raises(RuntimeError, match="verified service shutdown"):
         _orchestrate_controller_processes(options)
     assert stages == ["prepare", "run", "cleanup"]
@@ -4450,6 +4694,7 @@ def test_resume_orchestrator_recovers_prepare_without_second_service_start(
         "_close_orchestrator_guard",
         lambda *args, **kwargs: None,
     )
+    monkeypatch.setattr(os, "getpgrp", os.getpid)
 
     assert fallback_acceptance_module._orchestrate_controller_processes(options) == 2
     assert stages == ["recover-prepare", "run"]
@@ -4656,6 +4901,11 @@ def test_guardian_hard_deadline_terminalizes_without_starting_service(
         fallback_acceptance_module,
         "_load_orchestration_identity",
         lambda options, paths: (invocation, ticket),
+    )
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_guardian_process_identity",
+        lambda options, paths: (os.getpid(), 1, HASH_A, os.getpgrp(), os.getsid(0)),
     )
     result = fallback_acceptance_module._run_guardian(
         options,
@@ -4954,6 +5204,17 @@ def test_guardian_hard_deadline_kills_lock_owner_then_exact_service_target(
             fallback_acceptance_module,
             "_internal_controller_command",
             lambda options, *, stage, output, guard: controller_command,
+        )
+        monkeypatch.setattr(
+            fallback_acceptance_module,
+            "_guardian_process_identity",
+            lambda options, paths: (
+                os.getpid(),
+                1,
+                HASH_A,
+                os.getpgrp(),
+                os.getsid(0),
+            ),
         )
 
         result = fallback_acceptance_module._run_guardian(

@@ -37,7 +37,7 @@ EXPECTED_GENERATED_NAMESPACE_COUNTS = {
     "model_visible": 176,
     "scorer_only": 32,
 }
-EXPECTED_SCHEMA_FILE_COUNT = 23
+EXPECTED_SCHEMA_FILE_COUNT = 24
 EXPECTED_REVIEW_WORLD_COUNT = 3
 EXPECTED_REVIEW_PROJECTION_COUNT = 9
 EXPECTED_REVIEW_ITEM_COUNT = 72
@@ -1275,7 +1275,11 @@ def _schema_manifest(root: Path, inventory: Sequence[FileDigest]) -> Mapping[str
         record = actual[relative]
         if entry.get("bytes") != record.byte_count or entry.get("sha256") != record.sha256:
             raise RefreshVerificationError(f"schema manifest does not bind exact bytes: {relative}")
-        if entry.get("surface") not in {"model_interaction", "public_contract"}:
+        if entry.get("surface") not in {
+            "model_interaction",
+            "public_contract",
+            "public_operational_contract",
+        }:
             raise RefreshVerificationError("schema manifest surface changed")
         observed.append(relative)
         contracts.append(contract)

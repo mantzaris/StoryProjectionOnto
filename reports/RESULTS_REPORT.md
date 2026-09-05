@@ -1,10 +1,10 @@
 # StoryProjectionOnto: Conference-Study Results Report
 
-**Study status:** `incomplete` — Recovery interim through fallback v3: the primary 14B pilots and fallback attempts were rejected, no scientific generation was accepted, and fallback acceptance, development execution, independent review, held-out runs, and the lawful first-novel study remain incomplete.
+**Study status:** `incomplete` — Recovery interim through the zero-GPU fallback-v4 control-plane incident: the primary 14B pilots and fallback attempts were rejected, no scientific generation was accepted, and fallback acceptance, development execution, independent review, held-out runs, and the lawful first-novel study remain incomplete.
 
-**Frozen input manifest:** `016232981064343020e0335a399d43744ba64f4f5c723978dc931f4326f2f255`
+**Frozen input manifest:** `157a5261a5847af75a5831e96fc97d62eb87a35ef5b457075dff409d168411e7`
 
-**Code revision:** `cadfb25c39e4f0b1998ab15ad89dcc5e97d1fbf1` (dirty worktree: `true`)
+**Code revision:** `fb3399690fe121e9d314f53e40337cdec415782c` (dirty worktree: `true`)
 
 **Model:** not yet accepted/frozen
 
@@ -191,15 +191,16 @@ Failures and invalid or unrepaired outputs remain visible and intention-to-treat
 
 _Interim verified table. It is not a completed section outcome._
 
-### Observed incremental rejected-attempt allocations through fallback v3 (interim, not final)
+### Observed rejected-attempt allocations through fallback v3 plus the zero-second fallback-v4 control-plane failure (interim, not final)
 
-<!-- table:failure_accounting sha256:339b205aa3ea22d6bca593b76fb0bd9ecf4a2641961b902d9b1ccee4452ef75a rows:4 -->
+<!-- table:failure_accounting sha256:b268d277b6e992a4f50b68d718f7db05e5b22a084bb0ca25a16e8342dc2d45ef rows:5 -->
 | run_id | model_repository | immutable_revision | failure_type | completed_generation_calls | gate_passed | vllm_service_stopped | allocated_gpu_seconds | interpretation |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | phase1-qwen3-14b-awq-v1 | Qwen/Qwen3-14B-AWQ | 1a6fe1ecf891437a270cce11ad54d796c4f56ce0 | TypeError | 0 | false | true | 0.096330 | Rejected primary-model lifecycle start; not a scientific model output. |
 | phase1-qwen3-14b-awq-v2 | Qwen/Qwen3-14B-AWQ | 1a6fe1ecf891437a270cce11ad54d796c4f56ce0 | RuntimeWatchdogTimeout | 0 | false | true | 212.185448 | Rejected primary-model lifecycle start; not a scientific model output. |
 | fallback-qwen3-8b-awq-development-v1 | Qwen/Qwen3-8B-AWQ | 4da05a8edb55c6046cce958586c33b61da07bb79 | RuntimeWatchdogTimeout | 0 | false | true | 210.680208 | Rejected fallback-model watchdog start; not a scientific model output. |
 | fallback-qwen3-8b-awq-development-v3 | Qwen/Qwen3-8B-AWQ | 4da05a8edb55c6046cce958586c33b61da07bb79 | RuntimeTransportError | 0 | false | true | 392.253423 | Fallback-v3 request was rejected by decoder-schema validation before generation; no scientific model output was accepted. |
+| fallback-qwen3-8b-awq-development-v4 | not_applicable | not_applicable | guardian_outer_result_path_identity_mismatch_before_readiness | 0 | false | true | 0.000000 | Operational control-plane failure before guardian readiness; no model process, service start, GPU allocation, inference attempt, authorized retry slot, or scientific generation. |
 
 _Interim verified table. It is not a completed section outcome._
 
@@ -266,9 +267,9 @@ The final report reserves distinct slots for the development tutorial, rare-pivo
 
 ## Machine-readable provenance
 
-Document source manifest SHA-256: `016232981064343020e0335a399d43744ba64f4f5c723978dc931f4326f2f255`.
+Document source manifest SHA-256: `157a5261a5847af75a5831e96fc97d62eb87a35ef5b457075dff409d168411e7`.
 
-Verified ingestion receipt SHA-256: `004b2e7ace7c75d1fcabd3f59a7f5686e1f088c4038db1f07ef6a5fc6a25bfef`.
+Verified ingestion receipt SHA-256: `dd64d597f3497c2b9ad7fc60205e90ad5540716e586f885b7aa0aada90b245fd`.
 
 Every displayed table carries its immutable CSV SHA-256 and row count in an HTML
 comment.

@@ -119,25 +119,25 @@ def _successful_fallback_result(*, with_repair: bool) -> dict[str, Any]:
     reserve_rows = [
         {
             "call_id": "fallback-c1-01",
-            "reservation_id": "fallback-v4:fallback-c1-01",
+            "reservation_id": "fallback-v5:fallback-c1-01",
             "reserve_call_class": "reserve_long",
             "watchdog_seconds": 240,
         },
         {
             "call_id": "fallback-c2-01",
-            "reservation_id": "fallback-v4:fallback-c2-01",
+            "reservation_id": "fallback-v5:fallback-c2-01",
             "reserve_call_class": "reserve_standard",
             "watchdog_seconds": 150,
         },
         {
             "call_id": "fallback-c2-02",
-            "reservation_id": "fallback-v4:fallback-c2-02",
+            "reservation_id": "fallback-v5:fallback-c2-02",
             "reserve_call_class": "reserve_standard",
             "watchdog_seconds": 150,
         },
         {
             "call_id": "fallback-fixed-01",
-            "reservation_id": "fallback-v4:fallback-fixed-01",
+            "reservation_id": "fallback-v5:fallback-fixed-01",
             "reserve_call_class": "reserve_short",
             "watchdog_seconds": 90,
         },
@@ -151,7 +151,7 @@ def _successful_fallback_result(*, with_repair: bool) -> dict[str, Any]:
             2,
             {
                 "call_id": "fallback-c2-01-repair-01",
-                "reservation_id": "fallback-v4:fallback-c2-01-repair-01",
+                "reservation_id": "fallback-v5:fallback-c2-01-repair-01",
                 "reserve_call_class": "reserve_short",
                 "watchdog_seconds": 90,
             },
@@ -159,7 +159,7 @@ def _successful_fallback_result(*, with_repair: bool) -> dict[str, Any]:
     return {
         "schema_version": "1.0.0",
         "kind": "phase1_fallback_micro_pilot_result",
-        "run_id": "fallback-qwen3-8b-awq-development-v4",
+        "run_id": "fallback-qwen3-8b-awq-development-v5",
         "gate_passed": True,
         "base_call_count": 4,
         "completed_base_call_count": 4,
@@ -168,7 +168,7 @@ def _successful_fallback_result(*, with_repair: bool) -> dict[str, Any]:
         "reserve_consumption": reserve_rows,
         "development_execution_result": {
             "kind": "development_execution_result",
-            "execution_id": "development-fallback-v4",
+            "execution_id": "development-fallback-v5",
             "content_hash": "d" * 64,
         },
     }
@@ -1174,8 +1174,8 @@ def test_phase1_native_source_accepts_complete_fallback_result(
 ) -> None:
     payload = _successful_fallback_result(with_repair=with_repair)
     route = NativeSourceRoute(
-        artifact_id="accepted-fallback-v4",
-        relative_path="native/fallback-v4.json",
+        artifact_id="accepted-fallback-v5",
+        relative_path="native/fallback-v5.json",
         self_hash_field=SelfHashField.MANIFEST,
         producer_role=NativeSourceRole.PHASE1_ACCEPTANCE_RESULT,
     )
@@ -1190,7 +1190,7 @@ def test_phase1_native_source_accepts_complete_fallback_result(
         "fallback-c2-02",
         "fallback-fixed-01",
     } <= phase1_strings
-    assert "development-fallback-v4" not in phase1_strings
+    assert "development-fallback-v5" not in phase1_strings
     assert classes["fallback-c1-01"] == frozenset({"acceptance_c1"})
     assert classes["fallback-c2-01"] == frozenset({"acceptance_c2"})
     assert classes["fallback-fixed-01"] == frozenset({"acceptance_fixed_select"})
@@ -1204,8 +1204,8 @@ def test_phase1_native_source_rejects_changed_fallback_call_inventory() -> None:
     payload = _successful_fallback_result(with_repair=False)
     payload["calls"][2]["call_id"] = "fallback-unregistered-01"
     route = NativeSourceRoute(
-        artifact_id="changed-fallback-v4",
-        relative_path="native/fallback-v4.json",
+        artifact_id="changed-fallback-v5",
+        relative_path="native/fallback-v5.json",
         self_hash_field=SelfHashField.MANIFEST,
         producer_role=NativeSourceRole.PHASE1_ACCEPTANCE_RESULT,
     )

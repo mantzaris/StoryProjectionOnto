@@ -72,6 +72,10 @@ from story_projection_onto.experiment import (
     forecast_gpu_schedule,
     summarize_call_class_timings,
 )
+from story_projection_onto.fallback_control_plane_incident import (
+    FALLBACK_CONTROL_PLANE_ERROR_CLASS,
+    validate_fallback_control_plane_incident,
+)
 from story_projection_onto.gpu_runtime import (
     DEFAULT_SHUTDOWN_SECONDS,
     DURABLE_EXEC_GATE_PROTOCOL,
@@ -198,6 +202,20 @@ SECOND_RECOVERY_RETRY_CALL_ID = "fallback-c1-01"
 SECOND_RECOVERY_RETRY_RESERVE_CLASS = "reserve_long"
 SECOND_RECOVERY_RETRY_WATCHDOG_SECONDS = 240
 SECOND_RECOVERY_OVERLAY_KIND = "phase1_fallback_second_recovery_overlay"
+SECOND_RECOVERY_V4_RUN_ID = "fallback-qwen3-8b-awq-development-v4"
+SECOND_RECOVERY_V5_RUN_ID = "fallback-qwen3-8b-awq-development-v5"
+SECOND_RECOVERY_V4_SOURCE_ASSOCIATION_MANIFEST_SHA256 = (
+    "461135158f0ab9fb526bfff4dd5767e743d76359822f971a61bca1ea5ac6d33a"
+)
+SECOND_RECOVERY_V4_OVERLAY_MANIFEST_SHA256 = (
+    "f53d2c75eee8a9e77c398b0d61ad7d3fde17630b790a96b7fc408ae8d391bddc"
+)
+SECOND_RECOVERY_V4_PREFLIGHT_MANIFEST_SHA256 = (
+    "4a563b8cb77eb5b93b785f9d223eedf4a3e47ae9a24003f91c0046a785d926a2"
+)
+SECOND_RECOVERY_V4_LEDGER_FILE_SHA256 = (
+    "38775d1fe3c27cb93afbf78f3c692300a05ed52cb083cb4656d0378b0b94429f"
+)
 SECOND_RECOVERY_EVIDENCE_BRIDGE_IMPLEMENTATION_PATH = (
     "src/story_projection_onto/phase1_legacy_provenance.py"
 )
@@ -436,8 +454,11 @@ _FALLBACK_CORE_IMPLEMENTATION_FILES = (
     "prompts/fixed_select/prompt_v1.md",
     "prompts/ablations/no_temporal_epistemic_v1.md",
     "prompts/repair/prompt_v1.md",
+    "schemas/jsonschema/fallback_control_plane_incident.schema.json",
     "schemas/jsonschema/ontology_draft.schema.json",
     "scripts/authorize_fallback_model.py",
+    "scripts/build_fallback_control_plane_incident.py",
+    "scripts/generate_schemas.py",
     "scripts/run_development_block.py",
     "scripts/run_fallback_gpu_acceptance.py",
     "scripts/verify_model_snapshot.py",
@@ -459,6 +480,7 @@ _FALLBACK_CORE_IMPLEMENTATION_FILES = (
     "src/story_projection_onto/evidence.py",
     "src/story_projection_onto/experiment.py",
     "src/story_projection_onto/fallback_acceptance.py",
+    "src/story_projection_onto/fallback_control_plane_incident.py",
     "src/story_projection_onto/gpu_runtime.py",
     "src/story_projection_onto/held_out_execution.py",
     "src/story_projection_onto/ledger_verify.py",
@@ -485,6 +507,8 @@ _FALLBACK_CORE_IMPLEMENTATION_FILES = (
     "tests/unit/test_combined_gpu_production.py",
     "tests/unit/test_contracts.py",
     "tests/unit/test_development_assessment.py",
+    "tests/unit/test_fallback_acceptance.py",
+    "tests/unit/test_fallback_control_plane_incident.py",
     "tests/unit/test_held_out_execution.py",
     "tests/unit/test_ledger_verify.py",
     "tests/unit/test_metrics_alignment.py",
@@ -996,10 +1020,32 @@ class SecondRecoveryConcurrentIntegrityDisclosure(_StrictOverlayRecord):
         return self
 
 
+class SecondRecoveryControlPlaneIncidentBinding(_StrictOverlayRecord):
+    """Typed zero-GPU provenance for the intervening v4 launch failure."""
+
+    run_id: Literal["fallback-qwen3-8b-awq-development-v4"]
+    incident_file_sha256: Sha256Digest
+    incident_manifest_sha256: Sha256Digest
+    classification: Literal[
+        "guardian_outer_result_path_identity_mismatch_before_readiness"
+    ]
+    control_plane_launch_attempts: Literal[1]
+    guardian_ready_published: Literal[False]
+    model_service_start_attempted: Literal[False]
+    inference_attempts_consumed: Literal[0]
+    retry_authorizations_consumed: Literal[0]
+    service_start_slots_consumed: Literal[0]
+    gpu_microseconds_delta: Literal[0]
+    gpu_event_count_delta: Literal[0]
+    gpu_service_session_count_delta: Literal[0]
+    accepted_output_count: Literal[0]
+    ledger_unchanged: Literal[True]
+
+
 class SecondFallbackRecoveryOverlay(_StrictOverlayRecord):
     """Strict proposed-or-authorized overlay for the one v3 transport retry."""
 
-    schema_version: Literal["1.2.0"] = "1.2.0"
+    schema_version: Literal["1.2.0", "1.3.0"] = "1.3.0"
     kind: Literal["phase1_fallback_second_recovery_overlay"]
     authorization: SecondRecoveryAuthorization
     authorized_recovery_run_id: str = Field(pattern=r"^[a-z0-9][a-z0-9._-]{0,95}$")
@@ -1021,6 +1067,7 @@ class SecondFallbackRecoveryOverlay(_StrictOverlayRecord):
     frozen_input_controls: SecondRecoveryFrozenInputControls
     projection_dependency_correction: SecondRecoveryProjectionDependencyCorrection
     concurrent_integrity_disclosure: SecondRecoveryConcurrentIntegrityDisclosure
+    intervening_control_plane_incident: SecondRecoveryControlPlaneIncidentBinding | None = None
     unchanged_scientific_controls: dict[str, bool]
     scope: str = Field(min_length=1)
     authoritative_plans_rewritten: Literal[False]
@@ -1028,7 +1075,10 @@ class SecondFallbackRecoveryOverlay(_StrictOverlayRecord):
 
     @model_validator(mode="after")
     def verify_manifest_identity(self) -> Self:
-        immutable = self.model_dump(mode="json", exclude={"manifest_sha256"})
+        excluded = {"manifest_sha256"}
+        if self.intervening_control_plane_incident is None:
+            excluded.add("intervening_control_plane_incident")
+        immutable = self.model_dump(mode="json", exclude=excluded)
         if self.manifest_sha256 != canonical_sha256(immutable):
             raise ValueError("second recovery overlay manifest hash changed")
         return self
@@ -2789,12 +2839,70 @@ def _verify_second_recovery_decoder_compiles(schema: Mapping[str, object]) -> No
     )
 
 
+def _second_recovery_v4_ledger_summary() -> dict[str, object]:
+    """Return the independently frozen terminal ledger summary before v4."""
+
+    return {
+        "total_allocated_microseconds": 815_215_409,
+        "event_count": 5,
+        "service_session_count": 4,
+        "service_start_event_count": 1,
+        "attempt_count": 1,
+        "model_call_count": 1,
+        "artifact_count": 17,
+        "unresolved_gpu_allocation_count": 0,
+        "unresolved_gpu_service_count": 0,
+        "by_kind_microseconds": {
+            "failure": 949_208,
+            "gpu_session_start": 214_034_494,
+            "service_overhead": 177_366_051,
+            "timeout": 422_865_656,
+        },
+    }
+
+
+def _second_recovery_control_plane_incident_binding(
+    path: Path,
+) -> dict[str, object]:
+    """Validate and reduce the exact v4 incident into the v5 overlay binding."""
+
+    incident = validate_fallback_control_plane_incident(
+        path,
+        expected_run_id=SECOND_RECOVERY_V4_RUN_ID,
+        expected_source_association_manifest_sha256=(
+            SECOND_RECOVERY_V4_SOURCE_ASSOCIATION_MANIFEST_SHA256
+        ),
+        expected_overlay_manifest_sha256=SECOND_RECOVERY_V4_OVERLAY_MANIFEST_SHA256,
+        expected_preflight_manifest_sha256=SECOND_RECOVERY_V4_PREFLIGHT_MANIFEST_SHA256,
+        expected_ledger_file_sha256=SECOND_RECOVERY_V4_LEDGER_FILE_SHA256,
+        expected_ledger_summary=_second_recovery_v4_ledger_summary(),
+    )
+    return {
+        "run_id": SECOND_RECOVERY_V4_RUN_ID,
+        "incident_file_sha256": _file_sha256(path),
+        "incident_manifest_sha256": incident.manifest_sha256,
+        "classification": FALLBACK_CONTROL_PLANE_ERROR_CLASS,
+        "control_plane_launch_attempts": 1,
+        "guardian_ready_published": False,
+        "model_service_start_attempted": False,
+        "inference_attempts_consumed": 0,
+        "retry_authorizations_consumed": 0,
+        "service_start_slots_consumed": 0,
+        "gpu_microseconds_delta": 0,
+        "gpu_event_count_delta": 0,
+        "gpu_service_session_count_delta": 0,
+        "accepted_output_count": 0,
+        "ledger_unchanged": True,
+    }
+
+
 def validate_second_fallback_recovery_overlay(
     *,
     root: Path,
     overlay_path: Path,
     v3_result_path: Path,
     v3_incident_path: Path,
+    prior_control_plane_incident_path: Path | None = None,
     prior_retry_amendment_path: Path,
     prior_retry_failure_path: Path,
     run_id: str,
@@ -2924,6 +3032,18 @@ def validate_second_fallback_recovery_overlay(
         raise ValueError("v3 incident and result GPU accounting differ")
     if observed is not None and _gpu_summary_payload(observed) != accounting_payload:
         raise RuntimeError("second recovery ledger differs from the terminal v3 ledger")
+    if run_id == SECOND_RECOVERY_V4_RUN_ID:
+        if prior_control_plane_incident_path is not None:
+            raise ValueError("historical v4 recovery cannot bind its later incident")
+    elif prior_control_plane_incident_path is None:
+        raise ValueError("post-v4 recovery lacks the exact intervening v4 incident")
+    expected_control_plane_incident = (
+        None
+        if prior_control_plane_incident_path is None
+        else _second_recovery_control_plane_incident_binding(
+            prior_control_plane_incident_path
+        )
+    )
 
     try:
         overlay = SecondFallbackRecoveryOverlay.model_validate(
@@ -2936,6 +3056,19 @@ def validate_second_fallback_recovery_overlay(
         raise ValueError("second recovery overlay contract is invalid") from exc
     if overlay.authorized_recovery_run_id != run_id or run_id == SECOND_RECOVERY_V3_RUN_ID:
         raise ValueError("second recovery overlay authorizes another or non-new run ID")
+    observed_control_plane_incident = (
+        None
+        if overlay.intervening_control_plane_incident is None
+        else overlay.intervening_control_plane_incident.model_dump(mode="json")
+    )
+    expected_overlay_schema = (
+        "1.2.0" if expected_control_plane_incident is None else "1.3.0"
+    )
+    if (
+        overlay.schema_version != expected_overlay_schema
+        or observed_control_plane_incident != expected_control_plane_incident
+    ):
+        raise ValueError("second recovery overlay changed its v4 control-plane incident binding")
     if require_authorized and overlay.authorization.status != "authorized":
         raise PermissionError("second recovery overlay remains proposed and cannot execute")
 
@@ -3166,7 +3299,10 @@ def validate_second_fallback_recovery_overlay(
         or expected_forecast["admitted"] is not True
     ):
         raise ValueError("second recovery lacks the corrected admitted GPU forecast")
-    return overlay.model_dump(mode="json"), predecessor, incident
+    overlay_payload = overlay.model_dump(mode="json")
+    if overlay.intervening_control_plane_incident is None:
+        overlay_payload.pop("intervening_control_plane_incident", None)
+    return overlay_payload, predecessor, incident
 
 
 def _second_recovery_authorization(
@@ -3299,6 +3435,7 @@ def build_second_fallback_recovery_overlay(
     restricted_output_root: Path,
     v3_result_path: Path,
     v3_incident_path: Path,
+    prior_control_plane_incident_path: Path | None = None,
     prior_retry_amendment_path: Path,
     prior_retry_failure_path: Path,
     run_id: str,
@@ -3381,8 +3518,22 @@ def build_second_fallback_recovery_overlay(
         basis=authorization_basis,
         authorized_at=authorized_at,
     )
+    if run_id == SECOND_RECOVERY_V4_RUN_ID:
+        if prior_control_plane_incident_path is not None:
+            raise ValueError("historical v4 recovery cannot bind its later incident")
+    elif prior_control_plane_incident_path is None:
+        raise ValueError(
+            "post-v4 recovery builder requires the exact intervening v4 incident"
+        )
+    control_plane_incident = (
+        None
+        if prior_control_plane_incident_path is None
+        else _second_recovery_control_plane_incident_binding(
+            prior_control_plane_incident_path
+        )
+    )
     payload: dict[str, object] = {
-        "schema_version": "1.2.0",
+        "schema_version": "1.2.0" if control_plane_incident is None else "1.3.0",
         "kind": SECOND_RECOVERY_OVERLAY_KIND,
         "authorization": authorization,
         "authorized_recovery_run_id": run_id,
@@ -3532,9 +3683,14 @@ def build_second_fallback_recovery_overlay(
         ),
         "authoritative_plans_rewritten": False,
     }
-    candidate = SecondFallbackRecoveryOverlay.model_validate(
+    if control_plane_incident is not None:
+        payload["intervening_control_plane_incident"] = control_plane_incident
+    typed_candidate = SecondFallbackRecoveryOverlay.model_validate(
         {**payload, "manifest_sha256": canonical_sha256(payload)}
-    ).model_dump(mode="json")
+    )
+    candidate = typed_candidate.model_dump(mode="json")
+    if typed_candidate.intervening_control_plane_incident is None:
+        candidate.pop("intervening_control_plane_incident", None)
 
     with tempfile.TemporaryDirectory(
         dir=output_path.parent,
@@ -3547,6 +3703,7 @@ def build_second_fallback_recovery_overlay(
             overlay_path=validation_path,
             v3_result_path=v3_result_path,
             v3_incident_path=v3_incident_path,
+            prior_control_plane_incident_path=prior_control_plane_incident_path,
             prior_retry_amendment_path=prior_retry_amendment_path,
             prior_retry_failure_path=prior_retry_failure_path,
             run_id=run_id,
@@ -3929,7 +4086,8 @@ def fallback_plan_manifest(root: Path) -> dict[str, object]:
             "proposed_overlay_validation_is_cpu_only": True,
             "deterministic_cpu_only_builder_available": True,
             "builder_output_policy": "restricted_append_only_exact_replay",
-            "overlay_schema_version": "1.2.0",
+            "overlay_schema_version": "1.3.0",
+            "intervening_zero_gpu_control_plane_incident_required": True,
             "evidence_provenance_bridge_binding_required": True,
             "retry_wire_delta_scope": (
                 "guided_schema_schema_derived_runtime_hashes_and_"
@@ -4859,6 +5017,10 @@ class FallbackAcceptanceRunner:
             )
         ):
             raise ValueError("run_id must be a lowercase public-safe identifier")
+        if self.run_id == SECOND_RECOVERY_V4_RUN_ID:
+            raise ValueError(
+                "fallback v4 is a terminal control-plane incident and cannot execute"
+            )
         self.root = self.root.resolve(strict=True)
         self.legacy_provenance_bridge = _require_phase1_legacy_provenance_bridge(
             self.root,
@@ -4898,6 +5060,9 @@ class FallbackAcceptanceRunner:
             assert self.second_recovery_v3_result is not None
             assert self.second_recovery_v3_incident is not None
             authorization = self.second_recovery_overlay.get("authorization")
+            intervening_incident = self.second_recovery_overlay.get(
+                "intervening_control_plane_incident"
+            )
             if (
                 not isinstance(authorization, Mapping)
                 or authorization.get("status") != "authorized"
@@ -4908,6 +5073,12 @@ class FallbackAcceptanceRunner:
                 != SECOND_RECOVERY_V3_INCIDENT_MANIFEST_SHA256
             ):
                 raise ValueError("second fallback recovery is not explicitly authorized")
+            if (
+                self.second_recovery_overlay.get("schema_version") != "1.3.0"
+                or not isinstance(intervening_incident, Mapping)
+                or intervening_incident.get("ledger_unchanged") is not True
+            ):
+                raise ValueError("post-v4 recovery lacks its intervening v4 incident binding")
 
     @property
     def retry_amendment_hash(self) -> str | None:
@@ -8988,6 +9159,10 @@ def _controller_execution_arguments(options: argparse.Namespace) -> dict[str, ob
         identity["second_recovery_overlay"] = str(options.second_recovery_overlay.resolve())
         identity["second_recovery_v3_result"] = str(options.second_recovery_v3_result.resolve())
         identity["second_recovery_v3_incident"] = str(options.second_recovery_v3_incident.resolve())
+    if options.prior_control_plane_incident is not None:
+        identity["prior_control_plane_incident"] = str(
+            options.prior_control_plane_incident.resolve()
+        )
     return identity
 
 
@@ -9009,7 +9184,17 @@ class _FallbackOrchestrationPaths:
 
 def _orchestration_paths(options: argparse.Namespace) -> _FallbackOrchestrationPaths:
     checkpoint = options.checkpoint.resolve()
-    result = options.output.resolve()
+    # Internal controllers write stage-specific outputs, so their public
+    # ``--output`` value is not the orchestration's terminal result path.  Carry
+    # that immutable outer path through the private CLI boundary explicitly;
+    # otherwise a fresh interpreter derives a different handoff/result identity
+    # and cannot validate the guardian ticket created by the orchestrator.
+    orchestration_result = getattr(options, "orchestration_result_output", None)
+    result = (
+        options.output.resolve()
+        if orchestration_result is None
+        else orchestration_result.resolve()
+    )
     return _FallbackOrchestrationPaths(
         checkpoint=checkpoint,
         service_checkpoint=checkpoint.with_name(checkpoint.name + ".service"),
@@ -9552,6 +9737,8 @@ def _internal_controller_command(
         cast(str, arguments["project_root"]),
         "--output",
         str(output.resolve()),
+        "--orchestration-result-output",
+        str(_orchestration_paths(options).result_output),
     ]
     if guard is not None:
         command.extend(("--orchestrator-guard", str(guard.resolve())))
@@ -9576,6 +9763,7 @@ def _internal_controller_command(
         "second_recovery_overlay",
         "second_recovery_v3_result",
         "second_recovery_v3_incident",
+        "prior_control_plane_incident",
     ):
         if name in arguments:
             command.extend((f"--{name.replace('_', '-')}", cast(str, arguments[name])))
@@ -9839,6 +10027,8 @@ def _live_guardian_receipt(
         pid = ready.get("guardian_pid")
         start_ticks = ready.get("guardian_start_ticks")
         command_sha256 = ready.get("guardian_process_command_sha256")
+        process_group_id = ready.get("guardian_process_group_id")
+        session_id = ready.get("guardian_session_id")
         if (
             ready.get("run_id") != invocation.get("run_id")
             or ready.get("orchestration_invocation_sha256") != invocation.get("manifest_sha256")
@@ -9849,14 +10039,27 @@ def _live_guardian_receipt(
             or isinstance(start_ticks, bool)
             or not isinstance(start_ticks, int)
             or not isinstance(command_sha256, str)
+            or isinstance(process_group_id, bool)
+            or not isinstance(process_group_id, int)
+            or process_group_id <= 0
+            or isinstance(session_id, bool)
+            or not isinstance(session_id, int)
+            or session_id <= 0
         ):
             raise ValueError("guardian-ready receipt changed its invocation identity")
         try:
             os.kill(pid, 0)
             observed_ticks, observed_command = _process_identity(pid)
+            observed_group = os.getpgid(pid)
+            observed_session = os.getsid(pid)
         except (OSError, RuntimeError, ValueError):
             continue
-        if observed_ticks == start_ticks and observed_command == command_sha256:
+        if (
+            observed_ticks == start_ticks
+            and observed_command == command_sha256
+            and observed_group == process_group_id
+            and observed_session == session_id
+        ):
             return ready
     return None
 
@@ -9933,6 +10136,31 @@ def _validate_guardian_ticket(options: argparse.Namespace) -> dict[str, object]:
     ) != ticket.get("guardian_command_sha256"):
         raise ValueError("guardian ticket does not bind this invocation command")
     return ticket
+
+
+def _guardian_process_identity(
+    options: argparse.Namespace,
+    *,
+    paths: _FallbackOrchestrationPaths,
+) -> tuple[int, int, str, int, int]:
+    """Prove the guardian has its exact argv and an independent process group."""
+
+    pid = os.getpid()
+    start_ticks, observed_command_sha256 = _process_identity(pid)
+    expected_command_sha256 = _raw_command_sha256(
+        _guardian_controller_command(
+            options,
+            output=paths.guardian_result,
+            ticket=paths.guardian_ticket,
+        )
+    )
+    process_group_id = os.getpgrp()
+    session_id = os.getsid(0)
+    if observed_command_sha256 != expected_command_sha256:
+        raise RuntimeError("guardian process command differs from authorization")
+    if process_group_id != pid or session_id != pid:
+        raise RuntimeError("guardian is not isolated in its own process group and session")
+    return pid, start_ticks, observed_command_sha256, process_group_id, session_id
 
 
 def _control_process_group_alive(process_group_id: int) -> bool:
@@ -10201,13 +10429,19 @@ def _run_guardian(
     invocation, expected_ticket = _load_orchestration_identity(options, paths)
     if ticket.get("manifest_sha256") != expected_ticket.get("manifest_sha256"):
         raise ValueError("guardian received another immutable ticket")
+    (
+        guardian_pid,
+        guardian_start_ticks,
+        guardian_process_command_sha256,
+        guardian_process_group_id,
+        guardian_session_id,
+    ) = _guardian_process_identity(options, paths=paths)
     descriptor = os.open(paths.guardian_lock, os.O_CREAT | os.O_RDWR, 0o600)
     try:
         try:
             fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as exc:
             raise RuntimeError("another exact fallback guardian is already active") from exc
-        start_ticks, command_sha256 = _process_identity(os.getpid())
         ready_sequence = len(_guardian_ready_paths(paths)) + 1
         ready_payload: dict[str, object] = {
             "schema_version": SCHEMA_VERSION,
@@ -10216,9 +10450,11 @@ def _run_guardian(
             "orchestration_invocation_sha256": invocation["manifest_sha256"],
             "guardian_ticket_sha256": ticket["manifest_sha256"],
             "guardian_command_sha256": ticket["guardian_command_sha256"],
-            "guardian_pid": os.getpid(),
-            "guardian_start_ticks": start_ticks,
-            "guardian_process_command_sha256": command_sha256,
+            "guardian_pid": guardian_pid,
+            "guardian_start_ticks": guardian_start_ticks,
+            "guardian_process_command_sha256": guardian_process_command_sha256,
+            "guardian_process_group_id": guardian_process_group_id,
+            "guardian_session_id": guardian_session_id,
             "ready_at": datetime.now(UTC).isoformat(),
         }
         ready = {**ready_payload, "manifest_sha256": canonical_sha256(ready_payload)}
@@ -10390,6 +10626,11 @@ def _close_orchestrator_guard(
 def _orchestrate_controller_processes(options: argparse.Namespace) -> int:
     """Supervise controllers under one append-only identity and independent guardian."""
 
+    if os.getpgrp() != os.getpid():
+        raise RuntimeError(
+            "fallback orchestrator requires its dedicated process group; "
+            "use scripts/run_fallback_gpu_acceptance.py"
+        )
     paths = _orchestration_paths(options)
     if options.resume_orchestrator:
         invocation, ticket = _load_orchestration_identity(options, paths)
@@ -10750,6 +10991,11 @@ def parse_arguments(arguments: Sequence[str] | None = None) -> argparse.Namespac
     )
     parser.add_argument("--orchestrator-guard", type=Path, help=argparse.SUPPRESS)
     parser.add_argument("--guardian-ticket", type=Path, help=argparse.SUPPRESS)
+    parser.add_argument(
+        "--orchestration-result-output",
+        type=Path,
+        help=argparse.SUPPRESS,
+    )
     parser.add_argument("--resume-orchestrator", action="store_true")
     parser.add_argument("--run-id")
     parser.add_argument("--primary-result", type=Path)
@@ -10764,6 +11010,7 @@ def parse_arguments(arguments: Sequence[str] | None = None) -> argparse.Namespac
     parser.add_argument("--second-recovery-overlay", type=Path)
     parser.add_argument("--second-recovery-v3-result", type=Path)
     parser.add_argument("--second-recovery-v3-incident", type=Path)
+    parser.add_argument("--prior-control-plane-incident", type=Path)
     parser.add_argument("--restricted-output-root", type=Path)
     parser.add_argument(
         "--second-recovery-authorization-status",
@@ -10822,6 +11069,7 @@ def _require_second_recovery_builder_arguments(options: argparse.Namespace) -> N
         "prior_fallback_failure",
         "second_recovery_v3_result",
         "second_recovery_v3_incident",
+        "prior_control_plane_incident",
         "restricted_output_root",
         "ledger",
     )
@@ -10893,6 +11141,7 @@ def _build_second_recovery_overlay_from_cli(
         restricted_output_root=options.restricted_output_root,
         v3_result_path=options.second_recovery_v3_result,
         v3_incident_path=options.second_recovery_v3_incident,
+        prior_control_plane_incident_path=options.prior_control_plane_incident,
         prior_retry_amendment_path=options.retry_amendment,
         prior_retry_failure_path=options.prior_fallback_failure,
         run_id=options.run_id,
@@ -10953,12 +11202,60 @@ def _require_execution_arguments(
         )
     if options.second_recovery_overlay is not None and options.retry_amendment is None:
         raise SystemExit("second recovery requires the original v3 amendment lineage")
+    if (
+        options.prior_control_plane_incident is not None
+        and options.second_recovery_overlay is None
+    ):
+        raise SystemExit("a prior control-plane incident requires second recovery")
+    if options.execute and options.run_id == SECOND_RECOVERY_V4_RUN_ID:
+        raise SystemExit(
+            "fallback v4 is a terminal control-plane incident and cannot execute"
+        )
+    if options.run_id == SECOND_RECOVERY_V5_RUN_ID and (
+        options.second_recovery_overlay is None
+        or options.prior_control_plane_incident is None
+    ):
+        raise SystemExit("the v5 recovery requires --prior-control-plane-incident")
+    if (
+        options.second_recovery_overlay is not None
+        and options.run_id != SECOND_RECOVERY_V4_RUN_ID
+        and options.prior_control_plane_incident is None
+    ):
+        raise SystemExit("post-v4 recovery requires --prior-control-plane-incident")
     if options.resume_orchestrator and options.controller_stage != "orchestrate":
         raise SystemExit("--resume-orchestrator requires --controller-stage orchestrate")
     if options.guardian_ticket is not None and options.controller_stage != "guardian":
         raise SystemExit("--guardian-ticket is reserved for the guardian controller")
     if options.controller_stage == "guardian" and options.guardian_ticket is None:
         raise SystemExit("guardian controller requires --guardian-ticket")
+    internal_stages = {"prepare", "recover-prepare", "run", "cleanup", "guardian"}
+    if (
+        options.controller_stage in internal_stages
+        and options.orchestration_result_output is None
+    ):
+        raise SystemExit(
+            "internal controller requires --orchestration-result-output"
+        )
+    if (
+        options.controller_stage not in internal_stages
+        and options.orchestration_result_output is not None
+    ):
+        raise SystemExit(
+            "--orchestration-result-output is reserved for internal controllers"
+        )
+    if options.controller_stage in internal_stages:
+        paths = _orchestration_paths(options)
+        expected_output = {
+            "prepare": paths.handoff_output,
+            "recover-prepare": paths.handoff_output,
+            "run": paths.result_output,
+            "cleanup": paths.cleanup_output,
+            "guardian": paths.guardian_result,
+        }[options.controller_stage]
+        if options.output.resolve() != expected_output:
+            raise SystemExit(
+                "internal controller output does not match its orchestration stage"
+            )
 
 
 def _validate_execution_preflight(
@@ -11101,6 +11398,9 @@ def _validate_execution_preflight(
                     overlay_path=options.second_recovery_overlay,
                     v3_result_path=cast(Path, options.second_recovery_v3_result),
                     v3_incident_path=cast(Path, options.second_recovery_v3_incident),
+                    prior_control_plane_incident_path=(
+                        options.prior_control_plane_incident
+                    ),
                     prior_retry_amendment_path=options.retry_amendment,
                     prior_retry_failure_path=cast(Path, options.prior_fallback_failure),
                     run_id=options.run_id,
@@ -11171,6 +11471,11 @@ def _validate_execution_preflight(
     execution_authorized = (
         True if authorization is None else authorization.get("status") == "authorized"
     )
+    control_plane_binding = (
+        None
+        if second_overlay is None
+        else second_overlay.get("intervening_control_plane_incident")
+    )
     payload: dict[str, object] = {
         "schema_version": SCHEMA_VERSION,
         "kind": "phase1_fallback_execution_preflight",
@@ -11196,6 +11501,11 @@ def _validate_execution_preflight(
         ),
         "second_recovery_v3_incident_sha256": (
             None if second_incident is None else second_incident["manifest_sha256"]
+        ),
+        "prior_control_plane_incident_sha256": (
+            None
+            if not isinstance(control_plane_binding, Mapping)
+            else control_plane_binding["incident_manifest_sha256"]
         ),
         "authorization_status": (None if authorization is None else authorization.get("status")),
         "authorization_basis": (None if authorization is None else authorization.get("basis")),
@@ -11392,6 +11702,9 @@ def main(
                 overlay_path=options.second_recovery_overlay,
                 v3_result_path=cast(Path, options.second_recovery_v3_result),
                 v3_incident_path=cast(Path, options.second_recovery_v3_incident),
+                prior_control_plane_incident_path=(
+                    options.prior_control_plane_incident
+                ),
                 prior_retry_amendment_path=cast(Path, options.retry_amendment),
                 prior_retry_failure_path=cast(Path, options.prior_fallback_failure),
                 run_id=options.run_id,

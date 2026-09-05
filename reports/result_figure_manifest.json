@@ -6,21 +6,21 @@
       "kind": "phase_status",
       "relative_path": "figures/study_status.pdf",
       "report_section_id": "resource_controls",
-      "sha256": "1afd60085462d56dc80002ad9f1340fd8776a5973c8f9b4e82600da36f3e55d3",
+      "sha256": "32b1c6c691346c83d1b9bd4b44838a98ef39547ef096c13bf05cd26387b3ede6",
       "source_artifact_hashes": [],
       "source_table_sha256": null
     }
   ],
   "kind": "result_and_figure_manifest",
-  "manifest_sha256": "67eda6ada91995788ccc281d88e44770a1c50ec59c7710a2f573738b5a7abc13",
+  "manifest_sha256": "f6fee0d12cbfee3d1f7c7d993ab2cfc60e299dc82ecb114d881357a6732a2c0c",
   "reports": [
     {
       "relative_path": "RESULTS_REPORT.md",
-      "sha256": "1ac1468009ceb06bb534ed6259f54acadb6f78542bb0d28b486c306da8c95e9a"
+      "sha256": "dc20e03980cb96e483bfd72626a28592eaf8dfbb72780a91fb9c2654046ca334"
     },
     {
       "relative_path": "RESULTS_REPORT.pdf",
-      "sha256": "ea0c640f1485932adc85c73c4f3113e2a5db9a5a48b32204995bc9eac1215e0f"
+      "sha256": "68867b4bac913c8e3429af49ee296404bedea5dc0b5972257fa89eaf58a6b60d"
     }
   ],
   "review_supplements": [],
@@ -34,11 +34,12 @@
     "c2d84fe31a2e4da613b5d7af418ba9d5c11d1b1c8f8e22583fba5f47ecaa42c3",
     "9279cdcb048be6bf44da6570d26df9ffd048d839a3bb9f5d76a328f6ea62108a",
     "fd42f197b88bef61ad5696280fd6b4a72f256fd3b0991a069771c5074c9b50e7",
+    "ff74489a367c6e24c693ba8c00ccc3de505ef9af1f84f3a90518ef573ad06052",
     "90bbb5279e99bc9fe39d92332e70c2e431c42e2131df3cbb816db6ba43861bef"
   ],
-  "source_ingestion_receipt_file_sha256": "8f90d49337c1d55fba5413b1d57af54fd1bb5bbd9a4777133f1be733ec94b7fd",
-  "source_ingestion_receipt_sha256": "004b2e7ace7c75d1fcabd3f59a7f5686e1f088c4038db1f07ef6a5fc6a25bfef",
-  "source_result_manifest_sha256": "016232981064343020e0335a399d43744ba64f4f5c723978dc931f4326f2f255",
+  "source_ingestion_receipt_file_sha256": "cac19c8da1c122e37eb957fd18d8a1836d3269851f878475c2af1124531b1451",
+  "source_ingestion_receipt_sha256": "dd64d597f3497c2b9ad7fc60205e90ad5540716e586f885b7aa0aada90b245fd",
+  "source_result_manifest_sha256": "157a5261a5847af75a5831e96fc97d62eb87a35ef5b457075dff409d168411e7",
   "study_status": "incomplete",
   "tables": [
     {
@@ -51,7 +52,7 @@
       "row_count": 7,
       "sha256": "d1cae85a93158406ed710d39a7b6eb69cb4eee6d69bb91b3a32b7bc16051143d",
       "source_artifact_hashes": [
-        "5393f43861b8d5cdab7bc5a2f08153d81db98b118310e7848d004e120a2f2917"
+        "12c83b603ac1fca541677a24379297259c7972e6a1480e9189b73153264e6aa6"
       ],
       "table_id": "study_status"
     },
@@ -90,14 +91,15 @@
         "interpretation"
       ],
       "relative_path": "tables/failure_accounting.csv",
-      "row_count": 4,
-      "sha256": "339b205aa3ea22d6bca593b76fb0bd9ecf4a2641961b902d9b1ccee4452ef75a",
+      "row_count": 5,
+      "sha256": "b268d277b6e992a4f50b68d718f7db05e5b22a084bb0ca25a16e8342dc2d45ef",
       "source_artifact_hashes": [
         "c978e75cef00ba7276055538c69d50b1a5396e628463ec25546b4bc97bd53ab9",
         "4b870ec47668105badd32528d6fb6997fc0221618097e048ff28d27716f78050",
         "c2d84fe31a2e4da613b5d7af418ba9d5c11d1b1c8f8e22583fba5f47ecaa42c3",
         "9279cdcb048be6bf44da6570d26df9ffd048d839a3bb9f5d76a328f6ea62108a",
-        "fd42f197b88bef61ad5696280fd6b4a72f256fd3b0991a069771c5074c9b50e7"
+        "fd42f197b88bef61ad5696280fd6b4a72f256fd3b0991a069771c5074c9b50e7",
+        "ff74489a367c6e24c693ba8c00ccc3de505ef9af1f84f3a90518ef573ad06052"
       ],
       "table_id": "failure_accounting"
     }

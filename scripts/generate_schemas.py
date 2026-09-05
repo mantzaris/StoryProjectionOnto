@@ -22,9 +22,13 @@ from story_projection_onto.contracts import (
     canonical_json_schema,
     canonical_sha256,
 )
+from story_projection_onto.fallback_control_plane_incident import (
+    FallbackControlPlaneIncident,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT_DIRECTORY = PROJECT_ROOT / "schemas" / "jsonschema"
+OPERATIONAL_SCHEMA_TYPES: tuple[type[BaseModel], ...] = (FallbackControlPlaneIncident,)
 
 
 def _snake_case(name: str) -> str:
@@ -83,6 +87,8 @@ def _export_models() -> tuple[tuple[type[BaseModel], str], ...]:
         surfaces[model_type] = "model_interaction"
     for model_type in PUBLIC_SCHEMA_TYPES:
         surfaces.setdefault(model_type, "public_contract")
+    for model_type in OPERATIONAL_SCHEMA_TYPES:
+        surfaces.setdefault(model_type, "public_operational_contract")
     return tuple(sorted(surfaces.items(), key=lambda item: item[0].__name__))
 
 

@@ -1,15 +1,17 @@
 # Second fallback recovery overlay
 
-This repository supports, but does not itself authorize, one recovery after the
-terminal `fallback-qwen3-8b-awq-development-v3` decoder-transport incident. No
-authorized second-recovery artifact is checked in. The existing v3 amendment,
-its validator, the v3 failed result, and the incident association remain
-immutable provenance.
+This repository supports, but does not itself authorize, one fresh recovery
+after the terminal `fallback-qwen3-8b-awq-development-v3` decoder-transport
+incident and the later zero-GPU v4 control-plane incident. No authorized v5
+recovery artifact is checked in. The existing v3 amendment, its validator, the
+v3 failed result and incident association, and the v4 control-plane record
+remain immutable provenance.
 
 The second overlay is intentionally fail-closed. It must bind all of the
 following before a model process can start:
 
 - the exact v3 result and incident file and manifest hashes;
+- the exact self-hashed v4 zero-GPU control-plane incident;
 - the original v3 retry amendment and its predecessor through the original
   amendment validator;
 - the cumulative 815.215409 GPU seconds, five ledger events, and four service
@@ -71,6 +73,26 @@ any further allocation, the values are:
 
 These values must be recomputed by the validator from immutable inputs; copying
 them into an overlay is not sufficient.
+
+## Immutable v4 zero-GPU control-plane incident
+
+The authorized `fallback-qwen3-8b-awq-development-v4` attempt passed its
+CPU-only preflight and wrote an orchestration invocation, first guard, and
+guardian ticket. The guardian then rejected the invocation identity before
+readiness, and the orchestrator exited with `fallback guardian exited before
+readiness (1)`. No internal controller, checkpoint, handoff, model process,
+service-start allocation, or result was created. The post-failure status kept
+the cumulative allocation at 815.215409 seconds with zero unresolved GPU
+allocations or service sessions; v4 therefore consumed zero additional GPU
+seconds.
+
+The contemporaneous status receipt's `resume_allowed: true` is superseded by
+this postmortem. v4 must not be resumed, and none of its run ID, run root,
+output paths, tmux session, invocation, guard, or guardian state may be reused.
+Preserve those bytes and the immutable incident record at
+`artifacts/public/manifests/fallback_gpu_acceptance_development_v4_control_plane_incident.json`.
+Every v5 proposal, preflight, launch, status check, and resume check must bind
+that record through `--prior-control-plane-incident`.
 
 ## Immutable-v3 evidence-provenance bridge
 
@@ -249,9 +271,9 @@ binding.
 
 ## Authorization and dry validation
 
-`SecondFallbackRecoveryOverlay` schema version 1.2.0 requires the typed evidence
-provenance bridge binding, projection-dependency correction, and
-concurrent-integrity disclosure. It
+`SecondFallbackRecoveryOverlay` schema version 1.3.0 requires the typed evidence
+provenance bridge binding, projection-dependency correction,
+concurrent-integrity disclosure, and exact v4 control-plane incident binding. It
 accepts either `proposed` or `authorized` so a complete proposal can be checked
 without inventing approval. A proposal must
 leave `authorized_by` and `recorded_at` null. An authorized overlay must name
@@ -267,6 +289,7 @@ arguments:
 --second-recovery-overlay <proposed-or-authorized-overlay.json>
 --second-recovery-v3-result artifacts/public/results/fallback_gpu_acceptance_development_v3.json
 --second-recovery-v3-incident artifacts/public/manifests/fallback_gpu_acceptance_development_v3_incident.json
+--prior-control-plane-incident artifacts/public/manifests/fallback_gpu_acceptance_development_v4_control_plane_incident.json
 ```
 
 Validation is CPU-only. It verifies the bridge certificate and every registered
@@ -288,25 +311,26 @@ are append-only and an exact byte-identical replay is idempotent.
 
 Build the inert proposal after the final source association exists:
 
-`source_tree_fallback_second_recovery_v4.association.json` below is the required
-new association; none of the older v3/v4/v5 associations can bind the
+`source_tree_fallback_second_recovery_v5.association.json` below is the required
+fresh association; no v3/v4 association or earlier v5 candidate can bind the
 implementation added here.
 
 ```bash
 python -m story_projection_onto.fallback_acceptance \
   --build-second-recovery-overlay \
   --project-root <project-root> \
-  --output <project-root>/artifacts/restricted/fallback-second-recovery-v4.proposed.json \
+  --output <project-root>/artifacts/restricted/fallback-second-recovery-v5.proposed.json \
   --restricted-output-root <project-root>/artifacts/restricted \
-  --run-id fallback-qwen3-8b-awq-development-v4 \
+  --run-id fallback-qwen3-8b-awq-development-v5 \
   --primary-result <project-root>/artifacts/public/results/phase1_gpu_acceptance_v2_failed.json \
   --activation-certificate <project-root>/artifacts/public/manifests/fallback_activation_v2.json \
   --snapshot <pinned-model-snapshot> \
-  --source-association <project-root>/artifacts/public/manifests/source_tree_fallback_second_recovery_v4.association.json \
+  --source-association <project-root>/artifacts/public/manifests/source_tree_fallback_second_recovery_v5.association.json \
   --retry-amendment <project-root>/configs/study/fallback_service_retry_amendment.json \
   --prior-fallback-failure <project-root>/artifacts/public/results/fallback_gpu_acceptance_development_v1.json.controller-handoff.json \
   --second-recovery-v3-result <project-root>/artifacts/public/results/fallback_gpu_acceptance_development_v3.json \
   --second-recovery-v3-incident <project-root>/artifacts/public/manifests/fallback_gpu_acceptance_development_v3_incident.json \
+  --prior-control-plane-incident <project-root>/artifacts/public/manifests/fallback_gpu_acceptance_development_v4_control_plane_incident.json \
   --ledger <project-root>/artifacts/restricted/phase1_acceptance.sqlite
 ```
 
@@ -327,45 +351,46 @@ file suffix (`.pyc`/`.pyo`), so recovered interpreter artifacts cannot enter or
 create a false mismatch in the scientific source association:
 
 ```bash
-revision_label=fallback-second-recovery-v4
+revision_label=fallback-second-recovery-v5
 manifest_root=artifacts/public/manifests
 checkpoint_commit=<full-tested-recovery-checkpoint-commit>
 recorded_at=<actual-aware-UTC-recording-time>
 
 PYTHONPATH=src python -m story_projection_onto.manifest \
   --root . --revision "$revision_label" \
-  --output "$manifest_root/source_tree_fallback_second_recovery_v4.local.json"
+  --output "$manifest_root/source_tree_fallback_second_recovery_v5.local.json"
 
 # Run independently in the byte-identical remote project directory:
 PYTHONPATH=src .venv/bin/python -m story_projection_onto.manifest \
   --root . --revision "$revision_label" \
-  --output "$manifest_root/source_tree_fallback_second_recovery_v4.remote.json"
+  --output "$manifest_root/source_tree_fallback_second_recovery_v5.remote.json"
 
 PYTHONPATH=src python scripts/associate_source_manifests.py \
-  --local-manifest "$manifest_root/source_tree_fallback_second_recovery_v4.local.json" \
-  --remote-manifest "$manifest_root/source_tree_fallback_second_recovery_v4.remote.json" \
+  --local-manifest "$manifest_root/source_tree_fallback_second_recovery_v5.local.json" \
+  --remote-manifest "$manifest_root/source_tree_fallback_second_recovery_v5.remote.json" \
   --git-commit "$checkpoint_commit" \
   --revision-label "$revision_label" \
   --recorded-at "$recorded_at" \
-  --output "$manifest_root/source_tree_fallback_second_recovery_v4.association.json"
+  --output "$manifest_root/source_tree_fallback_second_recovery_v5.association.json"
 ```
 
 Use one fresh run root and outputs that do not already exist. The source
 association below must be the newly generated post-test association, not a v3,
-v4, or v5 predecessor. `--validate-only` and operator execution both use the
+v4, or earlier v5 candidate. `--validate-only` and operator execution both use the
 public `orchestrate` stage; never invoke `prepare`, `run`, or `cleanup` directly.
 
 ```bash
 study_root=/workspace/StoryProjectionOnto
 study_python="$study_root/.venv/bin/python"
-run_id=fallback-qwen3-8b-awq-development-v4
-run_root="$study_root/artifacts/restricted/fallback-development-v4"
+run_id=fallback-qwen3-8b-awq-development-v5
+run_root="$study_root/artifacts/restricted/fallback-development-v5"
 shared_cache="$study_root/.cache/shared"
 snapshot="$shared_cache/hub/models--Qwen--Qwen3-8B-AWQ/snapshots/4da05a8edb55c6046cce958586c33b61da07bb79"
-source_association="$study_root/artifacts/public/manifests/source_tree_fallback_second_recovery_v4.association.json"
-second_recovery_overlay="$study_root/artifacts/restricted/fallback-second-recovery-v4.authorized.json"
-preflight="$study_root/artifacts/public/manifests/fallback_gpu_acceptance_development_v4.preflight.json"
-result="$study_root/artifacts/public/results/fallback_gpu_acceptance_development_v4.json"
+source_association="$study_root/artifacts/public/manifests/source_tree_fallback_second_recovery_v5.association.json"
+second_recovery_overlay="$study_root/artifacts/restricted/fallback-second-recovery-v5.authorized.json"
+preflight="$study_root/artifacts/public/manifests/fallback_gpu_acceptance_development_v5.preflight.json"
+result="$study_root/artifacts/public/results/fallback_gpu_acceptance_development_v5.json"
+tmux_session=storyprojection-study-v5
 
 common_arguments=(
   --controller-stage orchestrate
@@ -383,6 +408,7 @@ common_arguments=(
   --second-recovery-overlay "$second_recovery_overlay"
   --second-recovery-v3-result "$study_root/artifacts/public/results/fallback_gpu_acceptance_development_v3.json"
   --second-recovery-v3-incident "$study_root/artifacts/public/manifests/fallback_gpu_acceptance_development_v3_incident.json"
+  --prior-control-plane-incident "$study_root/artifacts/public/manifests/fallback_gpu_acceptance_development_v4_control_plane_incident.json"
   --ledger "$study_root/artifacts/restricted/phase1_acceptance.sqlite"
   --artifact-root "$study_root/artifacts/blobs/phase1_acceptance"
   --checkpoint "$run_root/checkpoint.json"
@@ -401,7 +427,7 @@ Do not replace validation with a direct
 `python -m story_projection_onto.fallback_acceptance --execute` invocation.
 Execution belongs only inside the checked-in
 `scripts/run_fallback_gpu_acceptance.py` launcher, run by the detached
-`storyprojection-study` tmux session. The launcher creates an immutable
+`storyprojection-study-v5` tmux session. The launcher creates an immutable
 invocation, an append-only orchestrator guard chain, and an independently
 persistent lease guardian before the prepare controller can start the model.
 Every controller result is bound to the exact invocation, guard, argument hash,
@@ -432,7 +458,7 @@ printf -v launch_command '%q ' \
   "$study_root/scripts/run_fallback_gpu_acceptance.py" \
   --execute --output "$result" "${common_arguments[@]}"
 printf -v quoted_log '%q' "$run_log"
-tmux new-session -d -s storyprojection-study \
+tmux new-session -d -s "$tmux_session" \
   "exec $launch_command >>$quoted_log 2>&1"
 ```
 
@@ -468,7 +494,7 @@ printf -v resume_command '%q ' \
   "$study_root/scripts/run_fallback_gpu_acceptance.py" \
   --execute --resume-orchestrator --output "$result" \
   "${common_arguments[@]}"
-tmux new-session -d -s storyprojection-study \
+tmux new-session -d -s "$tmux_session" \
   "exec $resume_command >>$quoted_log 2>&1"
 ```
 

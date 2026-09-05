@@ -126,7 +126,7 @@ def test_second_recovery_factory_and_forecast_bind_exact_ordered_service_ids(
     tmp_path: Path,
 ) -> None:
     amendment_hash = _digest("v3-retry-amendment")
-    overlay_hash = _digest("v4-second-recovery-overlay")
+    overlay_hash = _digest("v5-second-recovery-overlay")
     started = datetime(2026, 9, 5, tzinfo=UTC)
     with Ledger(tmp_path / "ledger.sqlite3") as ledger:
         for ordinal, event_id in enumerate(
@@ -196,17 +196,17 @@ def test_second_recovery_factory_and_forecast_bind_exact_ordered_service_ids(
     [
         (
             _digest("v3-amendment"),
-            _digest("v4-overlay"),
+            _digest("v5-overlay"),
             SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS[:1],
         ),
         (
             _digest("v3-amendment"),
-            _digest("v4-overlay"),
+            _digest("v5-overlay"),
             tuple(reversed(SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS)),
         ),
         (
             _digest("v3-amendment"),
-            _digest("v4-overlay"),
+            _digest("v5-overlay"),
             (*SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS, "unexpected-start"),
         ),
         (
@@ -216,7 +216,7 @@ def test_second_recovery_factory_and_forecast_bind_exact_ordered_service_ids(
         ),
         (
             None,
-            _digest("v4-overlay"),
+            _digest("v5-overlay"),
             SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
         ),
     ],
