@@ -1,6 +1,6 @@
 # Run status
 
-Updated: 2026-09-05 19:55 UTC
+Updated: 2026-09-05 20:13 UTC
 
 ## Verified durable state
 
@@ -17,6 +17,10 @@ Updated: 2026-09-05 19:55 UTC
   `96ee3a39f38f8d5f49a58d2babd53fd4c1b5d5a4`.
 - Tested v7 authorization/source checkpoint:
   `0758e487740c608b7eb1060a7a940352032069ef`.
+- Tested v7 incident/v8 runtime-hardening checkpoint:
+  `703cede70a45b97452b4d68f7612bf5a467fb1d6`.
+- Tested fixed-mode RunPod lease-storage checkpoint:
+  `4b5b0cc768844f7661fc7ca316bd7e63cc15a2a6`.
 - Local project: `/home/resort/Documents/repos/StoryProjectionOnto`.
 - Remote project: `/workspace/StoryProjectionOnto`.
 - The reconciled canonical Phase 1 ledger is schema v8, file SHA-256
@@ -91,6 +95,25 @@ Updated: 2026-09-05 19:55 UTC
   class after positive kernel mountinfo, fixed-mode chmod-no-op, namespace, symlink, and hash
   checks; ordinary filesystems still require mode 0600. The exact observed mount rendering and
   adversarial cases pass 14/14, and the full incident/lease/fallback subset passes 100/100.
+- The first remote invocation of the repaired lease CLI also failed closed before opening the
+  ledger or changing the lease because the final typed v7 incident had not yet been synchronized
+  to the remote public-manifest directory. The one missing file was restored only after its
+  SHA-256 matched the local public record. The bounded repair then restored the exact v7 lease to
+  `stopped_verified`, added zero accounting rows and zero inference calls, and preserved the
+  ledger byte-for-byte. Its restricted receipt has file SHA-256
+  `bdfd002a21ce75cc164889d33bfdc5fbb11d858dca509413decd44a09674c388`;
+  an immediate idempotent replay preserved the receipt, lease, and ledger hashes.
+- The independently generated local and remote v8 source manifests are byte-identical with file
+  SHA-256 `806b237d29b78809f6a796c9c9671ec0c0b18e91a2571d289313fe02faae5150`.
+  Their association has file SHA-256
+  `5dd314003f802717feed6c72bf801d89adf4aca848351f8686409554bc46bc75`.
+  The authorized schema-1.6.0 v8 overlay is preserved in restricted storage with file SHA-256
+  `3b215d02c73066546257da53e067ba4d47ab3f0f986640cede5d08c14b67c775`.
+- The fresh v8 CPU-only preflight passed and authorized execution without starting a model or
+  allocating GPU time. Its file SHA-256 is
+  `2f59e51263f352dafd212d575d492bec21528b823b5bb83e75c5758074bba1c2`,
+  and logical manifest SHA-256 is
+  `070da9bf50161c43cfec94d7880b51f9e550bb614140746786d4857ee58a3305`.
 - Four interrupted remote quarantine directories were packed losslessly before their exact
   unpacked copies were removed. The retained local and remote archive has 94,138 members,
   file SHA-256
@@ -159,7 +182,7 @@ Updated: 2026-09-05 19:55 UTC
 
 | Phase | State | Verified position |
 |---|---|---|
-| 1 — contracts and GPU acceptance | In progress | Contracts, ledgers/CAS, storage and GPU controls, evidence/ontology boundary, provenance bridge, decoder projection, and process-group hardening pass. V4–v6 are preserved zero-GPU control-plane incidents; v7 is a preserved terminal runtime incident with no inference. The bounded v8 lineage and sampler-ownership repair are in focused CPU validation; fresh v8 association, overlay, preflight, and execution follow. |
+| 1 — contracts and GPU acceptance | In progress | Contracts, ledgers/CAS, storage and GPU controls, evidence/ontology boundary, provenance bridge, decoder projection, and process-group hardening pass. V4–v6 are preserved zero-GPU control-plane incidents; v7 is a preserved terminal runtime incident with no inference. The v7 lease repair, fresh v8 source association, schema-1.6.0 overlay, and CPU-only v8 preflight pass. The persistent v8 acceptance/development execution is next. |
 | 2 — synthetic benchmark | Software/data complete; independent review pending | Four development worlds, 12 held-out worlds, 36 primary contexts, contrastive pairs, rare-pivotal/temporal/epistemic gold, mutation tests, and the condition-blind 3-world/9-projection review package reproduce. |
 | 3 — conditions and primary run | Software complete; execution pending | C0, C1, C2, and A-FixedSelect pathways and timing/capability/equal-evidence gates pass. The 24 development and 168 held-out calls remain. |
 | 4 — metrics and ablations | Software complete; execution pending | Registered metrics, world-level inference, 4,096 sign flips, Holm correction, bootstrap sensitivity, community analysis, and three reduced ablations are implemented. |
@@ -201,12 +224,8 @@ Updated: 2026-09-05 19:55 UTC
 
 ## Gates and blockers
 
-- Before any further GPU service start: finish and commit the bounded sampler-ownership and
-  v8 lineage repairs, restore only the incident-proven terminal v7 lease without changing the
-  ledger, independently associate byte-identical local/remote v8 source trees, build an
-  authorized schema-1.6.0 v8 overlay bound to the complete v4/v5/v6/v7 incident chain,
-  reproduce the all-in forecast from the current ledger, pass a fresh CPU-only v8 preflight,
-  and repeat the exact remote idle/resource audit.
+- Before the v8 GPU service start: commit the public v8 source association and preflight, then
+  repeat the exact remote idle/resource audit. All other registered v8 admission gates pass.
 - Held-out inference is forbidden until the mandatory independent review and adjudication
   reproduce. No second review has been fabricated.
 - Phase 6 requires the exact lawful local novel path only when synthetic work is complete.
@@ -215,20 +234,10 @@ Updated: 2026-09-05 19:55 UTC
 
 ## Exact resume command
 
-V7 is terminal and has no permitted resume command. After committing this tested checkpoint,
-generate the fresh local v8 source manifest:
-
-```bash
-PYTHONPATH=src /tmp/spo-refresh-venv/bin/python -m story_projection_onto.manifest \
-  --root . --revision fallback-second-recovery-v8 \
-  --output artifacts/public/manifests/source_tree_fallback_second_recovery_v8.local.json
-```
-
-Synchronize that exact source inventory without deletion, independently generate the remote
-v8 manifest, associate both with the tested commit, build the authorized v8 overlay bound to
-all four terminal incidents, and run the CPU-only v8 preflight. If it passes, the next real-output
-job is the checked-in `scripts/run_fallback_gpu_acceptance.py --execute` launcher in detached
-tmux session `storyprojection-study-v8`, using run ID
+V7 is terminal and has no permitted resume command. The v8 association, authorization overlay,
+and CPU-only preflight now pass. The next real-output job is the checked-in
+`scripts/run_fallback_gpu_acceptance.py --execute` launcher in detached tmux session
+`storyprojection-study-v8`, using run ID
 `fallback-qwen3-8b-awq-development-v8`, fresh restricted run root
 `artifacts/restricted/fallback-development-v8`, and public result
 `artifacts/public/results/fallback_gpu_acceptance_development_v8.json`. Do not reuse any
