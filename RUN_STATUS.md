@@ -1,6 +1,6 @@
 # Run status
 
-Updated: 2026-09-05 22:09 UTC
+Updated: 2026-09-05 23:02 UTC
 
 ## Verified durable state
 
@@ -25,6 +25,10 @@ Updated: 2026-09-05 22:09 UTC
   `ef1049927cdc247b5ffb6d838658f64467f0c5ae`.
 - Tested v8 incident/lease and blind-review alignment checkpoint:
   `232ed1624f9175dd84e0ff36be6082e479a4bbd0`.
+- Tested post-review execution-lineage refresh checkpoint:
+  `4934a5c187542c64d1bf6770f8141cbb25190c07`.
+- Tested historical-report replay and source-inventory checkpoint:
+  `a5f1224e5862bef3fc9aec1d0241861b965c1906`.
 - Local project: `/home/resort/Documents/repos/StoryProjectionOnto`.
 - Remote project: `/workspace/StoryProjectionOnto`.
 - The reconciled canonical Phase 1 ledger is schema v8, file SHA-256
@@ -172,7 +176,7 @@ Updated: 2026-09-05 22:09 UTC
   file SHA-256
   `617a13b5dabf7376f342550d217168d705ab328f0517cf44d663525c6562d721`,
   and passed full decompression/member-count validation.
-- The latest terminal remote observation at 2026-09-05 22:08 UTC found one NVIDIA RTX 4090
+- The latest terminal remote observation at 2026-09-05 22:42 UTC found one NVIDIA RTX 4090
   (24,564 MiB), 1 MiB used, 0% utilization, no study/vLLM process, no `tmux` or `screen`
   session, and no listener on port 8000. vLLM is stopped; the pod remains active.
 - The latest bounded remote project-tree allocated-byte measurement is 16,313,550,336 bytes;
@@ -184,7 +188,7 @@ Updated: 2026-09-05 22:09 UTC
 
 ## Validation state
 
-- Current collected test inventory: 1,235 tests. The last complete stable pre-v8 tree had
+- Current collected test inventory: 1,244 tests. The last complete stable pre-v8 tree had
   1,101 passes and three expected local-environment skips; the bounded v8 recovery and review
   changes were verified with the focused current-tree selections below rather than another
   broad execution cycle.
@@ -229,12 +233,26 @@ Updated: 2026-09-05 22:09 UTC
   `98589db781a254cfa2524c85e59a7bbc048bedf99accc0bdccd812b5aeef2514`;
   draft-seal logical SHA-256:
   `2d928894e6154b0a0fe4b8922fb8c98cb1d58c94d3fab77d97a197564864651d`.
-- The report-ingestion receipt verifies at
-  `dd64d597f3497c2b9ad7fc60205e90ad5540716e586f885b7aa0aada90b245fd`.
-  The interim report remains explicitly incomplete and contains no fabricated efficacy
-  results. Its eight-page PDF was rendered and inspected. The current public bundle input
-  manifest is self-consistent at logical SHA-256
-  `bb2644ebd0460efe8eaa7b566a86603ff6c423c5710f026ed194fc5a997c3ead`.
+- The benchmark lineage-only refresh initially left five downstream execution-control
+  configurations pinned to the prior manifest or draft-seal hashes. Checkpoint `4934a5c`
+  refreshes only those bindings. The exact 24-call development dry-run, 168-call held-out
+  derivation, combined block, feedback protocol, and Phase-5 runner now reproduce; a
+  72-test affected dependency suite and a separate 52-test entrypoint/property suite pass.
+  No evidence, gold, review question, call count, condition, seed, budget, or output changed.
+- The prior report-ingestion receipt reproduces at
+  `dd64d597f3497c2b9ad7fc60205e90ad5540716e586f885b7aa0aada90b245fd`
+  through an explicit, self-hashed historical-source snapshot that archives only the exact
+  predecessor benchmark bytes. Snapshot substitution is verification-only, requires exact
+  manifest/receipt and override-inventory bindings, and is never the default for new or final
+  reports. The 52-test reporting selection, adversarial path/hash cases, Ruff, and both explicit
+  replay commands pass. The interim PDF, Markdown, receipt, result metadata, figure manifest,
+  reproducibility file, and figure remain byte-identical; no interim report was regenerated.
+  The current public input allowlist retains the current benchmark at its canonical path and
+  carries the predecessor only under its versioned snapshot path; its logical SHA-256 is
+  `e755537eb45856637063b97b108e6c616bde2b50845a69e2b4c2e35a11a42641`.
+- The fail-closed Phase-7 source inventory now reconciles all post-recovery additions: 29 JSON
+  schemas, 66 scripts, 104 science-code paths, and 128 verification paths. Its compiler and
+  registry selections pass 30/30; no scientific output or report number changed.
 - The condition-blind human review handoff is materialized in ignored restricted scorer-only
   storage. It contains three worlds, nine projections, all shared evidence and proposed gold
   structures—including 18 readable executable alternative representations—72 exact questions,
@@ -308,6 +326,12 @@ Updated: 2026-09-05 22:09 UTC
   ceiling by 31.668248 seconds, and the currently authorized recovery service-start inventory
   is exhausted. Proceeding requires an explicit methodological/budget decision and a newly
   validated recovery lineage; mandatory calls cannot be silently removed.
+- The v8 preflight is historical: it passed before v8 at 1,507.850965 consumed seconds, but its
+  run, source, overlay, and ledger identities no longer describe current state. There is no v9
+  preflight or executable v9 command. A bounded v9 requires explicit dated authorization for
+  one essential-recovery contingency service start, schema-1.7/four-start lineage, exact v8
+  incident and lease-repair bindings, a fresh source association/overlay/preflight, and a
+  detached persistent launch. Inference calls remain subject to the ordinary 9-hour gate.
 - Held-out inference is forbidden until the mandatory independent review and adjudication
   reproduce. No second review has been fabricated.
 - Phase 6 requires the exact lawful local novel path only when synthetic work is complete.
