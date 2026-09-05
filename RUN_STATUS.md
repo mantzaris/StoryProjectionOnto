@@ -1,6 +1,6 @@
 # Run status
 
-Updated: 2026-09-05 15:38 UTC
+Updated: 2026-09-05 16:39 UTC
 
 ## Verified durable state
 
@@ -11,12 +11,17 @@ Updated: 2026-09-05 15:38 UTC
   `fb3399690fe121e9d314f53e40337cdec415782c`.
 - Tested v4-incident/v5-recovery checkpoint:
   `48852dc61cfb6224779ed28ee11a20f2fe951882`.
+- Tested v5 source checkpoint:
+  `bfe43bca2f5a242a694b4a6998b7e384fe7dfc1b`.
 - Local project: `/home/resort/Documents/repos/StoryProjectionOnto`.
 - Remote project: `/workspace/StoryProjectionOnto`.
 - The reconciled canonical Phase 1 ledger is schema v8, file SHA-256
-  `38775d1fe3c27cb93afbf78f3c692300a05ed52cb083cb4656d0378b0b94429f`.
+  `9040aea2431053fa99667b06ac0e33287c7f0839d131a06bcd462616536b57a6`.
   Its read-only ledger/CAS audit passes with 17 artifacts, one failed attempt/model call,
   five closed GPU events, four closed service sessions, and no unresolved allocation.
+  Relative to the pre-v5 ledger (`38775d1fe3c27cb93afbf78f3c692300a05ed52cb083cb4656d0378b0b94429f`),
+  v5 added exactly one allowed storage-preflight row and no GPU event, service session,
+  attempt, call, artifact, or unresolved journal.
 - The stale 422.961986-second local ledger remains preserved in ignored recovery storage;
   it was not discarded or used for admission.
 - The authorized v4 orchestration failed before guardian readiness because an internal
@@ -27,12 +32,32 @@ Updated: 2026-09-05 15:38 UTC
   `e8b30397068a97f4f169395ec0a70ec1f709515c1df07b6a17400c7568c2993c`.
   It proves zero new GPU events, service sessions, attempts, model calls, accepted outputs,
   retry consumption, or allocated GPU microseconds. v4 is terminal and cannot be resumed.
+- The v5 CPU-only preflight passed (file SHA-256
+  `7fd9dd36d15a12129a68b22dbb60e0ba5c12bd68268b9f09ebd8e887fd108ad5`,
+  logical SHA-256
+  `f3b90b16a323f81066b4392fccecdb5af69718e76b67f0325dec9d8adaf70b24`).
+  Its real guarded launch then failed safely before model or GPU start: the guardian's
+  heavyweight initialization exceeded the 30-second readiness watchdog. The guardian
+  later published readiness, but the required status check could not open the ledger while
+  that guardian held its WAL writer. The guardian performed owner-loss takeover and terminal
+  reconciliation at 16:02:32 UTC. Exact terminal status certifies physical shutdown,
+  `resume_allowed: false`, no checkpoint/handoff/result, and zero unresolved journals.
+  V5 is terminal, preserved, and must not be resumed. Its independently rebuilt public
+  incident has file SHA-256
+  `47ce61fe2d65eab23e967eb06ff8eb3920d3e21f6191564f8b2a73bea4f4709f`
+  and logical SHA-256
+  `06b7bf28427266efa9ebae3640a8a4fe883b0233956d313d98fb9103775dbfdf`.
+- The bounded v6 control-plane repair is implemented and independently reviewed. Guardian
+  readiness now has the already authorized 300-second CPU-only bound, terminal verification
+  retains its separate 90-second bound, status permits a coordinated live-WAL snapshot only
+  after proving the exact guardian argv/PID/process-group/session identity, and attempted-start
+  resume requires exactly one matching open service journal. Adversarial probes fail closed.
 - Four interrupted remote quarantine directories were packed losslessly before their exact
   unpacked copies were removed. The retained local and remote archive has 94,138 members,
   file SHA-256
   `617a13b5dabf7376f342550d217168d705ab328f0517cf44d663525c6562d721`,
   and passed full decompression/member-count validation.
-- The latest read-only remote audit at 2026-09-05 15:04 UTC found one NVIDIA RTX 4090
+- The latest read-only remote audit at 2026-09-05 16:03 UTC found one NVIDIA RTX 4090
   (24,564 MiB), 1 MiB used, 0% utilization, no study/vLLM process, no `tmux` or `screen`
   session, and no listener on port 8000. vLLM is stopped.
 - The latest bounded remote project-tree measurement is 10,327,091,099 apparent bytes;
@@ -53,11 +78,14 @@ Updated: 2026-09-05 15:38 UTC
   interface tests were rerun with loopback access and all eight passed.
 - Aggregate verified result: 1,101 passed, three expected local-environment skips, zero
   implementation failures.
+- The post-v5 affected suite adds 100 passing focused tests for fallback orchestration,
+  live read-only ledger status, the typed v5 incident, reviewer handoff, and schema replay.
+  Independent bounded reviews found no v6 launch blocker.
 - Ruff, Python compilation, JSON parsing, `git diff --check`, package/CLI import smoke,
   report ingestion replay, report replay, and public-release hash checks pass.
-- Twenty-three generated JSON Schemas reproduce byte-for-byte; together with their manifest,
-  the checked directory has 24 files. Schema logical manifest SHA-256:
-  `e596dab7a6163f5a76f222c783aa996eee4501b509ad5a13cfc7c60534620198`.
+- Twenty-four generated JSON Schemas reproduce byte-for-byte; together with their manifest,
+  the checked directory has 25 files. Schema logical manifest SHA-256:
+  `3998aa5e1970a291956f48739b71147dca0c21b82632c8555a3826c13e3d603e`.
 - Synthetic benchmark verify-only and the semantic refresh guard pass. Benchmark logical
   manifest SHA-256:
   `c5bce978a9006b67f13c40701fca2d7b558d62239615c49a2c035221cd1b723f`.
@@ -69,12 +97,18 @@ Updated: 2026-09-05 15:38 UTC
   results. Its eight-page PDF was rendered and inspected. The current public bundle input
   manifest is self-consistent at logical SHA-256
   `bb2644ebd0460efe8eaa7b566a86603ff6c423c5710f026ed194fc5a997c3ead`.
+- The condition-blind human review handoff is materialized in ignored restricted scorer-only
+  storage. It contains three worlds, nine projections, all shared evidence and proposed gold
+  structures, 72 exact questions, and a blank response worksheet; it contains no method
+  outputs, reviewer judgments, or launch authorization. The packet and worksheet SHA-256s are
+  `5003724e1dae0909b729980eb334b19b32073a2df03dc33ea17aa7f96a021ac1`
+  and `780b62b49076f68dfd592db864de25fee24abb6916aa239d1e63e27649bdeae2`.
 
 ## Phase state
 
 | Phase | State | Verified position |
 |---|---|---|
-| 1 — contracts and GPU acceptance | In progress | Contracts, ledgers/CAS, storage and GPU controls, evidence/ontology boundary, provenance bridge, decoder projection, restart guardian, and recovery validation are implemented. The zero-GPU v4 incident is frozen; the outer-result identity repair and process-group hardening pass. Fresh v5 source association and remote validation-only admission are next. |
+| 1 — contracts and GPU acceptance | In progress | Contracts, ledgers/CAS, storage and GPU controls, evidence/ontology boundary, provenance bridge, decoder projection, and process-group hardening pass. V4 and v5 are preserved zero-GPU control-plane incidents. The bounded v6 guardian/status repair passes; source association, preflight, and real fallback execution are next. |
 | 2 — synthetic benchmark | Software/data complete; independent review pending | Four development worlds, 12 held-out worlds, 36 primary contexts, contrastive pairs, rare-pivotal/temporal/epistemic gold, mutation tests, and the condition-blind 3-world/9-projection review package reproduce. |
 | 3 — conditions and primary run | Software complete; execution pending | C0, C1, C2, and A-FixedSelect pathways and timing/capability/equal-evidence gates pass. The 24 development and 168 held-out calls remain. |
 | 4 — metrics and ablations | Software complete; execution pending | Registered metrics, world-level inference, 4,096 sign flips, Holm correction, bootstrap sensitivity, community analysis, and three reduced ablations are implemented. |
@@ -88,23 +122,31 @@ Updated: 2026-09-05 15:38 UTC
 - Recovered unattended-allocation uncertainty: zero seconds.
 - The v4 control-plane launch consumed zero GPU seconds and did not consume an inference,
   retry, or service-start slot; it remains visible as one operational failure row.
+- The v5 control-plane launch likewise consumed zero GPU seconds and no inference, retry,
+  or service-start slot; it added only one valid storage sample and remains visible as a
+  distinct operational failure.
 - Peak recorded v3 GPU VRAM: 22,525,509,632 bytes.
 - Peak recorded v3 process RAM: 2,955,644,928 bytes.
 - Remaining registered scientific generations: 258: four fallback acceptance calls,
   24 development calls, 168 held-out primary calls, 49 combined synthetic calls
   (12 paraphrase, nine feedback/interface, 28 ablation), and 13 case-study calls.
-- Documentary v5 forecast pending fresh validation-only admission: 31,722.618681 seconds
-  remaining; 677.381319 seconds scheduled reserve and 4,217.381319 seconds hard
-  contingency. It must be reproduced from the checkpointed remote tree before launch.
+- The v5 preflight's `31,722.618681` seconds is the projected **all-in final allocation**,
+  not remaining time. It equals 815.215409 seconds already consumed plus
+  30,516.002726 seconds of remaining mandatory work plus a 391.400545-second recovery
+  service-start allowance (differences at the sixth decimal are display rounding).
+  Therefore the registered scheduled reserve is
+  `32,400 - 31,722.618681 = 677.381319` seconds, and the hard contingency is
+  `36,000 - 31,722.618681 - 60 = 4,217.381319` seconds after protecting the registered
+  60-second shutdown reserve. Admission remains valid without changing the budget or calls.
 - No new GPU call is admitted merely because platform credit changed. The registered
   9-hour scheduled ceiling and hard stop before 10 actual allocated hours remain binding.
 
 ## Gates and blockers
 
-- Before any GPU service start: independently hash byte-identical local and remote source
-  trees at checkpoint `48852dc61cfb6224779ed28ee11a20f2fe951882`, create the v5
-  association and authorized overlay bound to the v4 incident, verify the remote
-  ledger/model/runtime/storage state, and pass the CPU-only v5 preflight.
+- Before any further GPU service start: freeze the typed v5 incident, complete and test the
+  bounded v6 guardian repair, independently associate byte-identical local/remote v6 source
+  trees, build an authorized v6 overlay bound to both earlier incidents, reproduce the
+  all-in forecast from the current ledger, and pass a fresh CPU-only v6 preflight.
 - Held-out inference is forbidden until the mandatory independent review and adjudication
   reproduce. No second review has been fabricated.
 - Phase 6 requires the exact lawful local novel path only when synthetic work is complete.
@@ -113,18 +155,21 @@ Updated: 2026-09-05 15:38 UTC
 
 ## Exact resume command
 
-The tested v5 repair checkpoint is complete. Resume by generating its fresh local source
-manifest:
+V5 is terminal and has no permitted resume command. After committing this tested checkpoint,
+generate the fresh local v6 source manifest:
 
 ```bash
 PYTHONPATH=src /tmp/spo-refresh-venv/bin/python -m story_projection_onto.manifest \
-  --root . --revision fallback-second-recovery-v5 \
-  --output artifacts/public/manifests/source_tree_fallback_second_recovery_v5.local.json
+  --root . --revision fallback-second-recovery-v6 \
+  --output artifacts/public/manifests/source_tree_fallback_second_recovery_v6.local.json
 ```
 
-Then back up every overwritten remote source file, synchronize the checkpointed source
-inventory without `--delete`, independently generate the remote manifest, associate both
-manifests with the full checkpoint SHA, build the append-only authorized v5 overlay, and
-follow `docs/FALLBACK_SECOND_RECOVERY.md` from “Complete validation and execution argument
-flow.” Do not execute the GPU launcher until the fresh validation-only preflight reports
-admission and a final idle-GPU/ledger/storage audit passes.
+Synchronize that exact source inventory without deletion, independently generate the remote
+v6 manifest, associate both with the tested commit, build the authorized v6 overlay bound to
+both terminal incidents, and run the CPU-only v6 preflight. If it passes, the next real-output
+job is the checked-in `scripts/run_fallback_gpu_acceptance.py --execute` launcher in detached
+tmux session `storyprojection-study-v6`, using run ID
+`fallback-qwen3-8b-awq-development-v6`, fresh restricted run root
+`artifacts/restricted/fallback-development-v6`, and public result
+`artifacts/public/results/fallback_gpu_acceptance_development_v6.json`. Do not reuse any v5
+run root, result path, tmux session, overlay, or invocation state.

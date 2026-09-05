@@ -126,6 +126,7 @@ from story_projection_onto.phase1_legacy_provenance import (
 )
 from story_projection_onto.public_release import scan_public_bytes
 from story_projection_onto.store import (
+    ArtifactIntegrityError,
     ArtifactStore,
     AttemptKind,
     BlobStore,
@@ -135,6 +136,7 @@ from story_projection_onto.store import (
     GpuSummary,
     JobState,
     Ledger,
+    ReadOnlyLedger,
     ReleaseClass,
     SemanticAssessmentScope,
     StorageBudget,
@@ -246,8 +248,17 @@ def test_fallback_plan_binds_exact_calls_reserves_and_no_primary_block() -> None
     assert plan["fresh_gpu_ledger_forbidden"] is True
     assert plan["normal_acceptance_block"]["executed"] is False
     second_recovery = plan["second_recovery_overlay_support"]
-    assert second_recovery["overlay_schema_version"] == "1.3.0"
+    assert second_recovery["overlay_schema_version"] == "1.4.0"
+    assert second_recovery["authorized_recovery_run_id"] == (
+        fallback_acceptance_module.SECOND_RECOVERY_V6_RUN_ID
+    )
+    assert second_recovery["authorized_source_revision"] == (
+        fallback_acceptance_module.SECOND_RECOVERY_V6_SOURCE_REVISION
+    )
     assert second_recovery["intervening_zero_gpu_control_plane_incident_required"] is True
+    assert second_recovery["intervening_v4_control_plane_incident_required"] is True
+    assert second_recovery["intervening_v5_control_plane_incident_required"] is True
+    assert second_recovery["terminal_v4_and_v5_runs_must_not_resume"] is True
     assert second_recovery["evidence_provenance_bridge_binding_required"] is True
     assert second_recovery["retry_wire_delta_scope"] == (
         "guided_schema_schema_derived_runtime_hashes_and_hash_bound_provenance_only"
@@ -531,11 +542,14 @@ def test_cli_plan_mode_and_execute_requirements_parse_without_side_effects() -> 
             "--output",
             "restricted/proposal.json",
             "--build-second-recovery-overlay",
+            "--prior-v5-control-plane-incident",
+            "v5-incident.json",
             "--second-recovery-authorized-at",
             "2026-09-04T23:59:00Z",
         ]
     )
     assert builder.build_second_recovery_overlay is True
+    assert builder.prior_v5_control_plane_incident == Path("v5-incident.json")
     assert builder.second_recovery_authorized_at == datetime(
         2026,
         9,
@@ -1516,10 +1530,22 @@ def test_second_recovery_overlay_is_exact_and_proposed_cannot_execute(
             **{**validation_arguments, "observed": changed_observed},
         )
 
+    v6_source_path = (
+        tmp_path / "source_tree_fallback_second_recovery_v6.association.json"
+    )
+    v6_source_path.write_text('{"test":"v6-source-freeze"}\n', encoding="utf-8")
+    v6_source = {
+        **current_source,
+        "revision_label": fallback_acceptance_module.SECOND_RECOVERY_V6_SOURCE_REVISION,
+    }
+
+    def validate_test_source(path: Path, **_kwargs: object) -> Mapping[str, object]:
+        return v6_source if Path(path).name == v6_source_path.name else current_source
+
     monkeypatch.setattr(
         fallback_acceptance_module,
         "validate_source_association",
-        lambda *_args, **_kwargs: current_source,
+        validate_test_source,
     )
     restricted_root = tmp_path / "restricted"
     built_proposed_path = restricted_root / "second-recovery-built.proposed.json"
@@ -1606,15 +1632,53 @@ def test_second_recovery_overlay_is_exact_and_proposed_cannot_execute(
             v4_control_plane_incident
         )
     )
+    v5_control_plane_incident = (
+        ROOT
+        / "artifacts/public/manifests/"
+        "fallback_gpu_acceptance_development_v5_control_plane_incident.json"
+    )
+    built_v6 = build_second_fallback_recovery_overlay(
+        output_path=restricted_root / "second-recovery-v6-built.authorized.json",
+        authorization_status="authorized",
+        authorization_basis="The user authorized continued GPU execution in this test.",
+        authorized_at=datetime(2026, 9, 5, 17, 30, tzinfo=UTC),
+        **{
+            **builder_arguments,
+            "run_id": fallback_acceptance_module.SECOND_RECOVERY_V6_RUN_ID,
+            "prior_control_plane_incident_path": v4_control_plane_incident,
+            "prior_v5_control_plane_incident_path": v5_control_plane_incident,
+            "source_association": v6_source,
+            "source_association_path": v6_source_path,
+        },
+    )
+    assert built_v6["schema_version"] == "1.4.0"
+    assert built_v6["authorized_recovery_run_id"] == (
+        fallback_acceptance_module.SECOND_RECOVERY_V6_RUN_ID
+    )
+    assert built_v6["intervening_control_plane_incident"] == (
+        fallback_acceptance_module._second_recovery_control_plane_incident_binding(
+            v4_control_plane_incident
+        )
+    )
+    assert built_v6["intervening_v5_control_plane_incident"] == (
+        fallback_acceptance_module._second_recovery_v5_control_plane_incident_binding(
+            v5_control_plane_incident
+        )
+    )
     with pytest.raises(ValueError, match="intervening v4 incident"):
         build_second_fallback_recovery_overlay(
             output_path=restricted_root / "v5-missing-incident.json",
             **{**builder_arguments, "run_id": "fallback-qwen3-8b-awq-development-v5"},
         )
-    with pytest.raises(ValueError, match="intervening v4 incident"):
+    with pytest.raises(ValueError, match="both terminal v4 and v5 incidents"):
         build_second_fallback_recovery_overlay(
             output_path=restricted_root / "v6-missing-incident.json",
-            **{**builder_arguments, "run_id": "fallback-qwen3-8b-awq-development-v6"},
+            **{
+                **builder_arguments,
+                "run_id": fallback_acceptance_module.SECOND_RECOVERY_V6_RUN_ID,
+                "source_association": v6_source,
+                "source_association_path": v6_source_path,
+            },
         )
     with pytest.raises(ValueError, match="aware timestamp"):
         build_second_fallback_recovery_overlay(
@@ -2679,11 +2743,11 @@ def _runner(
     )
 
 
-def test_v5_prepare_reaches_mocked_service_start_with_registered_adopter(
+def test_v6_prepare_reaches_mocked_service_start_with_registered_adopter(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The production v5 factory must accept its exact v3+v5 start lineage."""
+    """The production v6 factory accepts the exact terminal v3+v4+v5 lineage."""
 
     configuration = _fallback_launch_configuration(tmp_path)
     live: dict[str, object] = {}
@@ -2702,11 +2766,14 @@ def test_v5_prepare_reaches_mocked_service_start_with_registered_adopter(
             raise reached_start
 
         monkeypatch.setattr(service, "start", forbid_gpu_start)
-        source_manifest = build_source_manifest(ROOT, "v5-factory-path-test")
+        source_manifest = build_source_manifest(
+            ROOT,
+            fallback_acceptance_module.SECOND_RECOVERY_V6_SOURCE_REVISION,
+        )
         source_association = {
             "manifest_sha256": "d" * 64,
             "local_tree_sha256": source_manifest.tree_sha256,
-            "revision_label": "v5-factory-path-test",
+            "revision_label": fallback_acceptance_module.SECOND_RECOVERY_V6_SOURCE_REVISION,
         }
         amendment_hash = SECOND_RECOVERY_V3_RETRY_AMENDMENT_SHA256
         overlay_hash = "f" * 64
@@ -2730,7 +2797,7 @@ def test_v5_prepare_reaches_mocked_service_start_with_registered_adopter(
         runner = FallbackAcceptanceRunner(
             root=ROOT,
             legacy_provenance_bridge=legacy_provenance_bridge(),
-            run_id="fallback-qwen3-8b-awq-development-v5",
+            run_id=fallback_acceptance_module.SECOND_RECOVERY_V6_RUN_ID,
             service=cast(object, service),
             ledger=ledger,
             artifacts=ArtifactStore(BlobStore(tmp_path / "blobs"), ledger),
@@ -2753,10 +2820,16 @@ def test_v5_prepare_reaches_mocked_service_start_with_registered_adopter(
             prior_fallback_failure={"manifest_sha256": "e" * 64},
             second_recovery_overlay={
                 "manifest_sha256": overlay_hash,
-                "schema_version": "1.3.0",
-                "authorized_recovery_run_id": ("fallback-qwen3-8b-awq-development-v5"),
+                "schema_version": "1.4.0",
+                "authorized_recovery_run_id": (
+                    fallback_acceptance_module.SECOND_RECOVERY_V6_RUN_ID
+                ),
                 "authorization": {"status": "authorized"},
                 "intervening_control_plane_incident": {"ledger_unchanged": True},
+                "intervening_v5_control_plane_incident": {
+                    "scientific_ledger_state_unchanged": True,
+                    "resume_permitted": False,
+                },
             },
             second_recovery_v3_result={
                 "manifest_sha256": SECOND_RECOVERY_V3_RESULT_MANIFEST_SHA256
@@ -4160,6 +4233,350 @@ def _orchestrator_options(tmp_path: Path) -> object:
     return parse_arguments(arguments)
 
 
+def _write_orchestrator_status_identity(options: object) -> tuple[dict[str, object], ...]:
+    paths = fallback_acceptance_module._orchestration_paths(options)
+    created_at = datetime.now(UTC)
+    invocation_payload: dict[str, object] = {
+        "schema_version": "1.0.0",
+        "kind": "fallback_controller_orchestration_invocation",
+        "run_id": options.run_id,
+        "execution_arguments_sha256": canonical_sha256(
+            fallback_acceptance_module._controller_execution_arguments(options)
+        ),
+        "result_output": str(paths.result_output),
+        "handoff_output": str(paths.handoff_output),
+        "cleanup_output": str(paths.cleanup_output),
+        "checkpoint": str(paths.checkpoint),
+        "service_session_id": options.run_id,
+        "service_event_id": f"{options.run_id}-service-start-001",
+        "invocation_nonce": HASH_A,
+        "gpu_seconds_before_invocation": 0.0,
+        "protected_shutdown_seconds": 75.0,
+        "hard_stop_at": (created_at + timedelta(hours=1)).isoformat(),
+        "resume_grace_seconds": 300.0,
+        "created_at": created_at.isoformat(),
+    }
+    invocation = {
+        **invocation_payload,
+        "manifest_sha256": canonical_sha256(invocation_payload),
+    }
+    fallback_acceptance_module._write_append_only_json(paths.invocation, invocation)
+    ticket = fallback_acceptance_module._guardian_ticket_for_invocation(
+        options,
+        paths=paths,
+        invocation=invocation,
+    )
+    fallback_acceptance_module._write_append_only_json(paths.guardian_ticket, ticket)
+    guard_payload: dict[str, object] = {
+        "schema_version": "1.0.0",
+        "kind": "fallback_controller_orchestrator_guard",
+        "state": "active",
+        "run_id": options.run_id,
+        "sequence": 1,
+        "previous_guard_sha256": None,
+        "orchestration_invocation_sha256": invocation["manifest_sha256"],
+        "guardian_ticket_sha256": ticket["manifest_sha256"],
+        "orchestrator_pid": 999_999_999,
+        "orchestrator_start_ticks": 1,
+        "orchestrator_command_sha256": HASH_A,
+        "orchestrator_process_group_id": 999_999_999,
+        "orchestrator_session_id": 999_999_999,
+        "execution_arguments_sha256": invocation["execution_arguments_sha256"],
+        "started_at": created_at.isoformat(),
+    }
+    guard = {
+        **guard_payload,
+        "manifest_sha256": canonical_sha256(guard_payload),
+    }
+    fallback_acceptance_module._write_append_only_json(
+        fallback_acceptance_module._guard_path(options, 1),
+        guard,
+    )
+    return invocation, ticket
+
+
+def test_guardian_readiness_wait_covers_measured_safe_initialization_bound(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    options = _orchestrator_options(tmp_path)
+    paths = fallback_acceptance_module._orchestration_paths(options)
+    elapsed = {"seconds": 0.0}
+    ready = {"kind": "exact-live-guardian"}
+
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_live_guardian_receipt",
+        lambda *args, **kwargs: (
+            ready if elapsed["seconds"] >= 106.0 else None
+        ),
+    )
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_launch_guardian_process",
+        lambda *args, **kwargs: SimpleNamespace(poll=lambda: None),
+    )
+    monkeypatch.setattr(
+        fallback_acceptance_module.time,
+        "monotonic",
+        lambda: elapsed["seconds"],
+    )
+    monkeypatch.setattr(
+        fallback_acceptance_module.time,
+        "sleep",
+        lambda seconds: elapsed.__setitem__("seconds", elapsed["seconds"] + 5.0),
+    )
+
+    observed = fallback_acceptance_module._ensure_guardian_running(
+        options,
+        paths=paths,
+        invocation={"manifest_sha256": HASH_A},
+        ticket={"manifest_sha256": HASH_B},
+    )
+
+    assert observed is ready
+    assert (
+        fallback_acceptance_module.FALLBACK_GUARDIAN_READY_TIMEOUT_SECONDS
+        == AMENDED_FALLBACK_STARTUP_WATCHDOG_SECONDS
+    )
+    assert 106 <= elapsed["seconds"] < 300
+
+
+def test_live_guardian_receipt_rejects_a_self_hashed_non_guardian_process(
+    tmp_path: Path,
+) -> None:
+    options = _orchestrator_options(tmp_path)
+    invocation, ticket = _write_orchestrator_status_identity(options)
+    paths = fallback_acceptance_module._orchestration_paths(options)
+    pid = os.getpid()
+    start_ticks, process_command_sha256 = fallback_acceptance_module._process_identity(pid)
+    process_group_id = os.getpgrp()
+    session_id = os.getsid(0)
+    expected_command_sha256 = fallback_acceptance_module._raw_command_sha256(
+        fallback_acceptance_module._guardian_controller_command(
+            options,
+            output=paths.guardian_result,
+            ticket=paths.guardian_ticket,
+        )
+    )
+    assert (
+        process_command_sha256 != expected_command_sha256
+        or process_group_id != pid
+        or session_id != pid
+    )
+    ready_payload: dict[str, object] = {
+        "schema_version": "1.0.0",
+        "kind": "fallback_service_guardian_ready",
+        "run_id": options.run_id,
+        "orchestration_invocation_sha256": invocation["manifest_sha256"],
+        "guardian_ticket_sha256": ticket["manifest_sha256"],
+        "guardian_command_sha256": ticket["guardian_command_sha256"],
+        "guardian_pid": pid,
+        "guardian_start_ticks": start_ticks,
+        "guardian_process_command_sha256": process_command_sha256,
+        "guardian_process_group_id": process_group_id,
+        "guardian_session_id": session_id,
+        "ready_at": datetime.now(UTC).isoformat(),
+    }
+    ready = {
+        **ready_payload,
+        "manifest_sha256": canonical_sha256(ready_payload),
+    }
+    fallback_acceptance_module._write_append_only_json(
+        fallback_acceptance_module._guardian_ready_path(paths, 1),
+        ready,
+    )
+
+    with pytest.raises(ValueError, match="changed its invocation identity"):
+        fallback_acceptance_module._live_guardian_receipt(
+            options,
+            paths,
+            invocation=invocation,
+            ticket=ticket,
+        )
+
+
+def test_status_reads_guardian_held_wal_and_allows_only_clean_exact_resume(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    options = _orchestrator_options(tmp_path)
+    invocation, ticket = _write_orchestrator_status_identity(options)
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_live_guardian_receipt",
+        lambda *args, **kwargs: {"manifest_sha256": ticket["manifest_sha256"]},
+    )
+
+    with Ledger(options.ledger) as writable:
+        writable.record_gpu_event(
+            event_id="status-live-wal",
+            event_kind=GpuEventKind.WARM_UP,
+            allocated_seconds=2,
+            started_at=datetime.now(UTC),
+            ended_at=datetime.now(UTC),
+            succeeded=True,
+        )
+        with pytest.raises(ArtifactIntegrityError, match="closed and checkpointed"):
+            ReadOnlyLedger(options.ledger)
+
+        status = fallback_acceptance_module._orchestrator_status(options)
+
+    assert status["invocation_sha256"] == invocation["manifest_sha256"]
+    assert status["guardian_identity_verified"] is True
+    assert status["guardian_live"] is True
+    assert status["ledger_snapshot_verified"] is True
+    assert status["ledger_snapshot_state"] == "verified_coordinated_read"
+    assert status["actual_allocated_gpu_seconds"] == 2
+    assert status["unresolved_gpu_allocation_count"] == 0
+    assert status["unresolved_gpu_service_count"] == 0
+    assert status["resume_accounting_state_verified"] is True
+    assert status["resume_allowed"] is True
+
+
+def test_status_never_allows_resume_with_unresolved_live_gpu_journal(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    options = _orchestrator_options(tmp_path)
+    _invocation, ticket = _write_orchestrator_status_identity(options)
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_live_guardian_receipt",
+        lambda *args, **kwargs: {"manifest_sha256": ticket["manifest_sha256"]},
+    )
+
+    with Ledger(options.ledger) as writable:
+        started_at = datetime.now(UTC)
+        writable.record_gpu_service_observation(
+            service_session_id="status-unresolved-service",
+            state=GpuServiceJournalState.OPENED,
+            session_id="status-live-service",
+            configuration_hash=HASH_A,
+            service_started_at=started_at,
+            elapsed_seconds=0,
+            ledger_allocated_seconds_before_session=0,
+            hard_limit_seconds=36_000,
+            observed_at=started_at,
+        )
+        status = fallback_acceptance_module._orchestrator_status(options)
+
+    assert status["ledger_snapshot_verified"] is True
+    assert status["unresolved_gpu_service_count"] == 1
+    assert status["resume_accounting_state_verified"] is False
+    assert status["resume_allowed"] is False
+
+
+def test_status_preserves_exact_open_service_resume_semantics(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    options = _orchestrator_options(tmp_path)
+    _invocation, ticket = _write_orchestrator_status_identity(options)
+    paths = fallback_acceptance_module._orchestration_paths(options)
+    paths.checkpoint.write_text(
+        json.dumps(
+            {
+                "run_id": options.run_id,
+                "service_start_attempted": True,
+                "controller_handoff_complete": False,
+                "active_call_id": None,
+                "failed_call_id": None,
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_live_guardian_receipt",
+        lambda *args, **kwargs: {"manifest_sha256": ticket["manifest_sha256"]},
+    )
+    expected_service_event_id = f"{options.run_id}-service-start-001"
+
+    with Ledger(options.ledger) as writable:
+        started_at = datetime.now(UTC)
+        writable.record_gpu_service_observation(
+            service_session_id=expected_service_event_id,
+            state=GpuServiceJournalState.OPENED,
+            session_id=options.run_id,
+            configuration_hash=HASH_A,
+            service_started_at=started_at,
+            elapsed_seconds=0,
+            ledger_allocated_seconds_before_session=0,
+            hard_limit_seconds=36_000,
+            observed_at=started_at,
+        )
+        status = fallback_acceptance_module._orchestrator_status(options)
+
+    assert status["unresolved_gpu_service_count"] == 1
+    assert status["resume_accounting_state_verified"] is True
+    assert status["resume_allowed"] is True
+
+
+def test_status_rejects_attempted_service_start_without_exact_open_journal(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    options = _orchestrator_options(tmp_path)
+    _invocation, ticket = _write_orchestrator_status_identity(options)
+    paths = fallback_acceptance_module._orchestration_paths(options)
+    paths.checkpoint.write_text(
+        json.dumps(
+            {
+                "run_id": options.run_id,
+                "service_start_attempted": True,
+                "controller_handoff_complete": False,
+                "active_call_id": None,
+                "failed_call_id": None,
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_live_guardian_receipt",
+        lambda *args, **kwargs: {"manifest_sha256": ticket["manifest_sha256"]},
+    )
+
+    with Ledger(options.ledger):
+        status = fallback_acceptance_module._orchestrator_status(options)
+
+    assert status["ledger_snapshot_verified"] is True
+    assert status["unresolved_gpu_service_count"] == 0
+    assert status["unresolved_gpu_allocation_count"] == 0
+    assert status["resume_accounting_state_verified"] is False
+    assert status["resume_allowed"] is False
+
+
+def test_status_reports_stale_wal_without_live_guardian_fail_closed(
+    tmp_path: Path,
+) -> None:
+    options = _orchestrator_options(tmp_path)
+    _write_orchestrator_status_identity(options)
+    wal = Path(str(options.ledger) + "-wal")
+    with Ledger(options.ledger) as writable:
+        writable.record_gpu_event(
+            event_id="stale-status-wal",
+            event_kind=GpuEventKind.WARM_UP,
+            allocated_seconds=2,
+            started_at=datetime.now(UTC),
+            ended_at=datetime.now(UTC),
+            succeeded=True,
+        )
+        stale_wal = wal.read_bytes()
+    wal.write_bytes(stale_wal)
+
+    status = fallback_acceptance_module._orchestrator_status(options)
+
+    assert status["ledger_snapshot_verified"] is False
+    assert status["ledger_snapshot_state"] == "unavailable_or_unsafe"
+    assert status["guardian_live"] is False
+    assert status["actual_allocated_gpu_seconds"] is None
+    assert status["unresolved_gpu_allocation_count"] is None
+    assert status["unresolved_gpu_service_count"] is None
+    assert status["resume_allowed"] is False
+
+
 def test_guardian_cli_preserves_outer_result_identity_across_fresh_interpreter(
     tmp_path: Path,
 ) -> None:
@@ -4344,6 +4761,41 @@ def test_internal_controller_cli_requires_exact_stage_output(
         fallback_acceptance_module._require_execution_arguments(parsed)
 
 
+def test_v6_controller_identity_and_internal_command_bind_both_incidents(
+    tmp_path: Path,
+) -> None:
+    options = _orchestrator_options(tmp_path)
+    options.run_id = fallback_acceptance_module.SECOND_RECOVERY_V6_RUN_ID
+    options.retry_amendment = tmp_path / "v3-amendment.json"
+    options.prior_fallback_failure = tmp_path / "v3-failure.json"
+    options.second_recovery_overlay = tmp_path / "v6-overlay.json"
+    options.second_recovery_v3_result = tmp_path / "v3-result.json"
+    options.second_recovery_v3_incident = tmp_path / "v3-incident.json"
+    options.prior_control_plane_incident = tmp_path / "v4-incident.json"
+
+    with pytest.raises(SystemExit, match="both prior v4 and v5"):
+        fallback_acceptance_module._require_execution_arguments(options)
+
+    options.prior_v5_control_plane_incident = tmp_path / "v5-incident.json"
+    fallback_acceptance_module._require_execution_arguments(options)
+    identity = fallback_acceptance_module._controller_execution_arguments(options)
+    assert identity["prior_control_plane_incident"] == str(
+        options.prior_control_plane_incident.resolve()
+    )
+    assert identity["prior_v5_control_plane_incident"] == str(
+        options.prior_v5_control_plane_incident.resolve()
+    )
+
+    command = fallback_acceptance_module._internal_controller_command(
+        options,
+        stage="prepare",
+        output=fallback_acceptance_module._orchestration_paths(options).handoff_output,
+        guard=None,
+    )
+    parsed = parse_arguments(command[2:])
+    assert fallback_acceptance_module._controller_execution_arguments(parsed) == identity
+
+
 def test_public_orchestrator_rejects_private_result_path_and_wrong_process_group(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -4355,9 +4807,13 @@ def test_public_orchestrator_rejects_private_result_path_and_wrong_process_group
         fallback_acceptance_module._require_execution_arguments(options)
 
     options.orchestration_result_output = None
-    options.run_id = fallback_acceptance_module.SECOND_RECOVERY_V4_RUN_ID
-    with pytest.raises(SystemExit, match="terminal control-plane incident"):
-        fallback_acceptance_module._require_execution_arguments(options)
+    for terminal_run_id in (
+        fallback_acceptance_module.SECOND_RECOVERY_V4_RUN_ID,
+        fallback_acceptance_module.SECOND_RECOVERY_V5_RUN_ID,
+    ):
+        options.run_id = terminal_run_id
+        with pytest.raises(SystemExit, match="terminal control-plane incident"):
+            fallback_acceptance_module._require_execution_arguments(options)
 
     options.run_id = "fallback-orchestration-test"
     monkeypatch.setattr(os, "getpgrp", lambda: os.getpid() + 1)
@@ -4383,7 +4839,8 @@ def test_status_requires_and_verifies_complete_durable_invocation_arguments(
         "handoff_output": str(paths.handoff_output),
         "cleanup_output": str(paths.cleanup_output),
         "checkpoint": str(paths.checkpoint),
-        "hard_stop_at": datetime.now(UTC).isoformat(),
+        "gpu_seconds_before_invocation": 0.0,
+        "hard_stop_at": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
     }
     invocation = {
         **invocation_payload,

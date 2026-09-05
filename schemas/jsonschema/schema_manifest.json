@@ -1,6 +1,6 @@
 {
   "generator": "scripts/generate_schemas.py",
-  "manifest_hash": "e596dab7a6163f5a76f222c783aa996eee4501b509ad5a13cfc7c60534620198",
+  "manifest_hash": "3998aa5e1970a291956f48739b71147dca0c21b82632c8555a3826c13e3d603e",
   "schema_version": "1.0.0",
   "schemas": [
     {
@@ -29,6 +29,13 @@
       "contract": "FallbackControlPlaneIncident",
       "file": "fallback_control_plane_incident.schema.json",
       "sha256": "c5b8aaf051e193635a7801aedfbece74cf085b1085bb99b3021ab245cc9df43c",
+      "surface": "public_operational_contract"
+    },
+    {
+      "bytes": 26604,
+      "contract": "FallbackV5ControlPlaneIncident",
+      "file": "fallback_v5_control_plane_incident.schema.json",
+      "sha256": "1f70f6d58f678c4be873a3db89003a69b125a8aead1286e53ab1f7c36f69cc6b",
       "surface": "public_operational_contract"
     },
     {

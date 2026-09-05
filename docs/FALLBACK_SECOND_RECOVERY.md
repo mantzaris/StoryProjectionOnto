@@ -570,6 +570,55 @@ Any other ledger/checkpoint ordering mismatch fails closed. Only a completed
 continuation with a hash-valid receipt and the complete matching ledger history
 may replay without another storage observation or adopter call.
 
+## Fresh v6 execution after the terminal v5 control-plane incident
+
+V5 is a preserved zero-GPU incident and has no resume path. The bounded v6
+repair keeps every scientific input, call, seed, model, and forecast unchanged;
+it extends only the fail-closed control plane. V6 requires both public incident
+records and a new byte-identical local/remote source association with revision
+`fallback-second-recovery-v6`. Historical v4/v5 run IDs are rejected.
+
+Use the manifest commands above with `v6` substituted for `v5`, and bind the
+association to the tested checkpoint commit. Then build the authorized overlay
+with the v5 command above changed to run ID
+`fallback-qwen3-8b-awq-development-v6`, v6 source association and output names,
+plus this required argument:
+
+```text
+--prior-v5-control-plane-incident <project-root>/artifacts/public/manifests/fallback_gpu_acceptance_development_v5_control_plane_incident.json
+```
+
+The authorization basis and aware timestamp must come from the actual user
+instruction; they must not be synthesized. For validation and execution, use a
+fresh run root `artifacts/restricted/fallback-development-v6`, preflight
+`artifacts/public/manifests/fallback_gpu_acceptance_development_v6.preflight.json`,
+result `artifacts/public/results/fallback_gpu_acceptance_development_v6.json`,
+and tmux session `storyprojection-study-v6`. Add the same
+`--prior-v5-control-plane-incident` argument to `common_arguments`. All other
+arguments and the checked-in launcher remain exactly as shown above.
+
+The exact job that may produce real fallback and development outputs, only
+after the v6 validation-only receipt passes and the final idle/resource audit
+passes, is:
+
+```bash
+run_log="$run_root/orchestrator.$(date -u +%Y%m%dT%H%M%SZ).log"
+printf -v launch_command '%q ' \
+  env PYTHONPATH="$study_root/src" "$study_python" \
+  "$study_root/scripts/run_fallback_gpu_acceptance.py" \
+  --execute --output "$result" "${common_arguments[@]}"
+printf -v quoted_log '%q' "$run_log"
+tmux new-session -d -s storyprojection-study-v6 \
+  "exec $launch_command >>$quoted_log 2>&1"
+```
+
+Guardian initialization is CPU-only and now uses the already authorized
+300-second startup bound. Terminal-result verification retains an independent
+90-second bound. A status read may observe the guardian-held SQLite WAL only
+after deriving and verifying the exact guardian argv, PID, process group, and
+session; attempted-start resume additionally requires exactly one matching open
+service journal. Any failed proof keeps `resume_allowed` false.
+
 ## Fields finalized only after approval
 
 After the implementation is tested, committed, synchronized, and associated,

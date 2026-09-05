@@ -251,10 +251,50 @@ def test_read_only_ledger_rejects_uncheckpointed_wal_without_touching_it(
 
     with pytest.raises(ArtifactIntegrityError, match="closed and checkpointed"):
         ReadOnlyLedger(database)
+    with pytest.raises(ArtifactIntegrityError, match="shared-memory sidecar"):
+        ReadOnlyLedger(database, allow_live_wal=True)
 
     assert hashlib.sha256(database.read_bytes()).hexdigest() == database_before
     assert wal.read_bytes() == wal_before
     assert os.path.lexists(wal)
+
+
+def test_read_only_ledger_explicit_live_wal_mode_pins_a_query_only_snapshot(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "live-study.sqlite3"
+    wal = Path(str(database) + "-wal")
+    shared_memory = Path(str(database) + "-shm")
+
+    with Ledger(database) as writable:
+        writable.record_gpu_event(
+            event_id="live-status-observation",
+            event_kind=GpuEventKind.WARM_UP,
+            allocated_seconds=2,
+            started_at=T0,
+            ended_at=T1,
+            succeeded=True,
+        )
+        assert wal.is_file() and wal.stat().st_size > 0
+        assert shared_memory.is_file()
+        database_before = hashlib.sha256(database.read_bytes()).hexdigest()
+        wal_before = hashlib.sha256(wal.read_bytes()).hexdigest()
+
+        with pytest.raises(ArtifactIntegrityError, match="closed and checkpointed"):
+            ReadOnlyLedger(database)
+
+        with ReadOnlyLedger(database, allow_live_wal=True) as read_only:
+            assert read_only.live_wal_snapshot is True
+            assert read_only.gpu_summary().total_allocated_seconds == 2
+            assert read_only.unresolved_gpu_allocations() == ()
+            assert read_only.unresolved_gpu_service_journals() == ()
+            with pytest.raises(sqlite3.OperationalError, match="readonly"):
+                read_only._connection.execute(
+                    "INSERT INTO schema_metadata VALUES (999, 'forbidden')"
+                )
+
+        assert hashlib.sha256(database.read_bytes()).hexdigest() == database_before
+        assert hashlib.sha256(wal.read_bytes()).hexdigest() == wal_before
 
 
 def test_read_only_ledger_accepts_valid_migration_history(tmp_path: Path) -> None:

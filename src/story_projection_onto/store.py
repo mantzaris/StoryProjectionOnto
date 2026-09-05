@@ -5082,9 +5082,14 @@ class ReadOnlyLedger:
     This is intentionally a small verification surface, not a writable Ledger
     subtype. It assumes a closed/checkpointed database and refuses a nonempty
     rollback journal or WAL rather than making SQLite recover either sidecar.
+
+    ``allow_live_wal`` is an explicit exception for control-plane observation
+    while the one bound writer still owns a WAL database.  It uses SQLite's
+    normal read-only locking protocol and pins one coherent read transaction;
+    it never makes the immutable reader silently accept an uncheckpointed WAL.
     """
 
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path, *, allow_live_wal: bool = False) -> None:
         supplied_path = Path(path)
         if supplied_path.is_symlink():
             raise ArtifactIntegrityError("read-only ledger cannot be a symbolic link")
@@ -5101,12 +5106,28 @@ class ReadOnlyLedger:
             if sidecar.exists() and (
                 not sidecar.is_file() or sidecar.stat().st_size
             ):
+                if suffix == "-wal" and allow_live_wal and sidecar.is_file():
+                    continue
                 raise ArtifactIntegrityError(
                     "read-only ledger must be closed and checkpointed"
                 )
+        if allow_live_wal:
+            wal = Path(str(resolved_path) + "-wal")
+            shared_memory = Path(str(resolved_path) + "-shm")
+            if shared_memory.is_symlink():
+                raise ArtifactIntegrityError("SQLite sidecar cannot be a symbolic link")
+            if wal.exists() and wal.stat().st_size and (
+                not shared_memory.exists() or not shared_memory.is_file()
+            ):
+                raise ArtifactIntegrityError(
+                    "live read-only ledger requires its regular SQLite shared-memory sidecar"
+                )
         self.path = resolved_path
+        self.live_wal_snapshot = allow_live_wal
         self._closed = False
-        uri = self.path.as_uri() + "?mode=ro&immutable=1"
+        uri = self.path.as_uri() + (
+            "?mode=ro" if allow_live_wal else "?mode=ro&immutable=1"
+        )
         try:
             self._connection = sqlite3.connect(
                 uri,
@@ -5117,6 +5138,11 @@ class ReadOnlyLedger:
             )
             self._connection.row_factory = sqlite3.Row
             self._connection.execute("PRAGMA query_only = ON")
+            if allow_live_wal:
+                # Keep every status query on one SQLite-coordinated snapshot.
+                # The read transaction participates in WAL locking but cannot
+                # write ledger rows through this mode=ro connection.
+                self._connection.execute("BEGIN")
             versions = self._connection.execute(
                 "SELECT schema_version FROM schema_metadata ORDER BY schema_version"
             ).fetchall()

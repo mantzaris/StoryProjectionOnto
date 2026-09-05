@@ -47,7 +47,8 @@ def test_schema_generation_is_deterministic_and_hash_manifested(tmp_path: Path) 
         if entry["surface"] == "public_operational_contract"
     ]
     assert [entry["file"] for entry in operational_entries] == [
-        "fallback_control_plane_incident.schema.json"
+        "fallback_control_plane_incident.schema.json",
+        "fallback_v5_control_plane_incident.schema.json",
     ]
 
 

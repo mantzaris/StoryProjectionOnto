@@ -46,10 +46,14 @@ hash-addressed artifact or a passing test; prose-only completion does not count.
   project-controlled writable files.
 - [x] Preflight storage, configure one shared model cache, fetch and hash only
   Qwen3-14B-AWQ revision `1a6fe1ecf891437a270cce11ad54d796c4f56ce0`,
-  verify Apache-2.0, and retain no second model snapshot.
-- [ ] Meter and run the normal eight-call acceptance block; validate packing,
-  structured C1/C2/FixedSelect output, grounding, operators, horizon integrity,
-  restart/resume, p50/nearest-rank p95, VRAM <23 GB, and process RAM <25 GB.
+  verify Apache-2.0, and retain no second model snapshot. This is the completed
+  historical primary-model gate: its terminal rejection and authorized cache
+  replacement are preserved, and the 14B snapshot is no longer retained.
+- [ ] Complete the active Qwen3-8B-AWQ fallback micro-pilot that replaces the
+  normal eight-call primary-model block under the registered symmetric fallback;
+  validate packing, structured C1/C2/FixedSelect output, grounding, operators,
+  horizon integrity, restart/resume, p50/nearest-rank p95, VRAM <23 GB, and
+  process RAM <25 GB.
 - [ ] Admit the study only if the complete measured forecast is <=9 hours
   (operational target approximately <=8.25 hours); otherwise execute only the
   single permitted symmetric 7B/8B AWQ fallback procedure or stop.
@@ -71,8 +75,13 @@ hash-addressed artifact or a passing test; prose-only completion does not count.
 
 ## Phase 3 — conditions and primary comparisons
 
-- [ ] Implement and development-calibrate a credible CPU C0 with spaCy NER,
-  dependencies, alias/coreference, events, relations, and temporal rules.
+- [x] Implement a credible CPU C0 with spaCy NER, dependencies,
+  alias/coreference, events, relations, temporal rules, evidence provenance,
+  pre-query sealing, and fixed query-time projection.
+- [ ] Development-calibrate C0 on the four development worlds and freeze its
+  competence record before held-out reveal (all registered fixture families,
+  at least 0.85 directly stated qualified-assertion precision, at least 0.70
+  recall, and valid evidence for every assertion).
 - [x] Implement query-blind GPU C1 preconstruction reused across three contexts.
 - [x] Implement active post-query GPU C2 construction with merge/split, event
   reification, local schema/relation, abstraction, temporal/epistemic, rare
