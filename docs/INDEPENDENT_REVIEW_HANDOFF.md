@@ -9,13 +9,12 @@ identities. This means one human second reviewer, not two external reviewers.
 Disagreements must then be logged and adjudicated, and disagreements and
 permissible alternatives must be frozen before condition outputs are opened.
 
-The plans do not specify that the adjudicator must be institutionally
-independent or prohibit the project researcher or user from adjudicating after
-another human has authored the substantive second review. The implementation
-does require the reviewer and adjudicator to be different people, represented
-by different pseudonyms, for auditable role separation. Both substantive
-records must be human-authored outside the model runtime. Test fixtures are not
-scientific reviews and cannot authorize a held-out run.
+The plans do not specify an identity or institutional-independence condition
+for the adjudicator. The adjudicator may therefore be the second reviewer, the
+project researcher or user, or another person; the workflow does not compare
+the reviewer and adjudicator pseudonyms. The reviewer judgments must be
+human-authored outside the model runtime. Test fixtures are not scientific
+reviews and cannot authorize a held-out run.
 
 ## Authoritative-plan requirements
 
@@ -60,14 +59,10 @@ independence criterion to the adjudicator.
 2. Save their completed `IndependentReviewResponse` in a restricted location.
    Notes and the reviewer pseudonym are restricted by default.
 3. An adjudicator receives the response and writes a `ReviewAdjudication`. The
-   project researcher or user may fill this role if they were not the second
-   reviewer. The current validator requires its `adjudicator_pseudonym` to
-   differ from the response's `reviewer_pseudonym`; it compares them
-   case-insensitively and fails closed. This distinct-person rule is an
-   implementation mechanism for auditable role separation; the plans
-   themselves state no institutional-independence requirement for the
-   adjudicator. Every `DISAGREE` or `UNCERTAIN` item must be resolved; agreed
-   items must not be included.
+   plans impose no identity or independence condition on this role, so the
+   second reviewer, project researcher or user, or another person may fill it.
+   Every `DISAGREE` or `UNCERTAIN` item must be resolved; agreed items must not
+   be included.
 4. `RETAIN` keeps the original sealed scorer semantics. `AMEND` requires a
    `ReviewAmendmentBundle` containing the complete amended
    `GoldContextualProjection` and `GoldAlternativeSet`. Each AMEND item must name
@@ -82,10 +77,12 @@ semantic hash must reproduce exactly and must differ from the sealed source.
 The rendering is scorer-only and append-only. It displays all three selected
 blind worlds, all nine projections, their shared evidence, proposed identity,
 event, qualified-assertion, temporal/epistemic, rare-pivotal, contrast,
-community, and alternative structures, and the package's exact 72 questions.
-It contains no reviewer disposition, adjudication, evaluated condition output,
-or held-out launch authorization. A byte-identical rerun is accepted; partial,
-extra, changed, or non-restricted output is rejected without replacement.
+community, and alternative structures—including every decoded accepted
+representation bound to its exact source-value SHA-256—and the package's exact
+72 questions. It contains no reviewer disposition, adjudication, evaluated
+condition output, or held-out launch authorization. A byte-identical rerun is
+accepted; partial, extra, changed, or non-restricted output is rejected without
+replacement.
 
 ## Validate, then materialize
 

@@ -38,6 +38,34 @@ def _tsv_rows(value: bytes) -> list[dict[str, str]]:
     return list(csv.DictReader(io.StringIO("\n".join(data_lines)), delimiter="\t"))
 
 
+def _decode_embedded_json(value: object) -> object:
+    if isinstance(value, str):
+        candidate = value.strip()
+        if (
+            len(candidate) >= 2
+            and (candidate[0], candidate[-1]) in {("{", "}"), ("[", "]")}
+        ):
+            try:
+                return _decode_embedded_json(json.loads(value))
+            except json.JSONDecodeError:
+                return value
+        return value
+    if isinstance(value, dict):
+        return {str(key): _decode_embedded_json(child) for key, child in value.items()}
+    if isinstance(value, list):
+        return [_decode_embedded_json(child) for child in value]
+    return value
+
+
+def _readable_accepted_representation(value: str) -> str:
+    return json.dumps(
+        _decode_embedded_json(value),
+        ensure_ascii=False,
+        indent=2,
+        sort_keys=True,
+    )
+
+
 def test_checked_in_package_renders_all_nine_projections_and_exact_questions() -> None:
     package = _package()
     handoff = build_independent_review_handoff(
@@ -99,6 +127,40 @@ def test_checked_in_package_renders_all_nine_projections_and_exact_questions() -
     )
     rendered = (handoff.packet_markdown + handoff.response_template_tsv).decode("utf-8").casefold()
     assert all(marker not in rendered for marker in condition_output_markers)
+
+
+def test_every_executable_alternative_value_is_readable_and_bound_to_package() -> None:
+    package = _package()
+    packet = build_independent_review_handoff(
+        package_path=PACKAGE_PATH,
+        response_schema_path=RESPONSE_SCHEMA_PATH,
+    ).packet_markdown.decode("utf-8")
+    accepted_count = 0
+
+    for world in package.worlds:
+        for projection in world.projections:
+            for alternative in projection.permissible_alternatives.get(
+                "constraint_alternatives", ()
+            ):
+                alternative_id = str(alternative["alternative_id"])
+                for constraint in alternative.get("constraints", ()):
+                    field_path = str(constraint["field_path"])
+                    accepted = tuple(str(value) for value in constraint.get("accepted_values", ()))
+                    for index, value in enumerate(accepted, start=1):
+                        accepted_count += 1
+                        heading = (
+                            f"###### Accepted representation {index} of {len(accepted)} for "
+                            f"`{field_path}` in `{alternative_id}`"
+                        )
+                        fingerprint = hashlib.sha256(value.encode("utf-8")).hexdigest()
+                        readable = _readable_accepted_representation(value)
+                        assert packet.count(heading) == 1
+                        assert packet.count(f"- Source-value SHA-256: `{fingerprint}`") == 1
+                        assert packet.count(f"```json\n{readable}\n```") == 1
+
+    assert accepted_count == 18
+    assert packet.count("###### Accepted representation ") == accepted_count
+    assert "machine-readable package retains the complete executable values" not in packet
 
 
 def test_response_worksheet_is_blank_complete_and_directly_bound_to_package() -> None:

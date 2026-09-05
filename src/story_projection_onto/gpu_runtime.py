@@ -71,6 +71,7 @@ RESOURCE_AWARE_HARD_STOP_RESERVE_SECONDS = (
 DURABLE_EXEC_GATE_PROTOCOL = "pipe-eof-before-exec-v1"
 DURABLE_EXEC_GATE_WATCHDOG_SECONDS = 5.0
 SERVICE_INSTANCE_ENVIRONMENT_KEY = "STORY_PROJECTION_ONTO_SERVICE_INSTANCE"
+_VLLM_ENGINE_CORE_PROCESS_TITLE = b"VLLM::EngineCore"
 MEBIBYTE = 1024 * 1024
 PROC_ROOT = Path("/proc")
 SERVICE_LOCK_FILENAME = ".story-projection-onto-vllm.lock"
@@ -1920,6 +1921,109 @@ def _process_environment_instance_sha256(
     return hashlib.sha256(values[0]).hexdigest()
 
 
+def _process_lineage_identity(
+    pid: int,
+    proc_root: Path = PROC_ROOT,
+) -> tuple[str, int, int, int, int]:
+    """Return state, parent, group, session, and start ticks from one stat read."""
+
+    stat_value = (proc_root / str(pid) / "stat").read_text(encoding="ascii")
+    _, separator, suffix = stat_value.rpartition(")")
+    if not separator:
+        raise RuntimeError("cannot parse controlled process lineage identity")
+    fields = suffix.split()
+    # suffix starts at procfs field 3: state, ppid, pgrp, session; starttime is 22.
+    if (
+        len(fields) <= 19
+        or len(fields[0]) != 1
+        or any(not fields[index].isdecimal() for index in (1, 2, 3, 19))
+    ):
+        raise RuntimeError("controlled process has no valid lineage identity")
+    return (
+        fields[0],
+        int(fields[1]),
+        int(fields[2]),
+        int(fields[3]),
+        int(fields[19]),
+    )
+
+
+def _is_exact_tokenless_engine_core_child(
+    pid: int,
+    process_group: int,
+    session_id: int,
+    instance_token_sha256: str,
+    *,
+    proc_root: Path,
+) -> bool:
+    """Verify vLLM's one narrow setproctitle exception without trusting its PID.
+
+    vLLM 0.10.2's EngineCore overwrites both argv and the inherited environment
+    region.  The exception is therefore limited to an immediate child of the
+    still-live, token-bound session leader, with the exact padded process title.
+    Identity, title, and token reads are repeated so an observed race fails
+    closed instead of widening process-group ownership.
+    """
+
+    title_path = proc_root / str(pid) / "cmdline"
+    expected_title_prefix = _VLLM_ENGINE_CORE_PROCESS_TITLE + b"\0"
+
+    def exact_title() -> bytes:
+        raw = title_path.read_bytes()
+        if not raw.startswith(expected_title_prefix):
+            return b""
+        if raw.rstrip(b"\0") != _VLLM_ENGINE_CORE_PROCESS_TITLE:
+            return b""
+        return raw
+
+    try:
+        member_before = _process_lineage_identity(pid, proc_root)
+        member_title_before = exact_title()
+        member_token_before = _process_environment_instance_sha256(pid, proc_root)
+        leader_before = _process_lineage_identity(process_group, proc_root)
+        leader_token_before = _process_environment_instance_sha256(
+            process_group,
+            proc_root,
+        )
+
+        member_after = _process_lineage_identity(pid, proc_root)
+        member_title_after = exact_title()
+        member_token_after = _process_environment_instance_sha256(pid, proc_root)
+        leader_after = _process_lineage_identity(process_group, proc_root)
+        leader_token_after = _process_environment_instance_sha256(
+            process_group,
+            proc_root,
+        )
+    except (OSError, RuntimeError) as exc:
+        raise RuntimeConfigurationError(
+            "cannot verify a tokenless vLLM EngineCore process"
+        ) from exc
+
+    if member_before != member_after or leader_before != leader_after:
+        raise RuntimeConfigurationError(
+            "tokenless vLLM EngineCore process identity changed during verification"
+        )
+    if not member_title_before or member_title_before != member_title_after:
+        return False
+    if member_token_before is not None or member_token_after is not None:
+        return False
+
+    member_state, parent_pid, member_group, member_session, _ = member_before
+    leader_state, _, leader_group, leader_session, _ = leader_before
+    return (
+        pid != process_group
+        and member_state != "Z"
+        and parent_pid == process_group
+        and member_group == process_group
+        and member_session == session_id
+        and leader_state != "Z"
+        and leader_group == process_group
+        and leader_session == session_id
+        and leader_token_before == instance_token_sha256
+        and leader_token_after == instance_token_sha256
+    )
+
+
 def _bound_process_group_members(
     process_group: int,
     session_id: int,
@@ -1932,7 +2036,8 @@ def _bound_process_group_members(
     The inherited random token closes the otherwise unavoidable ambiguity after
     the original session leader has exited: a later unrelated session can reuse
     the numeric PID/PGID, but it cannot reproduce the persisted instance token.
-    Every non-zombie member must retain both the original SID and token.
+    Every non-zombie member must retain both the original SID and token, except
+    for the exact vLLM 0.10.2 EngineCore child verified by the narrow helper.
     """
 
     if (
@@ -1966,7 +2071,18 @@ def _bound_process_group_members(
             )
         except (FileNotFoundError, ProcessLookupError, PermissionError, RuntimeError) as exc:
             raise RuntimeConfigurationError("cannot verify a service process-group member") from exc
-        if observed_token_sha256 != instance_token_sha256:
+        if observed_token_sha256 == instance_token_sha256:
+            members.append(pid)
+            continue
+        if observed_token_sha256 is not None:
+            raise RuntimeConfigurationError("service process group contains an unbound process")
+        if not _is_exact_tokenless_engine_core_child(
+            pid,
+            process_group,
+            session_id,
+            instance_token_sha256,
+            proc_root=proc_root,
+        ):
             raise RuntimeConfigurationError("service process group contains an unbound process")
         members.append(pid)
     return tuple(sorted(members))
@@ -4978,8 +5094,18 @@ class VLLMService:
             else:
                 self.state = ServiceState.FAILED
 
-    def recover_stale_service_lease(self) -> GpuServiceSession | None:
-        """Recover one stale allocation only after proving all service absence."""
+    def recover_stale_service_lease(
+        self,
+        *,
+        expected_current_lease_manifest_sha256: str | None = None,
+    ) -> GpuServiceSession | None:
+        """Recover one stale allocation only after proving all service absence.
+
+        An incident-specific caller may pin the exact current lease payload by
+        supplying its manifest hash.  The comparison occurs only after this
+        controller holds the exclusive service lock, closing the gap between an
+        external evidence check and the terminal lease transition.
+        """
 
         if (
             self.state is not ServiceState.STOPPED
@@ -4990,12 +5116,31 @@ class VLLMService:
         ):
             raise RuntimeError("stale service recovery requires a fresh stopped controller")
         self._last_recovered_process_identity = None
+        if (
+            expected_current_lease_manifest_sha256 is not None
+            and not _is_canonical_sha256(expected_current_lease_manifest_sha256)
+        ):
+            raise RuntimeConfigurationError(
+                "expected current service lease manifest SHA-256 is invalid"
+            )
         self._acquire_service_lock()
         terminalized = False
         try:
             lease = self._prior_service_lease
             if lease is None:
+                if expected_current_lease_manifest_sha256 is not None:
+                    raise RuntimeConfigurationError(
+                        "expected current service lease is absent"
+                    )
                 return None
+            if (
+                expected_current_lease_manifest_sha256 is not None
+                and canonical_sha256(lease)
+                != expected_current_lease_manifest_sha256
+            ):
+                raise RuntimeConfigurationError(
+                    "current service lease manifest SHA-256 differs from expectation"
+                )
             lease_state = lease.get("lease_state")
             if lease_state not in {
                 "launch_supervisor_pending",

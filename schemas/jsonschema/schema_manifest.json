@@ -1,6 +1,6 @@
 {
   "generator": "scripts/generate_schemas.py",
-  "manifest_hash": "6ed55b1ec1e94954743e9fe4661f4c81a31832f83a151fdb5f569e63b7a34ae9",
+  "manifest_hash": "57cea3d884ef286b7bec3f02dbf92f2e7a5d4e9a5f75228d51cab288728d7a9b",
   "schema_version": "1.0.0",
   "schemas": [
     {
@@ -50,6 +50,20 @@
       "contract": "FallbackV7RuntimeIncident",
       "file": "fallback_v7_runtime_incident.schema.json",
       "sha256": "631e4b47f2cd41952234723effcf6dd9ee3c574b50b0bada81fb5266e18fc719",
+      "surface": "public_operational_contract"
+    },
+    {
+      "bytes": 9219,
+      "contract": "FallbackV8LeaseRepairReceipt",
+      "file": "fallback_v8_lease_repair_receipt.schema.json",
+      "sha256": "02ccba13b82393003ea795a56752531217f2cc82adda11d9eb959dc525c4ea13",
+      "surface": "public_operational_contract"
+    },
+    {
+      "bytes": 36187,
+      "contract": "FallbackV8RuntimeIncident",
+      "file": "fallback_v8_runtime_incident.schema.json",
+      "sha256": "fbd1bb2079cfd0b2ab81d95031424dbe19c64bc261992a9ea9d848a7cf8e9a2f",
       "surface": "public_operational_contract"
     },
     {

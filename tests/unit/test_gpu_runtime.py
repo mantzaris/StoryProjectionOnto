@@ -19,7 +19,7 @@ from typing import cast
 import pytest
 
 import story_projection_onto.gpu_runtime as gpu_runtime
-from story_projection_onto.contracts import ConditionName, canonical_sha256
+from story_projection_onto.contracts import ConditionName, canonical_json, canonical_sha256
 from story_projection_onto.experiment import AllocatedGPUMeter, ResourceLimits
 from story_projection_onto.gpu_runtime import (
     FALLBACK_MODEL_REPOSITORY,
@@ -1014,12 +1014,15 @@ def _write_fake_proc_identity(
     configuration: VLLMLaunchConfiguration,
     process_group_id: int = 0,
     process_session_id: int = 0,
+    parent_process_id: int = 0,
+    process_state: str = "S",
     service_instance_token: str | None = None,
     command: tuple[str, ...] | None = None,
 ) -> None:
     process_root = proc_root / str(pid)
     process_root.mkdir(parents=True)
-    fields = ["S", *(["0"] * 18), str(start_ticks)]
+    fields = [process_state, *(["0"] * 18), str(start_ticks)]
+    fields[1] = str(parent_process_id)
     fields[2] = str(process_group_id)
     fields[3] = str(process_session_id)
     (process_root / "stat").write_text(
@@ -1078,6 +1081,166 @@ def _seed_token_bound_live_lease(
     service._write_service_lock_metadata(lease_state="live", service_pid=process.pid)
     service._release_service_lock()
     return expected_command_sha256, instance_token_sha256
+
+
+def _write_engine_core_process_group(
+    proc_root: Path,
+    configuration: VLLMLaunchConfiguration,
+    *,
+    leader_pid: int = 6100,
+    engine_pid: int = 6101,
+    engine_parent_pid: int | None = None,
+    engine_token: str | None = None,
+    engine_title: bytes = b"VLLM::EngineCore\0\0",
+    leader_token: str | None = "bound-vllm-service",
+    leader_state: str = "S",
+    leader_group: int | None = None,
+    leader_session: int | None = None,
+) -> tuple[int, int, str]:
+    group = leader_pid if leader_group is None else leader_group
+    session = leader_pid if leader_session is None else leader_session
+    _write_fake_proc_identity(
+        proc_root,
+        pid=leader_pid,
+        start_ticks=10_000,
+        configuration=configuration,
+        process_group_id=group,
+        process_session_id=session,
+        parent_process_id=1,
+        process_state=leader_state,
+        service_instance_token=leader_token,
+    )
+    _write_fake_proc_identity(
+        proc_root,
+        pid=engine_pid,
+        start_ticks=10_001,
+        configuration=configuration,
+        process_group_id=leader_pid,
+        process_session_id=leader_pid,
+        parent_process_id=(leader_pid if engine_parent_pid is None else engine_parent_pid),
+        service_instance_token=engine_token,
+    )
+    engine_root = proc_root / str(engine_pid)
+    (engine_root / "cmdline").write_bytes(engine_title)
+    if engine_token is None:
+        (engine_root / "environ").write_bytes(b"")
+    expected_token_sha256 = hashlib.sha256(b"bound-vllm-service").hexdigest()
+    return leader_pid, engine_pid, expected_token_sha256
+
+
+def test_bound_group_accepts_only_exact_tokenless_engine_core_child(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    proc_root = tmp_path / "proc"
+    leader_pid, engine_pid, token_sha256 = _write_engine_core_process_group(
+        proc_root,
+        launch_configuration,
+    )
+
+    assert gpu_runtime._bound_process_group_members(
+        leader_pid,
+        leader_pid,
+        token_sha256,
+        proc_root=proc_root,
+    ) == (leader_pid, engine_pid)
+
+
+@pytest.mark.parametrize(
+    ("changes", "expected_message"),
+    (
+        ({"engine_token": "different-token"}, "unbound process"),
+        ({"engine_title": b"python\0"}, "unbound process"),
+        ({"engine_title": b"VLLM::EngineCore"}, "unbound process"),
+        ({"engine_title": b"VLLM::EngineCore\0--extra\0"}, "unbound process"),
+        ({"engine_parent_pid": 6099}, "unbound process"),
+        ({"leader_token": None}, "cannot verify a service process-group member"),
+        ({"leader_state": "Z"}, "unbound process"),
+        ({"leader_group": 6098}, "unbound process"),
+        ({"leader_session": 6097}, "process from another session"),
+    ),
+)
+def test_bound_group_rejects_engine_core_identity_near_misses(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+    changes: dict[str, object],
+    expected_message: str,
+) -> None:
+    proc_root = tmp_path / "proc"
+    leader_pid, _, token_sha256 = _write_engine_core_process_group(
+        proc_root,
+        launch_configuration,
+        **changes,
+    )
+
+    with pytest.raises(RuntimeConfigurationError, match=expected_message):
+        gpu_runtime._bound_process_group_members(
+            leader_pid,
+            leader_pid,
+            token_sha256,
+            proc_root=proc_root,
+        )
+
+
+def test_bound_group_rejects_engine_core_when_leader_is_absent(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    proc_root = tmp_path / "proc"
+    leader_pid, _, token_sha256 = _write_engine_core_process_group(
+        proc_root,
+        launch_configuration,
+    )
+    leader_root = proc_root / str(leader_pid)
+    for path in tuple(leader_root.iterdir()):
+        path.unlink()
+    leader_root.rmdir()
+
+    with pytest.raises(
+        RuntimeConfigurationError,
+        match="cannot verify a tokenless vLLM EngineCore",
+    ):
+        gpu_runtime._bound_process_group_members(
+            leader_pid,
+            leader_pid,
+            token_sha256,
+            proc_root=proc_root,
+        )
+
+
+def test_bound_group_rejects_engine_core_identity_race(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    proc_root = tmp_path / "proc"
+    leader_pid, engine_pid, token_sha256 = _write_engine_core_process_group(
+        proc_root,
+        launch_configuration,
+    )
+    original_reader = gpu_runtime._process_lineage_identity
+    engine_reads = 0
+
+    def racing_reader(
+        pid: int,
+        root: Path = gpu_runtime.PROC_ROOT,
+    ) -> tuple[str, int, int, int, int]:
+        nonlocal engine_reads
+        identity = original_reader(pid, root)
+        if pid == engine_pid:
+            engine_reads += 1
+            if engine_reads == 2:
+                return (*identity[:4], identity[4] + 1)
+        return identity
+
+    monkeypatch.setattr(gpu_runtime, "_process_lineage_identity", racing_reader)
+    with pytest.raises(RuntimeConfigurationError, match="identity changed"):
+        gpu_runtime._bound_process_group_members(
+            leader_pid,
+            leader_pid,
+            token_sha256,
+            proc_root=proc_root,
+        )
 
 
 def _seed_terminal_journal_and_null_lease(
@@ -2704,6 +2867,175 @@ def test_stale_service_recovery_requires_absence_and_charges_through_recovery(
 
         assert replayed_record == record
         assert replaying.last_recovered_process_identity == recovered_identity
+
+
+def test_stale_service_recovery_accepts_exact_current_lease_manifest(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(6031)
+    snapshot_path = launch_configuration.shared_cache / (
+        ".story-projection-onto-vllm.lease.json"
+    )
+    with Ledger(tmp_path / "manifest-pinned-recovery.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        original = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            popen_factory=lambda *args, **kwargs: process,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_group_signaler=lambda pid, signal_number: None,
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        original.start(session_id="pilot", event_id="load", watchdog_seconds=180)
+        original._stop_service_heartbeat()
+        original._release_service_lock()
+        expected_manifest = json.loads(snapshot_path.read_text(encoding="utf-8"))[
+            "lease_manifest_sha256"
+        ]
+        process.running = False
+        clock.advance(3)
+
+        recovering = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_liveness_check=lambda pid: False,
+            process_group_liveness_check=lambda pid: False,
+        )
+        record = recovering.recover_stale_service_lease(
+            expected_current_lease_manifest_sha256=expected_manifest,
+        )
+
+        assert record is not None
+        assert record.service_seconds == 3
+        assert ledger.unresolved_gpu_service_journals() == ()
+        assert json.loads(snapshot_path.read_text(encoding="utf-8"))[
+            "lease_state"
+        ] == "stopped_verified"
+
+
+def test_stale_service_recovery_rejects_current_lease_manifest_drift_under_lock(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(6032)
+    snapshot_path = launch_configuration.shared_cache / (
+        ".story-projection-onto-vllm.lease.json"
+    )
+    with Ledger(tmp_path / "manifest-drift-recovery.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        original = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            popen_factory=lambda *args, **kwargs: process,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_group_signaler=lambda pid, signal_number: None,
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        original.start(session_id="pilot", event_id="load", watchdog_seconds=180)
+        original._stop_service_heartbeat()
+        original._release_service_lock()
+        expected_manifest = json.loads(snapshot_path.read_text(encoding="utf-8"))[
+            "lease_manifest_sha256"
+        ]
+        drifted = json.loads(snapshot_path.read_text(encoding="utf-8"))
+        drifted["controller_pid"] += 1
+        drifted_payload = {
+            key: value
+            for key, value in drifted.items()
+            if key != "lease_manifest_sha256"
+        }
+        drifted["lease_manifest_sha256"] = canonical_sha256(drifted_payload)
+        snapshot_path.write_text(canonical_json(drifted) + "\n", encoding="utf-8")
+        snapshot_bytes = snapshot_path.read_bytes()
+        process.running = False
+        checked: list[str] = []
+
+        recovering = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_liveness_check=lambda pid: checked.append("pid") or False,
+            process_group_liveness_check=lambda pid: checked.append("group") or False,
+        )
+        with pytest.raises(
+            RuntimeConfigurationError,
+            match="lease manifest SHA-256 differs",
+        ):
+            recovering.recover_stale_service_lease(
+                expected_current_lease_manifest_sha256=expected_manifest,
+            )
+
+        assert snapshot_path.read_bytes() == snapshot_bytes
+        assert ledger.get_gpu_service_session("load") is None
+        assert checked == []
+        assert recovering._service_lock_stream is None
+
+
+@pytest.mark.parametrize("expected_manifest", ["f" * 63, "F" * 64, True])
+def test_stale_service_recovery_rejects_invalid_expected_lease_manifest(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+    expected_manifest: object,
+) -> None:
+    with Ledger(tmp_path / "invalid-expected-manifest.sqlite3") as ledger:
+        recovering = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(FakeClock())),
+            meter=AllocatedGPUMeter(ledger),
+        )
+
+        with pytest.raises(RuntimeConfigurationError, match="manifest SHA-256 is invalid"):
+            recovering.recover_stale_service_lease(
+                expected_current_lease_manifest_sha256=cast(str, expected_manifest),
+            )
+
+        assert recovering._service_lock_stream is None
+
+
+def test_stale_service_recovery_rejects_absent_expected_current_lease(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    with Ledger(tmp_path / "absent-expected-lease.sqlite3") as ledger:
+        recovering = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(FakeClock())),
+            meter=AllocatedGPUMeter(ledger),
+        )
+
+        with pytest.raises(
+            RuntimeConfigurationError,
+            match="expected current service lease is absent",
+        ):
+            recovering.recover_stale_service_lease(
+                expected_current_lease_manifest_sha256="f" * 64,
+            )
+
+        assert recovering._service_lock_stream is None
 
 
 def test_terminal_null_lease_restoration_requires_absence_and_exact_accounting(

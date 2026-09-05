@@ -53,8 +53,11 @@ hash-addressed artifact or a passing test; prose-only completion does not count.
   normal eight-call primary-model block under the registered symmetric fallback;
   validate packing, structured C1/C2/FixedSelect output, grounding, operators,
   horizon integrity, restart/resume, p50/nearest-rank p95, VRAM <23 GB, and
-  process RAM <25 GB. The current fresh execution lineage is v8; v3 through v7
-  remain preserved terminal provenance, and v4 through v7 are nonexecutable.
+  process RAM <25 GB. V8 reached the healthy pinned service but failed closed
+  during service adoption before any inference call or accepted output. Its
+  bounded EngineCore identity repair passes the runtime suite, but a fresh GPU
+  start is not admitted while the all-in schedule exceeds 9 hours. V3 through
+  v8 remain preserved terminal provenance and are nonexecutable.
 - [ ] Admit the study only if the complete measured forecast is <=9 hours
   (operational target approximately <=8.25 hours); otherwise execute only the
   single permitted symmetric 7B/8B AWQ fallback procedure or stop.
@@ -82,7 +85,9 @@ hash-addressed artifact or a passing test; prose-only completion does not count.
 - [ ] Development-calibrate C0 on the four development worlds and freeze its
   competence record before held-out reveal (all registered fixture families,
   at least 0.85 directly stated qualified-assertion precision, at least 0.70
-  recall, and valid evidence for every assertion).
+  recall, and valid evidence for every assertion). This unchecked item is an
+  execution/calibration gate; it does not mean the C0 implementation is absent
+  or incomplete.
 - [x] Implement query-blind GPU C1 preconstruction reused across three contexts.
 - [x] Implement active post-query GPU C2 construction with merge/split, event
   reification, local schema/relation, abstraction, temporal/epistemic, rare

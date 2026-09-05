@@ -4015,10 +4015,6 @@ def validate_adjudication(
     adjudication: ReviewAdjudication,
 ) -> None:
     response_items = bind_review_response(package, response)
-    if adjudication.adjudicator_pseudonym.casefold() == response.reviewer_pseudonym.casefold():
-        raise ReviewLifecycleError(
-            "adjudicator pseudonym must identify a person distinct from the external reviewer"
-        )
     if (
         adjudication.package_hash != package.content_hash
         or adjudication.response_hash != response.content_hash

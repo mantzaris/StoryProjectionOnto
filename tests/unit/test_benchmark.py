@@ -594,11 +594,10 @@ def test_review_lifecycle_binds_exact_ids_and_pending_seal_blocks(benchmark_buil
         adjudicated_at=benchmark_build.configuration.frozen_at,
         items=(),
     )
-    same_person = adjudication.model_copy(
+    same_reviewer_and_adjudicator = adjudication.model_copy(
         update={"adjudicator_pseudonym": response.reviewer_pseudonym.upper()}
     )
-    with pytest.raises(ReviewLifecycleError, match="distinct from the external reviewer"):
-        validate_adjudication(package, response, same_person)
+    validate_adjudication(package, response, same_reviewer_and_adjudicator)
     reviewed_artifacts = []
     for binding in benchmark_build.review_bindings.entries:
         scorer = benchmark_build.scorer_artifacts[binding.world_id]

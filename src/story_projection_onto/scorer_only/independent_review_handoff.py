@@ -142,6 +142,36 @@ def _joined_codes(values: Sequence[object]) -> str:
     return ", ".join(_code(value) for value in values) if values else "none"
 
 
+def _decode_embedded_json(value: Any) -> Any:
+    """Decode nested canonical-JSON strings for a readable, lossless review view."""
+
+    if isinstance(value, str):
+        candidate = value.strip()
+        if (
+            len(candidate) >= 2
+            and (candidate[0], candidate[-1]) in {("{", "}"), ("[", "]")}
+        ):
+            try:
+                return _decode_embedded_json(json.loads(value))
+            except json.JSONDecodeError:
+                return value
+        return value
+    if isinstance(value, Mapping):
+        return {str(key): _decode_embedded_json(child) for key, child in value.items()}
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        return [_decode_embedded_json(child) for child in value]
+    return value
+
+
+def _readable_accepted_representation(value: object) -> str:
+    return json.dumps(
+        _decode_embedded_json(value),
+        ensure_ascii=False,
+        indent=2,
+        sort_keys=True,
+    )
+
+
 def _time_label(value: Mapping[str, Any] | None) -> str:
     if value is None:
         return "not specified"
@@ -636,25 +666,39 @@ def _render_alternatives(projection: BlindReviewProjection) -> list[str]:
     if not constraint_alternatives:
         lines.append("- No constraint alternative is proposed.")
     for alternative in constraint_alternatives:
+        alternative_id = str(alternative.get("alternative_id"))
         lines.extend(
             [
-                f"- Alternative {_code(alternative.get('alternative_id'))}: "
+                f"- Alternative {_code(alternative_id)}: "
                 f"{_markdown_text(alternative.get('description'))}",
             ]
         )
         for constraint in alternative.get("constraints", ()):
-            accepted = constraint.get("accepted_values", ())
-            fingerprints = [
-                hashlib.sha256(str(value).encode("utf-8")).hexdigest() for value in accepted
-            ]
+            field_path = str(constraint.get("field_path"))
+            accepted = tuple(constraint.get("accepted_values", ()))
             lines.append(
-                "  - "
-                f"{_markdown_text(constraint.get('field_path'))} "
+                "- Constraint "
+                f"{_code(field_path)} "
                 f"{_markdown_text(constraint.get('operator'))}: "
-                f"{len(accepted)} exact accepted representations, fingerprints "
-                f"{_joined_codes(fingerprints)}. The machine-readable package retains the "
-                "complete executable values."
+                f"{len(accepted)} exact accepted representations."
             )
+            for index, value in enumerate(accepted, start=1):
+                source_value = str(value)
+                fingerprint = hashlib.sha256(source_value.encode("utf-8")).hexdigest()
+                lines.extend(
+                    [
+                        "",
+                        f"###### Accepted representation {index} of {len(accepted)} for "
+                        f"{_code(field_path)} in {_code(alternative_id)}",
+                        "",
+                        f"- Source-value SHA-256: {_code(fingerprint)}",
+                        "- Decoded exact representation:",
+                        "",
+                        "```json",
+                        *_readable_accepted_representation(source_value).splitlines(),
+                        "```",
+                    ]
+                )
     lines.append("")
     return lines
 
