@@ -1,13 +1,13 @@
 # Run status
 
-Updated: 2026-09-05 14:15 UTC
+Updated: 2026-09-05 14:21 UTC
 
 ## Verified durable state
 
 - Branch: `implementation/query-dependent-temporal-ontology`.
 - Last immutable predecessor commit: `cadfb25c39e4f0b1998ab15ad89dcc5e97d1fbf1`.
-- Recovery checkpoint: pending the immediate commit of this fully validated tree; its full
-  SHA will be recorded in a status-only follow-up commit before remote source association.
+- Tested recovery checkpoint:
+  `d21f2c0de9d6c8d82a5ca386ef880d767e7346d4`.
 - Local project: `/home/resort/Documents/repos/StoryProjectionOnto`.
 - Remote project: `/workspace/StoryProjectionOnto`.
 - The reconciled canonical Phase 1 ledger is schema v8, file SHA-256
@@ -96,14 +96,15 @@ Updated: 2026-09-05 14:15 UTC
 
 ## Exact resume command
 
-If interrupted before the checkpoint is recorded, rerun the complete local CPU gate:
+The recovery checkpoint is complete. Resume by generating the fresh local source manifest:
 
 ```bash
-PYTHONHASHSEED=0 /tmp/spo-refresh-venv/bin/python -m pytest -q tests/unit tests/property
+PYTHONPATH=src /tmp/spo-refresh-venv/bin/python -m story_projection_onto.manifest \
+  --root . --revision fallback-second-recovery-v4 \
+  --output artifacts/public/manifests/source_tree_fallback_second_recovery_v4.local.json
 ```
 
-Then rerun the 72 integration tests, granting loopback access only to the renderer,
-system-browser, and UI smoke files. On success, create the recovery checkpoint and follow
-`docs/FALLBACK_SECOND_RECOVERY.md` from “Complete validation and execution argument flow”
-using revision label `fallback-second-recovery-v4`. Do not execute the GPU launcher until
-the fresh validation-only preflight reports admission.
+Then synchronize the checkpointed tree without `--delete`, independently generate the
+remote manifest, associate both manifests with the current full Git SHA, and follow
+`docs/FALLBACK_SECOND_RECOVERY.md` from “Complete validation and execution argument flow.”
+Do not execute the GPU launcher until the fresh validation-only preflight reports admission.
