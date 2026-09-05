@@ -1,6 +1,6 @@
 # Run status
 
-Updated: 2026-09-05 18:55 UTC
+Updated: 2026-09-05 19:55 UTC
 
 ## Verified durable state
 
@@ -84,17 +84,24 @@ Updated: 2026-09-05 18:55 UTC
   V7 is terminal and cannot be resumed. A bounded incident-derived utility for restoring only
   its null-identity terminal lease passes five focused tests and is not permitted to mutate
   the ledger.
+- The RunPod network volume exposes fixed permissive mode bits and ignores successful POSIX
+  chmod requests. The first lease-repair precondition step therefore stopped before opening the
+  ledger or changing lease state. Exact pre-repair copies remain in restricted recovery
+  storage. A narrow compatibility proof now accepts only the root-owned RunPod mfs FUSE mount
+  class after positive kernel mountinfo, fixed-mode chmod-no-op, namespace, symlink, and hash
+  checks; ordinary filesystems still require mode 0600. The exact observed mount rendering and
+  adversarial cases pass 14/14, and the full incident/lease/fallback subset passes 100/100.
 - Four interrupted remote quarantine directories were packed losslessly before their exact
   unpacked copies were removed. The retained local and remote archive has 94,138 members,
   file SHA-256
   `617a13b5dabf7376f342550d217168d705ab328f0517cf44d663525c6562d721`,
   and passed full decompression/member-count validation.
-- The latest read-only remote audit at 2026-09-05 18:21 UTC found one NVIDIA RTX 4090
+- The latest read-only remote audit at 2026-09-05 19:35 UTC found one NVIDIA RTX 4090
   (24,564 MiB), 1 MiB used, 0% utilization, no study/vLLM process, no `tmux` or `screen`
   session, and no listener on port 8000. The v6 public result and guardian-result receipt are
   absent. vLLM is stopped.
-- The latest bounded remote project-tree measurement is 10,327,091,099 apparent bytes;
-  the immutable v4 preflight's controlled-path sample was 10,337,457,664 bytes. Both are
+- The latest bounded remote project-tree allocated-byte measurement is 16,303,746,560 bytes;
+  the immutable v4 preflight's controlled-path sample was 10,337,457,664 apparent bytes. Both are
   safely below the 25 GB occupied limit and preserve the required 5 GB headroom inside the
   registered 30 GB allocation.
 - Pinned permitted fallback model: `Qwen/Qwen3-8B-AWQ`, exact revision

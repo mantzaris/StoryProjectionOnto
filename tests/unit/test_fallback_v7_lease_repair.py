@@ -13,6 +13,7 @@ from typing import Any
 import pytest
 
 from scripts.restore_fallback_v7_terminal_lease import main as repair_cli_main
+from story_projection_onto import fallback_v7_lease_repair as repair_module
 from story_projection_onto.contracts import canonical_json, canonical_sha256
 from story_projection_onto.fallback_v7_lease_repair import (
     FALLBACK_V7_LEASE_REPAIR_KIND,
@@ -153,13 +154,16 @@ def repair_fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> SimpleNam
         / FALLBACK_MODEL_REVISION
     )
     snapshot.mkdir(parents=True)
-    manifest = project / "verified_snapshot.json"
+    public_manifests = project / "artifacts/public/manifests"
+    public_manifests.mkdir(parents=True)
+    manifest = public_manifests / "verified_snapshot.json"
     manifest.write_text("{}\n", encoding="utf-8")
-    incident_path = project / "incident.json"
+    incident_path = public_manifests / "incident.json"
     incident_path.write_text("{}\n", encoding="utf-8")
-    ledger = project / "terminal.sqlite"
+    ledger = project / "artifacts/restricted/terminal.sqlite"
+    ledger.parent.mkdir(parents=True)
     ledger.write_bytes(b"immutable terminal ledger bytes")
-    output = project / "restricted/lease_repair.json"
+    output = project / "artifacts/restricted/lease_repair.json"
     incident = _incident(_sha256_file(ledger))
 
     def validate_snapshot(
@@ -290,9 +294,19 @@ def test_one_shot_repair_derives_identity_and_replays_idempotently(
         "service_instance_token_sha256": "d" * 64,
     }
     raw_receipt = json.loads(repair_fixture.output.read_text(encoding="utf-8"))
+
+    def keys(value: object):
+        if isinstance(value, dict):
+            for key, child in value.items():
+                yield key
+                yield from keys(child)
+        elif isinstance(value, list):
+            for child in value:
+                yield from keys(child)
+
     assert not any(
         forbidden in key.casefold()
-        for key in raw_receipt
+        for key in keys(raw_receipt)
         for forbidden in ("path", "command", "token", "pid")
     )
 
@@ -304,7 +318,7 @@ def test_one_shot_repair_derives_identity_and_replays_idempotently(
 def test_existing_different_receipt_fails_without_mutating_lease(
     repair_fixture: SimpleNamespace,
 ) -> None:
-    repair_fixture.output.parent.mkdir(parents=True)
+    repair_fixture.output.parent.mkdir(parents=True, exist_ok=True)
     repair_fixture.output.write_text("{}\n", encoding="utf-8")
     repair_fixture.output.chmod(0o600)
     lease_before = (repair_fixture.cache / SERVICE_LEASE_SNAPSHOT_FILENAME).read_bytes()
@@ -335,6 +349,172 @@ def test_damaged_lease_must_be_exact_and_self_hashed(
 
     with pytest.raises(ValueError, match="self-hash is invalid"):
         _run(repair_fixture)
+    assert repair_fixture.calls == []
+
+
+def _mount_entry(
+    repair_fixture: SimpleNamespace,
+    *,
+    filesystem_type: str = "fuse",
+    source: str = "mfs#runpod-volume",
+):
+    return repair_module._MountInfoEntry(
+        mount_id=41,
+        device="0:91",
+        mount_point=repair_fixture.project,
+        mount_options=frozenset({"rw", "relatime"}),
+        filesystem_type=filesystem_type,
+        source=source,
+        super_options=frozenset({"rw", "allow_other", "user_id=0", "group_id=0"}),
+    )
+
+
+def _mock_fixed_mode_environment(
+    monkeypatch: pytest.MonkeyPatch,
+    repair_fixture: SimpleNamespace,
+    *,
+    entry: object,
+    owner_uid: int = 0,
+) -> None:
+    monkeypatch.setattr(repair_module, "_effective_user_id", lambda: 0)
+    monkeypatch.setattr(repair_module, "_mode_bits", lambda path: 0o666)
+    monkeypatch.setattr(repair_module, "_owner_uid", lambda path: owner_uid)
+    monkeypatch.setattr(repair_module, "_probe_fixed_mode", lambda path: True)
+    monkeypatch.setattr(repair_module, "_mount_entry_for_path", lambda path: entry)
+
+
+def test_non_fuse_world_writable_files_are_rejected(
+    repair_fixture: SimpleNamespace,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    entry = _mount_entry(
+        repair_fixture,
+        filesystem_type="ext4",
+        source="/dev/test",
+    )
+    _mock_fixed_mode_environment(monkeypatch, repair_fixture, entry=entry)
+
+    with pytest.raises(ValueError, match="exact RunPod mfs FUSE proof"):
+        _run(repair_fixture)
+    assert repair_fixture.calls == []
+
+
+def test_spoofed_fuse_mount_source_is_rejected(
+    repair_fixture: SimpleNamespace,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    entry = _mount_entry(repair_fixture, source="spoof#runpod-volume")
+    _mock_fixed_mode_environment(monkeypatch, repair_fixture, entry=entry)
+
+    with pytest.raises(ValueError, match="exact RunPod mfs FUSE proof"):
+        _run(repair_fixture)
+    assert repair_fixture.calls == []
+
+
+def test_mfs_prefix_without_exact_runpod_network_volume_is_rejected(
+    repair_fixture: SimpleNamespace,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    entry = _mount_entry(repair_fixture, source="mfs#evil")
+    _mock_fixed_mode_environment(monkeypatch, repair_fixture, entry=entry)
+
+    with pytest.raises(ValueError, match="exact RunPod mfs FUSE proof"):
+        _run(repair_fixture)
+    assert repair_fixture.calls == []
+
+
+def test_fixed_mode_fuse_requires_root_ownership(
+    repair_fixture: SimpleNamespace,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    entry = _mount_entry(repair_fixture)
+    _mock_fixed_mode_environment(
+        monkeypatch,
+        repair_fixture,
+        entry=entry,
+        owner_uid=1000,
+    )
+
+    with pytest.raises(ValueError, match="root-owned project state"):
+        _run(repair_fixture)
+    assert repair_fixture.calls == []
+
+
+def test_true_fixed_mode_mfs_fuse_is_accepted_and_replayable(
+    repair_fixture: SimpleNamespace,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    mountinfo = repair_fixture.project / "observed.mountinfo"
+    mountinfo.write_text(
+        f"41 25 0:91 / {repair_fixture.project} rw,relatime - fuse "
+        "mfs\\043euro-3.runpod.net:9421 "
+        "rw,user_id=0,group_id=0,allow_other\n",
+        encoding="utf-8",
+    )
+    (entry,) = repair_module._read_mountinfo(mountinfo)
+    _mock_fixed_mode_environment(monkeypatch, repair_fixture, entry=entry)
+
+    receipt = _run(repair_fixture)
+    assert receipt.access_control.mechanism == "root_owned_fixed_mode_mfs_fuse_0666"
+    assert receipt.access_control.mount_identity_sha256 == entry.identity_sha256
+    assert receipt.access_control.chmod_0600_noop_verified is True
+    assert _run(repair_fixture) == receipt
+    assert len(repair_fixture.calls) == 1
+
+
+def test_mountinfo_decodes_runpod_octal_hash_source(tmp_path: Path) -> None:
+    mountinfo = tmp_path / "mountinfo"
+    mountinfo.write_text(
+        "41 25 0:91 / /workspace rw,relatime - fuse "
+        "mfs\\043euro-3.runpod.net:9421 "
+        "rw,user_id=0,group_id=0,allow_other\n",
+        encoding="utf-8",
+    )
+
+    entries = repair_module._read_mountinfo(mountinfo)
+
+    assert len(entries) == 1
+    assert entries[0].filesystem_type == "fuse"
+    assert entries[0].source == "mfs#euro-3.runpod.net:9421"
+    assert "allow_other" in entries[0].super_options
+
+
+def test_output_traversal_is_rejected_before_write(
+    repair_fixture: SimpleNamespace,
+) -> None:
+    repair_fixture.output = (
+        repair_fixture.project / "artifacts/restricted/../public/traversed.json"
+    )
+
+    with pytest.raises(ValueError, match="cannot contain traversal"):
+        _run(repair_fixture)
+
+    assert not (repair_fixture.project / "artifacts/public/traversed.json").exists()
+    assert repair_fixture.calls == []
+
+
+def test_output_symlink_ancestry_is_rejected_before_write(
+    repair_fixture: SimpleNamespace,
+) -> None:
+    link = repair_fixture.project / "artifacts/restricted/linked"
+    link.symlink_to(repair_fixture.project / "artifacts/public", target_is_directory=True)
+    repair_fixture.output = link / "escaped.json"
+
+    with pytest.raises(ValueError, match="cannot have symlink ancestry"):
+        _run(repair_fixture)
+
+    assert not (repair_fixture.project / "artifacts/public/escaped.json").exists()
+    assert repair_fixture.calls == []
+
+
+def test_hidden_receipt_basename_is_rejected(
+    repair_fixture: SimpleNamespace,
+) -> None:
+    repair_fixture.output = repair_fixture.output.with_name(".hidden.json")
+
+    with pytest.raises(ValueError, match="unsafe basename"):
+        _run(repair_fixture)
+
     assert repair_fixture.calls == []
 
 
