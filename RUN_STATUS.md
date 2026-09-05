@@ -1,6 +1,6 @@
 # Run status
 
-Updated: 2026-09-05 16:39 UTC
+Updated: 2026-09-05 17:30 UTC
 
 ## Verified durable state
 
@@ -13,15 +13,17 @@ Updated: 2026-09-05 16:39 UTC
   `48852dc61cfb6224779ed28ee11a20f2fe951882`.
 - Tested v5 source checkpoint:
   `bfe43bca2f5a242a694b4a6998b7e384fe7dfc1b`.
+- Tested v6 launch-hardening checkpoint:
+  `96ee3a39f38f8d5f49a58d2babd53fd4c1b5d5a4`.
 - Local project: `/home/resort/Documents/repos/StoryProjectionOnto`.
 - Remote project: `/workspace/StoryProjectionOnto`.
 - The reconciled canonical Phase 1 ledger is schema v8, file SHA-256
-  `9040aea2431053fa99667b06ac0e33287c7f0839d131a06bcd462616536b57a6`.
+  `8698837637cc3d5c86e3abb3593f5647d25a17bfdaaf01fb35a36ff1e0c34a9d`.
   Its read-only ledger/CAS audit passes with 17 artifacts, one failed attempt/model call,
   five closed GPU events, four closed service sessions, and no unresolved allocation.
-  Relative to the pre-v5 ledger (`38775d1fe3c27cb93afbf78f3c692300a05ed52cb083cb4656d0378b0b94429f`),
-  v5 added exactly one allowed storage-preflight row and no GPU event, service session,
-  attempt, call, artifact, or unresolved journal.
+  V5 and v6 each added exactly one allowed storage-preflight row and no GPU event,
+  service session, attempt, call, artifact, or unresolved journal; the ledger now contains
+  115 storage samples.
 - The stale 422.961986-second local ledger remains preserved in ignored recovery storage;
   it was not discarded or used for admission.
 - The authorized v4 orchestration failed before guardian readiness because an internal
@@ -47,19 +49,38 @@ Updated: 2026-09-05 16:39 UTC
   `47ce61fe2d65eab23e967eb06ff8eb3920d3e21f6191564f8b2a73bea4f4709f`
   and logical SHA-256
   `06b7bf28427266efa9ebae3640a8a4fe883b0233956d313d98fb9103775dbfdf`.
-- The bounded v6 control-plane repair is implemented and independently reviewed. Guardian
+- The bounded v6 control-plane repair was implemented and independently reviewed. Guardian
   readiness now has the already authorized 300-second CPU-only bound, terminal verification
   retains its separate 90-second bound, status permits a coordinated live-WAL snapshot only
   after proving the exact guardian argv/PID/process-group/session identity, and attempted-start
   resume requires exactly one matching open service journal. Adversarial probes fail closed.
+- V6 passed its CPU-only preflight, but its guarded launch then failed during guardian
+  construction before readiness, model loading, or GPU allocation: a stale development
+  invariant expected v3+v5 service-event IDs while the production factory correctly derived
+  v3+v6. V6 is terminal and cannot resume. Its six-file restricted record and before/after
+  ledgers are preserved. The typed public incident has file SHA-256
+  `e8fb3aac180838a4212435ca51905178b7a22ca76990321027f01e182311df56`
+  and logical SHA-256
+  `d052713bd262745afc2060e0a75a3b565cf91db93365832b1a8b27dac09a81e9`.
+  Independent rebuild, SQLite diff, release scan, and focused tests confirm exactly one
+  storage row and zero GPU, model-service, internal-controller, inference, retry, or output
+  consumption.
+- The bounded v7 correction now derives only the exact v3+v7 service-event lineage, rejects
+  v4/v5/v6 execution, and requires a schema-1.5.0 overlay binding all three terminal
+  control-plane incidents plus a fresh v7 source association. Scientific inputs, the one
+  reserve-long retry, the 288 effective accounting events, 278 maximum inference attempts,
+  and the complete-run forecast are unchanged. An adversarial prelaunch review also exposed
+  and repaired a v4 outer-record substitution gap: v4 is now pinned by both its exact file
+  and canonical manifest hashes, with a timestamp-plus-rehash regression.
 - Four interrupted remote quarantine directories were packed losslessly before their exact
   unpacked copies were removed. The retained local and remote archive has 94,138 members,
   file SHA-256
   `617a13b5dabf7376f342550d217168d705ab328f0517cf44d663525c6562d721`,
   and passed full decompression/member-count validation.
-- The latest read-only remote audit at 2026-09-05 16:03 UTC found one NVIDIA RTX 4090
+- The latest read-only remote audit at 2026-09-05 17:12 UTC found one NVIDIA RTX 4090
   (24,564 MiB), 1 MiB used, 0% utilization, no study/vLLM process, no `tmux` or `screen`
-  session, and no listener on port 8000. vLLM is stopped.
+  session, and no listener on port 8000. The v6 public result and guardian-result receipt are
+  absent. vLLM is stopped.
 - The latest bounded remote project-tree measurement is 10,327,091,099 apparent bytes;
   the immutable v4 preflight's controlled-path sample was 10,337,457,664 bytes. Both are
   safely below the 25 GB occupied limit and preserve the required 5 GB headroom inside the
@@ -78,14 +99,16 @@ Updated: 2026-09-05 16:39 UTC
   interface tests were rerun with loopback access and all eight passed.
 - Aggregate verified result: 1,101 passed, three expected local-environment skips, zero
   implementation failures.
-- The post-v5 affected suite adds 100 passing focused tests for fallback orchestration,
-  live read-only ledger status, the typed v5 incident, reviewer handoff, and schema replay.
-  Independent bounded reviews found no v6 launch blocker.
+- The post-v6 affected suite has 109 passing focused tests for fallback orchestration,
+  development lineage, live read-only ledger status, typed incidents, and schema replay.
+  A separate complete run of the five directly changed test modules has 108 passing tests.
+  The final post-repair run of those modules has 109 passing tests. Independent v6 incident
+  reconstruction and v7 prelaunch review found no remaining launch blocker in scope.
 - Ruff, Python compilation, JSON parsing, `git diff --check`, package/CLI import smoke,
   report ingestion replay, report replay, and public-release hash checks pass.
-- Twenty-four generated JSON Schemas reproduce byte-for-byte; together with their manifest,
-  the checked directory has 25 files. Schema logical manifest SHA-256:
-  `3998aa5e1970a291956f48739b71147dca0c21b82632c8555a3826c13e3d603e`.
+- Twenty-five generated JSON Schemas reproduce byte-for-byte; together with their manifest,
+  the checked directory has 26 files. Schema logical manifest SHA-256:
+  `e40a3c5ea4ca00d935e254cf261396c15883b6487def4e07a73acc1d5b0562e6`.
 - Synthetic benchmark verify-only and the semantic refresh guard pass. Benchmark logical
   manifest SHA-256:
   `c5bce978a9006b67f13c40701fca2d7b558d62239615c49a2c035221cd1b723f`.
@@ -108,7 +131,7 @@ Updated: 2026-09-05 16:39 UTC
 
 | Phase | State | Verified position |
 |---|---|---|
-| 1 — contracts and GPU acceptance | In progress | Contracts, ledgers/CAS, storage and GPU controls, evidence/ontology boundary, provenance bridge, decoder projection, and process-group hardening pass. V4 and v5 are preserved zero-GPU control-plane incidents. The bounded v6 guardian/status repair passes; source association, preflight, and real fallback execution are next. |
+| 1 — contracts and GPU acceptance | In progress | Contracts, ledgers/CAS, storage and GPU controls, evidence/ontology boundary, provenance bridge, decoder projection, and process-group hardening pass. V4, v5, and v6 are preserved zero-GPU control-plane incidents. The bounded v7 lineage repair passes focused CPU tests; its fresh source association, overlay, preflight, and real fallback execution are next. |
 | 2 — synthetic benchmark | Software/data complete; independent review pending | Four development worlds, 12 held-out worlds, 36 primary contexts, contrastive pairs, rare-pivotal/temporal/epistemic gold, mutation tests, and the condition-blind 3-world/9-projection review package reproduce. |
 | 3 — conditions and primary run | Software complete; execution pending | C0, C1, C2, and A-FixedSelect pathways and timing/capability/equal-evidence gates pass. The 24 development and 168 held-out calls remain. |
 | 4 — metrics and ablations | Software complete; execution pending | Registered metrics, world-level inference, 4,096 sign flips, Holm correction, bootstrap sensitivity, community analysis, and three reduced ablations are implemented. |
@@ -125,12 +148,15 @@ Updated: 2026-09-05 16:39 UTC
 - The v5 control-plane launch likewise consumed zero GPU seconds and no inference, retry,
   or service-start slot; it added only one valid storage sample and remains visible as a
   distinct operational failure.
+- The v6 control-plane launch likewise consumed zero GPU seconds and no inference, retry,
+  service-start, or internal-controller slot; it added only one valid storage sample and
+  remains visible as a distinct operational failure.
 - Peak recorded v3 GPU VRAM: 22,525,509,632 bytes.
 - Peak recorded v3 process RAM: 2,955,644,928 bytes.
 - Remaining registered scientific generations: 258: four fallback acceptance calls,
   24 development calls, 168 held-out primary calls, 49 combined synthetic calls
   (12 paraphrase, nine feedback/interface, 28 ablation), and 13 case-study calls.
-- The v5 preflight's `31,722.618681` seconds is the projected **all-in final allocation**,
+- The v6 preflight's `31,722.618681` seconds is the projected **all-in final allocation**,
   not remaining time. It equals 815.215409 seconds already consumed plus
   30,516.002726 seconds of remaining mandatory work plus a 391.400545-second recovery
   service-start allowance (differences at the sixth decimal are display rounding).
@@ -143,10 +169,10 @@ Updated: 2026-09-05 16:39 UTC
 
 ## Gates and blockers
 
-- Before any further GPU service start: freeze the typed v5 incident, complete and test the
-  bounded v6 guardian repair, independently associate byte-identical local/remote v6 source
-  trees, build an authorized v6 overlay bound to both earlier incidents, reproduce the
-  all-in forecast from the current ledger, and pass a fresh CPU-only v6 preflight.
+- Before any further GPU service start: commit the tested bounded v7 repair, independently
+  associate byte-identical local/remote v7 source trees, build an authorized schema-1.5.0
+  v7 overlay bound to the v4/v5/v6 incidents, reproduce the all-in forecast from the current
+  ledger, pass a fresh CPU-only v7 preflight, and repeat the exact remote idle/resource audit.
 - Held-out inference is forbidden until the mandatory independent review and adjudication
   reproduce. No second review has been fabricated.
 - Phase 6 requires the exact lawful local novel path only when synthetic work is complete.
@@ -155,21 +181,21 @@ Updated: 2026-09-05 16:39 UTC
 
 ## Exact resume command
 
-V5 is terminal and has no permitted resume command. After committing this tested checkpoint,
-generate the fresh local v6 source manifest:
+V6 is terminal and has no permitted resume command. After committing this tested checkpoint,
+generate the fresh local v7 source manifest:
 
 ```bash
 PYTHONPATH=src /tmp/spo-refresh-venv/bin/python -m story_projection_onto.manifest \
-  --root . --revision fallback-second-recovery-v6 \
-  --output artifacts/public/manifests/source_tree_fallback_second_recovery_v6.local.json
+  --root . --revision fallback-second-recovery-v7 \
+  --output artifacts/public/manifests/source_tree_fallback_second_recovery_v7.local.json
 ```
 
 Synchronize that exact source inventory without deletion, independently generate the remote
-v6 manifest, associate both with the tested commit, build the authorized v6 overlay bound to
-both terminal incidents, and run the CPU-only v6 preflight. If it passes, the next real-output
+v7 manifest, associate both with the tested commit, build the authorized v7 overlay bound to
+all three terminal incidents, and run the CPU-only v7 preflight. If it passes, the next real-output
 job is the checked-in `scripts/run_fallback_gpu_acceptance.py --execute` launcher in detached
-tmux session `storyprojection-study-v6`, using run ID
-`fallback-qwen3-8b-awq-development-v6`, fresh restricted run root
-`artifacts/restricted/fallback-development-v6`, and public result
-`artifacts/public/results/fallback_gpu_acceptance_development_v6.json`. Do not reuse any v5
-run root, result path, tmux session, overlay, or invocation state.
+tmux session `storyprojection-study-v7`, using run ID
+`fallback-qwen3-8b-awq-development-v7`, fresh restricted run root
+`artifacts/restricted/fallback-development-v7`, and public result
+`artifacts/public/results/fallback_gpu_acceptance_development_v7.json`. Do not reuse any
+v4/v5/v6 run root, result path, tmux session, overlay, or invocation state.

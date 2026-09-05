@@ -93,6 +93,13 @@ class _TickingClock:
         return self.value
 
 
+def test_second_recovery_service_start_ids_are_exactly_v3_and_v7() -> None:
+    assert SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS == (
+        "fallback-qwen3-8b-awq-development-v3-service-start-001",
+        "fallback-qwen3-8b-awq-development-v7-service-start-001",
+    )
+
+
 def test_production_factory_propagates_gpu_recovery_overlay(tmp_path: Path) -> None:
     ledger = Ledger(tmp_path / "ledger.sqlite3")
     amendment_hash = _digest("retry-amendment")
@@ -120,6 +127,38 @@ def test_production_factory_propagates_gpu_recovery_overlay(tmp_path: Path) -> N
 
     assert adopter.retry_amendment_sha256 == amendment_hash
     assert adopter.recovery_service_start_event_ids == (event_id,)
+
+
+def test_production_factory_rejects_service_id_derived_from_zero_start_v6(
+    tmp_path: Path,
+) -> None:
+    zero_start_run_id = "fallback-qwen3-8b-awq-development-v6"
+    incorrectly_derived_ids = (
+        "fallback-qwen3-8b-awq-development-v3-service-start-001",
+        f"{zero_start_run_id}-service-start-001",
+    )
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger, pytest.raises(
+        DevelopmentContinuationError,
+        match=r"exact ordered v3\+v7 service IDs",
+    ):
+        create_production_development_adopter(
+            root=ROOT,
+            service=_NoInferenceService(),
+            artifacts=ArtifactStore(BlobStore(tmp_path / "blobs"), ledger),
+            tokenizer=_CompactFakeTokenizer(),
+            tokenizer_manifest=_tokenizer_manifest(),
+            launcher_configuration_hash=_digest("launcher"),
+            model_snapshot_manifest_hash=_digest("snapshot"),
+            source_association={
+                "revision_label": "v6-zero-service-start-regression",
+                "local_tree_sha256": _digest("source-tree"),
+            },
+            checkpoint_path=tmp_path / "run" / "fallback.checkpoint.json",
+            assessment_factory=_unreachable_assessment_factory,
+            retry_amendment_sha256=_digest("v3-retry-amendment"),
+            second_recovery_overlay_sha256=_digest("second-recovery-overlay"),
+            recovery_service_start_event_ids=incorrectly_derived_ids,
+        )
 
 
 def test_second_recovery_factory_and_forecast_bind_exact_ordered_service_ids(

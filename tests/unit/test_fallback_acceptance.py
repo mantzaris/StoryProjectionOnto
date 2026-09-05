@@ -32,9 +32,6 @@ from story_projection_onto.contracts import (
     canonical_json,
     canonical_sha256,
 )
-from story_projection_onto.development_artifacts import (
-    SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
-)
 from story_projection_onto.development_continuation import (
     create_production_development_adopter,
 )
@@ -248,17 +245,18 @@ def test_fallback_plan_binds_exact_calls_reserves_and_no_primary_block() -> None
     assert plan["fresh_gpu_ledger_forbidden"] is True
     assert plan["normal_acceptance_block"]["executed"] is False
     second_recovery = plan["second_recovery_overlay_support"]
-    assert second_recovery["overlay_schema_version"] == "1.4.0"
+    assert second_recovery["overlay_schema_version"] == "1.5.0"
     assert second_recovery["authorized_recovery_run_id"] == (
-        fallback_acceptance_module.SECOND_RECOVERY_V6_RUN_ID
+        fallback_acceptance_module.SECOND_RECOVERY_V7_RUN_ID
     )
     assert second_recovery["authorized_source_revision"] == (
-        fallback_acceptance_module.SECOND_RECOVERY_V6_SOURCE_REVISION
+        fallback_acceptance_module.SECOND_RECOVERY_V7_SOURCE_REVISION
     )
     assert second_recovery["intervening_zero_gpu_control_plane_incident_required"] is True
     assert second_recovery["intervening_v4_control_plane_incident_required"] is True
     assert second_recovery["intervening_v5_control_plane_incident_required"] is True
-    assert second_recovery["terminal_v4_and_v5_runs_must_not_resume"] is True
+    assert second_recovery["intervening_v6_control_plane_incident_required"] is True
+    assert second_recovery["terminal_v4_v5_and_v6_runs_must_not_resume"] is True
     assert second_recovery["evidence_provenance_bridge_binding_required"] is True
     assert second_recovery["retry_wire_delta_scope"] == (
         "guided_schema_schema_derived_runtime_hashes_and_hash_bound_provenance_only"
@@ -544,12 +542,15 @@ def test_cli_plan_mode_and_execute_requirements_parse_without_side_effects() -> 
             "--build-second-recovery-overlay",
             "--prior-v5-control-plane-incident",
             "v5-incident.json",
+            "--prior-v6-control-plane-incident",
+            "v6-incident.json",
             "--second-recovery-authorized-at",
             "2026-09-04T23:59:00Z",
         ]
     )
     assert builder.build_second_recovery_overlay is True
     assert builder.prior_v5_control_plane_incident == Path("v5-incident.json")
+    assert builder.prior_v6_control_plane_incident == Path("v6-incident.json")
     assert builder.second_recovery_authorized_at == datetime(
         2026,
         9,
@@ -1538,9 +1539,21 @@ def test_second_recovery_overlay_is_exact_and_proposed_cannot_execute(
         **current_source,
         "revision_label": fallback_acceptance_module.SECOND_RECOVERY_V6_SOURCE_REVISION,
     }
+    v7_source_path = (
+        tmp_path / "source_tree_fallback_second_recovery_v7.association.json"
+    )
+    v7_source_path.write_text('{"test":"v7-source-freeze"}\n', encoding="utf-8")
+    v7_source = {
+        **current_source,
+        "revision_label": fallback_acceptance_module.SECOND_RECOVERY_V7_SOURCE_REVISION,
+    }
 
     def validate_test_source(path: Path, **_kwargs: object) -> Mapping[str, object]:
-        return v6_source if Path(path).name == v6_source_path.name else current_source
+        if Path(path).name == v6_source_path.name:
+            return v6_source
+        if Path(path).name == v7_source_path.name:
+            return v7_source
+        return current_source
 
     monkeypatch.setattr(
         fallback_acceptance_module,
@@ -1665,6 +1678,35 @@ def test_second_recovery_overlay_is_exact_and_proposed_cannot_execute(
             v5_control_plane_incident
         )
     )
+    v6_control_plane_incident = (
+        ROOT
+        / "artifacts/public/manifests/"
+        "fallback_gpu_acceptance_development_v6_control_plane_incident.json"
+    )
+    built_v7 = build_second_fallback_recovery_overlay(
+        output_path=restricted_root / "second-recovery-v7-built.authorized.json",
+        authorization_status="authorized",
+        authorization_basis="The user authorized bounded continued GPU execution in this test.",
+        authorized_at=datetime(2026, 9, 5, 18, 30, tzinfo=UTC),
+        **{
+            **builder_arguments,
+            "run_id": fallback_acceptance_module.SECOND_RECOVERY_V7_RUN_ID,
+            "prior_control_plane_incident_path": v4_control_plane_incident,
+            "prior_v5_control_plane_incident_path": v5_control_plane_incident,
+            "prior_v6_control_plane_incident_path": v6_control_plane_incident,
+            "source_association": v7_source,
+            "source_association_path": v7_source_path,
+        },
+    )
+    assert built_v7["schema_version"] == "1.5.0"
+    assert built_v7["authorized_recovery_run_id"] == (
+        fallback_acceptance_module.SECOND_RECOVERY_V7_RUN_ID
+    )
+    assert built_v7["intervening_v6_control_plane_incident"] == (
+        fallback_acceptance_module._second_recovery_v6_control_plane_incident_binding(
+            v6_control_plane_incident
+        )
+    )
     with pytest.raises(ValueError, match="intervening v4 incident"):
         build_second_fallback_recovery_overlay(
             output_path=restricted_root / "v5-missing-incident.json",
@@ -1678,6 +1720,18 @@ def test_second_recovery_overlay_is_exact_and_proposed_cannot_execute(
                 "run_id": fallback_acceptance_module.SECOND_RECOVERY_V6_RUN_ID,
                 "source_association": v6_source,
                 "source_association_path": v6_source_path,
+            },
+        )
+    with pytest.raises(ValueError, match="terminal v4/v5/v6 incident chain"):
+        build_second_fallback_recovery_overlay(
+            output_path=restricted_root / "v7-missing-incident.json",
+            **{
+                **builder_arguments,
+                "run_id": fallback_acceptance_module.SECOND_RECOVERY_V7_RUN_ID,
+                "prior_control_plane_incident_path": v4_control_plane_incident,
+                "prior_v5_control_plane_incident_path": v5_control_plane_incident,
+                "source_association": v7_source,
+                "source_association_path": v7_source_path,
             },
         )
     with pytest.raises(ValueError, match="aware timestamp"):
@@ -1723,6 +1777,28 @@ def test_second_recovery_overlay_is_exact_and_proposed_cannot_execute(
             **builder_arguments,
         )
     assert not outside_parent.exists()
+
+
+def test_second_recovery_rejects_self_consistent_substitute_v4_incident(
+    tmp_path: Path,
+) -> None:
+    incident_path = (
+        ROOT
+        / "artifacts/public/manifests/"
+        "fallback_gpu_acceptance_development_v4_control_plane_incident.json"
+    )
+    incident = json.loads(incident_path.read_text(encoding="utf-8"))
+    incident["audited_at"] = "2026-09-05T14:42:25.000000Z"
+    incident["manifest_sha256"] = canonical_sha256(
+        {key: value for key, value in incident.items() if key != "manifest_sha256"}
+    )
+    substitute = tmp_path / incident_path.name
+    substitute.write_text(canonical_json(incident) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="frozen public bytes"):
+        fallback_acceptance_module._second_recovery_control_plane_incident_binding(
+            substitute
+        )
 
 
 def test_second_recovery_integrity_file_binding_rejects_symlinks_and_missing_files(
@@ -2743,11 +2819,11 @@ def _runner(
     )
 
 
-def test_v6_prepare_reaches_mocked_service_start_with_registered_adopter(
+def test_v7_prepare_reaches_mocked_service_start_with_registered_adopter(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The production v6 factory accepts the exact terminal v3+v4+v5 lineage."""
+    """The production v7 factory accepts the exact terminal v3+v4+v5+v6 lineage."""
 
     configuration = _fallback_launch_configuration(tmp_path)
     live: dict[str, object] = {}
@@ -2768,12 +2844,12 @@ def test_v6_prepare_reaches_mocked_service_start_with_registered_adopter(
         monkeypatch.setattr(service, "start", forbid_gpu_start)
         source_manifest = build_source_manifest(
             ROOT,
-            fallback_acceptance_module.SECOND_RECOVERY_V6_SOURCE_REVISION,
+            fallback_acceptance_module.SECOND_RECOVERY_V7_SOURCE_REVISION,
         )
         source_association = {
             "manifest_sha256": "d" * 64,
             "local_tree_sha256": source_manifest.tree_sha256,
-            "revision_label": fallback_acceptance_module.SECOND_RECOVERY_V6_SOURCE_REVISION,
+            "revision_label": fallback_acceptance_module.SECOND_RECOVERY_V7_SOURCE_REVISION,
         }
         amendment_hash = SECOND_RECOVERY_V3_RETRY_AMENDMENT_SHA256
         overlay_hash = "f" * 64
@@ -2792,12 +2868,16 @@ def test_v6_prepare_reaches_mocked_service_start_with_registered_adopter(
             ),
             retry_amendment_sha256=amendment_hash,
             second_recovery_overlay_sha256=overlay_hash,
-            recovery_service_start_event_ids=(SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS),
+            recovery_service_start_event_ids=(
+                fallback_acceptance_module._second_recovery_service_start_event_ids(
+                    fallback_acceptance_module.SECOND_RECOVERY_V7_RUN_ID
+                )
+            ),
         )
         runner = FallbackAcceptanceRunner(
             root=ROOT,
             legacy_provenance_bridge=legacy_provenance_bridge(),
-            run_id=fallback_acceptance_module.SECOND_RECOVERY_V6_RUN_ID,
+            run_id=fallback_acceptance_module.SECOND_RECOVERY_V7_RUN_ID,
             service=cast(object, service),
             ledger=ledger,
             artifacts=ArtifactStore(BlobStore(tmp_path / "blobs"), ledger),
@@ -2820,15 +2900,23 @@ def test_v6_prepare_reaches_mocked_service_start_with_registered_adopter(
             prior_fallback_failure={"manifest_sha256": "e" * 64},
             second_recovery_overlay={
                 "manifest_sha256": overlay_hash,
-                "schema_version": "1.4.0",
+                "schema_version": "1.5.0",
                 "authorized_recovery_run_id": (
-                    fallback_acceptance_module.SECOND_RECOVERY_V6_RUN_ID
+                    fallback_acceptance_module.SECOND_RECOVERY_V7_RUN_ID
                 ),
                 "authorization": {"status": "authorized"},
                 "intervening_control_plane_incident": {"ledger_unchanged": True},
                 "intervening_v5_control_plane_incident": {
                     "scientific_ledger_state_unchanged": True,
                     "resume_permitted": False,
+                },
+                "intervening_v6_control_plane_incident": {
+                    "incident_manifest_sha256": (
+                        fallback_acceptance_module.SECOND_RECOVERY_V6_INCIDENT_MANIFEST_SHA256
+                    ),
+                    "scientific_ledger_state_unchanged": True,
+                    "resume_permitted": False,
+                    "fresh_repaired_source_required": True,
                 },
             },
             second_recovery_v3_result={
@@ -2861,6 +2949,19 @@ def test_v6_prepare_reaches_mocked_service_start_with_registered_adopter(
 
     assert exc.value is reached_start
     assert service.start_count == 1
+
+
+def test_production_second_recovery_service_identity_derivation_is_v7_only() -> None:
+    assert fallback_acceptance_module._second_recovery_service_start_event_ids(
+        fallback_acceptance_module.SECOND_RECOVERY_V7_RUN_ID
+    ) == (
+        "fallback-qwen3-8b-awq-development-v3-service-start-001",
+        "fallback-qwen3-8b-awq-development-v7-service-start-001",
+    )
+    with pytest.raises(ValueError, match="restricted to v7"):
+        fallback_acceptance_module._second_recovery_service_start_event_ids(
+            fallback_acceptance_module.SECOND_RECOVERY_V6_RUN_ID
+        )
 
 
 def _fallback_outputs(*, trigger_repair: bool) -> dict[str, Mapping[str, object]]:
@@ -4761,22 +4862,26 @@ def test_internal_controller_cli_requires_exact_stage_output(
         fallback_acceptance_module._require_execution_arguments(parsed)
 
 
-def test_v6_controller_identity_and_internal_command_bind_both_incidents(
+def test_v7_controller_identity_and_internal_command_bind_complete_incident_chain(
     tmp_path: Path,
 ) -> None:
     options = _orchestrator_options(tmp_path)
-    options.run_id = fallback_acceptance_module.SECOND_RECOVERY_V6_RUN_ID
+    options.run_id = fallback_acceptance_module.SECOND_RECOVERY_V7_RUN_ID
     options.retry_amendment = tmp_path / "v3-amendment.json"
     options.prior_fallback_failure = tmp_path / "v3-failure.json"
-    options.second_recovery_overlay = tmp_path / "v6-overlay.json"
+    options.second_recovery_overlay = tmp_path / "v7-overlay.json"
     options.second_recovery_v3_result = tmp_path / "v3-result.json"
     options.second_recovery_v3_incident = tmp_path / "v3-incident.json"
     options.prior_control_plane_incident = tmp_path / "v4-incident.json"
 
-    with pytest.raises(SystemExit, match="both prior v4 and v5"):
+    with pytest.raises(SystemExit, match="prior v4/v5/v6"):
         fallback_acceptance_module._require_execution_arguments(options)
 
     options.prior_v5_control_plane_incident = tmp_path / "v5-incident.json"
+    with pytest.raises(SystemExit, match="prior v4/v5/v6"):
+        fallback_acceptance_module._require_execution_arguments(options)
+
+    options.prior_v6_control_plane_incident = tmp_path / "v6-incident.json"
     fallback_acceptance_module._require_execution_arguments(options)
     identity = fallback_acceptance_module._controller_execution_arguments(options)
     assert identity["prior_control_plane_incident"] == str(
@@ -4784,6 +4889,9 @@ def test_v6_controller_identity_and_internal_command_bind_both_incidents(
     )
     assert identity["prior_v5_control_plane_incident"] == str(
         options.prior_v5_control_plane_incident.resolve()
+    )
+    assert identity["prior_v6_control_plane_incident"] == str(
+        options.prior_v6_control_plane_incident.resolve()
     )
 
     command = fallback_acceptance_module._internal_controller_command(
@@ -4810,6 +4918,7 @@ def test_public_orchestrator_rejects_private_result_path_and_wrong_process_group
     for terminal_run_id in (
         fallback_acceptance_module.SECOND_RECOVERY_V4_RUN_ID,
         fallback_acceptance_module.SECOND_RECOVERY_V5_RUN_ID,
+        fallback_acceptance_module.SECOND_RECOVERY_V6_RUN_ID,
     ):
         options.run_id = terminal_run_id
         with pytest.raises(SystemExit, match="terminal control-plane incident"):

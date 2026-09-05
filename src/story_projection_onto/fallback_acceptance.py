@@ -80,6 +80,10 @@ from story_projection_onto.fallback_v5_control_plane_incident import (
     FALLBACK_V5_CONTROL_PLANE_ERROR_CLASS,
     validate_fallback_v5_control_plane_incident,
 )
+from story_projection_onto.fallback_v6_control_plane_incident import (
+    FALLBACK_V6_CONTROL_PLANE_ERROR_CLASS,
+    validate_fallback_v6_control_plane_incident,
+)
 from story_projection_onto.gpu_runtime import (
     DEFAULT_SHUTDOWN_SECONDS,
     DURABLE_EXEC_GATE_PROTOCOL,
@@ -220,6 +224,8 @@ SECOND_RECOVERY_V4_RUN_ID = "fallback-qwen3-8b-awq-development-v4"
 SECOND_RECOVERY_V5_RUN_ID = "fallback-qwen3-8b-awq-development-v5"
 SECOND_RECOVERY_V6_RUN_ID = "fallback-qwen3-8b-awq-development-v6"
 SECOND_RECOVERY_V6_SOURCE_REVISION = "fallback-second-recovery-v6"
+SECOND_RECOVERY_V7_RUN_ID = "fallback-qwen3-8b-awq-development-v7"
+SECOND_RECOVERY_V7_SOURCE_REVISION = "fallback-second-recovery-v7"
 SECOND_RECOVERY_V4_SOURCE_ASSOCIATION_MANIFEST_SHA256 = (
     "461135158f0ab9fb526bfff4dd5767e743d76359822f971a61bca1ea5ac6d33a"
 )
@@ -231,6 +237,12 @@ SECOND_RECOVERY_V4_PREFLIGHT_MANIFEST_SHA256 = (
 )
 SECOND_RECOVERY_V4_LEDGER_FILE_SHA256 = (
     "38775d1fe3c27cb93afbf78f3c692300a05ed52cb083cb4656d0378b0b94429f"
+)
+SECOND_RECOVERY_V4_INCIDENT_FILE_SHA256 = (
+    "ff74489a367c6e24c693ba8c00ccc3de505ef9af1f84f3a90518ef573ad06052"
+)
+SECOND_RECOVERY_V4_INCIDENT_MANIFEST_SHA256 = (
+    "e8b30397068a97f4f169395ec0a70ec1f709515c1df07b6a17400c7568c2993c"
 )
 SECOND_RECOVERY_V5_SOURCE_ASSOCIATION_MANIFEST_SHA256 = (
     "baf0749243f1695e194a3f18dd9b5ec47e03776b2a9639f37669b190f7808022"
@@ -252,6 +264,27 @@ SECOND_RECOVERY_V5_INCIDENT_FILE_SHA256 = (
 )
 SECOND_RECOVERY_V5_INCIDENT_MANIFEST_SHA256 = (
     "06b7bf28427266efa9ebae3640a8a4fe883b0233956d313d98fb9103775dbfdf"
+)
+SECOND_RECOVERY_V6_SOURCE_ASSOCIATION_MANIFEST_SHA256 = (
+    "e8167931a37d3b878349564e0549c0cff088d49ce0ed2a964272ce1447afa809"
+)
+SECOND_RECOVERY_V6_OVERLAY_MANIFEST_SHA256 = (
+    "c61e0adf7bb6b2c369b9bc2dbd8bb863af68e03b3a9cf9b6b64de4846aa32592"
+)
+SECOND_RECOVERY_V6_PREFLIGHT_MANIFEST_SHA256 = (
+    "f8a05eeacf706e53b0d9d88aee6768230dfe741b808ab3a4e39628bef953db49"
+)
+SECOND_RECOVERY_V6_LEDGER_BEFORE_FILE_SHA256 = (
+    "9040aea2431053fa99667b06ac0e33287c7f0839d131a06bcd462616536b57a6"
+)
+SECOND_RECOVERY_V6_LEDGER_AFTER_FILE_SHA256 = (
+    "8698837637cc3d5c86e3abb3593f5647d25a17bfdaaf01fb35a36ff1e0c34a9d"
+)
+SECOND_RECOVERY_V6_INCIDENT_FILE_SHA256 = (
+    "e8fb3aac180838a4212435ca51905178b7a22ca76990321027f01e182311df56"
+)
+SECOND_RECOVERY_V6_INCIDENT_MANIFEST_SHA256 = (
+    "d052713bd262745afc2060e0a75a3b565cf91db93365832b1a8b27dac09a81e9"
 )
 SECOND_RECOVERY_EVIDENCE_BRIDGE_IMPLEMENTATION_PATH = (
     "src/story_projection_onto/phase1_legacy_provenance.py"
@@ -492,9 +525,11 @@ _FALLBACK_CORE_IMPLEMENTATION_FILES = (
     "prompts/ablations/no_temporal_epistemic_v1.md",
     "prompts/repair/prompt_v1.md",
     "schemas/jsonschema/fallback_control_plane_incident.schema.json",
+    "schemas/jsonschema/fallback_v6_control_plane_incident.schema.json",
     "schemas/jsonschema/ontology_draft.schema.json",
     "scripts/authorize_fallback_model.py",
     "scripts/build_fallback_control_plane_incident.py",
+    "scripts/build_fallback_v6_control_plane_incident.py",
     "scripts/generate_schemas.py",
     "scripts/run_development_block.py",
     "scripts/run_fallback_gpu_acceptance.py",
@@ -518,6 +553,7 @@ _FALLBACK_CORE_IMPLEMENTATION_FILES = (
     "src/story_projection_onto/experiment.py",
     "src/story_projection_onto/fallback_acceptance.py",
     "src/story_projection_onto/fallback_control_plane_incident.py",
+    "src/story_projection_onto/fallback_v6_control_plane_incident.py",
     "src/story_projection_onto/gpu_runtime.py",
     "src/story_projection_onto/held_out_execution.py",
     "src/story_projection_onto/ledger_verify.py",
@@ -546,6 +582,7 @@ _FALLBACK_CORE_IMPLEMENTATION_FILES = (
     "tests/unit/test_development_assessment.py",
     "tests/unit/test_fallback_acceptance.py",
     "tests/unit/test_fallback_control_plane_incident.py",
+    "tests/unit/test_fallback_v6_control_plane_incident.py",
     "tests/unit/test_held_out_execution.py",
     "tests/unit/test_ledger_verify.py",
     "tests/unit/test_metrics_alignment.py",
@@ -1110,10 +1147,37 @@ class SecondRecoveryV5ControlPlaneIncidentBinding(_StrictOverlayRecord):
     resume_permitted: Literal[False]
 
 
+class SecondRecoveryV6ControlPlaneIncidentBinding(_StrictOverlayRecord):
+    """Typed zero-GPU provenance for the terminal v6 lineage mismatch."""
+
+    run_id: Literal["fallback-qwen3-8b-awq-development-v6"]
+    incident_file_sha256: Sha256Digest
+    incident_manifest_sha256: Sha256Digest
+    classification: Literal[
+        "development_continuation_service_identity_mismatch_before_guardian_readiness"
+    ]
+    control_plane_launch_attempts: Literal[1]
+    guardian_ready_published: Literal[False]
+    guardian_terminal_receipt_present: Literal[False]
+    guardian_live: Literal[False]
+    model_service_start_attempted: Literal[False]
+    inference_attempts_consumed: Literal[0]
+    retry_authorizations_consumed: Literal[0]
+    service_start_slots_consumed: Literal[0]
+    gpu_microseconds_delta: Literal[0]
+    gpu_event_count_delta: Literal[0]
+    gpu_service_session_count_delta: Literal[0]
+    accepted_output_count: Literal[0]
+    storage_sample_count_delta: Literal[1]
+    scientific_ledger_state_unchanged: Literal[True]
+    resume_permitted: Literal[False]
+    fresh_repaired_source_required: Literal[True]
+
+
 class SecondFallbackRecoveryOverlay(_StrictOverlayRecord):
     """Strict proposed-or-authorized overlay for the one v3 transport retry."""
 
-    schema_version: Literal["1.2.0", "1.3.0", "1.4.0"] = "1.4.0"
+    schema_version: Literal["1.2.0", "1.3.0", "1.4.0", "1.5.0"] = "1.5.0"
     kind: Literal["phase1_fallback_second_recovery_overlay"]
     authorization: SecondRecoveryAuthorization
     authorized_recovery_run_id: str = Field(pattern=r"^[a-z0-9][a-z0-9._-]{0,95}$")
@@ -1139,6 +1203,9 @@ class SecondFallbackRecoveryOverlay(_StrictOverlayRecord):
     intervening_v5_control_plane_incident: (
         SecondRecoveryV5ControlPlaneIncidentBinding | None
     ) = None
+    intervening_v6_control_plane_incident: (
+        SecondRecoveryV6ControlPlaneIncidentBinding | None
+    ) = None
     unchanged_scientific_controls: dict[str, bool]
     scope: str = Field(min_length=1)
     authoritative_plans_rewritten: Literal[False]
@@ -1151,6 +1218,8 @@ class SecondFallbackRecoveryOverlay(_StrictOverlayRecord):
             excluded.add("intervening_control_plane_incident")
         if self.intervening_v5_control_plane_incident is None:
             excluded.add("intervening_v5_control_plane_incident")
+        if self.intervening_v6_control_plane_incident is None:
+            excluded.add("intervening_v6_control_plane_incident")
         immutable = self.model_dump(mode="json", exclude=excluded)
         if self.manifest_sha256 != canonical_sha256(immutable):
             raise ValueError("second recovery overlay manifest hash changed")
@@ -2950,10 +3019,15 @@ def _second_recovery_control_plane_incident_binding(
         expected_ledger_file_sha256=SECOND_RECOVERY_V4_LEDGER_FILE_SHA256,
         expected_ledger_summary=_second_recovery_v4_ledger_summary(),
     )
+    if (
+        _file_sha256(path) != SECOND_RECOVERY_V4_INCIDENT_FILE_SHA256
+        or incident.manifest_sha256 != SECOND_RECOVERY_V4_INCIDENT_MANIFEST_SHA256
+    ):
+        raise ValueError("v4 control-plane incident differs from its frozen public bytes")
     return {
         "run_id": SECOND_RECOVERY_V4_RUN_ID,
-        "incident_file_sha256": _file_sha256(path),
-        "incident_manifest_sha256": incident.manifest_sha256,
+        "incident_file_sha256": SECOND_RECOVERY_V4_INCIDENT_FILE_SHA256,
+        "incident_manifest_sha256": SECOND_RECOVERY_V4_INCIDENT_MANIFEST_SHA256,
         "classification": FALLBACK_CONTROL_PLANE_ERROR_CLASS,
         "control_plane_launch_attempts": 1,
         "guardian_ready_published": False,
@@ -3033,6 +3107,99 @@ def _second_recovery_v5_control_plane_incident_binding(
     }
 
 
+def _second_recovery_v6_ledger_summaries() -> tuple[dict[str, object], dict[str, object]]:
+    """Return the exact pre/post-v6 summaries; only one storage row differs."""
+
+    before: dict[str, object] = {
+        **_second_recovery_v4_ledger_summary(),
+        "storage_sample_count": 114,
+    }
+    after = {**before, "storage_sample_count": 115}
+    return before, after
+
+
+def _second_recovery_v6_control_plane_incident_binding(
+    path: Path,
+) -> dict[str, object]:
+    """Validate and reduce the terminal v6 incident into the v7 overlay binding."""
+
+    before, after = _second_recovery_v6_ledger_summaries()
+    incident = validate_fallback_v6_control_plane_incident(
+        path,
+        expected_source_association_manifest_sha256=(
+            SECOND_RECOVERY_V6_SOURCE_ASSOCIATION_MANIFEST_SHA256
+        ),
+        expected_overlay_manifest_sha256=SECOND_RECOVERY_V6_OVERLAY_MANIFEST_SHA256,
+        expected_preflight_manifest_sha256=SECOND_RECOVERY_V6_PREFLIGHT_MANIFEST_SHA256,
+        expected_before_ledger_file_sha256=(
+            SECOND_RECOVERY_V6_LEDGER_BEFORE_FILE_SHA256
+        ),
+        expected_after_ledger_file_sha256=SECOND_RECOVERY_V6_LEDGER_AFTER_FILE_SHA256,
+        expected_before_ledger_summary=before,
+        expected_after_ledger_summary=after,
+    )
+    if (
+        _file_sha256(path) != SECOND_RECOVERY_V6_INCIDENT_FILE_SHA256
+        or incident.manifest_sha256 != SECOND_RECOVERY_V6_INCIDENT_MANIFEST_SHA256
+    ):
+        raise ValueError("v6 control-plane incident differs from its frozen public bytes")
+    terminal = incident.terminal_state
+    delta = incident.accounting.delta
+    if (
+        terminal.guardian_ready is not False
+        or terminal.guardian_terminal_receipt_present is not False
+        or terminal.guardian_live is not False
+        or terminal.model_process_started is not False
+        or terminal.vllm_service_started is not False
+        or terminal.gpu_allocation_performed is not False
+        or terminal.inference_attempt_count != 0
+        or terminal.accepted_output_count != 0
+        or terminal.resume_allowed is not False
+        or terminal.fresh_repaired_source_required is not True
+        or incident.accounting.all_non_storage_tables_identical is not True
+        or delta.allocated_gpu_microseconds != 0
+        or delta.gpu_events != 0
+        or delta.service_sessions != 0
+        or delta.service_start_events != 0
+        or delta.authorized_retry_inference_consumed is not False
+        or delta.authorized_service_start_consumed is not False
+    ):
+        raise ValueError("v6 incident no longer proves a terminal zero-GPU control-plane failure")
+    return {
+        "run_id": SECOND_RECOVERY_V6_RUN_ID,
+        "incident_file_sha256": SECOND_RECOVERY_V6_INCIDENT_FILE_SHA256,
+        "incident_manifest_sha256": SECOND_RECOVERY_V6_INCIDENT_MANIFEST_SHA256,
+        "classification": FALLBACK_V6_CONTROL_PLANE_ERROR_CLASS,
+        "control_plane_launch_attempts": 1,
+        "guardian_ready_published": False,
+        "guardian_terminal_receipt_present": False,
+        "guardian_live": False,
+        "model_service_start_attempted": False,
+        "inference_attempts_consumed": 0,
+        "retry_authorizations_consumed": 0,
+        "service_start_slots_consumed": 0,
+        "gpu_microseconds_delta": 0,
+        "gpu_event_count_delta": 0,
+        "gpu_service_session_count_delta": 0,
+        "accepted_output_count": 0,
+        "storage_sample_count_delta": 1,
+        "scientific_ledger_state_unchanged": True,
+        "resume_permitted": False,
+        "fresh_repaired_source_required": True,
+    }
+
+
+def _second_recovery_service_start_event_ids(run_id: str) -> tuple[str, str]:
+    """Derive the only executable second-recovery service identity lineage."""
+
+    if run_id != SECOND_RECOVERY_V7_RUN_ID:
+        raise ValueError("second-recovery service identity derivation is restricted to v7")
+    return (
+        f"{SECOND_RECOVERY_V3_RUN_ID}-service-start-001",
+        f"{SECOND_RECOVERY_V7_RUN_ID}-service-start-001",
+    )
+
+
 def validate_second_fallback_recovery_overlay(
     *,
     root: Path,
@@ -3041,6 +3208,7 @@ def validate_second_fallback_recovery_overlay(
     v3_incident_path: Path,
     prior_control_plane_incident_path: Path | None = None,
     prior_v5_control_plane_incident_path: Path | None = None,
+    prior_v6_control_plane_incident_path: Path | None = None,
     prior_retry_amendment_path: Path,
     prior_retry_failure_path: Path,
     run_id: str,
@@ -3174,12 +3342,16 @@ def validate_second_fallback_recovery_overlay(
         if (
             prior_control_plane_incident_path is not None
             or prior_v5_control_plane_incident_path is not None
+            or prior_v6_control_plane_incident_path is not None
         ):
             raise ValueError("historical v4 recovery cannot bind a later incident")
     elif run_id == SECOND_RECOVERY_V5_RUN_ID:
         if prior_control_plane_incident_path is None:
             raise ValueError("v5 recovery lacks the exact intervening v4 incident")
-        if prior_v5_control_plane_incident_path is not None:
+        if (
+            prior_v5_control_plane_incident_path is not None
+            or prior_v6_control_plane_incident_path is not None
+        ):
             raise ValueError("historical v5 recovery cannot bind its own later incident")
     elif run_id == SECOND_RECOVERY_V6_RUN_ID:
         if (
@@ -3194,8 +3366,24 @@ def validate_second_fallback_recovery_overlay(
             != "source_tree_fallback_second_recovery_v6.association.json"
         ):
             raise ValueError("v6 recovery requires its fresh exact source revision")
+        if prior_v6_control_plane_incident_path is not None:
+            raise ValueError("historical v6 recovery cannot bind its own later incident")
+    elif run_id == SECOND_RECOVERY_V7_RUN_ID:
+        if (
+            prior_control_plane_incident_path is None
+            or prior_v5_control_plane_incident_path is None
+            or prior_v6_control_plane_incident_path is None
+        ):
+            raise ValueError("v7 recovery requires the exact terminal v4/v5/v6 incident chain")
+        if (
+            source_association.get("revision_label")
+            != SECOND_RECOVERY_V7_SOURCE_REVISION
+            or source_association_path.name
+            != "source_tree_fallback_second_recovery_v7.association.json"
+        ):
+            raise ValueError("v7 recovery requires its fresh exact source revision")
     else:
-        raise ValueError("second recovery is restricted to the exact v4/v5/v6 lineage")
+        raise ValueError("second recovery is restricted to the exact v4/v5/v6/v7 lineage")
     expected_control_plane_incident = (
         None
         if prior_control_plane_incident_path is None
@@ -3208,6 +3396,13 @@ def validate_second_fallback_recovery_overlay(
         if prior_v5_control_plane_incident_path is None
         else _second_recovery_v5_control_plane_incident_binding(
             prior_v5_control_plane_incident_path
+        )
+    )
+    expected_v6_control_plane_incident = (
+        None
+        if prior_v6_control_plane_incident_path is None
+        else _second_recovery_v6_control_plane_incident_binding(
+            prior_v6_control_plane_incident_path
         )
     )
 
@@ -3232,8 +3427,15 @@ def validate_second_fallback_recovery_overlay(
         if overlay.intervening_v5_control_plane_incident is None
         else overlay.intervening_v5_control_plane_incident.model_dump(mode="json")
     )
+    observed_v6_control_plane_incident = (
+        None
+        if overlay.intervening_v6_control_plane_incident is None
+        else overlay.intervening_v6_control_plane_incident.model_dump(mode="json")
+    )
     expected_overlay_schema = (
-        "1.4.0"
+        "1.5.0"
+        if expected_v6_control_plane_incident is not None
+        else "1.4.0"
         if expected_v5_control_plane_incident is not None
         else "1.3.0"
         if expected_control_plane_incident is not None
@@ -3243,6 +3445,7 @@ def validate_second_fallback_recovery_overlay(
         overlay.schema_version != expected_overlay_schema
         or observed_control_plane_incident != expected_control_plane_incident
         or observed_v5_control_plane_incident != expected_v5_control_plane_incident
+        or observed_v6_control_plane_incident != expected_v6_control_plane_incident
     ):
         raise ValueError("second recovery overlay changed its control-plane incident chain")
     if require_authorized and overlay.authorization.status != "authorized":
@@ -3480,6 +3683,8 @@ def validate_second_fallback_recovery_overlay(
         overlay_payload.pop("intervening_control_plane_incident", None)
     if overlay.intervening_v5_control_plane_incident is None:
         overlay_payload.pop("intervening_v5_control_plane_incident", None)
+    if overlay.intervening_v6_control_plane_incident is None:
+        overlay_payload.pop("intervening_v6_control_plane_incident", None)
     return overlay_payload, predecessor, incident
 
 
@@ -3615,6 +3820,7 @@ def build_second_fallback_recovery_overlay(
     v3_incident_path: Path,
     prior_control_plane_incident_path: Path | None = None,
     prior_v5_control_plane_incident_path: Path | None = None,
+    prior_v6_control_plane_incident_path: Path | None = None,
     prior_retry_amendment_path: Path,
     prior_retry_failure_path: Path,
     run_id: str,
@@ -3701,6 +3907,7 @@ def build_second_fallback_recovery_overlay(
         if (
             prior_control_plane_incident_path is not None
             or prior_v5_control_plane_incident_path is not None
+            or prior_v6_control_plane_incident_path is not None
         ):
             raise ValueError("historical v4 recovery cannot bind a later incident")
     elif run_id == SECOND_RECOVERY_V5_RUN_ID:
@@ -3708,7 +3915,10 @@ def build_second_fallback_recovery_overlay(
             raise ValueError(
                 "v5 recovery builder requires the exact intervening v4 incident"
             )
-        if prior_v5_control_plane_incident_path is not None:
+        if (
+            prior_v5_control_plane_incident_path is not None
+            or prior_v6_control_plane_incident_path is not None
+        ):
             raise ValueError("historical v5 recovery cannot bind its own later incident")
     elif run_id == SECOND_RECOVERY_V6_RUN_ID:
         if (
@@ -3723,8 +3933,26 @@ def build_second_fallback_recovery_overlay(
             != "source_tree_fallback_second_recovery_v6.association.json"
         ):
             raise ValueError("v6 recovery builder requires its fresh exact source revision")
+        if prior_v6_control_plane_incident_path is not None:
+            raise ValueError("historical v6 recovery cannot bind its own later incident")
+    elif run_id == SECOND_RECOVERY_V7_RUN_ID:
+        if (
+            prior_control_plane_incident_path is None
+            or prior_v5_control_plane_incident_path is None
+            or prior_v6_control_plane_incident_path is None
+        ):
+            raise ValueError(
+                "v7 recovery builder requires the exact terminal v4/v5/v6 incident chain"
+            )
+        if (
+            source_association.get("revision_label")
+            != SECOND_RECOVERY_V7_SOURCE_REVISION
+            or source_association_path.name
+            != "source_tree_fallback_second_recovery_v7.association.json"
+        ):
+            raise ValueError("v7 recovery builder requires its fresh exact source revision")
     else:
-        raise ValueError("second recovery builder is restricted to the exact v4/v5/v6 lineage")
+        raise ValueError("second recovery builder is restricted to the exact v4/v5/v6/v7 lineage")
     control_plane_incident = (
         None
         if prior_control_plane_incident_path is None
@@ -3739,9 +3967,18 @@ def build_second_fallback_recovery_overlay(
             prior_v5_control_plane_incident_path
         )
     )
+    v6_control_plane_incident = (
+        None
+        if prior_v6_control_plane_incident_path is None
+        else _second_recovery_v6_control_plane_incident_binding(
+            prior_v6_control_plane_incident_path
+        )
+    )
     payload: dict[str, object] = {
         "schema_version": (
-            "1.4.0"
+            "1.5.0"
+            if v6_control_plane_incident is not None
+            else "1.4.0"
             if v5_control_plane_incident is not None
             else "1.3.0"
             if control_plane_incident is not None
@@ -3900,6 +4137,8 @@ def build_second_fallback_recovery_overlay(
         payload["intervening_control_plane_incident"] = control_plane_incident
     if v5_control_plane_incident is not None:
         payload["intervening_v5_control_plane_incident"] = v5_control_plane_incident
+    if v6_control_plane_incident is not None:
+        payload["intervening_v6_control_plane_incident"] = v6_control_plane_incident
     typed_candidate = SecondFallbackRecoveryOverlay.model_validate(
         {**payload, "manifest_sha256": canonical_sha256(payload)}
     )
@@ -3908,6 +4147,8 @@ def build_second_fallback_recovery_overlay(
         candidate.pop("intervening_control_plane_incident", None)
     if typed_candidate.intervening_v5_control_plane_incident is None:
         candidate.pop("intervening_v5_control_plane_incident", None)
+    if typed_candidate.intervening_v6_control_plane_incident is None:
+        candidate.pop("intervening_v6_control_plane_incident", None)
 
     with tempfile.TemporaryDirectory(
         dir=output_path.parent,
@@ -3922,6 +4163,7 @@ def build_second_fallback_recovery_overlay(
             v3_incident_path=v3_incident_path,
             prior_control_plane_incident_path=prior_control_plane_incident_path,
             prior_v5_control_plane_incident_path=prior_v5_control_plane_incident_path,
+            prior_v6_control_plane_incident_path=prior_v6_control_plane_incident_path,
             prior_retry_amendment_path=prior_retry_amendment_path,
             prior_retry_failure_path=prior_retry_failure_path,
             run_id=run_id,
@@ -4304,13 +4546,14 @@ def fallback_plan_manifest(root: Path) -> dict[str, object]:
             "proposed_overlay_validation_is_cpu_only": True,
             "deterministic_cpu_only_builder_available": True,
             "builder_output_policy": "restricted_append_only_exact_replay",
-            "overlay_schema_version": "1.4.0",
-            "authorized_recovery_run_id": SECOND_RECOVERY_V6_RUN_ID,
-            "authorized_source_revision": SECOND_RECOVERY_V6_SOURCE_REVISION,
+            "overlay_schema_version": "1.5.0",
+            "authorized_recovery_run_id": SECOND_RECOVERY_V7_RUN_ID,
+            "authorized_source_revision": SECOND_RECOVERY_V7_SOURCE_REVISION,
             "intervening_zero_gpu_control_plane_incident_required": True,
             "intervening_v4_control_plane_incident_required": True,
             "intervening_v5_control_plane_incident_required": True,
-            "terminal_v4_and_v5_runs_must_not_resume": True,
+            "intervening_v6_control_plane_incident_required": True,
+            "terminal_v4_v5_and_v6_runs_must_not_resume": True,
             "evidence_provenance_bridge_binding_required": True,
             "retry_wire_delta_scope": (
                 "guided_schema_schema_derived_runtime_hashes_and_"
@@ -5240,9 +5483,13 @@ class FallbackAcceptanceRunner:
             )
         ):
             raise ValueError("run_id must be a lowercase public-safe identifier")
-        if self.run_id in {SECOND_RECOVERY_V4_RUN_ID, SECOND_RECOVERY_V5_RUN_ID}:
+        if self.run_id in {
+            SECOND_RECOVERY_V4_RUN_ID,
+            SECOND_RECOVERY_V5_RUN_ID,
+            SECOND_RECOVERY_V6_RUN_ID,
+        }:
             raise ValueError(
-                "fallback v4/v5 are terminal control-plane incidents and cannot execute"
+                "fallback v4/v5/v6 are terminal control-plane incidents and cannot execute"
             )
         self.root = self.root.resolve(strict=True)
         self.legacy_provenance_bridge = _require_phase1_legacy_provenance_bridge(
@@ -5289,10 +5536,13 @@ class FallbackAcceptanceRunner:
             intervening_v5_incident = self.second_recovery_overlay.get(
                 "intervening_v5_control_plane_incident"
             )
+            intervening_v6_incident = self.second_recovery_overlay.get(
+                "intervening_v6_control_plane_incident"
+            )
             if (
                 not isinstance(authorization, Mapping)
                 or authorization.get("status") != "authorized"
-                or self.run_id != SECOND_RECOVERY_V6_RUN_ID
+                or self.run_id != SECOND_RECOVERY_V7_RUN_ID
                 or self.second_recovery_overlay.get("authorized_recovery_run_id") != self.run_id
                 or self.second_recovery_v3_result.get("manifest_sha256")
                 != SECOND_RECOVERY_V3_RESULT_MANIFEST_SHA256
@@ -5301,16 +5551,21 @@ class FallbackAcceptanceRunner:
             ):
                 raise ValueError("second fallback recovery is not explicitly authorized")
             if (
-                self.second_recovery_overlay.get("schema_version") != "1.4.0"
+                self.second_recovery_overlay.get("schema_version") != "1.5.0"
                 or not isinstance(intervening_incident, Mapping)
                 or intervening_incident.get("ledger_unchanged") is not True
                 or not isinstance(intervening_v5_incident, Mapping)
                 or intervening_v5_incident.get("scientific_ledger_state_unchanged")
                 is not True
                 or intervening_v5_incident.get("resume_permitted") is not False
+                or not isinstance(intervening_v6_incident, Mapping)
+                or intervening_v6_incident.get("scientific_ledger_state_unchanged")
+                is not True
+                or intervening_v6_incident.get("resume_permitted") is not False
+                or intervening_v6_incident.get("fresh_repaired_source_required") is not True
             ):
                 raise ValueError(
-                    "v6 recovery lacks its terminal v4/v5 incident bindings"
+                    "v7 recovery lacks its terminal v4/v5/v6 incident bindings"
                 )
 
     @property
@@ -5343,12 +5598,18 @@ class FallbackAcceptanceRunner:
             return None
         return cast(str, self.second_recovery_v3_incident["manifest_sha256"])
 
+    @property
+    def prior_v6_control_plane_incident_hash(self) -> str | None:
+        if self.second_recovery_overlay is None:
+            return None
+        incident = self.second_recovery_overlay.get("intervening_v6_control_plane_incident")
+        if not isinstance(incident, Mapping):
+            return None
+        return cast(str, incident["incident_manifest_sha256"])
+
     def _recovery_service_start_event_ids(self) -> tuple[str, ...]:
         if self.second_recovery_overlay is not None:
-            return (
-                f"{SECOND_RECOVERY_V3_RUN_ID}-service-start-001",
-                f"{self.run_id}-service-start-001",
-            )
+            return _second_recovery_service_start_event_ids(self.run_id)
         if self.retry_amendment is not None:
             return (f"{self.run_id}-service-start-001",)
         return ()
@@ -5493,6 +5754,9 @@ class FallbackAcceptanceRunner:
             "second_fallback_recovery_overlay_sha256": (self.second_recovery_overlay_hash),
             "second_recovery_v3_result_sha256": self.second_recovery_v3_result_hash,
             "second_recovery_v3_incident_sha256": (self.second_recovery_v3_incident_hash),
+            "prior_v6_control_plane_incident_sha256": (
+                self.prior_v6_control_plane_incident_hash
+            ),
             "service_start_watchdog_seconds": self.service_start_watchdog_seconds,
             "launcher_configuration_sha256": self.service.configuration.configuration_hash,
             "tokenizer_manifest_sha256": self.tokenizer_manifest.manifest_sha256,
@@ -8805,6 +9069,9 @@ class FallbackAcceptanceRunner:
             "second_fallback_recovery_overlay_sha256": (self.second_recovery_overlay_hash),
             "second_recovery_v3_result_sha256": self.second_recovery_v3_result_hash,
             "second_recovery_v3_incident_sha256": (self.second_recovery_v3_incident_hash),
+            "prior_v6_control_plane_incident_sha256": (
+                self.prior_v6_control_plane_incident_hash
+            ),
             "effective_gpu_call_inventory": self._effective_inventory_manifest(),
             "recovery_service_start_events_consumed": recovery_service_starts,
             "normal_acceptance_block_executed": False,
@@ -9278,6 +9545,9 @@ class FallbackAcceptanceRunner:
             "second_fallback_recovery_overlay_sha256": (self.second_recovery_overlay_hash),
             "second_recovery_v3_result_sha256": self.second_recovery_v3_result_hash,
             "second_recovery_v3_incident_sha256": (self.second_recovery_v3_incident_hash),
+            "prior_v6_control_plane_incident_sha256": (
+                self.prior_v6_control_plane_incident_hash
+            ),
             "effective_gpu_call_inventory": self._effective_inventory_manifest(),
             "recovery_service_start_events_consumed": recovery_service_starts,
             "execution_identity": dict(execution_identity),
@@ -9399,6 +9669,10 @@ def _controller_execution_arguments(options: argparse.Namespace) -> dict[str, ob
     if options.prior_v5_control_plane_incident is not None:
         identity["prior_v5_control_plane_incident"] = str(
             options.prior_v5_control_plane_incident.resolve()
+        )
+    if options.prior_v6_control_plane_incident is not None:
+        identity["prior_v6_control_plane_incident"] = str(
+            options.prior_v6_control_plane_incident.resolve()
         )
     return identity
 
@@ -10002,6 +10276,7 @@ def _internal_controller_command(
         "second_recovery_v3_incident",
         "prior_control_plane_incident",
         "prior_v5_control_plane_incident",
+        "prior_v6_control_plane_incident",
     ):
         if name in arguments:
             command.extend((f"--{name.replace('_', '-')}", cast(str, arguments[name])))
@@ -11395,6 +11670,7 @@ def parse_arguments(arguments: Sequence[str] | None = None) -> argparse.Namespac
     parser.add_argument("--second-recovery-v3-incident", type=Path)
     parser.add_argument("--prior-control-plane-incident", type=Path)
     parser.add_argument("--prior-v5-control-plane-incident", type=Path)
+    parser.add_argument("--prior-v6-control-plane-incident", type=Path)
     parser.add_argument("--restricted-output-root", type=Path)
     parser.add_argument(
         "--second-recovery-authorization-status",
@@ -11458,11 +11734,15 @@ def _require_second_recovery_builder_arguments(options: argparse.Namespace) -> N
         "ledger",
     )
     missing = [name for name in required if getattr(options, name) is None]
-    if (
-        options.run_id == SECOND_RECOVERY_V6_RUN_ID
-        and options.prior_v5_control_plane_incident is None
+    if options.run_id in {SECOND_RECOVERY_V6_RUN_ID, SECOND_RECOVERY_V7_RUN_ID} and (
+        options.prior_v5_control_plane_incident is None
     ):
         missing.append("prior_v5_control_plane_incident")
+    if (
+        options.run_id == SECOND_RECOVERY_V7_RUN_ID
+        and options.prior_v6_control_plane_incident is None
+    ):
+        missing.append("prior_v6_control_plane_incident")
     if missing:
         raise SystemExit(
             "second recovery overlay builder requires: "
@@ -11534,6 +11814,9 @@ def _build_second_recovery_overlay_from_cli(
         prior_v5_control_plane_incident_path=(
             options.prior_v5_control_plane_incident
         ),
+        prior_v6_control_plane_incident_path=(
+            options.prior_v6_control_plane_incident
+        ),
         prior_retry_amendment_path=options.retry_amendment,
         prior_retry_failure_path=options.prior_fallback_failure,
         run_id=options.run_id,
@@ -11604,31 +11887,47 @@ def _require_execution_arguments(
         and options.second_recovery_overlay is None
     ):
         raise SystemExit("a prior v5 control-plane incident requires second recovery")
+    if (
+        options.prior_v6_control_plane_incident is not None
+        and options.second_recovery_overlay is None
+    ):
+        raise SystemExit("a prior v6 control-plane incident requires second recovery")
     if options.execute and options.run_id in {
         SECOND_RECOVERY_V4_RUN_ID,
         SECOND_RECOVERY_V5_RUN_ID,
+        SECOND_RECOVERY_V6_RUN_ID,
     }:
         raise SystemExit(
-            "fallback v4/v5 are terminal control-plane incidents and cannot execute"
+            "fallback v4/v5/v6 are terminal control-plane incidents and cannot execute"
         )
     if options.run_id == SECOND_RECOVERY_V5_RUN_ID and (
         options.second_recovery_overlay is None
         or options.prior_control_plane_incident is None
         or options.prior_v5_control_plane_incident is not None
+        or options.prior_v6_control_plane_incident is not None
     ):
         raise SystemExit("historical v5 requires only its prior v4 control-plane incident")
     if options.run_id == SECOND_RECOVERY_V6_RUN_ID and (
         options.second_recovery_overlay is None
         or options.prior_control_plane_incident is None
         or options.prior_v5_control_plane_incident is None
+        or options.prior_v6_control_plane_incident is not None
     ):
         raise SystemExit("v6 requires both prior v4 and v5 control-plane incidents")
+    if options.run_id == SECOND_RECOVERY_V7_RUN_ID and (
+        options.second_recovery_overlay is None
+        or options.prior_control_plane_incident is None
+        or options.prior_v5_control_plane_incident is None
+        or options.prior_v6_control_plane_incident is None
+    ):
+        raise SystemExit("v7 requires the exact prior v4/v5/v6 control-plane incident chain")
     if options.second_recovery_overlay is not None and options.run_id not in {
         SECOND_RECOVERY_V4_RUN_ID,
         SECOND_RECOVERY_V5_RUN_ID,
         SECOND_RECOVERY_V6_RUN_ID,
+        SECOND_RECOVERY_V7_RUN_ID,
     }:
-        raise SystemExit("second recovery is restricted to the exact v4/v5/v6 lineage")
+        raise SystemExit("second recovery is restricted to the exact v4/v5/v6/v7 lineage")
     if options.resume_orchestrator and options.controller_stage != "orchestrate":
         raise SystemExit("--resume-orchestrator requires --controller-stage orchestrate")
     if options.guardian_ticket is not None and options.controller_stage != "guardian":
@@ -11811,6 +12110,9 @@ def _validate_execution_preflight(
                     prior_v5_control_plane_incident_path=(
                         options.prior_v5_control_plane_incident
                     ),
+                    prior_v6_control_plane_incident_path=(
+                        options.prior_v6_control_plane_incident
+                    ),
                     prior_retry_amendment_path=options.retry_amendment,
                     prior_retry_failure_path=cast(Path, options.prior_fallback_failure),
                     run_id=options.run_id,
@@ -11891,6 +12193,11 @@ def _validate_execution_preflight(
         if second_overlay is None
         else second_overlay.get("intervening_v5_control_plane_incident")
     )
+    v6_control_plane_binding = (
+        None
+        if second_overlay is None
+        else second_overlay.get("intervening_v6_control_plane_incident")
+    )
     payload: dict[str, object] = {
         "schema_version": SCHEMA_VERSION,
         "kind": "phase1_fallback_execution_preflight",
@@ -11926,6 +12233,11 @@ def _validate_execution_preflight(
             None
             if not isinstance(v5_control_plane_binding, Mapping)
             else v5_control_plane_binding["incident_manifest_sha256"]
+        ),
+        "prior_v6_control_plane_incident_sha256": (
+            None
+            if not isinstance(v6_control_plane_binding, Mapping)
+            else v6_control_plane_binding["incident_manifest_sha256"]
         ),
         "authorization_status": (None if authorization is None else authorization.get("status")),
         "authorization_basis": (None if authorization is None else authorization.get("basis")),
@@ -12128,6 +12440,9 @@ def main(
                 prior_v5_control_plane_incident_path=(
                     options.prior_v5_control_plane_incident
                 ),
+                prior_v6_control_plane_incident_path=(
+                    options.prior_v6_control_plane_incident
+                ),
                 prior_retry_amendment_path=cast(Path, options.retry_amendment),
                 prior_retry_failure_path=cast(Path, options.prior_fallback_failure),
                 run_id=options.run_id,
@@ -12152,9 +12467,8 @@ def main(
                 expected_kind="phase1_fallback_micro_pilot_result",
             )
             service_start_watchdog_seconds = AMENDED_FALLBACK_STARTUP_WATCHDOG_SECONDS
-            recovery_service_start_event_ids = (
-                f"{SECOND_RECOVERY_V3_RUN_ID}-service-start-001",
-                f"{options.run_id}-service-start-001",
+            recovery_service_start_event_ids = _second_recovery_service_start_event_ids(
+                options.run_id
             )
         elif options.retry_amendment is not None:
             retry_amendment, prior_fallback_failure = validate_fallback_service_retry_amendment(
@@ -12358,10 +12672,16 @@ __all__ = [
     "SECOND_RECOVERY_V4_C1_CONDITION_PATHWAY_TEST_SHA256",
     "SECOND_RECOVERY_V4_C1_DEVELOPMENT_ASSESSMENT_TEST_SHA256",
     "SECOND_RECOVERY_V4_C1_IMPLEMENTATION_SHA256",
+    "SECOND_RECOVERY_V4_INCIDENT_FILE_SHA256",
+    "SECOND_RECOVERY_V4_INCIDENT_MANIFEST_SHA256",
     "SECOND_RECOVERY_V4_RUN_ID",
     "SECOND_RECOVERY_V5_RUN_ID",
+    "SECOND_RECOVERY_V6_INCIDENT_FILE_SHA256",
+    "SECOND_RECOVERY_V6_INCIDENT_MANIFEST_SHA256",
     "SECOND_RECOVERY_V6_RUN_ID",
     "SECOND_RECOVERY_V6_SOURCE_REVISION",
+    "SECOND_RECOVERY_V7_RUN_ID",
+    "SECOND_RECOVERY_V7_SOURCE_REVISION",
     "SECOND_RECOVERY_VALIDATE_IMPLEMENTATION_PATH",
     "DevelopmentAdopterRegistration",
     "DevelopmentContinuationAdopter",
@@ -12384,6 +12704,7 @@ __all__ = [
     "SecondRecoverySemanticValidationCorrection",
     "SecondRecoverySemanticValidationUnchangedControls",
     "SecondRecoveryV5ControlPlaneIncidentBinding",
+    "SecondRecoveryV6ControlPlaneIncidentBinding",
     "build_fallback_repair_request",
     "build_second_fallback_recovery_overlay",
     "establish_fallback_orchestrator_process_group",

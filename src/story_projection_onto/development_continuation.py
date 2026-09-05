@@ -183,7 +183,7 @@ def _validate_recovery_service_start_binding(
             or identifiers != SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS
         ):
             raise DevelopmentContinuationError(
-                "second recovery requires the exact ordered v3+v5 service IDs"
+                "second recovery requires the exact ordered v3+v7 service IDs"
             )
         return
     if len(identifiers) > 1 or bool(identifiers) != bool(retry_amendment_sha256):

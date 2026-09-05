@@ -22,7 +22,7 @@ from story_projection_onto.development_runtime import DEVELOPMENT_CALL_COUNT
 
 SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS = (
     "fallback-qwen3-8b-awq-development-v3-service-start-001",
-    "fallback-qwen3-8b-awq-development-v5-service-start-001",
+    "fallback-qwen3-8b-awq-development-v7-service-start-001",
 )
 
 
@@ -366,7 +366,7 @@ class DevelopmentForecastReceipt(ImmutableRecord):
                 != SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS
             ):
                 raise ValueError(
-                    "second recovery must bind the exact ordered v3+v5 service starts"
+                    "second recovery must bind the exact ordered v3+v7 service starts"
                 )
         elif (
             len(self.recovery_service_start_event_ids) > 1

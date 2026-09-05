@@ -1,17 +1,19 @@
 # Second fallback recovery overlay
 
-This repository supports, but does not itself authorize, one fresh recovery
+This repository supports, but does not itself authorize, one fresh v7 recovery
 after the terminal `fallback-qwen3-8b-awq-development-v3` decoder-transport
-incident and the later zero-GPU v4 control-plane incident. No authorized v5
-recovery artifact is checked in. The existing v3 amendment, its validator, the
-v3 failed result and incident association, and the v4 control-plane record
-remain immutable provenance.
+incident and the later zero-GPU v4, v5, and v6 control-plane incidents. V4,
+v5, and v6 are immutable terminal attempts and cannot execute or resume. The
+existing v3 amendment, its validator, the v3 failed result and incident
+association, and all three later public incident records remain immutable
+provenance.
 
 The second overlay is intentionally fail-closed. It must bind all of the
 following before a model process can start:
 
 - the exact v3 result and incident file and manifest hashes;
 - the exact self-hashed v4 zero-GPU control-plane incident;
+- the exact self-hashed v5 and v6 zero-GPU control-plane incidents;
 - the original v3 retry amendment and its predecessor through the original
   amendment validator;
 - the cumulative 815.215409 GPU seconds, five ledger events, and four service
@@ -271,9 +273,10 @@ binding.
 
 ## Authorization and dry validation
 
-`SecondFallbackRecoveryOverlay` schema version 1.3.0 requires the typed evidence
+`SecondFallbackRecoveryOverlay` schema version 1.5.0 requires the typed evidence
 provenance bridge binding, projection-dependency correction,
-concurrent-integrity disclosure, and exact v4 control-plane incident binding. It
+concurrent-integrity disclosure, and the exact v4, v5, and v6 control-plane
+incident bindings. It
 accepts either `proposed` or `authorized` so a complete proposal can be checked
 without inventing approval. A proposal must
 leave `authorized_by` and `recorded_at` null. An authorized overlay must name
@@ -290,6 +293,8 @@ arguments:
 --second-recovery-v3-result artifacts/public/results/fallback_gpu_acceptance_development_v3.json
 --second-recovery-v3-incident artifacts/public/manifests/fallback_gpu_acceptance_development_v3_incident.json
 --prior-control-plane-incident artifacts/public/manifests/fallback_gpu_acceptance_development_v4_control_plane_incident.json
+--prior-v5-control-plane-incident artifacts/public/manifests/fallback_gpu_acceptance_development_v5_control_plane_incident.json
+--prior-v6-control-plane-incident artifacts/public/manifests/fallback_gpu_acceptance_development_v6_control_plane_incident.json
 ```
 
 Validation is CPU-only. It verifies the bridge certificate and every registered
@@ -570,13 +575,15 @@ Any other ledger/checkpoint ordering mismatch fails closed. Only a completed
 continuation with a hash-valid receipt and the complete matching ledger history
 may replay without another storage observation or adopter call.
 
-## Fresh v6 execution after the terminal v5 control-plane incident
+## Historical v6 launch record (terminal; do not execute or resume)
 
 V5 is a preserved zero-GPU incident and has no resume path. The bounded v6
-repair keeps every scientific input, call, seed, model, and forecast unchanged;
-it extends only the fail-closed control plane. V6 requires both public incident
-records and a new byte-identical local/remote source association with revision
-`fallback-second-recovery-v6`. Historical v4/v5 run IDs are rejected.
+repair kept every scientific input, call, seed, model, and forecast unchanged;
+it extended only the fail-closed control plane. V6 bound both prior public
+incident records and a byte-identical local/remote source association with
+revision `fallback-second-recovery-v6`. V6 is now itself a terminal zero-GPU
+incident. The commands in this subsection document the historical attempt and
+must not be executed or used as a resume recipe.
 
 Use the manifest commands above with `v6` substituted for `v5`, and bind the
 association to the tested checkpoint commit. Then build the authorized overlay
@@ -597,9 +604,7 @@ and tmux session `storyprojection-study-v6`. Add the same
 `--prior-v5-control-plane-incident` argument to `common_arguments`. All other
 arguments and the checked-in launcher remain exactly as shown above.
 
-The exact job that may produce real fallback and development outputs, only
-after the v6 validation-only receipt passes and the final idle/resource audit
-passes, is:
+The historical detached launch command was:
 
 ```bash
 run_log="$run_root/orchestrator.$(date -u +%Y%m%dT%H%M%SZ).log"
@@ -618,6 +623,41 @@ Guardian initialization is CPU-only and now uses the already authorized
 after deriving and verifying the exact guardian argv, PID, process group, and
 session; attempted-start resume additionally requires exactly one matching open
 service journal. Any failed proof keeps `resume_allowed` false.
+
+## Fresh v7 execution after the terminal v6 control-plane incident
+
+V6 failed during guardian construction, before readiness, because the frozen
+development-continuation service-start identity still named v3+v5 while the
+production factory derived v3+v6. V6 started no model service, allocated no GPU
+time, consumed no inference attempt or recovery service-start slot, and created
+no accepted output. Its only ledger delta is one retained storage observation.
+The public incident is preserved at
+`artifacts/public/manifests/fallback_gpu_acceptance_development_v6_control_plane_incident.json`.
+Its post-failure status has `resume_allowed: false`; its run root, invocation,
+ticket, guard, log, status, run ID, and output names must not be reused.
+
+V7 is the only executable second-recovery run. It retains the unchanged 288
+effective accounting events, 278 maximum inference attempts, one additional
+service load, and the single reserve-long retry. Before overlay construction,
+generate and independently associate byte-identical local and remote manifests
+under revision `fallback-second-recovery-v7`; the association basename must be
+`source_tree_fallback_second_recovery_v7.association.json`. Build schema-1.5.0
+with run ID `fallback-qwen3-8b-awq-development-v7`, all existing v4/v5
+arguments, and the additional mandatory argument:
+
+```text
+--prior-v6-control-plane-incident <project-root>/artifacts/public/manifests/fallback_gpu_acceptance_development_v6_control_plane_incident.json
+```
+
+Validation, launch, status, and any otherwise eligible orchestrator resume must
+all use the same complete v4+v5+v6 incident chain. Use fresh v7 paths:
+`artifacts/restricted/fallback-development-v7`,
+`artifacts/restricted/fallback-second-recovery-v7.authorized.json`,
+`artifacts/public/manifests/fallback_gpu_acceptance_development_v7.preflight.json`,
+`artifacts/public/results/fallback_gpu_acceptance_development_v7.json`, and
+tmux session `storyprojection-study-v7`. Only v7 may resume, and only if its own
+status reports `resume_allowed: true`; terminal v4, v5, and v6 state can never
+be converted into v7 state or used as a resumable checkpoint.
 
 ## Fields finalized only after approval
 

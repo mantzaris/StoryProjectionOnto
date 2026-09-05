@@ -28,12 +28,16 @@ from story_projection_onto.fallback_control_plane_incident import (
 from story_projection_onto.fallback_v5_control_plane_incident import (
     FallbackV5ControlPlaneIncident,
 )
+from story_projection_onto.fallback_v6_control_plane_incident import (
+    FallbackV6ControlPlaneIncident,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT_DIRECTORY = PROJECT_ROOT / "schemas" / "jsonschema"
 OPERATIONAL_SCHEMA_TYPES: tuple[type[BaseModel], ...] = (
     FallbackControlPlaneIncident,
     FallbackV5ControlPlaneIncident,
+    FallbackV6ControlPlaneIncident,
 )
 
 
