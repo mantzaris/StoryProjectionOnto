@@ -202,6 +202,60 @@ class ReportingIngestionManifest(FrozenModel):
         return self
 
 
+class ReportingSourceSnapshotEntry(FrozenModel):
+    """One historical predecessor whose live path was superseded."""
+
+    artifact_id: Identifier
+    original_relative_path: Annotated[str, StringConstraints(min_length=1, max_length=500)]
+    snapshot_relative_path: Annotated[str, StringConstraints(min_length=1, max_length=500)]
+    file_sha256: Sha256Digest
+
+    @model_validator(mode="after")
+    def safe_distinct_paths(self) -> Self:
+        for label, value in (
+            ("original", self.original_relative_path),
+            ("snapshot", self.snapshot_relative_path),
+        ):
+            path = Path(value)
+            if "\\" in value or path.is_absolute() or ".." in path.parts:
+                raise ValueError(f"reporting source snapshot {label} path is unsafe")
+        if self.snapshot_relative_path == self.original_relative_path:
+            raise ValueError("reporting source snapshot cannot alias the live source path")
+        if not self.snapshot_relative_path.startswith(
+            "artifacts/public/reporting_snapshots/"
+        ):
+            raise ValueError("reporting source snapshot path is outside its public namespace")
+        return self
+
+
+class ReportingSourceSnapshotManifest(FrozenModel):
+    """Hash-bound path overrides for replaying one immutable ingestion receipt."""
+
+    schema_version: Literal["1.0.0"] = INGESTION_SCHEMA_VERSION
+    snapshot_id: Identifier
+    ingestion_manifest_sha256: Sha256Digest
+    ingestion_manifest_file_sha256: Sha256Digest
+    ingestion_receipt_sha256: Sha256Digest
+    ingestion_receipt_file_sha256: Sha256Digest
+    entries: tuple[ReportingSourceSnapshotEntry, ...]
+    manifest_sha256: Sha256Digest
+
+    @model_validator(mode="after")
+    def unique_overrides(self) -> Self:
+        if not self.entries:
+            raise ValueError("a reporting source snapshot requires at least one override")
+        artifact_ids = [item.artifact_id for item in self.entries]
+        original_paths = [item.original_relative_path for item in self.entries]
+        snapshot_paths = [item.snapshot_relative_path for item in self.entries]
+        if len(artifact_ids) != len(set(artifact_ids)):
+            raise ValueError("reporting source snapshot artifact IDs must be unique")
+        if len(original_paths) != len(set(original_paths)):
+            raise ValueError("reporting source snapshot original paths must be unique")
+        if len(snapshot_paths) != len(set(snapshot_paths)):
+            raise ValueError("reporting source snapshot paths must be unique")
+        return self
+
+
 class VerifiedArtifact(FrozenModel):
     artifact_id: Identifier
     family: SourceFamily
@@ -378,8 +432,114 @@ def load_ingestion_receipt(path: Path) -> ReportingIngestionReceipt:
         raise ReportingIngestionError(f"invalid ingestion receipt: {error}") from error
 
 
-def _verify_artifact(root: Path, spec: SourceArtifactSpec) -> VerifiedArtifact:
-    path = _safe_file(root, spec.relative_path)
+def load_source_snapshot_manifest(path: Path) -> ReportingSourceSnapshotManifest:
+    _assert_no_symlink_chain(path)
+    if not path.is_file():
+        raise ReportingIngestionError("reporting source snapshot manifest is absent")
+    payload = _load_self_hashed_json(
+        path,
+        "manifest_sha256",
+        "reporting source snapshot manifest",
+    )
+    try:
+        return ReportingSourceSnapshotManifest.model_validate(payload)
+    except ValueError as error:
+        raise ReportingIngestionError(
+            f"invalid reporting source snapshot manifest: {error}"
+        ) from error
+
+
+def _snapshot_artifact_paths(
+    snapshot_path: Path,
+    *,
+    source_root: Path,
+    manifest_path: Path,
+    receipt_path: Path,
+    manifest: ReportingIngestionManifest,
+    receipt: ReportingIngestionReceipt,
+) -> dict[str, Path]:
+    snapshot = load_source_snapshot_manifest(snapshot_path)
+    if (
+        snapshot.ingestion_manifest_sha256 != manifest.manifest_sha256
+        or snapshot.ingestion_manifest_file_sha256 != _file_sha256(manifest_path)
+    ):
+        raise ReportingIngestionError(
+            "reporting source snapshot binds another ingestion manifest"
+        )
+    if (
+        snapshot.ingestion_receipt_sha256 != receipt.receipt_sha256
+        or snapshot.ingestion_receipt_file_sha256 != _file_sha256(receipt_path)
+    ):
+        raise ReportingIngestionError(
+            "reporting source snapshot binds another ingestion receipt"
+        )
+    artifacts = {
+        artifact.artifact_id: artifact
+        for predecessor in manifest.predecessors
+        for artifact in predecessor.artifacts
+    }
+    registered_paths = {artifact.relative_path for artifact in artifacts.values()}
+    required_override_ids: set[str] = set()
+    for artifact in artifacts.values():
+        try:
+            live_path = _safe_file(source_root, artifact.relative_path)
+        except ReportingIngestionError as error:
+            if "reporting source artifact is absent" not in str(error):
+                raise
+            required_override_ids.add(artifact.artifact_id)
+        else:
+            if _file_sha256(live_path) != artifact.file_sha256:
+                required_override_ids.add(artifact.artifact_id)
+    supplied_override_ids = {entry.artifact_id for entry in snapshot.entries}
+    if supplied_override_ids != required_override_ids:
+        missing = sorted(required_override_ids - supplied_override_ids)
+        extra = sorted(supplied_override_ids - required_override_ids)
+        detail = "; ".join(
+            item
+            for item in (
+                f"missing={','.join(missing)}" if missing else "",
+                f"extra={','.join(extra)}" if extra else "",
+            )
+            if item
+        )
+        raise ReportingIngestionError(
+            f"reporting source snapshot override inventory is not exact: {detail}"
+        )
+    overrides: dict[str, Path] = {}
+    for entry in snapshot.entries:
+        artifact = artifacts.get(entry.artifact_id)
+        if artifact is None:
+            raise ReportingIngestionError(
+                f"reporting source snapshot names an unknown artifact: {entry.artifact_id}"
+            )
+        if (
+            entry.original_relative_path != artifact.relative_path
+            or entry.file_sha256 != artifact.file_sha256
+        ):
+            raise ReportingIngestionError(
+                f"reporting source snapshot disagrees with artifact: {entry.artifact_id}"
+            )
+        if entry.snapshot_relative_path in registered_paths:
+            raise ReportingIngestionError(
+                f"reporting source snapshot aliases a registered live path: {entry.artifact_id}"
+            )
+        snapshot_file = _safe_file(source_root, entry.snapshot_relative_path)
+        if _file_sha256(snapshot_file) != entry.file_sha256:
+            raise ReportingIngestionError(
+                f"reporting source snapshot file hash changed: {entry.artifact_id}"
+            )
+        overrides[entry.artifact_id] = snapshot_file
+    return overrides
+
+
+def _verify_artifact(
+    root: Path,
+    spec: SourceArtifactSpec,
+    artifact_paths: Mapping[str, Path] | None = None,
+) -> VerifiedArtifact:
+    path = (artifact_paths or {}).get(spec.artifact_id)
+    if path is None:
+        path = _safe_file(root, spec.relative_path)
     if _file_sha256(path) != spec.file_sha256:
         raise ReportingIngestionError(f"predecessor file hash changed: {spec.artifact_id}")
     if spec.media_type == "application/json":
@@ -503,17 +663,16 @@ def _verify_runtime_measurement_separation(
                 )
 
 
-def compile_ingestion_receipt(
+def _compile_ingestion_receipt(
     manifest: ReportingIngestionManifest,
     *,
     source_root: Path,
     table_root: Path,
     manifest_file_sha256: str,
+    artifact_paths: Mapping[str, Path] | None = None,
 ) -> ReportingIngestionReceipt:
-    """Verify all registered sources/tables and return a sanitized immutable receipt."""
-
     artifacts = tuple(
-        _verify_artifact(source_root, artifact)
+        _verify_artifact(source_root, artifact, artifact_paths)
         for state in manifest.predecessors
         for artifact in state.artifacts
     )
@@ -612,21 +771,52 @@ def compile_ingestion_receipt(
     return ReportingIngestionReceipt.model_validate(payload)
 
 
+def compile_ingestion_receipt(
+    manifest: ReportingIngestionManifest,
+    *,
+    source_root: Path,
+    table_root: Path,
+    manifest_file_sha256: str,
+) -> ReportingIngestionReceipt:
+    """Verify live registered sources/tables and return a sanitized receipt."""
+
+    return _compile_ingestion_receipt(
+        manifest,
+        source_root=source_root,
+        table_root=table_root,
+        manifest_file_sha256=manifest_file_sha256,
+    )
+
+
 def verify_ingestion_from_files(
     manifest_path: Path,
     receipt_path: Path,
     *,
     source_root: Path,
     table_root: Path,
+    source_snapshot_manifest_path: Path | None = None,
 ) -> ReportingIngestionReceipt:
     manifest = load_ingestion_manifest(manifest_path)
-    expected = compile_ingestion_receipt(
+    observed = load_ingestion_receipt(receipt_path)
+    artifact_paths = (
+        _snapshot_artifact_paths(
+            source_snapshot_manifest_path,
+            source_root=source_root,
+            manifest_path=manifest_path,
+            receipt_path=receipt_path,
+            manifest=manifest,
+            receipt=observed,
+        )
+        if source_snapshot_manifest_path is not None
+        else None
+    )
+    expected = _compile_ingestion_receipt(
         manifest,
         source_root=source_root,
         table_root=table_root,
         manifest_file_sha256=_file_sha256(manifest_path),
+        artifact_paths=artifact_paths,
     )
-    observed = load_ingestion_receipt(receipt_path)
     if observed != expected:
         raise ReportingIngestionError(
             "reporting ingestion receipt does not reproduce from immutable predecessors"
@@ -681,6 +871,8 @@ __all__ = [
     "ReportingIngestionError",
     "ReportingIngestionManifest",
     "ReportingIngestionReceipt",
+    "ReportingSourceSnapshotEntry",
+    "ReportingSourceSnapshotManifest",
     "SourceArtifactSpec",
     "SourceFamily",
     "VerifiedArtifact",
@@ -690,6 +882,7 @@ __all__ = [
     "ingestion_file_sha256",
     "load_ingestion_manifest",
     "load_ingestion_receipt",
+    "load_source_snapshot_manifest",
     "verify_ingestion_from_files",
     "write_ingestion_receipt",
 ]

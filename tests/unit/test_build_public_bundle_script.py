@@ -298,6 +298,7 @@ def test_complete_release_cannot_bypass_lineage_with_neutral_filenames(
         report_policy=Path("neutral-policy.json"),
         ingestion_manifest=Path("neutral-ingestion.json"),
         ingestion_receipt=Path("neutral-ingestion-receipt.json"),
+        ingestion_source_snapshot=None,
         bundle_root=tmp_path / "neutral-release",
         visual_raster_manifest=None,
         visual_inspection_receipt=None,

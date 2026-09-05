@@ -26,6 +26,12 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=Path("reports/report_ingestion_receipt.json"),
     )
+    parser.add_argument(
+        "--source-snapshot",
+        type=Path,
+        default=None,
+        help="Explicit hash-bound historical source overrides for --verify only.",
+    )
     parser.add_argument("--source-root", type=Path, default=Path("."))
     parser.add_argument("--table-root", type=Path, default=Path("reports"))
     parser.add_argument("--verify", action="store_true")
@@ -38,16 +44,30 @@ def main() -> int:
         args.manifest if args.manifest.is_absolute() else args.source_root / args.manifest
     )
     receipt_path = args.receipt if args.receipt.is_absolute() else args.source_root / args.receipt
+    source_snapshot_path = (
+        None
+        if args.source_snapshot is None
+        else (
+            args.source_snapshot
+            if args.source_snapshot.is_absolute()
+            else args.source_root / args.source_snapshot
+        )
+    )
     table_root = (
         args.table_root if args.table_root.is_absolute() else args.source_root / args.table_root
     )
     try:
+        if source_snapshot_path is not None and not args.verify:
+            raise ReportingIngestionError(
+                "a historical source snapshot is permitted only for receipt verification"
+            )
         if args.verify:
             receipt = verify_ingestion_from_files(
                 manifest_path,
                 receipt_path,
                 source_root=args.source_root,
                 table_root=table_root,
+                source_snapshot_manifest_path=source_snapshot_path,
             )
             state = "verified"
         else:

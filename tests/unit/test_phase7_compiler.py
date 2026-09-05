@@ -409,8 +409,8 @@ def test_verification_test_inventory_is_exact_and_public_safe() -> None:
     )
     public_paths = expand_public_reproduction_source_paths(manifest, source_root=ROOT)
     verification_paths = tuple(path for path in public_paths if path.startswith("tests/"))
-    assert len(verification_paths) == 121
-    assert sum(path.endswith(".py") for path in verification_paths) == 108
+    assert len(verification_paths) == 128
+    assert sum(path.endswith(".py") for path in verification_paths) == 115
     assert sum(path.endswith(".json") for path in verification_paths) == 12
     assert sum(path.endswith(".mjs") for path in verification_paths) == 1
     records = scan_public_entries(
@@ -425,7 +425,7 @@ def test_verification_test_inventory_is_exact_and_public_safe() -> None:
             for relative in verification_paths
         ),
     )
-    assert len(records) == 121
+    assert len(records) == 128
 
 
 def test_phase6_guide_is_public_safe_and_recovery_guide_remains_excluded() -> None:

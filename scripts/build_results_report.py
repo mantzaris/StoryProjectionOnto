@@ -33,6 +33,12 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=Path("reports/report_ingestion_receipt.json"),
     )
+    parser.add_argument(
+        "--ingestion-source-snapshot",
+        type=Path,
+        default=None,
+        help="Explicit hash-bound historical source overrides for this replay.",
+    )
     parser.add_argument("--source-root", type=Path, default=Path("."))
     parser.add_argument("--table-root", type=Path, default=Path("reports"))
     parser.add_argument(
@@ -66,6 +72,15 @@ def main() -> int:
         if args.ingestion_receipt.is_absolute()
         else args.source_root / args.ingestion_receipt
     )
+    ingestion_source_snapshot_path = (
+        None
+        if args.ingestion_source_snapshot is None
+        else (
+            args.ingestion_source_snapshot
+            if args.ingestion_source_snapshot.is_absolute()
+            else args.source_root / args.ingestion_source_snapshot
+        )
+    )
     table_root = (
         args.table_root if args.table_root.is_absolute() else args.source_root / args.table_root
     )
@@ -75,6 +90,7 @@ def main() -> int:
         ingestion_receipt_path,
         source_root=args.source_root,
         table_root=table_root,
+        source_snapshot_manifest_path=ingestion_source_snapshot_path,
     )
     if args.verify:
         verify_report_build(manifest_path, policy_path, args.output_root)

@@ -503,9 +503,9 @@
     "upper": "ci_upper"
   },
   "public_source_manifest_path": "configs/study/public_reproduction_sources.json",
-  "public_source_manifest_file_sha256": "01e04ff380e093da0048e3b2f2b7b354cd1b30de7bf5c25d4cbc49b8bacc415a",
-  "public_source_manifest_sha256": "4f0fbb9252170cb93ca47be2873d82f649ed77b11c461aef776a155aa65ef9a1",
+  "public_source_manifest_file_sha256": "9203eca644b379f9a429ee5765629ea8a67aca1bd79313bf41b4195cee204766",
+  "public_source_manifest_sha256": "3be45108da56b482d3d4ca6280895741dea2605aa5d96a2e3351f8144275e8f8",
   "maximum_qualitative_figures": 6,
   "public_bundle_limit_bytes": 2000000000,
-  "configuration_sha256": "586bbf03807e7f7789205b90a370cc9b977ce8d07295bd9dacbec3b1d26ef831"
+  "configuration_sha256": "1c93979db70c849bcdb2c0c604dee9cb4d34794a570f86a03559388b546c992e"
 }

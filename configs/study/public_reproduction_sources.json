@@ -31,8 +31,8 @@
         "schemas/jsonschema/qualified_assertion.schema.json",
         "schemas/jsonschema/schema_manifest.json"
       ],
-      "expected_path_count": 24,
-      "path_inventory_sha256": "4acef2b6ba45c513e90a966cbde062b8de79c899a16859337f9c28c870cf0ba1"
+      "expected_path_count": 29,
+      "path_inventory_sha256": "2b9f06914fc2c24e9719684cc0bccef9b0fdfb993daefcad84bb9d591f89da44"
     },
     {
       "category": "project_metadata",
@@ -95,8 +95,8 @@
         "scripts/run_phase4_analysis.py",
         "scripts/run_phase5_feedback.py"
       ],
-      "expected_path_count": 59,
-      "path_inventory_sha256": "7e6d81448dd000d08d20760fa5e2281a6cd862912c53f694b8d387580118764f"
+      "expected_path_count": 66,
+      "path_inventory_sha256": "a7f96cbf1df6fb9a990b152febe3201d35a46cf9b71f6a2d0136381cf66d5885"
     },
     {
       "category": "science_code",
@@ -120,8 +120,8 @@
         "src/story_projection_onto/scorer_only/phase5_report.py",
         "src/story_projection_onto/synthetic_benchmark.py"
       ],
-      "expected_path_count": 97,
-      "path_inventory_sha256": "8ed85a3cf08edf07d04e25ad8628ca360ee29ea6ec42ab8750946b40b23d198a"
+      "expected_path_count": 104,
+      "path_inventory_sha256": "8a1b4d64558c6583db6a657ad4649f9dce5958a71209d03e27c870b47931add2"
     },
     {
       "category": "study_configuration",
@@ -201,9 +201,9 @@
         "tests/unit/test_phase7_compiler.py",
         "tests/unit/test_public_release.py"
       ],
-      "expected_path_count": 121,
-      "path_inventory_sha256": "ad3d6ee9daf54077b11dc547669288c88bbf90ed88a66ed56f32ce6928ab1469"
+      "expected_path_count": 128,
+      "path_inventory_sha256": "9ce50083d70ad4a9acd69f6f410f9ddd305f6c3b932a2fad6bb8999967ef130c"
     }
   ],
-  "manifest_sha256": "4f0fbb9252170cb93ca47be2873d82f649ed77b11c461aef776a155aa65ef9a1"
+  "manifest_sha256": "3be45108da56b482d3d4ca6280895741dea2605aa5d96a2e3351f8144275e8f8"
 }

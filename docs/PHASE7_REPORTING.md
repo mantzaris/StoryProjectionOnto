@@ -164,6 +164,20 @@ python scripts/build_public_bundle.py \
   --bundle-root /new/empty/output/path
 ```
 
+The generic and production commands resolve predecessor artifacts from the live source
+tree by default. To replay only the preserved recovery-interim receipt and report after
+its benchmark lineage was superseded, opt in to the bound historical snapshot:
+
+```bash
+python scripts/compile_report_ingestion.py --verify \
+  --source-snapshot artifacts/public/reporting_snapshots/conference-report-ingestion-v1/source_snapshot_manifest.json
+python scripts/build_results_report.py --verify \
+  --ingestion-source-snapshot artifacts/public/reporting_snapshots/conference-report-ingestion-v1/source_snapshot_manifest.json
+```
+
+Snapshot substitution is verification-only for receipt ingestion; it cannot create a
+fresh receipt. Final and newly compiled reports must use their live, hash-bound inputs.
+
 The release command first byte-reproduces the complete Phase 7 compiler tree from the
 restricted source registry, then authenticates the current pointer, compilation
 manifest, content-addressed report/PDF/allowlist, aliases, and exact entry inventory.

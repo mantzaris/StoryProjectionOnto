@@ -136,6 +136,12 @@ def parse_args() -> argparse.Namespace:
         default=Path("reports/report_ingestion_receipt.json"),
     )
     parser.add_argument(
+        "--ingestion-source-snapshot",
+        type=Path,
+        default=None,
+        help="Explicit hash-bound historical source overrides for report replay.",
+    )
+    parser.add_argument(
         "--bundle-root",
         type=Path,
         default=Path("artifacts/public/release/StoryProjectionOnto-public"),
@@ -885,6 +891,15 @@ def main() -> int:
         args.source_root / args.ingestion_receipt,
         source_root=args.source_root,
         table_root=args.source_root / "reports",
+        source_snapshot_manifest_path=(
+            None
+            if args.ingestion_source_snapshot is None
+            else (
+                args.ingestion_source_snapshot
+                if args.ingestion_source_snapshot.is_absolute()
+                else args.source_root / args.ingestion_source_snapshot
+            )
+        ),
     )
     verify_report_build(
         args.source_root / args.report_manifest,
