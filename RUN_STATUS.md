@@ -1,6 +1,40 @@
 # Run status
 
-Updated: 2026-09-06 00:16 UTC
+Updated: 2026-09-06 23:04 UTC
+
+## Authorized V9 execution
+
+The user explicitly authorized exactly one V9 essential-recovery service-only
+contingency start. It permits zero inference or development calls under
+contingency, no V10 or further startup, no accounting reset, and no change to the
+32,400-second ordinary gate or strict stop before 36,000 actual seconds.
+
+The CPU-only builder and preflight completed at 2026-09-06 23:02:51 UTC. The
+preflight passes only through the separately recorded service-start contingency:
+ordinary admission remains false. It confirms 2,581.267703 consumed seconds,
+29,459 remaining mandatory seconds, a 391.40054529582005-second startup forecast,
+a 300-second startup timeout, 180 protected drain/shutdown seconds, and
+3,388.33175170418 seconds of hard margin. Current controlled storage is
+10,345,472,000 bytes; projected occupancy is 11,431,016,320 bytes with
+18,568,983,680 bytes of allocation headroom.
+
+Independent local and remote source manifests are byte-identical at file SHA-256
+`c7d2e80a33e851ef1b917adeb209d3c29c32f00b52cff5b1da7733e4dd790d17`,
+binding tested source commit `c094c1e67137c84d0746e66263439b80f53e2161`.
+The association file SHA-256 is
+`16300d106e25b5d56add6eb8a761eff622c906a7a04fdb7803fdcc333676859f`;
+the authorized restricted overlay file SHA-256 is
+`57b9fdfbcea988ce2ebd1d072398604c0e27a155232c90f0e92f475eefb87d5d`;
+the public preflight file SHA-256 is
+`14b8f763e3ae219b1ff475a5a7ecdeeff896db1130220cd0974f16c7655f4fc3`.
+The canonical ledger remains byte-identical to terminal V8 before launch.
+
+The next persistent job is `storyprojection-study-v9`. Its exact operator
+wrapper and logs are preserved in ignored restricted recovery storage.
+Acceptance and the 24 development calls continue automatically only if the
+fresh measured ordinary gate passes. Held-out execution remains blocked on
+human review. The earlier authorization-blocker statements below are historical
+and superseded by this section; the source and failure records remain preserved.
 
 ## Verified durable state
 
