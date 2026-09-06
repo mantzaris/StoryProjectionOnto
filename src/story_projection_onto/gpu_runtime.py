@@ -3266,8 +3266,47 @@ class VLLMService:
         event_id: str,
         watchdog_seconds: float = DEFAULT_SERVICE_START_WATCHDOG_SECONDS,
         remaining_required_seconds: float = 0,
+        admission_forecast_seconds: float | None = None,
+        contingency_unlocked: bool = False,
+        essential_recovery: bool = False,
     ) -> None:
         _require_plain_identifier("session_id", session_id)
+        if (
+            isinstance(watchdog_seconds, bool)
+            or not isinstance(watchdog_seconds, int | float)
+            or not math.isfinite(watchdog_seconds)
+            or watchdog_seconds <= 0
+        ):
+            raise RuntimeConfigurationError(
+                "service-start watchdog must be positive and finite"
+            )
+        if type(contingency_unlocked) is not bool or type(essential_recovery) is not bool:
+            raise RuntimeConfigurationError(
+                "service-start contingency authority flags must be exact booleans"
+            )
+        if contingency_unlocked != essential_recovery:
+            raise RuntimeConfigurationError(
+                "service-start contingency requires paired unlock and "
+                "essential-recovery authority"
+            )
+        effective_admission_forecast_seconds = (
+            watchdog_seconds
+            if admission_forecast_seconds is None
+            else admission_forecast_seconds
+        )
+        if (
+            isinstance(effective_admission_forecast_seconds, bool)
+            or not isinstance(effective_admission_forecast_seconds, int | float)
+            or not math.isfinite(effective_admission_forecast_seconds)
+            or effective_admission_forecast_seconds <= 0
+        ):
+            raise RuntimeConfigurationError(
+                "service-start admission forecast must be positive and finite"
+            )
+        if effective_admission_forecast_seconds < watchdog_seconds:
+            raise RuntimeConfigurationError(
+                "service-start admission forecast cannot be below its watchdog"
+            )
         if (
             self._service_lock_stream is not None
             or self._started_at is not None
@@ -3285,10 +3324,17 @@ class VLLMService:
         with self.meter.session_start(
             event_id=event_id,
             maximum_seconds=watchdog_seconds,
+            admission_forecast_seconds=effective_admission_forecast_seconds,
             remaining_required_seconds=remaining_required_seconds,
+            contingency_unlocked=contingency_unlocked,
+            essential_recovery=essential_recovery,
             details={
                 "session_id": session_id,
                 "configuration_hash": self.configuration.configuration_hash,
+                "service_start_watchdog_seconds": watchdog_seconds,
+                "admission_forecast_seconds": effective_admission_forecast_seconds,
+                "contingency_unlocked": contingency_unlocked,
+                "essential_recovery": essential_recovery,
             },
         ):
             self._start_unmetered(

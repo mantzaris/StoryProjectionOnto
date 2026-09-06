@@ -5,6 +5,7 @@ import sys
 import threading
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -462,8 +463,64 @@ def test_meter_enforces_scheduled_forecast_and_strict_hard_stop(tmp_path: Path) 
             contingency_unlocked=True,
             essential_recovery=True,
         )
+        with pytest.raises(ValueError, match="inside the scheduled envelope"):
+            meter.require_capacity(
+                0.5,
+                remaining_required_seconds=0,
+                contingency_unlocked=True,
+                essential_recovery=True,
+            )
+        with pytest.raises(GpuBudgetExceeded, match="next and remaining required work"):
+            meter.require_capacity(
+                0.5,
+                remaining_required_seconds=1.5,
+                contingency_unlocked=True,
+                essential_recovery=True,
+            )
         with pytest.raises(GpuBudgetExceeded, match="reach/cross"):
             meter.require_capacity(2)
+
+
+def test_meter_contingency_is_paired_and_restricted_to_service_start(tmp_path: Path) -> None:
+    with Ledger(tmp_path / "contingency-scope.sqlite3") as ledger:
+        ledger.record_gpu_event(
+            event_id="prior",
+            event_kind=GpuEventKind.INFERENCE,
+            allocated_seconds=8,
+            started_at=T0,
+            ended_at=T0 + timedelta(seconds=8),
+            succeeded=True,
+        )
+        meter = AllocatedGPUMeter(
+            ledger,
+            scheduled_limit_seconds=9,
+            hard_limit_seconds=10,
+        )
+
+        with pytest.raises(ValueError, match="paired unlock"):
+            meter.require_capacity(
+                0.5,
+                remaining_required_seconds=0.6,
+                contingency_unlocked=True,
+            )
+        with pytest.raises(ValueError, match="exact booleans"):
+            meter.require_capacity(
+                0.5,
+                remaining_required_seconds=0.6,
+                contingency_unlocked=cast(bool, 1),
+                essential_recovery=True,
+            )
+        with pytest.raises(ValueError, match="only an essential-recovery service start"):
+            meter.inference(
+                event_id="forbidden-contingency-inference",
+                maximum_seconds=0.5,
+                remaining_required_seconds=0.6,
+                contingency_unlocked=True,
+                essential_recovery=True,
+            )
+
+        assert tuple(event.event_id for event in ledger.gpu_events()) == ("prior",)
+        assert ledger.unresolved_gpu_allocations() == ()
 
 
 def test_meter_accounting_reads_are_serialized_across_watchdog_threads(

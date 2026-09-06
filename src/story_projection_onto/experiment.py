@@ -960,6 +960,7 @@ class _AllocationContext:
         event_id: str,
         event_kind: GpuEventKind,
         maximum_seconds: float,
+        admission_forecast_seconds: float,
         remaining_required_seconds: float,
         contingency_unlocked: bool,
         essential_recovery: bool,
@@ -971,6 +972,7 @@ class _AllocationContext:
         self.event_id = event_id
         self.event_kind = event_kind
         self.maximum_seconds = maximum_seconds
+        self.admission_forecast_seconds = admission_forecast_seconds
         self.remaining_required_seconds = remaining_required_seconds
         self.contingency_unlocked = contingency_unlocked
         self.essential_recovery = essential_recovery
@@ -1005,7 +1007,7 @@ class _AllocationContext:
 
     def __enter__(self) -> MeteredGPUAllocation:
         self.meter.require_capacity(
-            self.maximum_seconds,
+            self.admission_forecast_seconds,
             remaining_required_seconds=self.remaining_required_seconds,
             contingency_unlocked=self.contingency_unlocked,
             essential_recovery=self.essential_recovery,
@@ -1204,6 +1206,12 @@ class AllocatedGPUMeter:
         contingency_unlocked: bool = False,
         essential_recovery: bool = False,
     ) -> None:
+        if type(contingency_unlocked) is not bool or type(essential_recovery) is not bool:
+            raise ValueError("GPU contingency authority flags must be exact booleans")
+        if contingency_unlocked != essential_recovery:
+            raise ValueError(
+                "GPU contingency requires paired unlock and essential-recovery authority"
+            )
         next_seconds = _nonnegative_finite("next_maximum_seconds", next_maximum_seconds)
         remaining = _nonnegative_finite("remaining_required_seconds", remaining_required_seconds)
         if next_seconds <= 0:
@@ -1216,7 +1224,17 @@ class AllocatedGPUMeter:
                 f"next={next_seconds:.6f}s, hard={self.hard_limit_seconds:.6f}s"
             )
         projected_required = used + next_seconds + remaining
+        if projected_required >= self.hard_limit_seconds:
+            raise GpuBudgetExceeded(
+                "used plus next and remaining required work would reach/cross the hard "
+                f"GPU limit: projected={projected_required:.6f}s, "
+                f"hard={self.hard_limit_seconds:.6f}s"
+            )
         if projected_required <= self.scheduled_limit_seconds:
+            if contingency_unlocked:
+                raise ValueError(
+                    "GPU contingency cannot be invoked inside the scheduled envelope"
+                )
             return
         if not (contingency_unlocked and essential_recovery):
             raise ForecastAdmissionError(
@@ -1383,6 +1401,7 @@ class AllocatedGPUMeter:
         event_id: str,
         event_kind: GpuEventKind,
         maximum_seconds: float,
+        admission_forecast_seconds: float | None = None,
         remaining_required_seconds: float = 0,
         contingency_unlocked: bool = False,
         essential_recovery: bool = False,
@@ -1395,11 +1414,37 @@ class AllocatedGPUMeter:
         normalized_kind = GpuEventKind(event_kind)
         if normalized_kind is GpuEventKind.SERVICE_OVERHEAD:
             raise ValueError("service_overhead is session-derived; use reconcile_service_session")
+        if type(contingency_unlocked) is not bool or type(essential_recovery) is not bool:
+            raise ValueError("GPU contingency authority flags must be exact booleans")
+        if contingency_unlocked != essential_recovery:
+            raise ValueError(
+                "GPU contingency requires paired unlock and essential-recovery authority"
+            )
+        if contingency_unlocked and normalized_kind is not GpuEventKind.GPU_SESSION_START:
+            raise ValueError(
+                "GPU contingency can authorize only an essential-recovery service start"
+            )
+        maximum = _nonnegative_finite("maximum_seconds", maximum_seconds)
+        admission_forecast = (
+            maximum
+            if admission_forecast_seconds is None
+            else _nonnegative_finite(
+                "admission_forecast_seconds",
+                admission_forecast_seconds,
+            )
+        )
+        if admission_forecast <= 0:
+            raise ValueError("admission_forecast_seconds must be positive")
+        if admission_forecast < maximum:
+            raise ValueError(
+                "admission_forecast_seconds cannot be below the allocation watchdog"
+            )
         return _AllocationContext(
             self,
             event_id=event_id,
             event_kind=normalized_kind,
-            maximum_seconds=_nonnegative_finite("maximum_seconds", maximum_seconds),
+            maximum_seconds=maximum,
+            admission_forecast_seconds=admission_forecast,
             remaining_required_seconds=_nonnegative_finite(
                 "remaining_required_seconds", remaining_required_seconds
             ),

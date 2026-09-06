@@ -17,6 +17,7 @@ from story_projection_onto import fallback_v8_lease_repair as repair_module
 from story_projection_onto.contracts import canonical_json, canonical_sha256
 from story_projection_onto.fallback_v8_lease_repair import (
     FALLBACK_V8_LEASE_REPAIR_KIND,
+    load_fallback_v8_lease_repair_receipt,
     restore_fallback_v8_terminal_lease,
 )
 from story_projection_onto.fallback_v8_runtime_incident import (
@@ -427,6 +428,52 @@ def test_exact_v8_lease_repair_is_ledger_neutral_and_idempotent(
     assert len(repair_fixture.calls) == 1
     assert len(repair_fixture.ledger_paths) == 2
     assert not any(path.exists() for path in repair_fixture.ledger_paths)
+
+
+def test_public_v8_receipt_loader_requires_exact_file_and_manifest_bindings(
+    repair_fixture: SimpleNamespace,
+) -> None:
+    receipt = _run(repair_fixture)
+    file_sha256 = _sha256_file(repair_fixture.output)
+
+    loaded = load_fallback_v8_lease_repair_receipt(
+        repair_fixture.output,
+        expected_manifest_sha256=receipt.manifest_sha256,
+        expected_file_sha256=file_sha256,
+    )
+    assert loaded == receipt
+
+    with pytest.raises(ValueError, match="manifest hash changed"):
+        load_fallback_v8_lease_repair_receipt(
+            repair_fixture.output,
+            expected_manifest_sha256="f" * 64,
+            expected_file_sha256=file_sha256,
+        )
+    with pytest.raises(ValueError, match="file hash changed"):
+        load_fallback_v8_lease_repair_receipt(
+            repair_fixture.output,
+            expected_manifest_sha256=receipt.manifest_sha256,
+            expected_file_sha256="f" * 64,
+        )
+
+
+@pytest.mark.parametrize("field", ("expected_manifest_sha256", "expected_file_sha256"))
+def test_public_v8_receipt_loader_rejects_noncanonical_expected_hashes(
+    repair_fixture: SimpleNamespace,
+    field: str,
+) -> None:
+    receipt = _run(repair_fixture)
+    arguments = {
+        "expected_manifest_sha256": receipt.manifest_sha256,
+        "expected_file_sha256": _sha256_file(repair_fixture.output),
+    }
+    arguments[field] = "not-a-sha256"
+
+    with pytest.raises(ValueError, match=f"expected V8 lease repair receipt {field[9:-7]}"):
+        load_fallback_v8_lease_repair_receipt(
+            repair_fixture.output,
+            **arguments,
+        )
 
 
 def test_v8_repair_rejects_validly_rehashed_lease_drift(

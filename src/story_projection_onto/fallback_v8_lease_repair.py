@@ -798,6 +798,27 @@ def _load_receipt(path: Path) -> FallbackV8LeaseRepairReceipt:
         raise ValueError("V8 lease repair receipt contract is invalid") from exc
 
 
+def load_fallback_v8_lease_repair_receipt(
+    path: Path,
+    *,
+    expected_manifest_sha256: str,
+    expected_file_sha256: str,
+) -> FallbackV8LeaseRepairReceipt:
+    """Load only the receipt bound by both registered logical and file hashes."""
+
+    if not _is_canonical_sha256(expected_manifest_sha256):
+        raise ValueError("expected V8 lease repair receipt manifest hash is invalid")
+    if not _is_canonical_sha256(expected_file_sha256):
+        raise ValueError("expected V8 lease repair receipt file hash is invalid")
+    resolved = _require_regular_file(path, label="V8 lease repair receipt")
+    if _sha256_file(resolved) != expected_file_sha256:
+        raise ValueError("V8 lease repair receipt file hash changed")
+    receipt = _load_receipt(resolved)
+    if receipt.manifest_sha256 != expected_manifest_sha256:
+        raise ValueError("V8 lease repair receipt manifest hash changed")
+    return receipt
+
+
 def _write_receipt(path: Path, receipt: FallbackV8LeaseRepairReceipt) -> None:
     destination = Path(path).absolute()
     _require_no_symlink_ancestry(destination, label="V8 lease repair receipt output")
@@ -1142,5 +1163,6 @@ __all__ = [
     "FALLBACK_V8_LEASE_REPAIR_KIND",
     "FallbackV8LeaseRepairAccessControl",
     "FallbackV8LeaseRepairReceipt",
+    "load_fallback_v8_lease_repair_receipt",
     "restore_fallback_v8_terminal_lease",
 ]

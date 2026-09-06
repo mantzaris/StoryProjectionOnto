@@ -28,6 +28,10 @@ SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS = (
     *HISTORICAL_SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
     "fallback-qwen3-8b-awq-development-v8-service-start-001",
 )
+FALLBACK_V9_RECOVERY_SERVICE_START_EVENT_IDS = (
+    *SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
+    "fallback-qwen3-8b-awq-development-v9-service-start-001",
+)
 
 
 class LogicalCASReference(ImmutableRecord):
@@ -335,7 +339,7 @@ class DevelopmentForecastReceipt(ImmutableRecord):
     retry_amendment_sha256: Sha256Digest | None = None
     second_recovery_overlay_sha256: Sha256Digest | None = None
     recovery_service_start_event_ids: tuple[str, ...] = ()
-    authorized_additional_service_start_events: int = Field(default=0, ge=0, le=3)
+    authorized_additional_service_start_events: int = Field(default=0, ge=0, le=4)
     effective_accounting_events: int = Field(gt=0)
     effective_inference_attempts: int = Field(gt=0)
     normal_acceptance_superseded: Literal[True] = True
@@ -370,10 +374,11 @@ class DevelopmentForecastReceipt(ImmutableRecord):
                 not in {
                     HISTORICAL_SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
                     SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
+                    FALLBACK_V9_RECOVERY_SERVICE_START_EVENT_IDS,
                 }
             ):
                 raise ValueError(
-                    "second recovery must bind an exact ordered v3+v7[/v8] lineage"
+                    "second recovery must bind an exact ordered v3+v7[/v8][/v9] lineage"
                 )
         elif (
             len(self.recovery_service_start_event_ids) > 1
@@ -478,6 +483,7 @@ class DevelopmentAssessmentBundle(ImmutableRecord):
 
 
 __all__ = [
+    "FALLBACK_V9_RECOVERY_SERVICE_START_EVENT_IDS",
     "HISTORICAL_SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS",
     "SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS",
     "DevelopmentAssessmentBundle",

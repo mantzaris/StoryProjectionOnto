@@ -1,12 +1,13 @@
 # Second fallback recovery overlay
 
-This repository supports, but does not itself authorize, one fresh v8 recovery
+This repository supports, but does not itself authorize, one fresh v9 recovery
 after the terminal `fallback-qwen3-8b-awq-development-v3` decoder-transport
 incident, the later zero-GPU v4, v5, and v6 control-plane incidents, and the
-metered terminal v7 startup incident. V4 through v7 are immutable terminal
+metered terminal v7 and v8 startup incidents. The exact post-v8 lease repair is
+also required as zero-GPU provenance. V4 through v8 are immutable terminal
 attempts and cannot execute or resume. The
 existing v3 amendment, its validator, the v3 failed result and incident
-association, and all four later public incident records remain immutable
+association, and all later public incident and restricted repair records remain immutable
 provenance.
 
 The second overlay is intentionally fail-closed. It must bind all of the
@@ -17,10 +18,15 @@ following before a model process can start:
 - the exact self-hashed v5 and v6 zero-GPU control-plane incidents;
 - the exact self-hashed v7 runtime incident, including zero inference/output,
   verified physical shutdown, and conservative terminal ledger recovery;
+- the exact self-hashed v8 runtime incident, including zero inference/output,
+  verified physical shutdown, and conservative terminal ledger recovery;
+- the exact v8 lease-repair receipt proving byte-identical ledger state, zero
+  added accounting or inference records, and a restored `stopped_verified`
+  lease;
 - the original v3 retry amendment and its predecessor through the original
   amendment validator;
-- the cumulative 1,507.850965 GPU seconds, six ledger events, five service
-  sessions, and exact per-kind totals recorded after v7 recovery;
+- the cumulative 2,581.267703 GPU seconds, seven ledger events, six service
+  sessions, and exact per-kind totals recorded after v8 recovery;
 - the failed request and decoder-schema hashes;
 - the finalized local/remote source association and current compatibility
   implementation hashes;
@@ -56,37 +62,46 @@ following before a model process can start:
   of the 300-second startup watchdog and the observed successful service
   allocation p95, plus exactly one `AttemptKind.RETRY` for `fallback-c1-01`
   charged to the next registered `reserve_long` slot;
-- the corrected forecast and an explicit, dated user-authorization basis.
+- the corrected forecast and an explicit, dated user-authorization basis;
+- a schema-1.7 essential-recovery clause limited to exactly one v9 service
+  start and zero inference or development calls under the contingency.
 
 The retry does not add unreserved inference capacity. It moves cumulative
 `reserve_long` consumption from one to two of four registered slots. The global
-maximum remains 278 inference attempts. The v7 and v8 post-v3 recovery starts
-move the effective accounting-event ceiling from 287 through 288 to 289.
+maximum remains 278 inference attempts. The v7, v8, and proposed v9 post-v3
+recovery starts move the effective accounting-event ceiling from 287 through
+288 and 289 to 290.
 
 The corrected forecast retains the successful v3 service-start observation and
 excludes the 0.852878-second request rejection from successful C1 timing. Before
 any further allocation, the values are:
 
-- actual allocation: 1,507.850965 seconds;
+- actual allocation: 2,581.267703 seconds;
 - exact cumulative kinds: failure 225.183297 seconds, GPU-session start
-  214.034494 seconds, service overhead 645.767518 seconds, and timeout
+  441.721080 seconds, service overhead 1,491.497670 seconds, and timeout
   422.865656 seconds;
 - remaining mandatory forecast: 29,459.0 seconds;
 - service-start watchdog: 300 seconds;
 - observed successful service allocation p95: 391.40054529582005 seconds;
 - additional service allocation forecast:
   `max(300, 391.40054529582005) = 391.40054529582005` seconds;
-- projected scheduled allocation: 31,358.25151029582 seconds;
-- scheduled reserve: 1,041.74848970418 seconds;
+- projected scheduled allocation: 32,431.66824829582 seconds;
+- scheduled reserve: -31.66824829582 seconds (therefore ordinary scheduled
+  admission is false);
 - protected in-flight resource-sample drain: 120 seconds;
 - protected process shutdown: 60 seconds;
 - total protected hard-stop reserve: 180 seconds;
 - hard contingency after the next start and total hard-stop reserve:
-  4,461.74848970418
+  3,388.33175170418
   seconds.
 
 These values must be recomputed by the validator from immutable inputs; copying
-them into an overlay is not sufficient.
+them into an overlay is not sufficient. The negative scheduled reserve cannot
+authorize inference. It may be used only by the separately visible essential-
+recovery clause for one service start. Once the service is live, the strict
+scheduled gate is recomputed before any query, job, reserve, attempt, inference,
+or development action. With the frozen remaining forecast, the new service may
+have consumed at most 359.732297 seconds at that boundary.
 
 ## Immutable v4 zero-GPU control-plane incident
 
@@ -285,10 +300,11 @@ binding.
 
 ## Authorization and dry validation
 
-`SecondFallbackRecoveryOverlay` schema version 1.6.0 requires the typed evidence
+`SecondFallbackRecoveryOverlay` schema version 1.7.0 requires the typed evidence
 provenance bridge binding, projection-dependency correction,
 concurrent-integrity disclosure, the exact v4, v5, and v6 control-plane
-incident bindings, and the terminal v7 runtime-incident binding. It
+incident bindings, the terminal v7 and v8 runtime-incident bindings, the exact
+v8 lease-repair receipt, and the service-only contingency. It
 accepts either `proposed` or `authorized` so a complete proposal can be checked
 without inventing approval. A proposal must
 leave `authorized_by` and `recorded_at` null. An authorized overlay must name
@@ -308,6 +324,8 @@ arguments:
 --prior-v5-control-plane-incident artifacts/public/manifests/fallback_gpu_acceptance_development_v5_control_plane_incident.json
 --prior-v6-control-plane-incident artifacts/public/manifests/fallback_gpu_acceptance_development_v6_control_plane_incident.json
 --prior-v7-runtime-incident artifacts/public/manifests/fallback_gpu_acceptance_development_v7_runtime_incident.json
+--prior-v8-runtime-incident artifacts/public/manifests/fallback_gpu_acceptance_development_v8_runtime_incident.json
+--prior-v8-lease-repair-receipt <restricted-v8-lease-repair-receipt.json>
 ```
 
 Validation is CPU-only. It verifies the bridge certificate and every registered
@@ -316,9 +334,10 @@ provenance packing section, and directly compiles the decoder schema with
 XGrammar 0.1.23 without importing vLLM. For a valid proposal it writes a report with `passed: false`,
 `execution_authorized: false`, and the remaining authorization gap, then exits
 with status 2. `--execute` uses the authorization-required validator and rejects
-the same proposal before starting a service.
+the same proposal before starting a service. No dated v9 authorization overlay
+is bundled with this source revision, so the checked-in state is non-executable.
 
-## Deterministic CPU-only builder
+## Historical v5 builder and launch record (terminal; do not execute)
 
 The builder derives all hashes, accounting, decoder and provenance bindings,
 and forecast fields from the exact v3 artifacts, current source association,
@@ -327,7 +346,13 @@ cumulative ledger. It does not import vLLM or construct
 a model service. Its output root must be explicitly named `restricted`; writes
 are append-only and an exact byte-identical replay is idempotent.
 
-Build the inert proposal after the final source association exists:
+The commands in this section preserve how the now-terminal v5 proposal and
+control-plane attempt were prepared. They are provenance only: do not execute
+them, substitute a newer run ID into them, or use them as a current resume
+recipe. Current v9 requirements are stated below without an executable launch
+command because no dated authorization exists.
+
+The historical inert proposal was built after its final source association:
 
 `source_tree_fallback_second_recovery_v5.association.json` below is the required
 fresh association; no v3/v4 association or earlier v5 candidate can bind the
@@ -357,7 +382,7 @@ The default status is `proposed`. Authorized construction additionally requires
 via `--second-recovery-authorization-basis`, and an aware ISO-8601 timestamp via
 `--second-recovery-authorized-at`. Those values must never be guessed.
 
-## Complete validation and execution argument flow
+## Historical v5 validation and execution argument flow
 
 First generate the two manifests independently from the byte-identical local
 and remote trees after the tested recovery checkpoint.  Synchronize without
@@ -392,9 +417,9 @@ PYTHONPATH=src python scripts/associate_source_manifests.py \
   --output "$manifest_root/source_tree_fallback_second_recovery_v5.association.json"
 ```
 
-Use one fresh run root and outputs that do not already exist. The source
+The historical attempt used one fresh run root and outputs that did not already exist. The source
 association below must be the newly generated post-test association, not a v3,
-v4, or earlier v5 candidate. `--validate-only` and operator execution both use the
+v4, or earlier v5 candidate. At that time, `--validate-only` and operator execution both used the
 public `orchestrate` stage; never invoke `prepare`, `run`, or `cleanup` directly.
 
 ```bash
@@ -466,8 +491,8 @@ identity after the gate releases. Exact live leases in `shutdown_unverified` or
 `accounting_pending` state are cleanup-only: they can be adopted and killed, but
 can never be treated as a ready service.
 
-Launch the fresh orchestration remotely and detach it from the local SSH
-connection (the common arguments above are unchanged):
+The historical orchestration was launched remotely and detached from the local
+SSH connection as follows. This is not a current launch instruction:
 
 ```bash
 run_log="$run_root/orchestrator.$(date -u +%Y%m%dT%H%M%SZ).log"
@@ -486,8 +511,8 @@ Do not paste an internal `prepare`, `recover-prepare`, `run`, `cleanup`, or
 `guardian` command; those stages require private hash-bound tickets generated
 by the orchestrator.
 
-The CPU-only status interface takes the same result/checkpoint identity and may
-be run after a local disconnect:
+The historical CPU-only status interface took the same result/checkpoint
+identity after a local disconnect:
 
 ```bash
 PYTHONPATH="$study_root/src" "$study_python" \
@@ -502,9 +527,8 @@ execution-argument hash and each internal controller command hash before any
 receipt is trusted. A shortened status command is permitted only before an
 invocation exists and cannot be used for launch monitoring or resume decisions.
 
-If and only if status reports `resume_allowed: true`, restart the orchestrator
-inside the same named tmux session with the exact original expanded execution
-command plus `--resume-orchestrator`:
+The following was the historical conditional-resume form. V5 is terminal now,
+so it must not be run even if an old receipt says `resume_allowed: true`:
 
 ```bash
 printf -v resume_command '%q ' \
@@ -566,13 +590,15 @@ power-loss window is repairable only when no guard, controller, checkpoint,
 output, guardian, or takeover state exists; all other partial combinations fail
 closed.
 
-A valid dry preflight must
-report `execution_authorized: true`, `passed: true`, no GPU allocation or model
-process start, the exact 1,507.850965-second terminal-v7 accounting, the corrected
-31,358.25151029582-second projection, 1,041.74848970418 seconds of scheduled
-reserve, 4,461.74848970418 seconds of hard contingency after the 180-second
-resource-aware hard-stop reserve, 289 effective accounting events, and 278
-maximum inference attempts.
+A future valid v9 dry preflight must report no GPU allocation or model process
+start, the exact 2,581.267703-second terminal-v8 accounting, the corrected
+32,431.66824829582-second all-in projection, -31.66824829582 seconds of scheduled
+reserve, 3,388.33175170418 seconds of hard contingency after the 180-second
+resource-aware hard-stop reserve, 290 effective accounting events, and 278
+maximum inference attempts. It must expose ordinary scheduled admission as
+false and the one-start, zero-inference essential contingency separately.
+`execution_authorized` and `passed` may be true only after an actual dated user
+authorization is validated; the current proposal state reports them false.
 
 After the micro-pilot passes and before the automatic 24-call development
 continuation prepares any input or invokes its adopter, the fallback owner loads
@@ -679,11 +705,12 @@ into the ledger. The public terminal record is
 `artifacts/public/manifests/fallback_gpu_acceptance_development_v7_runtime_incident.json`.
 V7 has `resume_allowed: false`; none of its run paths may be reused.
 
-## Fresh v8 execution after the terminal v7 runtime incident
+## Historical v8 launch record (terminal; do not execute or resume)
 
-V8 is the only executable second-recovery run. It retains the 278-attempt
+V8 was the only executable second-recovery run at its historical source
+revision. It retained the 278-attempt
 ceiling and the same one reserve-long retry. Its accounting history contains
-three recovery service identities in exact order: v3, v7, and the proposed v8
+three recovery service identities in exact order: v3, v7, and v8
 start. This yields 289 effective accounting events without adding an inference
 attempt or replenishing a reserve.
 
@@ -697,10 +724,54 @@ chain, and:
 --prior-v7-runtime-incident <project-root>/artifacts/public/manifests/fallback_gpu_acceptance_development_v7_runtime_incident.json
 ```
 
-The overlay must bind the terminal cumulative total of 1,507.850965 seconds,
+The historical overlay bound the terminal cumulative total of 1,507.850965 seconds,
 six GPU events, five service sessions, and its exact per-kind totals. Use only
 fresh v8 run, overlay, preflight, result, checkpoint, log, and tmux names. V4
 through v7 remain validation-only provenance and can never execute or resume.
+
+V8 subsequently failed before inference when exact live-service adoption could
+not prove the expected engine-core service-instance token. Its complete
+allocation was conservatively recovered. The terminal record is
+`artifacts/public/manifests/fallback_gpu_acceptance_development_v8_runtime_incident.json`;
+the exact restricted lease-repair receipt proves the ledger bytes were
+unchanged and that no GPU, accounting, inference-attempt, or inference-call row
+was added. V8 is now terminal and non-executable alongside v4 through v7.
+
+## Proposed v9 essential recovery (not authorized)
+
+V9 is the only run identity understood by the schema-1.7 recovery path. Support
+for that identity is not authorization. A valid v9 overlay must bind the entire
+v3/v4/v5/v6/v7/v8 lineage, the exact v8 lease-repair receipt, a fresh source
+association whose revision is `fallback-second-recovery-v9`, and an actual
+dated, non-pending authorization from the user. Proposed overlays remain inert,
+and v4 through v8 are rejected by every execution surface.
+
+The runner does not accept a caller-constructed authorization token or trust a
+previously validated in-memory mapping. It requires the exact overlay, source
+association, primary/activation records, predecessor, amendment, complete
+incident chain, and lease-repair paths; it runs the full validator when the
+runner is constructed and again before prepare, recovery, or inference-stage
+adoption. Canonical overlay and source payloads and the complete dependency
+digest must remain unchanged. A missing path, substituted mapping, or
+post-validation mutation fails before a checkpoint or service start.
+
+The v9 overlay exposes two admission decisions separately. Ordinary scheduled
+admission is false by 31.66824829582 seconds. Hard-contingency admission remains
+positive by 3,388.33175170418 seconds after the 391.40054529582005-second service
+allocation proxy and the protected 180-second drain-and-shutdown reserve. The
+contingency can authorize exactly one event,
+`fallback-qwen3-8b-awq-development-v9-service-start-001`; it authorizes zero
+inference attempts and zero development calls. The runtime keeps the 300-second
+startup watchdog but uses the larger proxy for admission. After startup and
+again after cross-controller adoption, actual allocation plus the complete
+29,459-second remaining forecast must fit the strict 32,400-second scheduled
+limit before any scientific side effect. Failure terminates and stops the
+service without consuming the retry reserve.
+
+There is intentionally no executable v9 launch command in this document until
+an explicit dated authorization exists. A future authorized command must use
+fresh v9 paths and include both `--prior-v8-runtime-incident` and
+`--prior-v8-lease-repair-receipt` in addition to the complete earlier chain.
 
 ## Fields finalized only after approval
 

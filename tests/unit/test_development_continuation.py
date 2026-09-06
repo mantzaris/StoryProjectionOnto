@@ -16,6 +16,7 @@ from story_projection_onto.development_adapter import (
     persist_opaque_json,
 )
 from story_projection_onto.development_artifacts import (
+    FALLBACK_V9_RECOVERY_SERVICE_START_EVENT_IDS,
     HISTORICAL_SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
     SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
     DevelopmentAssessmentBundle,
@@ -94,7 +95,7 @@ class _TickingClock:
         return self.value
 
 
-def test_second_recovery_service_start_ids_preserve_v7_and_extend_v8() -> None:
+def test_recovery_service_start_ids_preserve_history_and_extend_exact_v9() -> None:
     assert HISTORICAL_SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS == (
         "fallback-qwen3-8b-awq-development-v3-service-start-001",
         "fallback-qwen3-8b-awq-development-v7-service-start-001",
@@ -103,6 +104,12 @@ def test_second_recovery_service_start_ids_preserve_v7_and_extend_v8() -> None:
         "fallback-qwen3-8b-awq-development-v3-service-start-001",
         "fallback-qwen3-8b-awq-development-v7-service-start-001",
         "fallback-qwen3-8b-awq-development-v8-service-start-001",
+    )
+    assert FALLBACK_V9_RECOVERY_SERVICE_START_EVENT_IDS == (
+        "fallback-qwen3-8b-awq-development-v3-service-start-001",
+        "fallback-qwen3-8b-awq-development-v7-service-start-001",
+        "fallback-qwen3-8b-awq-development-v8-service-start-001",
+        "fallback-qwen3-8b-awq-development-v9-service-start-001",
     )
 
 
@@ -145,7 +152,7 @@ def test_production_factory_rejects_service_id_derived_from_zero_start_v6(
     )
     with Ledger(tmp_path / "ledger.sqlite3") as ledger, pytest.raises(
         DevelopmentContinuationError,
-        match=r"exact ordered v3\+v7\[/v8\] service lineage",
+        match=r"exact ordered v3\+v7\[/v8\]\[/v9\] service lineage",
     ):
         create_production_development_adopter(
             root=ROOT,
@@ -172,6 +179,7 @@ def test_production_factory_rejects_service_id_derived_from_zero_start_v6(
     (
         HISTORICAL_SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
         SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
+        FALLBACK_V9_RECOVERY_SERVICE_START_EVENT_IDS,
     ),
 )
 def test_second_recovery_factory_and_forecast_bind_exact_ordered_service_ids(
@@ -231,6 +239,10 @@ def test_second_recovery_factory_and_forecast_bind_exact_ordered_service_ids(
     assert adopter.second_recovery_overlay_sha256 == overlay_hash
     assert receipt.authorized_additional_service_start_events == len(recovery_ids)
     assert receipt.effective_accounting_events == 286 + len(recovery_ids)
+    assert receipt.effective_inference_attempts == 278
+    if recovery_ids == FALLBACK_V9_RECOVERY_SERVICE_START_EVENT_IDS:
+        assert receipt.authorized_additional_service_start_events == 4
+        assert receipt.effective_accounting_events == 290
     service_row = next(
         row for row in receipt.inventory_rows if row.call_class == "gpu_session_start"
     )
@@ -244,27 +256,36 @@ def test_second_recovery_factory_and_forecast_bind_exact_ordered_service_ids(
         (
             _digest("v3-amendment"),
             _digest("v5-overlay"),
-            SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS[:1],
+            FALLBACK_V9_RECOVERY_SERVICE_START_EVENT_IDS[:1],
         ),
         (
             _digest("v3-amendment"),
             _digest("v5-overlay"),
-            tuple(reversed(SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS)),
+            tuple(reversed(FALLBACK_V9_RECOVERY_SERVICE_START_EVENT_IDS)),
         ),
         (
             _digest("v3-amendment"),
             _digest("v5-overlay"),
-            (*SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS, "unexpected-start"),
+            (
+                FALLBACK_V9_RECOVERY_SERVICE_START_EVENT_IDS[0],
+                FALLBACK_V9_RECOVERY_SERVICE_START_EVENT_IDS[1],
+                FALLBACK_V9_RECOVERY_SERVICE_START_EVENT_IDS[3],
+            ),
+        ),
+        (
+            _digest("v3-amendment"),
+            _digest("v5-overlay"),
+            (*FALLBACK_V9_RECOVERY_SERVICE_START_EVENT_IDS, "unexpected-start"),
         ),
         (
             _digest("v3-amendment"),
             None,
-            SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
+            FALLBACK_V9_RECOVERY_SERVICE_START_EVENT_IDS,
         ),
         (
             None,
             _digest("v5-overlay"),
-            SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
+            FALLBACK_V9_RECOVERY_SERVICE_START_EVENT_IDS,
         ),
     ],
 )

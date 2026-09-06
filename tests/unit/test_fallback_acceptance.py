@@ -8,6 +8,7 @@ import json
 import os
 import shutil
 import signal
+import sqlite3
 import subprocess
 import sys
 import time
@@ -115,7 +116,7 @@ from story_projection_onto.gpu_runtime import (
     VLLMService,
 )
 from story_projection_onto.ledger_verify import verify_ledger
-from story_projection_onto.manifest import build_source_manifest
+from story_projection_onto.manifest import build_source_association, build_source_manifest
 from story_projection_onto.model_gate import FallbackModelPolicy
 from story_projection_onto.phase1_acceptance import validate_acceptance_generation
 from story_projection_onto.phase1_legacy_provenance import (
@@ -246,19 +247,31 @@ def test_fallback_plan_binds_exact_calls_reserves_and_no_primary_block() -> None
     assert plan["fresh_gpu_ledger_forbidden"] is True
     assert plan["normal_acceptance_block"]["executed"] is False
     second_recovery = plan["second_recovery_overlay_support"]
-    assert second_recovery["overlay_schema_version"] == "1.6.0"
+    assert second_recovery["overlay_schema_version"] == "1.7.0"
     assert second_recovery["authorized_recovery_run_id"] == (
-        fallback_acceptance_module.SECOND_RECOVERY_V8_RUN_ID
+        fallback_acceptance_module.SECOND_RECOVERY_V9_RUN_ID
     )
     assert second_recovery["authorized_source_revision"] == (
-        fallback_acceptance_module.SECOND_RECOVERY_V8_SOURCE_REVISION
+        fallback_acceptance_module.SECOND_RECOVERY_V9_SOURCE_REVISION
     )
-    assert second_recovery["additional_service_start_events"] == 2
+    assert second_recovery["additional_service_start_events"] == 3
     assert second_recovery["protected_resource_sample_drain_seconds"] == 120.0
     assert second_recovery["protected_process_shutdown_seconds"] == 60
     assert second_recovery["protected_hard_stop_reserve_seconds"] == 180.0
     assert second_recovery["intervening_v7_runtime_incident_required"] is True
-    assert second_recovery["terminal_v4_through_v7_runs_must_not_resume"] is True
+    assert second_recovery["intervening_v8_runtime_incident_required"] is True
+    assert second_recovery["intervening_v8_lease_repair_receipt_required"] is True
+    assert second_recovery["terminal_v4_through_v8_runs_must_not_resume"] is True
+    assert second_recovery["essential_recovery_contingency"] == {
+        "service_start_count": 1,
+        "inference_attempt_count": 0,
+        "development_call_count": 0,
+        "scheduled_admission_before_service_start": False,
+        "hard_contingency_admission_before_service_start": True,
+        "post_start_inference_requires_fresh_scheduled_admission": True,
+        "post_start_development_requires_fresh_scheduled_admission": True,
+        "hard_limit_remains_strict": True,
+    }
     assert second_recovery["intervening_zero_gpu_control_plane_incident_required"] is True
     assert second_recovery["intervening_v4_control_plane_incident_required"] is True
     assert second_recovery["intervening_v5_control_plane_incident_required"] is True
@@ -312,8 +325,11 @@ def test_fallback_plan_binds_exact_calls_reserves_and_no_primary_block() -> None
         "src/story_projection_onto/development_continuation.py",
         "src/story_projection_onto/development_execution.py",
         "src/story_projection_onto/development_runtime.py",
+        "src/story_projection_onto/experiment.py",
         "src/story_projection_onto/fallback_v7_lease_repair.py",
         "src/story_projection_onto/fallback_v7_runtime_incident.py",
+        "src/story_projection_onto/fallback_v8_lease_repair.py",
+        "src/story_projection_onto/fallback_v8_runtime_incident.py",
         "src/story_projection_onto/gpu_runtime.py",
         "src/story_projection_onto/phase1_acceptance.py",
         "src/story_projection_onto/conditions/c0.py",
@@ -322,6 +338,9 @@ def test_fallback_plan_binds_exact_calls_reserves_and_no_primary_block() -> None
         "src/story_projection_onto/conditions/fixed_select.py",
         "tests/unit/test_fallback_v7_lease_repair.py",
         "tests/unit/test_fallback_v7_runtime_incident.py",
+        "tests/unit/test_fallback_v8_lease_repair.py",
+        "tests/unit/test_fallback_v8_runtime_incident.py",
+        "tests/unit/test_experiment.py",
         "tests/unit/test_gpu_runtime.py",
         CERTIFICATE_RELATIVE_PATH,
         SECOND_RECOVERY_EVIDENCE_BRIDGE_IMPLEMENTATION_PATH,
@@ -559,6 +578,10 @@ def test_cli_plan_mode_and_execute_requirements_parse_without_side_effects() -> 
             "v6-incident.json",
             "--prior-v7-runtime-incident",
             "v7-incident.json",
+            "--prior-v8-runtime-incident",
+            "v8-incident.json",
+            "--prior-v8-lease-repair-receipt",
+            "v8-lease-repair.json",
             "--second-recovery-authorized-at",
             "2026-09-04T23:59:00Z",
         ]
@@ -567,6 +590,8 @@ def test_cli_plan_mode_and_execute_requirements_parse_without_side_effects() -> 
     assert builder.prior_v5_control_plane_incident == Path("v5-incident.json")
     assert builder.prior_v6_control_plane_incident == Path("v6-incident.json")
     assert builder.prior_v7_runtime_incident == Path("v7-incident.json")
+    assert builder.prior_v8_runtime_incident == Path("v8-incident.json")
+    assert builder.prior_v8_lease_repair_receipt == Path("v8-lease-repair.json")
     assert builder.second_recovery_authorized_at == datetime(
         2026,
         9,
@@ -1573,6 +1598,14 @@ def test_second_recovery_overlay_is_exact_and_proposed_cannot_execute(
         **current_source,
         "revision_label": fallback_acceptance_module.SECOND_RECOVERY_V8_SOURCE_REVISION,
     }
+    v9_source_path = (
+        tmp_path / "source_tree_fallback_second_recovery_v9.association.json"
+    )
+    v9_source_path.write_text('{"test":"v9-source-freeze"}\n', encoding="utf-8")
+    v9_source = {
+        **current_source,
+        "revision_label": fallback_acceptance_module.SECOND_RECOVERY_V9_SOURCE_REVISION,
+    }
 
     def validate_test_source(path: Path, **_kwargs: object) -> Mapping[str, object]:
         if Path(path).name == v6_source_path.name:
@@ -1581,6 +1614,8 @@ def test_second_recovery_overlay_is_exact_and_proposed_cannot_execute(
             return v7_source
         if Path(path).name == v8_source_path.name:
             return v8_source
+        if Path(path).name == v9_source_path.name:
+            return v9_source
         return current_source
 
     monkeypatch.setattr(
@@ -1815,6 +1850,117 @@ def test_second_recovery_overlay_is_exact_and_proposed_cannot_execute(
     assert built_v8["corrected_forecast"][
         "hard_contingency_after_start_and_shutdown_seconds"
     ] == pytest.approx(4_461.748490)
+    v8_runtime_incident = (
+        ROOT
+        / "artifacts/public/manifests/"
+        "fallback_gpu_acceptance_development_v8_runtime_incident.json"
+    )
+    v8_lease_repair = (
+        ROOT
+        / "artifacts/restricted/recovery_validation/"
+        "v8_terminal_lease_repair_20260905T2205Z/lease_repair_receipt.json"
+    )
+    terminal_v8_observed = GpuSummary(
+        total_allocated_microseconds=2_581_267_703,
+        event_count=7,
+        service_session_count=6,
+        by_kind_microseconds=(
+            (GpuEventKind.FAILURE, 225_183_297),
+            (GpuEventKind.GPU_SESSION_START, 441_721_080),
+            (GpuEventKind.SERVICE_OVERHEAD, 1_491_497_670),
+            (GpuEventKind.TIMEOUT, 422_865_656),
+        ),
+    )
+    v9_arguments = {
+        **builder_arguments,
+        "run_id": fallback_acceptance_module.SECOND_RECOVERY_V9_RUN_ID,
+        "prior_control_plane_incident_path": v4_control_plane_incident,
+        "prior_v5_control_plane_incident_path": v5_control_plane_incident,
+        "prior_v6_control_plane_incident_path": v6_control_plane_incident,
+        "prior_v7_runtime_incident_path": v7_runtime_incident,
+        "prior_v8_runtime_incident_path": v8_runtime_incident,
+        "prior_v8_lease_repair_receipt_path": v8_lease_repair,
+        "source_association": v9_source,
+        "source_association_path": v9_source_path,
+        "observed": terminal_v8_observed,
+    }
+    built_v9_path = restricted_root / "second-recovery-v9-built.proposed.json"
+    built_v9 = build_second_fallback_recovery_overlay(
+        output_path=built_v9_path,
+        **v9_arguments,
+    )
+    assert built_v9["schema_version"] == "1.7.0"
+    assert built_v9["authorization"]["status"] == "proposed"
+    assert built_v9["authorized_recovery_run_id"] == (
+        fallback_acceptance_module.SECOND_RECOVERY_V9_RUN_ID
+    )
+    assert built_v9["cumulative_gpu_accounting"] == {
+        "total_allocated_microseconds": 2_581_267_703,
+        "event_count": 7,
+        "service_session_count": 6,
+        "by_kind_microseconds": {
+            "failure": 225_183_297,
+            "gpu_session_start": 441_721_080,
+            "service_overhead": 1_491_497_670,
+            "timeout": 422_865_656,
+        },
+    }
+    assert built_v9["amendment"] == {
+        **built_v8["amendment"],
+        "additional_fallback_service_loads": 3,
+        "prior_effective_accounting_events": 289,
+        "amended_effective_accounting_events": 290,
+    }
+    v9_forecast = built_v9["corrected_forecast"]
+    assert v9_forecast["prior_actual_allocated_seconds"] == pytest.approx(2_581.267703)
+    assert v9_forecast["corrected_remaining_mandatory_forecast_seconds"] == 29_459.0
+    assert v9_forecast["additional_service_allocation_forecast_seconds"] == pytest.approx(
+        391.40054529582005
+    )
+    assert v9_forecast["actual_plus_remaining_and_service_start_seconds"] == pytest.approx(
+        32_431.66824829582
+    )
+    assert v9_forecast["scheduled_reserve_seconds"] == pytest.approx(-31.66824829582)
+    assert v9_forecast["admitted"] is False
+    assert v9_forecast[
+        "hard_contingency_after_start_and_shutdown_seconds"
+    ] == pytest.approx(3_388.33175170418)
+    contingency = built_v9["essential_recovery_contingency"]
+    assert contingency["authorized_service_start_count"] == 1
+    assert contingency["contingency_inference_attempt_count"] == 0
+    assert contingency["contingency_development_call_count"] == 0
+    assert contingency["scheduled_admission_before_service_start"] is False
+    assert contingency["hard_contingency_admission_before_service_start"] is True
+    assert contingency[
+        "maximum_service_increment_for_post_start_scheduled_admission_seconds"
+    ] == pytest.approx(359.732297)
+    with pytest.raises(PermissionError, match="remains proposed"):
+        validate_second_fallback_recovery_overlay(
+            root=ROOT,
+            overlay_path=built_v9_path,
+            v3_result_path=v3_result_path,
+            v3_incident_path=v3_incident_path,
+            prior_control_plane_incident_path=v4_control_plane_incident,
+            prior_v5_control_plane_incident_path=v5_control_plane_incident,
+            prior_v6_control_plane_incident_path=v6_control_plane_incident,
+            prior_v7_runtime_incident_path=v7_runtime_incident,
+            prior_v8_runtime_incident_path=v8_runtime_incident,
+            prior_v8_lease_repair_receipt_path=v8_lease_repair,
+            prior_retry_amendment_path=prior_amendment_path,
+            prior_retry_failure_path=prior_failure_path,
+            run_id=fallback_acceptance_module.SECOND_RECOVERY_V9_RUN_ID,
+            policy=policy,
+            activation_certificate=activation,
+            primary_result=primary,
+            limits=limits,
+            source_association=v9_source,
+            source_association_path=v9_source_path,
+            retry_request=retry_request,
+            legacy_provenance_bridge=bridge,
+            observed=terminal_v8_observed,
+            require_authorized=True,
+            verify_decoder_compilation=False,
+        )
     with pytest.raises(ValueError, match="intervening v4 incident"):
         build_second_fallback_recovery_overlay(
             output_path=restricted_root / "v5-missing-incident.json",
@@ -1874,7 +2020,6 @@ def test_second_recovery_overlay_is_exact_and_proposed_cannot_execute(
                 if key != "restricted_output_root"
             },
         )
-
     symlink_target = tmp_path / "private-target"
     symlink_target.mkdir()
     intermediate_link = tmp_path / "intermediate-link"
@@ -1899,6 +2044,156 @@ def test_second_recovery_overlay_is_exact_and_proposed_cannot_execute(
             **builder_arguments,
         )
     assert not outside_parent.exists()
+
+
+@pytest.mark.parametrize(
+    ("version", "source_commit", "expected_manifest_sha256"),
+    (
+        (
+            4,
+            "fb3399690fe121e9d314f53e40337cdec415782c",
+            "f53d2c75eee8a9e77c398b0d61ad7d3fde17630b790a96b7fc408ae8d391bddc",
+        ),
+        (
+            5,
+            "bfe43bca2f5a242a694b4a6998b7e384fe7dfc1b",
+            "72a78b79500facc6a04fdf854c3ea73cba2d67d6ca13e13e9caf3c201d77a631",
+        ),
+        (
+            6,
+            "96ee3a39f38f8d5f49a58d2babd53fd4c1b5d5a4",
+            "c61e0adf7bb6b2c369b9bc2dbd8bb863af68e03b3a9cf9b6b64de4846aa32592",
+        ),
+        (
+            7,
+            "0758e487740c608b7eb1060a7a940352032069ef",
+            "96d5526d8160e4d84bac6e0b0044a4e4e5fe0bb7eff40698aa6615afcc869c0a",
+        ),
+        (
+            8,
+            "4b5b0cc768844f7661fc7ca316bd7e63cc15a2a6",
+            "c9a0e50862d7c1301c2bae4fc73911014ab6ab44aebbbac1f0b6710ef159ad4e",
+        ),
+    ),
+)
+def test_frozen_v4_through_v8_overlays_replay_against_their_source_revisions(
+    tmp_path: Path,
+    version: int,
+    source_commit: str,
+    expected_manifest_sha256: str,
+) -> None:
+    available = subprocess.run(
+        ["git", "cat-file", "-e", f"{source_commit}^{{commit}}"],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+    )
+    if available.returncode != 0:
+        pytest.skip("historical recovery regression requires the repository commit history")
+    archive = tmp_path / f"fallback-v{version}.tar"
+    subprocess.run(
+        ["git", "archive", "--format=tar", "--output", str(archive), source_commit],
+        cwd=ROOT,
+        check=True,
+    )
+    historical_root = tmp_path / f"fallback-v{version}-root"
+    historical_root.mkdir()
+    shutil.unpack_archive(archive, historical_root)
+
+    policy = FallbackModelPolicy.load(
+        historical_root / "configs/study/fallback_model.json"
+    )
+    limits = ResourceLimits.load(
+        historical_root / "configs/study/resource_limits.json"
+    )
+    primary = json.loads(
+        (
+            historical_root
+            / "artifacts/public/results/phase1_gpu_acceptance_v2_failed.json"
+        ).read_text(encoding="utf-8")
+    )
+    activation = json.loads(
+        (
+            historical_root
+            / "artifacts/public/manifests/fallback_activation_v2.json"
+        ).read_text(encoding="utf-8")
+    )
+    bridge = Phase1LegacyEvidenceProvenanceBridge.load(historical_root)
+    retry_request = build_fallback_acceptance_request(
+        root=historical_root,
+        call=fallback_pilot_calls(policy)[0],
+        tokenizer=FakeTokenizer(),
+        tokenizer_manifest=v3_fallback_tokenizer_manifest(),
+        legacy_provenance_bridge=bridge,
+    )
+    source_association_path = (
+        ROOT
+        / "artifacts/public/manifests"
+        / f"source_tree_fallback_second_recovery_v{version}.association.json"
+    )
+    source_association = json.loads(
+        source_association_path.read_text(encoding="utf-8")
+    )
+    incident_paths = (
+        ROOT
+        / "artifacts/public/manifests/"
+        "fallback_gpu_acceptance_development_v4_control_plane_incident.json",
+        ROOT
+        / "artifacts/public/manifests/"
+        "fallback_gpu_acceptance_development_v5_control_plane_incident.json",
+        ROOT
+        / "artifacts/public/manifests/"
+        "fallback_gpu_acceptance_development_v6_control_plane_incident.json",
+        ROOT
+        / "artifacts/public/manifests/fallback_gpu_acceptance_development_v7_runtime_incident.json",
+    )
+    supplied_incidents = incident_paths[: max(0, version - 4)]
+    incident_arguments = {
+        name: supplied_incidents[index] if index < len(supplied_incidents) else None
+        for index, name in enumerate(
+            (
+                "prior_control_plane_incident_path",
+                "prior_v5_control_plane_incident_path",
+                "prior_v6_control_plane_incident_path",
+                "prior_v7_runtime_incident_path",
+            )
+        )
+    }
+    overlay, _, _ = validate_second_fallback_recovery_overlay(
+        root=historical_root,
+        overlay_path=(
+            ROOT / f"artifacts/restricted/fallback-second-recovery-v{version}.authorized.json"
+        ),
+        v3_result_path=(
+            historical_root
+            / "artifacts/public/results/fallback_gpu_acceptance_development_v3.json"
+        ),
+        v3_incident_path=(
+            historical_root
+            / "artifacts/public/manifests/fallback_gpu_acceptance_development_v3_incident.json"
+        ),
+        prior_retry_amendment_path=(
+            historical_root / "configs/study/fallback_service_retry_amendment.json"
+        ),
+        prior_retry_failure_path=(
+            historical_root
+            / "artifacts/public/results/"
+            "fallback_gpu_acceptance_development_v1.json.controller-handoff.json"
+        ),
+        run_id=getattr(fallback_acceptance_module, f"SECOND_RECOVERY_V{version}_RUN_ID"),
+        policy=policy,
+        activation_certificate=activation,
+        primary_result=primary,
+        limits=limits,
+        source_association=source_association,
+        source_association_path=source_association_path,
+        retry_request=retry_request,
+        legacy_provenance_bridge=bridge,
+        require_authorized=True,
+        verify_decoder_compilation=False,
+        **incident_arguments,
+    )
+    assert overlay["manifest_sha256"] == expected_manifest_sha256
 
 
 def test_second_recovery_rejects_self_consistent_substitute_v4_incident(
@@ -2271,6 +2566,8 @@ class FakeFallbackService:
     shutdown_count: int = 0
     resume_count: int = 0
     remaining_required_seconds: list[float] = field(default_factory=list)
+    start_arguments: list[dict[str, object]] = field(default_factory=list)
+    actual_allocated_service_seconds: float = 0.0
     periodic_resource_watchdog: ResourceWatchdog | None = None
     periodic_drain_allowed: bool = True
 
@@ -2298,6 +2595,7 @@ class FakeFallbackService:
         )
 
     def start(self, *, event_id: str, **kwargs: object) -> None:
+        self.start_arguments.append({"event_id": event_id, **kwargs})
         self.remaining_required_seconds.append(cast(float, kwargs["remaining_required_seconds"]))
         self.start_count += 1
         started_at = datetime(2026, 9, 3, tzinfo=UTC)
@@ -2984,12 +3282,491 @@ def _runner(
     )
 
 
-def test_v8_prepare_reaches_mocked_service_start_with_registered_adopter(
+@dataclass(frozen=True)
+class _ValidatedV9Fixture:
+    overlay: Mapping[str, object]
+    v3_result: Mapping[str, object]
+    v3_incident: Mapping[str, object]
+    retry_amendment: Mapping[str, object]
+    prior_failure: Mapping[str, object]
+    activation_certificate: Mapping[str, object]
+    source_association: Mapping[str, object]
+    validation_inputs: fallback_acceptance_module._SecondRecoveryValidationInputs
+    primary_result: Mapping[str, object]
+
+
+def _terminal_v8_gpu_summary() -> GpuSummary:
+    return GpuSummary(
+        total_allocated_microseconds=2_581_267_703,
+        event_count=7,
+        service_session_count=6,
+        by_kind_microseconds=(
+            (GpuEventKind.FAILURE, 225_183_297),
+            (GpuEventKind.GPU_SESSION_START, 441_721_080),
+            (GpuEventKind.SERVICE_OVERHEAD, 1_491_497_670),
+            (GpuEventKind.TIMEOUT, 422_865_656),
+        ),
+    )
+
+
+def _seed_terminal_v8_gpu_accounting(ledger: Ledger) -> None:
+    started = datetime(2026, 9, 5, 22, tzinfo=UTC)
+    event_rows = (
+        (
+            "fallback-qwen3-8b-awq-development-v3-fallback-c1-01-gpu",
+            GpuEventKind.FAILURE,
+            0.852878,
+            False,
+            {
+                "reserve_call_class": "reserve_long",
+                "reserve_reservation_id": (
+                    "fallback-qwen3-8b-awq-development-v3:fallback-c1-01"
+                ),
+            },
+        ),
+        (
+            "base-service-start-failure-001",
+            GpuEventKind.FAILURE,
+            100.0,
+            False,
+            {"intended_event_kind": GpuEventKind.GPU_SESSION_START.value},
+        ),
+        (
+            "base-service-start-failure-002",
+            GpuEventKind.FAILURE,
+            124.330419,
+            False,
+            {"intended_event_kind": GpuEventKind.GPU_SESSION_START.value},
+        ),
+        (
+            "base-service-start-timeout-003",
+            GpuEventKind.TIMEOUT,
+            422.865656,
+            False,
+            {"intended_event_kind": GpuEventKind.GPU_SESSION_START.value},
+        ),
+        (
+            "fallback-qwen3-8b-awq-development-v3-service-start-001",
+            GpuEventKind.GPU_SESSION_START,
+            441.721078,
+            True,
+            {},
+        ),
+        (
+            "fallback-qwen3-8b-awq-development-v7-service-start-001",
+            GpuEventKind.GPU_SESSION_START,
+            0.000001,
+            True,
+            {},
+        ),
+        (
+            "fallback-qwen3-8b-awq-development-v8-service-start-001",
+            GpuEventKind.GPU_SESSION_START,
+            0.000001,
+            True,
+            {},
+        ),
+    )
+    for event_id, kind, seconds, succeeded, details in event_rows:
+        ledger.record_gpu_event(
+            event_id=event_id,
+            event_kind=kind,
+            allocated_seconds=seconds,
+            started_at=started,
+            ended_at=started + timedelta(seconds=seconds),
+            succeeded=succeeded,
+            details=details,
+        )
+    overhead_rows = (1_491.497665, 0.000001, 0.000001, 0.000001, 0.000001, 0.000001)
+    for index, seconds in enumerate(overhead_rows, start=1):
+        ledger.record_gpu_service_session(
+            service_session_id=f"terminal-v8-session-{index:03d}",
+            session_id=f"terminal-v8-{index:03d}",
+            service_seconds=seconds,
+            classified_event_seconds=0,
+            started_at=started,
+            ended_at=started + timedelta(seconds=seconds),
+        )
+    assert ledger.gpu_summary() == _terminal_v8_gpu_summary()
+
+
+def _build_validated_v9_fixture(tmp_path: Path) -> _ValidatedV9Fixture:
+    policy = FallbackModelPolicy.load(ROOT / "configs/study/fallback_model.json")
+    limits = ResourceLimits.load(ROOT / "configs/study/resource_limits.json")
+    primary_path = (
+        ROOT / "artifacts/public/results/phase1_gpu_acceptance_v2_failed.json"
+    )
+    activation_path = (
+        ROOT / "artifacts/public/manifests/fallback_activation_v2.json"
+    )
+    primary = json.loads(primary_path.read_text(encoding="utf-8"))
+    activation = json.loads(activation_path.read_text(encoding="utf-8"))
+    v3_result_path = (
+        ROOT / "artifacts/public/results/fallback_gpu_acceptance_development_v3.json"
+    )
+    v3_incident_path = (
+        ROOT
+        / "artifacts/public/manifests/"
+        "fallback_gpu_acceptance_development_v3_incident.json"
+    )
+    retry_amendment_path = (
+        ROOT / "configs/study/fallback_service_retry_amendment.json"
+    )
+    prior_failure_path = (
+        ROOT
+        / "artifacts/public/results/"
+        "fallback_gpu_acceptance_development_v1.json.controller-handoff.json"
+    )
+    incident_paths = (
+        ROOT
+        / "artifacts/public/manifests/"
+        "fallback_gpu_acceptance_development_v4_control_plane_incident.json",
+        ROOT
+        / "artifacts/public/manifests/"
+        "fallback_gpu_acceptance_development_v5_control_plane_incident.json",
+        ROOT
+        / "artifacts/public/manifests/"
+        "fallback_gpu_acceptance_development_v6_control_plane_incident.json",
+        ROOT
+        / "artifacts/public/manifests/"
+        "fallback_gpu_acceptance_development_v7_runtime_incident.json",
+        ROOT
+        / "artifacts/public/manifests/"
+        "fallback_gpu_acceptance_development_v8_runtime_incident.json",
+    )
+    lease_repair_path = (
+        ROOT
+        / "artifacts/restricted/recovery_validation/"
+        "v8_terminal_lease_repair_20260905T2205Z/lease_repair_receipt.json"
+    )
+
+    source_directory = tmp_path / "v9-source"
+    source_directory.mkdir()
+    revision = fallback_acceptance_module.SECOND_RECOVERY_V9_SOURCE_REVISION
+    source_manifest = build_source_manifest(ROOT, revision).to_dict()
+    source_manifest_bytes = (
+        json.dumps(source_manifest, ensure_ascii=False, indent=2, sort_keys=True)
+        + "\n"
+    )
+    local_manifest_path = source_directory / "source_tree_v9.local.json"
+    remote_manifest_path = source_directory / "source_tree_v9.remote.json"
+    local_manifest_path.write_text(source_manifest_bytes, encoding="utf-8")
+    remote_manifest_path.write_text(source_manifest_bytes, encoding="utf-8")
+    source_association = build_source_association(
+        local_manifest_path=local_manifest_path,
+        remote_manifest_path=remote_manifest_path,
+        branch="implementation/query-dependent-temporal-ontology",
+        git_commit="0" * 40,
+        revision_label=revision,
+        recorded_at=datetime(2026, 9, 5, 22, 30, tzinfo=UTC),
+    )
+    source_association_path = (
+        source_directory
+        / "source_tree_fallback_second_recovery_v9.association.json"
+    )
+    source_association_path.write_text(
+        json.dumps(source_association, ensure_ascii=False, indent=2, sort_keys=True)
+        + "\n",
+        encoding="utf-8",
+    )
+    validated_source = validate_source_association(
+        source_association_path,
+        source_root=ROOT,
+    )
+    retry_request = build_fallback_acceptance_request(
+        root=ROOT,
+        call=fallback_pilot_calls(policy)[0],
+        tokenizer=FakeTokenizer(),
+        tokenizer_manifest=v3_fallback_tokenizer_manifest(),
+        legacy_provenance_bridge=legacy_provenance_bridge(),
+    )
+    restricted_root = tmp_path / "restricted"
+    overlay_path = restricted_root / "fallback-second-recovery-v9.authorized.json"
+    overlay = build_second_fallback_recovery_overlay(
+        root=ROOT,
+        output_path=overlay_path,
+        restricted_output_root=restricted_root,
+        v3_result_path=v3_result_path,
+        v3_incident_path=v3_incident_path,
+        prior_control_plane_incident_path=incident_paths[0],
+        prior_v5_control_plane_incident_path=incident_paths[1],
+        prior_v6_control_plane_incident_path=incident_paths[2],
+        prior_v7_runtime_incident_path=incident_paths[3],
+        prior_v8_runtime_incident_path=incident_paths[4],
+        prior_v8_lease_repair_receipt_path=lease_repair_path,
+        prior_retry_amendment_path=retry_amendment_path,
+        prior_retry_failure_path=prior_failure_path,
+        run_id=fallback_acceptance_module.SECOND_RECOVERY_V9_RUN_ID,
+        policy=policy,
+        activation_certificate=activation,
+        primary_result=primary,
+        limits=limits,
+        source_association=validated_source,
+        source_association_path=source_association_path,
+        retry_request=retry_request,
+        legacy_provenance_bridge=legacy_provenance_bridge(),
+        observed=_terminal_v8_gpu_summary(),
+        authorization_status="authorized",
+        authorization_basis="Explicit test-only V9 authorization.",
+        authorized_at=datetime(2026, 9, 5, 22, 31, tzinfo=UTC),
+        verify_decoder_compilation=False,
+    )
+    validated_overlay, v3_result, v3_incident = (
+        validate_second_fallback_recovery_overlay(
+            root=ROOT,
+            overlay_path=overlay_path,
+            v3_result_path=v3_result_path,
+            v3_incident_path=v3_incident_path,
+            prior_control_plane_incident_path=incident_paths[0],
+            prior_v5_control_plane_incident_path=incident_paths[1],
+            prior_v6_control_plane_incident_path=incident_paths[2],
+            prior_v7_runtime_incident_path=incident_paths[3],
+            prior_v8_runtime_incident_path=incident_paths[4],
+            prior_v8_lease_repair_receipt_path=lease_repair_path,
+            prior_retry_amendment_path=retry_amendment_path,
+            prior_retry_failure_path=prior_failure_path,
+            run_id=fallback_acceptance_module.SECOND_RECOVERY_V9_RUN_ID,
+            policy=policy,
+            activation_certificate=activation,
+            primary_result=primary,
+            limits=limits,
+            source_association=validated_source,
+            source_association_path=source_association_path,
+            retry_request=retry_request,
+            legacy_provenance_bridge=legacy_provenance_bridge(),
+            observed=_terminal_v8_gpu_summary(),
+            require_authorized=True,
+            verify_decoder_compilation=False,
+        )
+    )
+    assert validated_overlay == overlay
+    return _ValidatedV9Fixture(
+        overlay=overlay,
+        v3_result=v3_result,
+        v3_incident=v3_incident,
+        retry_amendment=json.loads(retry_amendment_path.read_text(encoding="utf-8")),
+        prior_failure=json.loads(prior_failure_path.read_text(encoding="utf-8")),
+        activation_certificate=activation,
+        source_association=validated_source,
+        validation_inputs=fallback_acceptance_module._SecondRecoveryValidationInputs(
+            primary_result_path=primary_path,
+            activation_certificate_path=activation_path,
+            overlay_path=overlay_path,
+            v3_result_path=v3_result_path,
+            v3_incident_path=v3_incident_path,
+            prior_control_plane_incident_path=incident_paths[0],
+            prior_v5_control_plane_incident_path=incident_paths[1],
+            prior_v6_control_plane_incident_path=incident_paths[2],
+            prior_v7_runtime_incident_path=incident_paths[3],
+            prior_v8_runtime_incident_path=incident_paths[4],
+            prior_v8_lease_repair_receipt_path=lease_repair_path,
+            prior_retry_amendment_path=retry_amendment_path,
+            prior_retry_failure_path=prior_failure_path,
+            source_association_path=source_association_path,
+        ),
+        primary_result=primary,
+    )
+
+
+def _authorized_v9_runner(
+    *,
+    tmp_path: Path,
+    ledger: Ledger,
+    service: FakeFallbackService,
+    preconstruction_mutation: str | None = None,
+) -> FallbackAcceptanceRunner:
+    fixture = _build_validated_v9_fixture(tmp_path)
+    _seed_terminal_v8_gpu_accounting(ledger)
+    supplied_overlay = dict(fixture.overlay)
+    supplied_source_association = dict(fixture.source_association)
+    if preconstruction_mutation == "overlay":
+        supplied_overlay["preconstruction_mutation"] = True
+    elif preconstruction_mutation == "source_association":
+        supplied_source_association["preconstruction_mutation"] = True
+    elif preconstruction_mutation is not None:
+        raise ValueError("unknown V9 fixture mutation")
+    amendment_hash = SECOND_RECOVERY_V3_RETRY_AMENDMENT_SHA256
+    overlay_hash = cast(str, fixture.overlay["manifest_sha256"])
+    tokenizer_manifest = v3_fallback_tokenizer_manifest()
+    adopter = create_production_development_adopter(
+        root=ROOT,
+        service=cast(object, service),
+        artifacts=ArtifactStore(BlobStore(tmp_path / "blobs"), ledger),
+        tokenizer=FakeTokenizer(),
+        tokenizer_manifest=tokenizer_manifest,
+        launcher_configuration_hash=service.configuration.configuration_hash,
+        model_snapshot_manifest_hash="c" * 64,
+        source_association=supplied_source_association,
+        checkpoint_path=tmp_path / "fallback.checkpoint.json",
+        assessment_factory=lambda **_kwargs: (_ for _ in ()).throw(
+            AssertionError("development assessment cannot run before service start")
+        ),
+        retry_amendment_sha256=amendment_hash,
+        second_recovery_overlay_sha256=overlay_hash,
+        recovery_service_start_event_ids=(
+            fallback_acceptance_module._second_recovery_service_start_event_ids(
+                fallback_acceptance_module.SECOND_RECOVERY_V9_RUN_ID
+            )
+        ),
+    )
+    return FallbackAcceptanceRunner(
+        root=ROOT,
+        legacy_provenance_bridge=legacy_provenance_bridge(),
+        run_id=fallback_acceptance_module.SECOND_RECOVERY_V9_RUN_ID,
+        service=cast(object, service),
+        ledger=ledger,
+        artifacts=ArtifactStore(BlobStore(tmp_path / "blobs"), ledger),
+        resource_sampler=cast(object, FakeResourceSampler()),
+        tokenizer=FakeTokenizer(),
+        tokenizer_manifest=tokenizer_manifest,
+        checkpoint_path=tmp_path / "fallback.checkpoint.json",
+        activation_certificate=fixture.activation_certificate,
+        replacement_receipt={"manifest_sha256": HASH_B},
+        snapshot_manifest={
+            "repository": FALLBACK_MODEL_REPOSITORY,
+            "revision": FALLBACK_MODEL_REVISION,
+            "manifest_sha256": "c" * 64,
+        },
+        source_association=supplied_source_association,
+        pre_fallback_gpu_accounting=pre_fallback_gpu_accounting_baseline(
+            fixture.primary_result
+        ),
+        retry_amendment=fixture.retry_amendment,
+        prior_fallback_failure=fixture.prior_failure,
+        second_recovery_overlay=supplied_overlay,
+        second_recovery_v3_result=fixture.v3_result,
+        second_recovery_v3_incident=fixture.v3_incident,
+        second_recovery_validation_inputs=fixture.validation_inputs,
+        service_start_watchdog_seconds=AMENDED_FALLBACK_STARTUP_WATCHDOG_SECONDS,
+        development_adopter=adopter,
+    )
+
+
+def test_direct_v9_runner_rejects_overlay_without_full_validator_inputs(
+    tmp_path: Path,
+) -> None:
+    configuration = _fallback_launch_configuration(tmp_path)
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        service = FakeFallbackService(
+            configuration,
+            ledger,
+            _fallback_outputs(trigger_repair=False),
+            {},
+        )
+        with pytest.raises(ValueError, match="full-validator inputs"):
+            FallbackAcceptanceRunner(
+                root=ROOT,
+                legacy_provenance_bridge=legacy_provenance_bridge(),
+                run_id=fallback_acceptance_module.SECOND_RECOVERY_V9_RUN_ID,
+                service=cast(object, service),
+                ledger=ledger,
+                artifacts=ArtifactStore(BlobStore(tmp_path / "blobs"), ledger),
+                resource_sampler=cast(object, FakeResourceSampler()),
+                tokenizer=FakeTokenizer(),
+                tokenizer_manifest=v3_fallback_tokenizer_manifest(),
+                checkpoint_path=tmp_path / "fallback.checkpoint.json",
+                activation_certificate={"manifest_sha256": HASH_A},
+                replacement_receipt={"manifest_sha256": HASH_B},
+                snapshot_manifest={"manifest_sha256": "c" * 64},
+                source_association={"manifest_sha256": "d" * 64},
+                retry_amendment={
+                    "manifest_sha256": SECOND_RECOVERY_V3_RETRY_AMENDMENT_SHA256,
+                    "authorized_recovery_run_id": SECOND_RECOVERY_V3_RUN_ID,
+                },
+                prior_fallback_failure={"manifest_sha256": "e" * 64},
+                second_recovery_overlay={"manifest_sha256": "f" * 64},
+                second_recovery_v3_result={"manifest_sha256": HASH_A},
+                second_recovery_v3_incident={"manifest_sha256": HASH_B},
+                service_start_watchdog_seconds=(
+                    AMENDED_FALLBACK_STARTUP_WATCHDOG_SECONDS
+                ),
+            )
+        assert service.start_count == 0
+        assert not (tmp_path / "fallback.checkpoint.json").exists()
+
+
+@pytest.mark.parametrize("mutated_payload", ("overlay", "source_association"))
+def test_v9_runner_rejects_mutated_payload_with_genuine_validation_inputs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mutated_payload: str,
+) -> None:
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_verify_second_recovery_decoder_compiles",
+        lambda _schema: None,
+    )
+    configuration = _fallback_launch_configuration(tmp_path)
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        service = FakeFallbackService(
+            configuration,
+            ledger,
+            _fallback_outputs(trigger_repair=False),
+            {},
+        )
+        with pytest.raises(ValueError, match="changed after full validation"):
+            _authorized_v9_runner(
+                tmp_path=tmp_path,
+                ledger=ledger,
+                service=service,
+                preconstruction_mutation=mutated_payload,
+            )
+        assert service.start_count == 0
+        assert not (tmp_path / "fallback.checkpoint.json").exists()
+
+
+@pytest.mark.parametrize("mutated_payload", ("overlay", "source_association"))
+def test_v9_runner_revalidates_mutable_payloads_before_service_start(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mutated_payload: str,
+) -> None:
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_verify_second_recovery_decoder_compiles",
+        lambda _schema: None,
+    )
+    configuration = _fallback_launch_configuration(tmp_path)
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        service = FakeFallbackService(
+            configuration,
+            ledger,
+            _fallback_outputs(trigger_repair=False),
+            {},
+        )
+        runner = _authorized_v9_runner(
+            tmp_path=tmp_path,
+            ledger=ledger,
+            service=service,
+        )
+        target = cast(
+            dict[str, object],
+            (
+                runner.second_recovery_overlay
+                if mutated_payload == "overlay"
+                else runner.source_association
+            ),
+        )
+        target["post_validation_mutation"] = True
+
+        with pytest.raises(ValueError, match="changed after full validation"):
+            runner.prepare_controller_restart()
+
+        assert service.start_count == 0
+        assert not runner.checkpoint_path.exists()
+
+
+def test_v8_is_terminal_and_v9_prepare_uses_exact_service_only_contingency(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The production v8 factory accepts the exact terminal v3 through v7 lineage."""
+    """V8 cannot resume; explicitly authorized V9 alone reaches the start boundary."""
 
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_verify_second_recovery_decoder_compiles",
+        lambda _schema: None,
+    )
     configuration = _fallback_launch_configuration(tmp_path)
     live: dict[str, object] = {}
     with Ledger(tmp_path / "ledger.sqlite3") as ledger:
@@ -3000,108 +3777,35 @@ def test_v8_prepare_reaches_mocked_service_start_with_registered_adopter(
             live,
         )
         reached_start = RuntimeError("mocked-service-start-boundary")
+        captured_start: dict[str, object] = {}
 
         def forbid_gpu_start(**kwargs: object) -> None:
-            del kwargs
+            captured_start.update(kwargs)
             service.start_count += 1
             raise reached_start
 
         monkeypatch.setattr(service, "start", forbid_gpu_start)
-        source_manifest = build_source_manifest(
-            ROOT,
-            fallback_acceptance_module.SECOND_RECOVERY_V8_SOURCE_REVISION,
-        )
-        source_association = {
-            "manifest_sha256": "d" * 64,
-            "local_tree_sha256": source_manifest.tree_sha256,
-            "revision_label": fallback_acceptance_module.SECOND_RECOVERY_V8_SOURCE_REVISION,
-        }
-        amendment_hash = SECOND_RECOVERY_V3_RETRY_AMENDMENT_SHA256
-        overlay_hash = "f" * 64
-        adopter = create_production_development_adopter(
-            root=ROOT,
-            service=cast(object, service),
-            artifacts=ArtifactStore(BlobStore(tmp_path / "blobs"), ledger),
-            tokenizer=FakeTokenizer(),
-            tokenizer_manifest=fallback_tokenizer_manifest(),
-            launcher_configuration_hash=configuration.configuration_hash,
-            model_snapshot_manifest_hash="c" * 64,
-            source_association=source_association,
-            checkpoint_path=tmp_path / "fallback.checkpoint.json",
-            assessment_factory=lambda **_kwargs: (_ for _ in ()).throw(
-                AssertionError("development assessment cannot run before service start")
-            ),
-            retry_amendment_sha256=amendment_hash,
-            second_recovery_overlay_sha256=overlay_hash,
-            recovery_service_start_event_ids=(
-                fallback_acceptance_module._second_recovery_service_start_event_ids(
-                    fallback_acceptance_module.SECOND_RECOVERY_V8_RUN_ID
-                )
-            ),
-        )
-        runner = FallbackAcceptanceRunner(
-            root=ROOT,
-            legacy_provenance_bridge=legacy_provenance_bridge(),
-            run_id=fallback_acceptance_module.SECOND_RECOVERY_V8_RUN_ID,
-            service=cast(object, service),
+        with pytest.raises(ValueError, match="v4/v5/v6/v7/v8 are terminal"):
+            FallbackAcceptanceRunner(
+                root=ROOT,
+                legacy_provenance_bridge=legacy_provenance_bridge(),
+                run_id=fallback_acceptance_module.SECOND_RECOVERY_V8_RUN_ID,
+                service=cast(object, service),
+                ledger=ledger,
+                artifacts=ArtifactStore(BlobStore(tmp_path / "v8-blobs"), ledger),
+                resource_sampler=cast(object, FakeResourceSampler()),
+                tokenizer=FakeTokenizer(),
+                tokenizer_manifest=fallback_tokenizer_manifest(),
+                checkpoint_path=tmp_path / "v8.checkpoint.json",
+                activation_certificate={"manifest_sha256": HASH_A},
+                replacement_receipt={"manifest_sha256": HASH_B},
+                snapshot_manifest={"manifest_sha256": "c" * 64},
+                source_association={"manifest_sha256": "d" * 64},
+            )
+        runner = _authorized_v9_runner(
+            tmp_path=tmp_path,
             ledger=ledger,
-            artifacts=ArtifactStore(BlobStore(tmp_path / "blobs"), ledger),
-            resource_sampler=cast(object, FakeResourceSampler()),
-            tokenizer=FakeTokenizer(),
-            tokenizer_manifest=fallback_tokenizer_manifest(),
-            checkpoint_path=tmp_path / "fallback.checkpoint.json",
-            activation_certificate={"manifest_sha256": HASH_A},
-            replacement_receipt={"manifest_sha256": HASH_B},
-            snapshot_manifest={
-                "repository": FALLBACK_MODEL_REPOSITORY,
-                "revision": FALLBACK_MODEL_REVISION,
-                "manifest_sha256": "c" * 64,
-            },
-            source_association=source_association,
-            retry_amendment={
-                "manifest_sha256": amendment_hash,
-                "authorized_recovery_run_id": SECOND_RECOVERY_V3_RUN_ID,
-            },
-            prior_fallback_failure={"manifest_sha256": "e" * 64},
-            second_recovery_overlay={
-                "manifest_sha256": overlay_hash,
-                "schema_version": "1.6.0",
-                "authorized_recovery_run_id": (
-                    fallback_acceptance_module.SECOND_RECOVERY_V8_RUN_ID
-                ),
-                "authorization": {"status": "authorized"},
-                "intervening_control_plane_incident": {"ledger_unchanged": True},
-                "intervening_v5_control_plane_incident": {
-                    "scientific_ledger_state_unchanged": True,
-                    "resume_permitted": False,
-                },
-                "intervening_v6_control_plane_incident": {
-                    "incident_manifest_sha256": (
-                        fallback_acceptance_module.SECOND_RECOVERY_V6_INCIDENT_MANIFEST_SHA256
-                    ),
-                    "scientific_ledger_state_unchanged": True,
-                    "resume_permitted": False,
-                    "fresh_repaired_source_required": True,
-                },
-                "intervening_v7_runtime_incident": {
-                    "incident_manifest_sha256": (
-                        fallback_acceptance_module.SECOND_RECOVERY_V7_INCIDENT_MANIFEST_SHA256
-                    ),
-                    "inference_attempts_consumed": 0,
-                    "accepted_output_count": 0,
-                    "physical_shutdown_verified": True,
-                    "ledger_recovery_completed": True,
-                    "resume_permitted": False,
-                },
-            },
-            second_recovery_v3_result={
-                "manifest_sha256": SECOND_RECOVERY_V3_RESULT_MANIFEST_SHA256
-            },
-            second_recovery_v3_incident={
-                "manifest_sha256": SECOND_RECOVERY_V3_INCIDENT_MANIFEST_SHA256
-            },
-            service_start_watchdog_seconds=(AMENDED_FALLBACK_STARTUP_WATCHDOG_SECONDS),
-            development_adopter=adopter,
+            service=service,
         )
         monkeypatch.setattr(
             FallbackAcceptanceRunner,
@@ -3120,12 +3824,23 @@ def test_v8_prepare_reaches_mocked_service_start_with_registered_adopter(
         )
 
         effective_inventory = runner._effective_inventory_manifest()
-        assert effective_inventory["recovery_service_start_events"] == 3
-        assert effective_inventory["effective_accounting_events"] == 289
+        assert runner._base_inventory_consumed_service_starts() == (3, 3)
+        receipts = fallback_acceptance_module._reserve_receipts(ledger, ())
+        assert [receipt["reservation_id"] for receipt in receipts] == [
+            "fallback-qwen3-8b-awq-development-v3:fallback-c1-01"
+        ]
+        assert runner._remaining_mandatory_forecast_seconds(
+            runner._initial_state("a" * 64)
+        ) == 29_459.0
+        assert effective_inventory["recovery_service_start_events"] == 4
+        assert effective_inventory["effective_accounting_events"] == 290
         assert effective_inventory["effective_inference_attempts"] == 278
         execution_identity = runner._execution_identity("a" * 64)
-        assert execution_identity["prior_v7_runtime_incident_sha256"] == (
-            fallback_acceptance_module.SECOND_RECOVERY_V7_INCIDENT_MANIFEST_SHA256
+        assert execution_identity["prior_v8_runtime_incident_sha256"] == (
+            fallback_acceptance_module.SECOND_RECOVERY_V8_INCIDENT_MANIFEST_SHA256
+        )
+        assert execution_identity["prior_v8_lease_repair_receipt_sha256"] == (
+            fallback_acceptance_module.SECOND_RECOVERY_V8_LEASE_REPAIR_MANIFEST_SHA256
         )
 
         with pytest.raises(RuntimeError, match="mocked-service-start-boundary") as exc:
@@ -3133,9 +3848,250 @@ def test_v8_prepare_reaches_mocked_service_start_with_registered_adopter(
 
     assert exc.value is reached_start
     assert service.start_count == 1
+    assert captured_start == {
+        "session_id": fallback_acceptance_module.SECOND_RECOVERY_V9_RUN_ID,
+        "event_id": "fallback-qwen3-8b-awq-development-v9-service-start-001",
+        "watchdog_seconds": 300,
+        "remaining_required_seconds": 29_459.0,
+        "admission_forecast_seconds": 391.40054529582005,
+        "contingency_unlocked": True,
+        "essential_recovery": True,
+    }
 
 
-def test_second_recovery_service_identity_derivation_preserves_v7_and_executes_v8() -> None:
+def test_v9_forecast_drift_fails_before_attempt_checkpoint_or_service_start(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_verify_second_recovery_decoder_compiles",
+        lambda _schema: None,
+    )
+    configuration = _fallback_launch_configuration(tmp_path)
+    live: dict[str, object] = {}
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        service = FakeFallbackService(
+            configuration,
+            ledger,
+            _fallback_outputs(trigger_repair=False),
+            live,
+        )
+        runner = _authorized_v9_runner(
+            tmp_path=tmp_path,
+            ledger=ledger,
+            service=service,
+        )
+        monkeypatch.setattr(
+            FallbackAcceptanceRunner,
+            "_remaining_mandatory_forecast_seconds",
+            lambda _self, _state, **_kwargs: 29_458.0,
+        )
+        monkeypatch.setattr(
+            FallbackAcceptanceRunner,
+            "_validate_second_recovery_request_binding",
+            lambda _self: None,
+        )
+        monkeypatch.setattr(
+            FallbackAcceptanceRunner,
+            "_second_recovery_retry_lineage",
+            lambda _self: None,
+        )
+        monkeypatch.setattr(
+            fallback_acceptance_module,
+            "_resource_gate",
+            lambda _ledger, _limits: {"accepted": True},
+        )
+
+        with pytest.raises(RuntimeError, match="contingency binding changed"):
+            runner.prepare_controller_restart()
+
+        checkpoint = json.loads(runner.checkpoint_path.read_text(encoding="utf-8"))
+        assert checkpoint["service_start_attempted"] is False
+        assert checkpoint["failed_call_id"] is None
+        assert service.start_count == 0
+        assert service.shutdown_count == 0
+
+
+def test_v9_post_adoption_schedule_slip_stops_before_scientific_side_effects(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_verify_second_recovery_decoder_compiles",
+        lambda _schema: None,
+    )
+    configuration = _fallback_launch_configuration(tmp_path)
+    live: dict[str, object] = {}
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        service = FakeFallbackService(
+            configuration,
+            ledger,
+            _fallback_outputs(trigger_repair=False),
+            live,
+        )
+        runner = _authorized_v9_runner(
+            tmp_path=tmp_path,
+            ledger=ledger,
+            service=service,
+        )
+        monkeypatch.setattr(
+            FallbackAcceptanceRunner,
+            "_validate_second_recovery_request_binding",
+            lambda _self: None,
+        )
+        monkeypatch.setattr(
+            FallbackAcceptanceRunner,
+            "_second_recovery_retry_lineage",
+            lambda _self: None,
+        )
+        monkeypatch.setattr(
+            fallback_acceptance_module,
+            "_resource_gate",
+            lambda _ledger, _limits: {"accepted": True},
+        )
+        controller_pid = 41_001
+        monkeypatch.setattr(os, "getpid", lambda: controller_pid)
+        runner.prepare_controller_restart()
+        assert runner._base_inventory_consumed_service_starts() == (3, 4)
+        state_after_start = json.loads(
+            runner.checkpoint_path.read_text(encoding="utf-8")
+        )
+        assert runner._remaining_mandatory_forecast_seconds(state_after_start) == 29_459.0
+        assert runner._effective_inventory_manifest()["effective_accounting_events"] == 290
+
+        generation_reached = False
+
+        def forbidden_generation(*_args: object, **_kwargs: object) -> None:
+            nonlocal generation_reached
+            generation_reached = True
+            raise AssertionError("V9 schedule rejection reached model generation")
+
+        monkeypatch.setattr(service, "run_fallback_test", forbidden_generation)
+        service.actual_allocated_service_seconds = 3_000.0
+        controller_pid = 41_002
+        with pytest.raises(RuntimeError, match="fresh scheduled admission"):
+            runner.run()
+
+        checkpoint = json.loads(runner.checkpoint_path.read_text(encoding="utf-8"))
+        assert checkpoint["failed_call_id"] == "v9-post-adoption-scheduled-admission"
+        assert checkpoint["reserve_consumption"] == []
+        assert checkpoint["completed_call_ids"] == []
+        assert generation_reached is False
+        assert service.shutdown_count == 1
+        with sqlite3.connect(ledger.path) as read_only:
+            counts = {
+                table: read_only.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+                for table in (
+                    "jobs",
+                    "query_access_events",
+                    "attempts",
+                    "model_calls",
+                    "failures",
+                )
+            }
+        assert counts == {
+            "jobs": 0,
+            "query_access_events": 0,
+            "attempts": 0,
+            "model_calls": 0,
+            "failures": 0,
+        }
+
+
+def test_v9_recovered_prepare_schedule_slip_stops_before_rehandoff_or_science(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        fallback_acceptance_module,
+        "_verify_second_recovery_decoder_compiles",
+        lambda _schema: None,
+    )
+    configuration = _fallback_launch_configuration(tmp_path)
+    live: dict[str, object] = {}
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        service = FakeFallbackService(
+            configuration,
+            ledger,
+            _fallback_outputs(trigger_repair=False),
+            live,
+        )
+        runner = _authorized_v9_runner(
+            tmp_path=tmp_path,
+            ledger=ledger,
+            service=service,
+        )
+        plan_hash = cast(str, fallback_plan_manifest(ROOT)["manifest_sha256"])
+        execution_hash = canonical_sha256(runner._execution_identity(plan_hash))
+        state = runner._initial_state(execution_hash)
+        state["service_start_attempted"] = True
+        state["stage_one_controller_pid"] = 42_001
+        runner._save(state)
+
+        monkeypatch.setattr(os, "getpid", lambda: 42_001)
+        service.start(
+            session_id=fallback_acceptance_module.SECOND_RECOVERY_V9_RUN_ID,
+            event_id="fallback-qwen3-8b-awq-development-v9-service-start-001",
+            watchdog_seconds=300,
+            remaining_required_seconds=29_459.0,
+            admission_forecast_seconds=391.40054529582005,
+            contingency_unlocked=True,
+            essential_recovery=True,
+        )
+        service.detach_for_controller_restart(runner._service_checkpoint_path)
+        service.actual_allocated_service_seconds = 3_000.0
+        reserve_before = fallback_acceptance_module._reserve_receipts(ledger, ())
+
+        def forbidden_rehandoff(_path: Path) -> None:
+            raise AssertionError("unadmitted recovered service was re-detached")
+
+        monkeypatch.setattr(
+            service,
+            "detach_for_controller_restart",
+            forbidden_rehandoff,
+        )
+        monkeypatch.setattr(os, "getpid", lambda: 42_002)
+
+        with pytest.raises(RuntimeError, match="fresh scheduled admission"):
+            runner.recover_controller_restart_preparation()
+
+        checkpoint = json.loads(runner.checkpoint_path.read_text(encoding="utf-8"))
+        assert checkpoint["failed_call_id"] == (
+            "v9-recovered-prepare-scheduled-admission"
+        )
+        assert checkpoint["controller_handoff_complete"] is False
+        assert checkpoint["reserve_consumption"] == []
+        assert service.start_count == 1
+        assert service.resume_count == 1
+        assert service.shutdown_count == 1
+        assert service.state is ServiceState.STOPPED
+        assert live["running"] is False
+        assert fallback_acceptance_module._reserve_receipts(ledger, ()) == (
+            reserve_before
+        )
+        with sqlite3.connect(ledger.path) as read_only:
+            counts = {
+                table: read_only.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+                for table in (
+                    "jobs",
+                    "query_access_events",
+                    "attempts",
+                    "model_calls",
+                    "failures",
+                )
+            }
+        assert counts == {
+            "jobs": 0,
+            "query_access_events": 0,
+            "attempts": 0,
+            "model_calls": 0,
+            "failures": 0,
+        }
+
+
+def test_second_recovery_service_identity_derivation_preserves_terminal_lineage() -> None:
     assert fallback_acceptance_module._second_recovery_service_start_event_ids(
         fallback_acceptance_module.SECOND_RECOVERY_V7_RUN_ID
     ) == (
@@ -3149,7 +4105,15 @@ def test_second_recovery_service_identity_derivation_preserves_v7_and_executes_v
         "fallback-qwen3-8b-awq-development-v7-service-start-001",
         "fallback-qwen3-8b-awq-development-v8-service-start-001",
     )
-    with pytest.raises(ValueError, match="restricted to v7/v8"):
+    assert fallback_acceptance_module._second_recovery_service_start_event_ids(
+        fallback_acceptance_module.SECOND_RECOVERY_V9_RUN_ID
+    ) == (
+        "fallback-qwen3-8b-awq-development-v3-service-start-001",
+        "fallback-qwen3-8b-awq-development-v7-service-start-001",
+        "fallback-qwen3-8b-awq-development-v8-service-start-001",
+        "fallback-qwen3-8b-awq-development-v9-service-start-001",
+    )
+    with pytest.raises(ValueError, match="restricted to v7/v8/v9"):
         fallback_acceptance_module._second_recovery_service_start_event_ids(
             fallback_acceptance_module.SECOND_RECOVERY_V6_RUN_ID
         )
@@ -5100,30 +6064,29 @@ def test_internal_controller_cli_requires_exact_stage_output(
         fallback_acceptance_module._require_execution_arguments(parsed)
 
 
-def test_v8_controller_identity_and_internal_command_bind_complete_incident_chain(
+def test_v9_controller_identity_and_internal_command_bind_complete_incident_chain(
     tmp_path: Path,
 ) -> None:
     options = _orchestrator_options(tmp_path)
-    options.run_id = fallback_acceptance_module.SECOND_RECOVERY_V8_RUN_ID
+    options.run_id = fallback_acceptance_module.SECOND_RECOVERY_V9_RUN_ID
     options.retry_amendment = tmp_path / "v3-amendment.json"
     options.prior_fallback_failure = tmp_path / "v3-failure.json"
-    options.second_recovery_overlay = tmp_path / "v8-overlay.json"
+    options.second_recovery_overlay = tmp_path / "v9-overlay.json"
     options.second_recovery_v3_result = tmp_path / "v3-result.json"
     options.second_recovery_v3_incident = tmp_path / "v3-incident.json"
     options.prior_control_plane_incident = tmp_path / "v4-incident.json"
 
-    with pytest.raises(SystemExit, match="v4/v5/v6/v7"):
+    with pytest.raises(SystemExit, match="v4/v5/v6/v7/v8"):
         fallback_acceptance_module._require_execution_arguments(options)
 
     options.prior_v5_control_plane_incident = tmp_path / "v5-incident.json"
-    with pytest.raises(SystemExit, match="v4/v5/v6/v7"):
-        fallback_acceptance_module._require_execution_arguments(options)
-
     options.prior_v6_control_plane_incident = tmp_path / "v6-incident.json"
-    with pytest.raises(SystemExit, match="v4/v5/v6/v7"):
+    options.prior_v7_runtime_incident = tmp_path / "v7-incident.json"
+    options.prior_v8_runtime_incident = tmp_path / "v8-incident.json"
+    with pytest.raises(SystemExit, match="v4/v5/v6/v7/v8"):
         fallback_acceptance_module._require_execution_arguments(options)
 
-    options.prior_v7_runtime_incident = tmp_path / "v7-incident.json"
+    options.prior_v8_lease_repair_receipt = tmp_path / "v8-lease-repair.json"
     fallback_acceptance_module._require_execution_arguments(options)
     identity = fallback_acceptance_module._controller_execution_arguments(options)
     assert identity["prior_control_plane_incident"] == str(
@@ -5137,6 +6100,12 @@ def test_v8_controller_identity_and_internal_command_bind_complete_incident_chai
     )
     assert identity["prior_v7_runtime_incident"] == str(
         options.prior_v7_runtime_incident.resolve()
+    )
+    assert identity["prior_v8_runtime_incident"] == str(
+        options.prior_v8_runtime_incident.resolve()
+    )
+    assert identity["prior_v8_lease_repair_receipt"] == str(
+        options.prior_v8_lease_repair_receipt.resolve()
     )
 
     command = fallback_acceptance_module._internal_controller_command(
@@ -5165,6 +6134,7 @@ def test_public_orchestrator_rejects_private_result_path_and_wrong_process_group
         fallback_acceptance_module.SECOND_RECOVERY_V5_RUN_ID,
         fallback_acceptance_module.SECOND_RECOVERY_V6_RUN_ID,
         fallback_acceptance_module.SECOND_RECOVERY_V7_RUN_ID,
+        fallback_acceptance_module.SECOND_RECOVERY_V8_RUN_ID,
     ):
         options.run_id = terminal_run_id
         with pytest.raises(SystemExit, match="terminal incident"):

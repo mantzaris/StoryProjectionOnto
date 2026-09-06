@@ -20,7 +20,11 @@ import pytest
 
 import story_projection_onto.gpu_runtime as gpu_runtime
 from story_projection_onto.contracts import ConditionName, canonical_json, canonical_sha256
-from story_projection_onto.experiment import AllocatedGPUMeter, ResourceLimits
+from story_projection_onto.experiment import (
+    AllocatedGPUMeter,
+    ForecastAdmissionError,
+    ResourceLimits,
+)
 from story_projection_onto.gpu_runtime import (
     FALLBACK_MODEL_REPOSITORY,
     FALLBACK_MODEL_REVISION,
@@ -2016,6 +2020,252 @@ def test_service_meters_mutually_exclusive_lifecycle_and_safe_shutdown(
         assert latest_journal is not None
         assert latest_journal.state.value == "closed"
         assert ledger.count_rows("gpu_service_journal") == 3
+
+
+def test_service_start_contingency_is_paired_audited_and_does_not_unlock_calls(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(1998)
+    spawned: list[int] = []
+
+    def popen(*args: object, **kwargs: object) -> FakeProcess:
+        del args, kwargs
+        spawned.append(process.pid)
+        return process
+
+    with Ledger(tmp_path / "service-start-contingency.sqlite3") as ledger:
+        ledger.record_gpu_event(
+            event_id="prior-allocation",
+            event_kind=GpuEventKind.INFERENCE,
+            allocated_seconds=8,
+            started_at=clock.wall(),
+            ended_at=clock.wall() + timedelta(seconds=8),
+            succeeded=True,
+        )
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=AllocatedGPUMeter(
+                ledger,
+                scheduled_limit_seconds=9,
+                hard_limit_seconds=189,
+                monotonic_clock=clock.monotonic,
+                wall_clock=clock.wall,
+            ),
+            popen_factory=popen,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            sleep=clock.advance,
+            process_group_signaler=lambda pid, sig: setattr(process, "running", False),
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+
+        with pytest.raises(ForecastAdmissionError, match="scheduled"):
+            service.start(
+                session_id="recovery",
+                event_id="ordinary-start",
+                watchdog_seconds=0.5,
+                admission_forecast_seconds=0.6,
+                remaining_required_seconds=0.5,
+            )
+        with pytest.raises(RuntimeConfigurationError, match="paired unlock"):
+            service.start(
+                session_id="recovery",
+                event_id="half-authorized-start",
+                watchdog_seconds=0.5,
+                admission_forecast_seconds=0.6,
+                remaining_required_seconds=0.5,
+                contingency_unlocked=True,
+            )
+        with pytest.raises(RuntimeConfigurationError, match="exact booleans"):
+            service.start(
+                session_id="recovery",
+                event_id="non-boolean-start",
+                watchdog_seconds=0.5,
+                admission_forecast_seconds=0.6,
+                remaining_required_seconds=0.5,
+                contingency_unlocked=cast(bool, 1),
+                essential_recovery=True,
+            )
+        assert spawned == []
+
+        service.start(
+            session_id="recovery",
+            event_id="essential-recovery-start",
+            watchdog_seconds=0.5,
+            admission_forecast_seconds=0.6,
+            remaining_required_seconds=0.5,
+            contingency_unlocked=True,
+            essential_recovery=True,
+        )
+        start_event = ledger.gpu_events_with_prefix("essential-recovery-start")[-1]
+        start_details = json.loads(start_event.details_json)
+        assert start_event.event_kind is GpuEventKind.GPU_SESSION_START
+        assert start_details["service_start_watchdog_seconds"] == 0.5
+        assert start_details["admission_forecast_seconds"] == 0.6
+        assert start_details["admitted_maximum_seconds"] == 0.5
+        assert start_details["contingency_unlocked"] is True
+        assert start_details["essential_recovery"] is True
+
+        # Start-only authority is not retained on the service or propagated to
+        # inference/restart: their ordinary scheduled forecast remains strict.
+        with pytest.raises(ForecastAdmissionError, match="scheduled"):
+            service.generate(
+                _guided_request(),
+                event_id="forbidden-contingency-inference",
+                watchdog_seconds=0.5,
+                remaining_required_seconds=0.6,
+            )
+        with pytest.raises(ForecastAdmissionError, match="scheduled"):
+            service.restart(
+                event_id="forbidden-contingency-restart",
+                watchdog_seconds=0.5,
+                remaining_required_seconds=0.6,
+            )
+
+        # The independent sampler-drain/shutdown reserve is still protected.
+        with pytest.raises(GpuBudgetExceeded, match="hard GPU-service limit"):
+            service.run_warmup(
+                lambda: None,
+                event_id="protected-reserve",
+                watchdog_seconds=1,
+            )
+        assert spawned == [process.pid]
+        service.shutdown(shutdown_seconds=0.1)
+
+
+def test_service_start_uses_distinct_authoritative_allocation_proxy_for_admission(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(1999)
+    spawned: list[int] = []
+
+    def popen(*args: object, **kwargs: object) -> FakeProcess:
+        del args, kwargs
+        spawned.append(process.pid)
+        return process
+
+    with Ledger(tmp_path / "service-start-proxy.sqlite3") as ledger:
+        consumed_seconds = 2581.267703
+        remaining_mandatory_seconds = 29_459.0
+        startup_watchdog_seconds = 300.0
+        service_allocation_proxy_seconds = 391.40054529582005
+        ledger.record_gpu_event(
+            event_id="recovered-consumption",
+            event_kind=GpuEventKind.FAILURE,
+            allocated_seconds=consumed_seconds,
+            started_at=clock.wall(),
+            ended_at=clock.wall() + timedelta(seconds=consumed_seconds),
+            succeeded=False,
+        )
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=AllocatedGPUMeter(
+                ledger,
+                scheduled_limit_seconds=32_400,
+                hard_limit_seconds=36_000,
+                monotonic_clock=clock.monotonic,
+                wall_clock=clock.wall,
+            ),
+            popen_factory=popen,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            sleep=clock.advance,
+            process_group_signaler=lambda pid, sig: setattr(process, "running", False),
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+
+        # The 300-second startup watchdog alone would project 32,340.267703s
+        # and incorrectly pass. The distinct service-allocation proxy projects
+        # 32,431.668248s and therefore fails the ordinary scheduled gate.
+        with pytest.raises(ForecastAdmissionError, match="scheduled"):
+            service.start(
+                session_id="v9-recovery",
+                event_id="ordinary-v9-start",
+                watchdog_seconds=startup_watchdog_seconds,
+                admission_forecast_seconds=service_allocation_proxy_seconds,
+                remaining_required_seconds=remaining_mandatory_seconds,
+            )
+        assert spawned == []
+
+        service.start(
+            session_id="v9-recovery",
+            event_id="authorized-v9-start",
+            watchdog_seconds=startup_watchdog_seconds,
+            admission_forecast_seconds=service_allocation_proxy_seconds,
+            remaining_required_seconds=remaining_mandatory_seconds,
+            contingency_unlocked=True,
+            essential_recovery=True,
+        )
+        event = ledger.gpu_events_with_prefix("authorized-v9-start")[-1]
+        details = json.loads(event.details_json)
+        journal = tuple(
+            row
+            for row in ledger.gpu_allocation_journal_records()
+            if row.allocation_id == "authorized-v9-start"
+        )
+        assert details["service_start_watchdog_seconds"] == startup_watchdog_seconds
+        assert details["admission_forecast_seconds"] == service_allocation_proxy_seconds
+        assert details["admitted_maximum_seconds"] == startup_watchdog_seconds
+        assert journal[0].maximum_microseconds == int(startup_watchdog_seconds * 1_000_000)
+        assert spawned == [process.pid]
+        service.shutdown(shutdown_seconds=0.1)
+
+
+def test_service_start_contingency_cannot_cross_strict_hard_stop(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    spawned: list[int] = []
+    with Ledger(tmp_path / "service-start-hard-stop.sqlite3") as ledger:
+        ledger.record_gpu_event(
+            event_id="prior-allocation",
+            event_kind=GpuEventKind.INFERENCE,
+            allocated_seconds=9.5,
+            started_at=clock.wall(),
+            ended_at=clock.wall() + timedelta(seconds=9.5),
+            succeeded=True,
+        )
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=AllocatedGPUMeter(
+                ledger,
+                scheduled_limit_seconds=9,
+                hard_limit_seconds=10,
+                monotonic_clock=clock.monotonic,
+                wall_clock=clock.wall,
+            ),
+            popen_factory=lambda *args, **kwargs: spawned.append(2001),
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            sleep=clock.advance,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+
+        with pytest.raises(GpuBudgetExceeded, match="reach/cross hard limit"):
+            service.start(
+                session_id="recovery",
+                event_id="hard-stop-start",
+                watchdog_seconds=0.5,
+                contingency_unlocked=True,
+                essential_recovery=True,
+            )
+
+        assert spawned == []
+        assert tuple(event.event_id for event in ledger.gpu_events()) == ("prior-allocation",)
+        assert ledger.unresolved_gpu_allocations() == ()
 
 
 def test_project_service_lock_prevents_duplicate_launch_and_releases_after_shutdown(
