@@ -1,6 +1,76 @@
 # Run status
 
-Updated: 2026-09-06 23:04 UTC
+Updated: 2026-09-06 23:22 UTC
+
+## V9 terminal outcome — no further GPU start authorized
+
+The single authorized V9 start completed in **183.849429 seconds**, within its
+300-second timeout. The pre-start hard-budget check passed with the protected
+180-second drain/shutdown allowance. The ordinary rule remains **all actual
+allocation, including live service overhead, plus all remaining registered work
+<= 32,400 seconds**. The exception was used only for service startup.
+
+Post-start ordinary admission passed: the recorded controller-handoff calculation
+was 2,795.0750912889002 + 29,459 = 32,254.0750912889 seconds. The fresh stage-two
+gate also passed before the first scientific request. V9 then attempted the
+authorized `fallback-c1-01` reserve-long retry; it failed after **21.302286
+seconds** with `RuntimeTransportError`. There are **zero accepted outputs**, zero
+repairs, and zero development calls. The server log records generation activity,
+but the decoder retained neither the raw response nor the detailed error for
+this failure path. The exact decoding/transport cause cannot be recovered; token
+truncation is not an established diagnosis. No scientific validity or throughput
+gate is claimed to have passed.
+
+The guardian verified physical shutdown at 2026-09-06 23:13:51 UTC. V9 used
+354.971155 service seconds: 183.849429 startup, 21.302286 failed call, and
+149.819440 service overhead (including controller adoption and shutdown).
+Total study allocation is **2,936.238858 seconds**. The updated terminal
+full-inventory forecast is **29,987.34434394846 remaining seconds**, so the all-in
+forecast is **32,923.58320194846 seconds**, exceeding ordinary admission by
+**523.58320194846 seconds**. This is not authorization for another start or retry.
+The strict actual hard budget has 33,063.761142 seconds remaining, exclusively;
+the projected hard margin is 3,076.41679805154 seconds before any additional
+recovery costs. Historical failed allocation remains counted.
+
+The remaining forecast still includes all mandatory development, held-out,
+feedback, ablation, and narrative work and unconsumed registered reserves. Its
+five remaining planned service loads use 333.6688687896926 seconds each (observed
+V9 startup plus service overhead); no valid generation-speed observation exists.
+No mandatory comparison was removed. Any subsequent recovery must explicitly
+budget its new startup and retry, and needs new authority. V9 cannot resume.
+
+Peak sampled V9 VRAM was 22,793,945,088 bytes; stage-two process RAM was
+3,172,536,320 bytes and project occupancy 10,347,346,432 bytes. The cumulative
+resource gate passes. The terminal ledger/CAS audit passes: 18 hashed artifacts,
+2 failed model calls total, 9 GPU events, 7 closed service sessions, and no open
+allocation/service journals. The terminal ledger SHA-256 is
+`53e4341b14f53dce48482cd765eb4654777df76061ff4948e0ea9bcf8a93dc5c`.
+The public V9 result SHA-256 is
+`dbd5c1f5defccba571879548b152de59ffd59e90e5e1a6a6ea6f22eede2a03dc`.
+The source checkpoint is `c094c1e67137c84d0746e66263439b80f53e2161`;
+authorized preflight checkpoint is `0ca9158`.
+
+Exact terminal records, logs, ledger, blobs, file inventory, and verification
+script are preserved locally under
+`artifacts/restricted/recovery_validation/v9_terminal_20260906T2313Z/`.
+Original records remain on the remote project. Passing source tests were reused;
+no production code changed during this attempt. Newly run checks verified
+ledger/CAS integrity, canonical result/handoff/guardian hashes, accounting sums,
+and physical shutdown. No new PDF was made. The RunPod pod remains active;
+vLLM and the V9 tmux job are stopped.
+
+Smallest next engineering work: preserve exact HTTP response bytes and detailed
+decoder failure in restricted storage before parsing, with CPU regression tests;
+do not relax structured-output validation or claim a retroactive V9 repair.
+Separately, move invariant CPU controller preparation ahead of allocation and
+demonstrate a complete forecast saving at least 523.583202 seconds **plus any
+additional recovery costs**. A budget amendment is not silently applied. No V10
+has been implemented or launched. Held-out work remains gated on human review.
+
+There is **no authorized GPU resume command**. Read-only remote status command,
+from the remote project root:
+`.venv/bin/python artifacts/restricted/recovery_validation/v9_authorization_20260906T2256Z/v9_control.py status`.
+The following pre-launch section and older ledger totals are historical.
 
 ## Authorized V9 execution
 
