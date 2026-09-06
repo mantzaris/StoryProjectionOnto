@@ -1,6 +1,6 @@
 # Run status
 
-Updated: 2026-09-05 23:02 UTC
+Updated: 2026-09-06 00:16 UTC
 
 ## Verified durable state
 
@@ -29,6 +29,8 @@ Updated: 2026-09-05 23:02 UTC
   `4934a5c187542c64d1bf6770f8141cbb25190c07`.
 - Tested historical-report replay and source-inventory checkpoint:
   `a5f1224e5862bef3fc9aec1d0241861b965c1906`.
+- Tested CPU-only v9 recovery-admission checkpoint:
+  `2574cdc73c64d9bce947fb84d315a4ac3ade7ee3`.
 - Local project: `/home/resort/Documents/repos/StoryProjectionOnto`.
 - Remote project: `/workspace/StoryProjectionOnto`.
 - The reconciled canonical Phase 1 ledger is schema v8, file SHA-256
@@ -263,12 +265,30 @@ Updated: 2026-09-05 23:02 UTC
   handoff logical SHA-256 is
   `4744303d9f081e913a05d46ceac7b3fb8d010ac2db95dd6af91103912e70eb56`.
   The prior fingerprint-only rendering is preserved in restricted recovery storage.
+- The CPU-only schema-1.7 v9 scaffold preserves full-validator replay of every immutable v4-v8
+  overlay while making all five historical run IDs terminal on every execution surface. V9
+  binds the exact v8 incident and lease-repair receipt, distinguishes the 300-second process
+  watchdog from the 391.40054529582005-second admission proxy, and permits the registered
+  hard contingency to reach only one service-start event. The runner independently repeats
+  exact-path, canonical-payload, and dependency validation at construction and before prepare,
+  recovered-prepare, and run boundaries. Every post-adoption path rechecks the ordinary
+  32,400-second gate before a checkpoint handoff, reserve consumption, job creation, attempt,
+  or model call. No v9 source association, authorization overlay, preflight, launch artifact,
+  model process, GPU event, inference attempt, or model output has been created.
+- The final cross-module fallback/development/runtime/schema selection passed 291 tests before
+  the last bounded recovered-prepare gate was added. The complete fallback suite then passed
+  95/95, including that regression and five exact historical-overlay replays; Ruff and
+  `git diff --check` pass. The independent final audit also passed 15 critical lineage and
+  authorization tests, 10 accounting/contingency tests, and 51 incident tests. The review
+  handoff dry-run reproduces and its handoff/runtime tests pass 14/14. The 24-call development
+  manifest validates without permitting model load, service start, shutdown, or artifact
+  writes.
 
 ## Phase state
 
 | Phase | State | Verified position |
 |---|---|---|
-| 1 — contracts and GPU acceptance | Blocked at scheduled-budget gate | Contracts, ledgers/CAS, storage and GPU controls, evidence/ontology boundary, provenance bridge, decoder projection, and process-group hardening pass. V4–v6 are preserved zero-GPU control-plane incidents; v7 and v8 are preserved terminal runtime incidents with no inference. V8 reached a healthy endpoint, then failed closed at strict EngineCore adoption; its bounded repair passes and its remote lease is verified terminal. A fresh service start is forbidden while the all-in forecast exceeds 9 hours by 31.668248 seconds. |
+| 1 — contracts and GPU acceptance | Awaiting explicit essential-recovery authorization | Contracts, ledgers/CAS, storage and GPU controls, evidence/ontology boundary, provenance bridge, decoder projection, process-group hardening, and the CPU-only v9 fail-closed path pass. V4–v6 are preserved zero-GPU control-plane incidents; v7 and v8 are preserved terminal runtime incidents with no inference. Ordinary admission is false by 31.668248 seconds. V9 may start only if the plan's service-only essential-recovery contingency is explicitly unlocked; it cannot make a call until live allocation plus all remaining work separately fits the strict 9-hour gate. |
 | 2 — synthetic benchmark | Software/data complete; independent review pending | Four development worlds, 12 held-out worlds, 36 primary contexts, contrastive pairs, rare-pivotal/temporal/epistemic gold, mutation tests, and the condition-blind 3-world/9-projection review package reproduce. |
 | 3 — conditions and primary run | Software complete; execution/calibration pending | C0, C1, C2, and A-FixedSelect pathways and timing/capability/equal-evidence implementations pass. C0 implementation is complete; its four-world competence calibration is intentionally still unfrozen. The 24 development and 168 held-out calls remain. |
 | 4 — metrics and ablations | Software complete; execution pending | Registered metrics, world-level inference, 4,096 sign flips, Holm correction, bootstrap sensitivity, community analysis, and three reduced ablations are implemented. |
@@ -322,16 +342,20 @@ Updated: 2026-09-05 23:02 UTC
 
 ## Gates and blockers
 
-- A fresh GPU start is forbidden: the all-in forecast exceeds the registered 9-hour scheduled
-  ceiling by 31.668248 seconds, and the currently authorized recovery service-start inventory
-  is exhausted. Proceeding requires an explicit methodological/budget decision and a newly
-  validated recovery lineage; mandatory calls cannot be silently removed.
-- The v8 preflight is historical: it passed before v8 at 1,507.850965 consumed seconds, but its
-  run, source, overlay, and ledger identities no longer describe current state. There is no v9
-  preflight or executable v9 command. A bounded v9 requires explicit dated authorization for
-  one essential-recovery contingency service start, schema-1.7/four-start lineage, exact v8
-  incident and lease-repair bindings, a fresh source association/overlay/preflight, and a
-  detached persistent launch. Inference calls remain subject to the ordinary 9-hour gate.
+- Ordinary admission for a fresh GPU start is forbidden because the all-in forecast exceeds
+  the registered 9-hour scheduled ceiling by 31.668248 seconds. The plan permits one
+  essential-failure-recovery use of locked hard contingency after scheduled reserve is
+  exhausted, but it must be explicitly authorized for the single v9 service-start event.
+  That authorization would cover zero inference attempts and zero development calls. After
+  startup, the measured increment must be at most 359.732297 seconds so actual allocation plus
+  the unchanged 29,459-second remaining forecast fits 32,400 seconds; otherwise the service
+  is stopped without a scientific call. Mandatory calls cannot be silently removed.
+- The v5 and v8 preflights are historical: each passed for its then-current immutable source,
+  overlay, and ledger state, but neither authorizes or describes v9. The 8B fallback has no
+  accepted output yet. The tested v9 implementation can materialize the next CPU-only source
+  association, schema-1.7 authorization overlay, and preflight only after explicit dated
+  authorization, then launch once in a fresh detached persistent job. Inference calls remain
+  subject to the ordinary 9-hour gate.
 - Held-out inference is forbidden until the mandatory independent review and adjudication
   reproduce. No second review has been fabricated.
 - Phase 6 requires the exact lawful local novel path only when synthetic work is complete.
