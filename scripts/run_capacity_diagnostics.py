@@ -48,6 +48,8 @@ from story_projection_onto.output_capacity_gate import (
     MAX_ATTEMPTS,
     MAX_STARTS,
     SHUTDOWN_SECONDS,
+    SMALL_START_BASELINE_SECONDS,
+    SMALL_START_SECONDS,
     CapacityRecoveryState,
     capacity_forecast,
 )
@@ -67,6 +69,19 @@ from story_projection_onto.store import (
 
 BLOCK_ID = "output-capacity-recovery-v1"
 EXCEPTION_DRAIN_SECONDS = 5
+SMALL_SUCCESS_CRITERIA = {
+    "scope": "one development evidence record; no expected answer supplied",
+    "transport": "HTTP 200; SSE final choice, usage, DONE; finish_reason stop",
+    "decoding": "complete JSON and deterministic lossless canonical reconstruction",
+    "schema": "unchanged OntologyDraft Pydantic and production structural validation",
+    "structure": "2-4 supported entity/event nodes, 1-3 assertions, required local "
+    "types/predicates, at least one supported construction decision",
+    "science": "unchanged development semantic-grounding audit; valid references, "
+    "story/validity/discourse/revelation, descriptions and provenance; "
+    "no missing semantics invented",
+    "claim_boundary": "small production-path diagnostic only; "
+    "not C1 acceptance or study feasibility",
+}
 
 
 def now():
@@ -95,7 +110,7 @@ def source_binding(root):
 
 def stage_deadline(*, started, now_monotonic, prior_block_seconds, stage_seconds):
     """Leave a full shutdown reserve before the whole block ends, including gaps."""
-    whole = started + BLOCK_SECONDS - prior_block_seconds - 1
+    whole = started + min(BLOCK_SECONDS - prior_block_seconds, SMALL_START_SECONDS) - 1
     limit = min(now_monotonic + stage_seconds, whole - SHUTDOWN_SECONDS)
     if limit <= now_monotonic:
         raise TimeoutError("block has no allocation left before shutdown reserve")
@@ -165,6 +180,16 @@ def diagnostic_metadata(http_root, request_hash):
             metadata["failure_stage"] = row["stage"]
         elif row["event"] == "model_content_json_complete":
             metadata["model_content_json_complete"] = True
+        elif row["event"] == "canonical_reconstruction_passed":
+            metadata["canonical_reconstruction_passed"] = True
+        elif row["event"] in {"stream_first_event", "stream_first_content"}:
+            metadata[row["event"] + "_seconds"] = row["elapsed_seconds"]
+        elif row["event"] == "stream_usage":
+            metadata["usage"] = row["usage"]
+        elif row["event"] == "stream_finish":
+            metadata["finish_reason"] = row["finish_reason"]
+        elif row["event"] == "stream_done":
+            metadata["stream_done"] = True
     return metadata
 
 
@@ -234,6 +259,13 @@ def prepare_small_diagnostic(root, run, call, bridge, tokenizer, tokenizer_manif
         request_id="capacity-small-evidence-only",
         evidence=[e.model_dump(mode="json") for e in evidence],
         snapshot_hash=canonical_sha256([e.model_dump(mode="json") for e in evidence]),
+        budgets={
+            "node_budget": 4,
+            "assertion_budget": 3,
+            "display_node_budget": 4,
+            "display_assertion_budget": 3,
+            "repair_attempt_budget": 0,
+        },
         sealed_horizon={
             "horizon_id": "capacity-small-horizon",
             "max_discourse_position": {"passage_order": 1},
@@ -244,7 +276,10 @@ def prepare_small_diagnostic(root, run, call, bridge, tokenizer, tokenizer_manif
     path = run / "small-evidence-only-request.json"
     immutable(path, fixture.model_dump(mode="json"))
     small_call = replace(
-        call, call_id="capacity-small-c1", request_fixture=str(path.relative_to(root))
+        call,
+        call_id="capacity-small-c1",
+        request_fixture=str(path.relative_to(root)),
+        watchdog_seconds=120,
     )
     request = build_acceptance_request(
         root=root,
@@ -256,12 +291,17 @@ def prepare_small_diagnostic(root, run, call, bridge, tokenizer, tokenizer_manif
         additional_sections={
             "diagnostic_scope": "This complete one-passage development snapshot is a minimal "
             "generation diagnostic, not full acceptance. Construct a small meaningful ontology "
-            "with at least two supported nodes and one qualified assertion, the local "
+            "with 2 to 4 supported nodes and 1 to 3 qualified assertions, the local "
             "types/predicate it needs, and an explicit supported construction decision. "
             "No expected graph is supplied."
         },
     )
-    return small_call, pack_capacity_candidate(request, tokenizer), fixture, resolved.evidence
+    return (
+        small_call,
+        replace(pack_capacity_candidate(request, tokenizer), stream_response=True),
+        fixture,
+        resolved.evidence,
+    )
 
 
 def validate_small_diagnostic(result, fixture, oracle_evidence):
@@ -287,12 +327,12 @@ def validate_small_diagnostic(result, fixture, oracle_evidence):
         budgets=fixture.budgets,
         capabilities=fixture.capabilities,
     )
-    structural.raise_for_errors()
+    result.diagnostic_journal.validate("schema_validation", structural.raise_for_errors)
     graph = draft.instance_graph
     if len(graph.entities) + len(graph.events) < 2 or not graph.assertions or not draft.decisions:
         raise ValueError("small diagnostic omitted its meaningful ontology structure")
     audit = audit_acceptance_semantic_grounding(draft=draft, evidence=oracle_evidence)
-    audit.raise_for_failure()
+    result.diagnostic_journal.validate("scientific_validation", audit.raise_for_failure)
     return {
         "small_diagnostic_only": True,
         "schema_valid": True,
@@ -303,15 +343,8 @@ def validate_small_diagnostic(result, fixture, oracle_evidence):
 
 
 def next_diagnostic(*, completed, accepted_c1):
-    # Distinct discriminating tests, never repeat the same failed request. C2
-    # constructs directly from evidence/context, independently of a C1 result.
-    if completed == 0:
-        return "c1"
-    if completed == 1:
-        return "c2"
-    if completed == 2:
-        return "fixed" if accepted_c1 else "small"
-    return None
+    # Fourth-start authority is exactly one SMALL call even if it succeeds.
+    return "small" if completed == 0 else None
 
 
 def controller(root, block, run, *, prepare_only=False):
@@ -344,29 +377,11 @@ def controller(root, block, run, *, prepare_only=False):
         service.configuration.snapshot_path, repository=policy.repository, revision=policy.revision
     )
     calls = fallback_pilot_calls(policy)
-    first = pack_capacity_candidate(
-        build_fallback_acceptance_request(
-            root=root,
-            call=calls[0],
-            tokenizer=tokenizer,
-            tokenizer_manifest=tokenizer_manifest,
-            legacy_provenance_bridge=bridge,
-        ),
-        tokenizer,
-    )
-    _verify_second_recovery_decoder_compiles(first.output_schema)
-    immutable(
-        run / "c2-empty-prequery-inventory.json",
-        {
-            "condition": "C2",
-            "ontology_object_ids": [],
-            "hidden_ontology": False,
-            "created_at": now(),
-        },
-    )
     small_call, small, small_fixture, small_oracle = prepare_small_diagnostic(
         root, run, calls[0], bridge, tokenizer, tokenizer_manifest
     )
+    first = small
+    _verify_second_recovery_decoder_compiles(first.output_schema)
     import xgrammar
 
     compiler = xgrammar.GrammarCompiler(xgrammar.TokenizerInfo.from_huggingface(tokenizer))
@@ -383,7 +398,7 @@ def controller(root, block, run, *, prepare_only=False):
         raise ValueError("identifier grammar still admits the observed repetition")
     if not xgrammar.GrammarMatcher(identifier_grammar).accept_string('"n-assertion/01"'):
         raise ValueError("identifier grammar rejects legitimate scoped IDs")
-    for label, request in (("c1", first), ("small", small)):
+    for label, request in (("small", small),):
         compiler.compile_json_schema(json.dumps(request.output_schema), any_whitespace=False)
         immutable(run / f"prepared-{label}.json", request.wire_payload())
         rendered = tokenizer.apply_chat_template(
@@ -405,6 +420,39 @@ def controller(root, block, run, *, prepare_only=False):
         "remaining_inventory_rows"
     ]
     forecast = capacity_forecast(inventory)
+    immutable(run / "small-success-criteria.json", SMALL_SUCCESS_CRITERIA)
+    # Authored development fixture, never supplied to the model. This measures
+    # representation capacity only, not a valid answer to the small snapshot.
+    from story_projection_onto.output_wire import RecordTupleCodec, translate_references
+
+    authored = read(root / "tests/fixtures/phase1/c1_pre_output.json")
+    codec = RecordTupleCodec(
+        first.canonical_output_schema, first.sealed_record_copies, first.opaque_reference_aliases
+    )
+    capacity_wire = codec.encode(
+        translate_references(authored, first.opaque_reference_aliases, decode=False)
+    )
+    capacity_text = json.dumps(capacity_wire, separators=(",", ":"))
+    capacity_tokens = len(tokenizer.encode(capacity_text, add_special_tokens=False))
+    if capacity_tokens >= first.decoding.maximum_output_tokens:
+        raise ValueError("authored development representation exceeds small output capacity")
+    immutable(
+        run / "small-capacity-check.json",
+        {
+            "kind": "authored_development_capacity_check_not_model_output_or_small_answer",
+            "fixture_sha256": canonical_sha256(authored),
+            "nodes": 4,
+            "assertions": 2,
+            "construction_decisions": 5,
+            "compact_wire_tokens": capacity_tokens,
+            "output_allowance": first.decoding.maximum_output_tokens,
+            "template_inclusive_input_tokens": first.rendered_input_token_count,
+            "total_reserved_tokens": first.rendered_input_token_count
+            + first.decoding.maximum_output_tokens,
+            "total_context_limit": 12288,
+            "not_a_worst_case_bound": True,
+        },
+    )
     immutable(
         run / "cpu-preparation.json",
         {
@@ -428,7 +476,9 @@ def controller(root, block, run, *, prepare_only=False):
     actual = service.meter.actual_allocated_gpu_seconds
     admission = CapacityRecoveryState(actual, starts, attempts).admit(
         remaining_mandatory_seconds=forecast["remaining_forecast_seconds"],
-        stage_seconds=300,
+        # Admit the whole 549-second guarded envelope, not only startup.
+        # The 60-second shutdown slot is added exactly once by admit().
+        stage_seconds=SMALL_START_SECONDS - SHUTDOWN_SECONDS - 1,
         starting_service=True,
         complete_packing=True,
         feasibility_diagnostic_exception=True,
@@ -468,14 +518,14 @@ def controller(root, block, run, *, prepare_only=False):
     accepted_c1 = None
     accepted_c1_seal = None
     try:
-        cap = stage("startup", 300)
+        cap = stage("startup", 240)
         service.start(
             session_id=session,
             event_id=event,
             watchdog_seconds=cap,
             remaining_required_seconds=SHUTDOWN_SECONDS,
         )
-        stage("live_checks", 120)
+        stage("live_checks", 60)
         service.start_periodic_resource_watchdog(
             ResourceWatchdog(
                 sampler=sampler,
@@ -525,7 +575,8 @@ def controller(root, block, run, *, prepare_only=False):
                         raise ValueError("C2 diagnostic contains a preconstructed ontology")
                     request = pack_capacity_candidate(base, tokenizer)
                 _verify_second_recovery_decoder_compiles(request.output_schema)
-            stage("pre_generation_checks", 120)
+            if kind != "small" or not request.stream_response:
+                raise ValueError("fourth start is restricted to one streamed small diagnostic")
             attempts = count_reservations(block, "attempt")
             receipt = CapacityRecoveryState(
                 service.actual_allocated_service_seconds,
@@ -613,7 +664,7 @@ def controller(root, block, run, *, prepare_only=False):
                     },
                 )
                 generation_seconds = time.monotonic() - tic
-                stage("validation", 120)
+                stage("validation", 60)
                 immutable(attempt_root / "decoded.json", result.parsed_object)
                 failure_stage = "canonical_schema_validation"
                 OntologyDraft.model_validate(result.parsed_object)
@@ -639,9 +690,9 @@ def controller(root, block, run, *, prepare_only=False):
                     validation["operator_behavior"] = _require_call_operator_coverage(
                         call, validation, result.parsed_object, root=root
                     )
-                if result.finish_reason == "length":
+                if result.finish_reason != "stop":
                     raise ValueError(
-                        "length-terminated output is not successful capacity acceptance"
+                        "only stop-terminated output passes the diagnostic completion criterion"
                     )
                 immutable(attempt_root / "validation.json", validation)
                 if index == 0:
@@ -671,7 +722,9 @@ def controller(root, block, run, *, prepare_only=False):
             if result is not None:
                 response_artifact = artifact_store.put_bytes(
                     result.raw_response,
-                    media_type="application/json",
+                    media_type="text/event-stream"
+                    if request.stream_response
+                    else "application/json",
                     release_class=ReleaseClass.RESTRICTED,
                 )
             events = ledger.gpu_events_with_prefix(attempt_id)
@@ -750,7 +803,7 @@ def controller(root, block, run, *, prepare_only=False):
         state.update(
             stage="shutdown",
             deadline_monotonic=min(
-                time.monotonic() + SHUTDOWN_SECONDS, started + BLOCK_SECONDS - prior - 1
+                time.monotonic() + SHUTDOWN_SECONDS, state["whole_deadline_monotonic"]
             ),
             recorded_at=now(),
         )
@@ -788,6 +841,12 @@ def guardian(root, *, prepare_only=False):
             or count_reservations(block, "attempt") >= MAX_ATTEMPTS
         ):
             raise ValueError("existing block counters exhausted")
+        if not prepare_only and (
+            count_reservations(block, "start") != 3 or count_reservations(block, "attempt") != 3
+        ):
+            raise ValueError(
+                "fourth-start-only authorization requires the existing three starts/attempts"
+            )
         authorization = read(root / "configs/study/output_capacity_recovery.json")
         if authorization["activation_scope"] != "bounded_feasibility_diagnostics_only":
             raise ValueError("missing narrow diagnostic authorization")
@@ -803,6 +862,14 @@ def guardian(root, *, prepare_only=False):
         }
         if any(authorization.get(key) != value for key, value in expected.items()):
             raise ValueError("authorization differs from tested block constants")
+        narrow = authorization["fourth_start_only"]
+        if (
+            narrow["maximum_allocated_seconds"] != SMALL_START_SECONDS
+            or narrow["baseline_actual_seconds"] != SMALL_START_BASELINE_SECONDS
+            or narrow["maximum_new_attempts"] != 1
+            or narrow["permitted_task"] != "small_evidence_only"
+        ):
+            raise ValueError("missing exact fourth-start-only authorization")
         binding = {
             "source": source_binding(root),
             "configuration": service.configuration.configuration_hash,
@@ -841,14 +908,20 @@ def guardian(root, *, prepare_only=False):
             if state is None and (run / "state.json").exists():
                 state = read(run / "state.json")
             if state is not None:
+                remaining = max(
+                    1,
+                    state.get("whole_deadline_monotonic", time.monotonic() + 60)
+                    - time.monotonic()
+                    - 1,
+                )
                 adopted = service.resume_live_service_lease(
                     expected_session_id=state["session"],
                     expected_event_id=state["event"],
                     cleanup_only=True,
-                    watchdog_seconds=60,
+                    watchdog_seconds=min(10, remaining / 3),
                 )
                 if adopted:
-                    service.shutdown(shutdown_seconds=50)
+                    service.shutdown(shutdown_seconds=max(1, min(45, remaining - 10)))
                 else:
                     service.recover_stale_service_lease()
             immutable(

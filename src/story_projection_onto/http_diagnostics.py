@@ -49,7 +49,16 @@ class ResponseEvidenceLimitError(RuntimeError):
 class RestrictedResponseJournal:
     """One response attempt with atomic fragment blobs and an fsynced event log."""
 
-    def __init__(self, root: Path, *, request_hash: str, maximum_bytes: int = MAX_RESPONSE_BYTES):
+    def __init__(
+        self,
+        root: Path,
+        *,
+        request_hash: str,
+        maximum_bytes: int = MAX_RESPONSE_BYTES,
+        maximum_fragments: int | None = None,
+    ):
+        if maximum_fragments is None:
+            maximum_fragments = MAX_RESPONSE_FRAGMENTS
         root = Path(root).absolute()
         if "restricted" not in root.parts or any(p.is_symlink() for p in (root, *root.parents)):
             raise ValueError("HTTP evidence must use a non-symlink restricted location")
@@ -57,6 +66,9 @@ class RestrictedResponseJournal:
             raise ValueError("request_hash must be SHA-256")
         if not 0 < maximum_bytes <= MAX_RESPONSE_BYTES:
             raise ValueError("invalid HTTP evidence bound")
+        if not 0 < maximum_fragments <= 8192:
+            raise ValueError("invalid HTTP fragment bound")
+        self.maximum_fragments = maximum_fragments
         root.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.path = Path(tempfile.mkdtemp(prefix=f"{request_hash[:16]}-", dir=root))
         self.blobs = BlobStore(self.path / "fragments", max_raw_bytes=MAX_RESPONSE_BYTES)
@@ -118,7 +130,7 @@ class RestrictedResponseJournal:
         if not payload:
             return
         with self._lock:
-            if self.fragment_count >= MAX_RESPONSE_FRAGMENTS:
+            if self.fragment_count >= self.maximum_fragments:
                 self.event("fragment_limit", complete=False, retained_bytes=self.received_bytes)
                 raise ResponseEvidenceLimitError("HTTP response exceeded diagnostic fragment limit")
             remaining = self.maximum_bytes - self.received_bytes

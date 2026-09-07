@@ -579,8 +579,11 @@ class VLLMLaunchConfiguration:
             "--no-enable-log-requests",
             "--uvicorn-log-level",
             "warning",
-        ) + (("--guided-decoding-disable-any-whitespace",)
-             if self.guided_decoding_disable_any_whitespace else ())
+        ) + (
+            ("--guided-decoding-disable-any-whitespace",)
+            if self.guided_decoding_disable_any_whitespace
+            else ()
+        )
 
     def environment(self, base: Mapping[str, str] | None = None) -> dict[str, str]:
         inherited = os.environ if base is None else base
@@ -942,8 +945,11 @@ class GuidedJSONRequest:
     canonical_output_schema: Mapping[str, object] | None = None
     opaque_reference_aliases: Mapping[str, str] | None = None
     sealed_record_copies: Mapping[str, object] | None = None
+    stream_response: bool = False
 
     def __post_init__(self) -> None:
+        if type(self.stream_response) is not bool:
+            raise RuntimeConfigurationError("stream_response must be an explicit boolean")
         if self.canonical_output_schema is not None:
             from story_projection_onto.output_wire import RecordTupleCodec
 
@@ -955,7 +961,9 @@ class GuidedJSONRequest:
             if canonical_sha256(expected) != canonical_sha256(self.output_schema):
                 raise RuntimeConfigurationError("tuple wire schema differs from canonical binding")
         if self.opaque_reference_aliases is not None and (
-            self.canonical_output_schema is None or not self.messages or (
+            self.canonical_output_schema is None
+            or not self.messages
+            or (
                 "Opaque reference binding SHA256=" + canonical_sha256(self.opaque_reference_aliases)
                 not in self.messages[0].content
             )
@@ -1031,7 +1039,12 @@ class GuidedJSONRequest:
             "max_tokens": decoding.maximum_output_tokens,
             "seed": decoding.seed,
             "stop_token_ids": list(decoding.stop_token_ids),
-            "stream": False,
+            "stream": self.stream_response,
+            **(
+                {"stream_options": {"include_usage": True, "continuous_usage_stats": False}}
+                if self.stream_response
+                else {}
+            ),
         }
 
 
@@ -1047,7 +1060,9 @@ class GenerationResult:
     finish_reason: str | None = None
     service_request_id: str | None = None
     diagnostic_journal: RestrictedResponseJournal | None = field(
-        default=None, repr=False, compare=False,
+        default=None,
+        repr=False,
+        compare=False,
     )
 
     def public_manifest(self) -> dict[str, object]:
@@ -1092,13 +1107,19 @@ def _urllib_transport(
     timeout_seconds: float,
     *,
     diagnostic_journal: RestrictedResponseJournal | None = None,
+    stream_parser=None,
+    abort_response=None,
+    started_monotonic: float | None = None,
 ) -> tuple[int, bytes, Mapping[str, str]]:
+    from story_projection_onto.streaming_chat import StreamProtocolError
+
     request = urllib.request.Request(
         url,
         data=payload,
         headers={"Content-Type": "application/json"} if payload is not None else {},
         method="POST" if payload is not None else "GET",
     )
+
     class NoRedirect(urllib.request.HTTPRedirectHandler):
         def redirect_request(self, req, fp, code, msg, headers, newurl):  # type: ignore[no-untyped-def]
             return None
@@ -1107,6 +1128,8 @@ def _urllib_transport(
         stream = cast(http.client.HTTPResponse, response)
         status = stream.status
         headers = dict(stream.headers.items())
+        if abort_response is not None:
+            abort_response.append(stream)
         if diagnostic_journal is not None:
             diagnostic_journal.headers(status, headers)
         body = bytearray()
@@ -1119,9 +1142,12 @@ def _urllib_transport(
                 raise
             if not fragment:
                 break
+            received_elapsed = time.monotonic() - (started_monotonic or time.monotonic())
             if diagnostic_journal is not None:
                 diagnostic_journal.fragment(fragment)
             body.extend(fragment)
+            if stream_parser is not None and status == 200:
+                stream_parser.feed(fragment, received_elapsed)
             if len(body) > MAX_RESPONSE_BYTES:
                 raise ResponseEvidenceLimitError("HTTP response exceeded diagnostic byte limit")
         expected = stream.headers.get("content-length")
@@ -1141,6 +1167,8 @@ def _urllib_transport(
             response = error
         with response:
             return receive(response)
+    except StreamProtocolError:
+        raise
     except TimeoutError as exc:
         raise RuntimeWatchdogTimeout(f"local vLLM request exceeded {timeout_seconds}s") from exc
     except urllib.error.URLError as exc:
@@ -1157,7 +1185,10 @@ class VLLMGuidedJSONClient:
     """Concurrency-one guided-JSON client restricted to a local vLLM service."""
 
     def __init__(
-        self, base_url: str, *, transport: Transport = _urllib_transport,
+        self,
+        base_url: str,
+        *,
+        transport: Transport = _urllib_transport,
         diagnostic_root: Path | None = None,
     ) -> None:
         self.base_url = _loopback_base_url(base_url)
@@ -1286,9 +1317,18 @@ class VLLMGuidedJSONClient:
             raise RuntimeConfigurationError("concurrent vLLM generation is mechanically forbidden")
 
         try:
-            journal = None if self.diagnostic_root is None else RestrictedResponseJournal(
-                self.diagnostic_root, request_hash=request.request_hash,
+            from story_projection_onto.streaming_chat import ChatSSE
+
+            journal = (
+                None
+                if self.diagnostic_root is None
+                else RestrictedResponseJournal(
+                    self.diagnostic_root,
+                    request_hash=request.request_hash,
+                    maximum_fragments=8192 if request.stream_response else 1024,
+                )
             )
+            stream_parser = ChatSSE(journal) if request.stream_response else None
             if request.opaque_reference_aliases is not None:
                 if journal is None:
                     raise RuntimeConfigurationError(
@@ -1307,28 +1347,50 @@ class VLLMGuidedJSONClient:
         completed = threading.Event()
         result: list[GenerationResult] = []
         failure: list[BaseException] = []
+        abort_response = []
+        started_monotonic = time.monotonic()
 
         def run_generation() -> None:
             stage: FailureStage = "transport"
             try:
                 if self._transport is _urllib_transport:
                     status, body, headers = _urllib_transport(
-                        f"{self.base_url}/v1/chat/completions", payload, watchdog_seconds,
+                        f"{self.base_url}/v1/chat/completions",
+                        payload,
+                        watchdog_seconds,
                         diagnostic_journal=journal,
+                        stream_parser=stream_parser,
+                        abort_response=abort_response,
+                        started_monotonic=started_monotonic,
                     )
                 else:
                     status, body, headers = self._transport(
-                        f"{self.base_url}/v1/chat/completions", payload, watchdog_seconds,
+                        f"{self.base_url}/v1/chat/completions",
+                        payload,
+                        watchdog_seconds,
                     )
                     if journal is not None:
                         journal.headers(status, headers)
                         journal.fragment(body)
                         journal.complete()
+                    if stream_parser is not None and status == 200:
+                        stream_parser.feed(body, time.monotonic() - started_monotonic)
                 stage = "http" if status != 200 else "decoding"
-                result.append(self._decode_generation_response(
-                    request, status, body, headers, diagnostic_journal=journal,
-                ))
+                result.append(
+                    self._decode_generation_response(
+                        request,
+                        status,
+                        body,
+                        headers,
+                        diagnostic_journal=journal,
+                        stream_parser=stream_parser,
+                    )
+                )
             except BaseException as exc:
+                from story_projection_onto.streaming_chat import StreamProtocolError
+
+                if isinstance(exc, StreamProtocolError):
+                    stage = "decoding"
                 failure.append(exc)
                 if isinstance(exc, RuntimeTransportError):
                     exc.failure_stage = stage
@@ -1336,15 +1398,18 @@ class VLLMGuidedJSONClient:
                     try:
                         journal.failure(stage, exc)
                         if isinstance(exc, (RuntimeTransportError, RuntimeWatchdogTimeout)):
-                            exc._restricted_diagnostics.update({
-                                "failure_stage": stage,
-                                "diagnostic_journal": str(journal.path),
-                            })
+                            exc._restricted_diagnostics.update(
+                                {
+                                    "failure_stage": stage,
+                                    "diagnostic_journal": str(journal.path),
+                                }
+                            )
                     except BaseException as diagnostic_error:
                         # Evidence-write failures must not turn into a success
                         # or hide the original exception on the calling thread.
                         failure[0] = BaseExceptionGroup(
-                            "response and diagnostic persistence failed", [exc, diagnostic_error],
+                            "response and diagnostic persistence failed",
+                            [exc, diagnostic_error],
                         )
             finally:
                 self._generation_lock.release()
@@ -1366,9 +1431,25 @@ class VLLMGuidedJSONClient:
             )
             if journal is not None:
                 journal.failure("transport", error, cancel=True)
-                error._restricted_diagnostics.update({
-                    "failure_stage": "transport", "diagnostic_journal": str(journal.path),
-                })
+                error._restricted_diagnostics.update(
+                    {
+                        "failure_stage": "transport",
+                        "diagnostic_journal": str(journal.path),
+                    }
+                )
+            # Cancel the exact loopback response socket; smaller non-streaming
+            # reads cannot expose model tokens. Shutdown unblocks read1 and
+            # makes disconnect observable to the pinned server's generator.
+            import socket
+
+            for response in abort_response:
+                try:
+                    response.fp.raw._sock.shutdown(socket.SHUT_RDWR)
+                    if journal is not None:
+                        journal.event("cancellation_socket_shutdown")
+                except (AttributeError, OSError):
+                    if journal is not None:
+                        journal.event("cancellation_socket_unavailable")
             raise error
         if failure:
             raise failure[0]
@@ -1384,6 +1465,7 @@ class VLLMGuidedJSONClient:
         headers: Mapping[str, str],
         *,
         diagnostic_journal: RestrictedResponseJournal | None = None,
+        stream_parser=None,
     ) -> GenerationResult:
         if status != 200:
             raise RuntimeTransportError(
@@ -1391,13 +1473,27 @@ class VLLMGuidedJSONClient:
                 restricted_diagnostics=_non_200_transport_diagnostics(status, body),
             )
         try:
-            response = json.loads(body)
+            if request.stream_response:
+                from story_projection_onto.streaming_chat import ChatSSE
+
+                if not any(
+                    k.lower() == "content-type" and v.startswith("text/event-stream")
+                    for k, v in headers.items()
+                ):
+                    raise ValueError("streaming request did not receive text/event-stream")
+                if stream_parser is None:
+                    stream_parser = ChatSSE(diagnostic_journal)
+                    stream_parser.feed(body, 0)
+                response = stream_parser.envelope()
+            else:
+                response = json.loads(body)
             if not isinstance(response, Mapping) or len(response.get("choices", [])) != 1:
                 raise ValueError("response must contain exactly one choice")
             choice = response["choices"][0]
             if diagnostic_journal is not None:
                 diagnostic_journal.event(
-                    "completion_metadata", finish_reason=choice.get("finish_reason"),
+                    "completion_metadata",
+                    finish_reason=choice.get("finish_reason"),
                     usage=response.get("usage"),
                 )
             content = choice["message"]["content"]
@@ -1408,7 +1504,8 @@ class VLLMGuidedJSONClient:
                 from story_projection_onto.output_wire import RecordTupleCodec
 
                 codec = RecordTupleCodec(
-                    request.canonical_output_schema, request.sealed_record_copies,
+                    request.canonical_output_schema,
+                    request.sealed_record_copies,
                     request.opaque_reference_aliases,
                 )
                 parsed_object = codec.decode(parsed_object)
@@ -1416,8 +1513,12 @@ class VLLMGuidedJSONClient:
                     from story_projection_onto.output_wire import translate_references
 
                     parsed_object = translate_references(
-                        parsed_object, request.opaque_reference_aliases, decode=True,
+                        parsed_object,
+                        request.opaque_reference_aliases,
+                        decode=True,
                     )
+                if diagnostic_journal is not None:
+                    diagnostic_journal.event("canonical_reconstruction_passed")
             usage = response["usage"]
         except (IndexError, KeyError, TypeError, ValueError, UnicodeDecodeError) as exc:
             raise RuntimeTransportError("vLLM response is not one guided JSON choice") from exc
@@ -1876,10 +1977,7 @@ class ResourceWatchdog:
             return True
         completion_timeout = self.sample_completion_timeout_seconds
         if completion_timeout_seconds is not None:
-            if (
-                not math.isfinite(completion_timeout_seconds)
-                or completion_timeout_seconds < 0
-            ):
+            if not math.isfinite(completion_timeout_seconds) or completion_timeout_seconds < 0:
                 raise RuntimeConfigurationError(
                     "resource watchdog stop timeout must be nonnegative and finite"
                 )
@@ -3451,22 +3549,17 @@ class VLLMService:
             or not math.isfinite(watchdog_seconds)
             or watchdog_seconds <= 0
         ):
-            raise RuntimeConfigurationError(
-                "service-start watchdog must be positive and finite"
-            )
+            raise RuntimeConfigurationError("service-start watchdog must be positive and finite")
         if type(contingency_unlocked) is not bool or type(essential_recovery) is not bool:
             raise RuntimeConfigurationError(
                 "service-start contingency authority flags must be exact booleans"
             )
         if contingency_unlocked != essential_recovery:
             raise RuntimeConfigurationError(
-                "service-start contingency requires paired unlock and "
-                "essential-recovery authority"
+                "service-start contingency requires paired unlock and essential-recovery authority"
             )
         effective_admission_forecast_seconds = (
-            watchdog_seconds
-            if admission_forecast_seconds is None
-            else admission_forecast_seconds
+            watchdog_seconds if admission_forecast_seconds is None else admission_forecast_seconds
         )
         if (
             isinstance(effective_admission_forecast_seconds, bool)
@@ -3608,9 +3701,7 @@ class VLLMService:
 
         self.require_ready()
         if self._periodic_resource_watchdog is not None:
-            raise RuntimeError(
-                "periodic resource watchdog must stop before controller detach"
-            )
+            raise RuntimeError("periodic resource watchdog must stop before controller detach")
         with self._emergency_stop_lock:
             emergency_thread = self._emergency_stop_thread
             if emergency_thread is not None:
@@ -3863,9 +3954,7 @@ class VLLMService:
                 )
                 self._process_identity_proc_root = proc_root
                 self._launch_gate_token_sha256 = (
-                    cast(str, launch_token_sha256)
-                    if isinstance(launch_token_sha256, str)
-                    else None
+                    cast(str, launch_token_sha256) if isinstance(launch_token_sha256, str) else None
                 )
                 self._launch_supervisor_command_sha256 = (
                     cast(str, launch_supervisor_sha256)
@@ -3903,9 +3992,7 @@ class VLLMService:
                 raise RuntimeConfigurationError("live-lease recovery clock must be aware")
             wall_service_seconds = (resumed_at - started_at).total_seconds()
             if wall_service_seconds < 0:
-                raise RuntimeConfigurationError(
-                    "live-lease recovery predates the service session"
-                )
+                raise RuntimeConfigurationError("live-lease recovery predates the service session")
             if cleanup_only:
                 # Once liveness is positive, carry the matching journal identity
                 # too.  A later argv/adopter failure can then kill and account
@@ -3917,15 +4004,11 @@ class VLLMService:
                     bound_process_group if process_group_identity_present else None
                 )
                 self._last_process_session_id = (
-                    cast(int, process_session_id)
-                    if process_group_identity_present
-                    else None
+                    cast(int, process_session_id) if process_group_identity_present else None
                 )
                 self._service_instance_token = None
                 self._service_instance_token_sha256 = (
-                    cast(str, instance_token_sha256)
-                    if process_group_identity_present
-                    else None
+                    cast(str, instance_token_sha256) if process_group_identity_present else None
                 )
                 self._process_identity_proc_root = proc_root
                 self._session_id = expected_session_id
@@ -4310,9 +4393,7 @@ class VLLMService:
         """Exercise checkpoint/resume by transferring the live controlled handle."""
 
         if self._periodic_resource_watchdog is not None:
-            raise RuntimeError(
-                "periodic resource watchdog must stop before controller handoff"
-            )
+            raise RuntimeError("periodic resource watchdog must stop before controller handoff")
         with self._emergency_stop_lock:
             emergency_thread = self._emergency_stop_thread
             if emergency_thread is not None:
@@ -4999,9 +5080,7 @@ class VLLMService:
             or self._started_at is not None
             or self._accounting_session_id is not None
         ):
-            raise RuntimeError(
-                "terminal lease restoration requires a fresh stopped controller"
-            )
+            raise RuntimeError("terminal lease restoration requires a fresh stopped controller")
 
         self._last_recovered_process_identity = None
         self._acquire_service_lock()
@@ -5022,8 +5101,7 @@ class VLLMService:
                 )
             if (
                 lease.get("schema_version") != SCHEMA_VERSION
-                or lease.get("configuration_hash")
-                != self.configuration.configuration_hash
+                or lease.get("configuration_hash") != self.configuration.configuration_hash
             ):
                 raise RuntimeConfigurationError(
                     "terminal lease restoration configuration identity differs"
@@ -5100,8 +5178,7 @@ class VLLMService:
                 ended_at < started_at
                 or latest_observed_at < ended_at
                 or (
-                    latest.state is GpuServiceJournalState.CLOSED
-                    and latest_observed_at != ended_at
+                    latest.state is GpuServiceJournalState.CLOSED and latest_observed_at != ended_at
                 )
             ):
                 raise RuntimeConfigurationError(
@@ -5137,8 +5214,7 @@ class VLLMService:
                     if live
                 ]
                 raise RuntimeConfigurationError(
-                    "terminal lease restoration found live service state: "
-                    + ", ".join(live_parts)
+                    "terminal lease restoration found live service state: " + ", ".join(live_parts)
                 )
 
             self._session_id = expected_session_id
@@ -5154,9 +5230,7 @@ class VLLMService:
             # rewrite.  Preserve the frozen launch-command hash in the standard
             # lease field so terminal replay remains configuration-bound; the
             # caller's immutable incident record retains the observed hash.
-            expected_process_command_sha256 = canonical_sha256(
-                list(self.configuration.command())
-            )
+            expected_process_command_sha256 = canonical_sha256(list(self.configuration.command()))
             self._last_process_command_sha256 = expected_process_command_sha256
             self._last_process_group_id = process_group_id
             self._last_process_session_id = process_session_id
@@ -5336,9 +5410,8 @@ class VLLMService:
         ):
             raise RuntimeError("stale service recovery requires a fresh stopped controller")
         self._last_recovered_process_identity = None
-        if (
-            expected_current_lease_manifest_sha256 is not None
-            and not _is_canonical_sha256(expected_current_lease_manifest_sha256)
+        if expected_current_lease_manifest_sha256 is not None and not _is_canonical_sha256(
+            expected_current_lease_manifest_sha256
         ):
             raise RuntimeConfigurationError(
                 "expected current service lease manifest SHA-256 is invalid"
@@ -5349,14 +5422,11 @@ class VLLMService:
             lease = self._prior_service_lease
             if lease is None:
                 if expected_current_lease_manifest_sha256 is not None:
-                    raise RuntimeConfigurationError(
-                        "expected current service lease is absent"
-                    )
+                    raise RuntimeConfigurationError("expected current service lease is absent")
                 return None
             if (
                 expected_current_lease_manifest_sha256 is not None
-                and canonical_sha256(lease)
-                != expected_current_lease_manifest_sha256
+                and canonical_sha256(lease) != expected_current_lease_manifest_sha256
             ):
                 raise RuntimeConfigurationError(
                     "current service lease manifest SHA-256 differs from expectation"

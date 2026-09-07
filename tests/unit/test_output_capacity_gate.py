@@ -2,9 +2,31 @@ import pytest
 
 from story_projection_onto.output_capacity_gate import (
     BASELINE_SECONDS,
+    SMALL_START_BASELINE_SECONDS,
     CapacityRecoveryState,
     capacity_forecast,
 )
+
+
+def test_fourth_start_whole_envelope_and_single_call_preserve_prior_usage():
+    args = dict(
+        remaining_mandatory_seconds=40000,
+        stage_seconds=489,
+        complete_packing=True,
+        feasibility_diagnostic_exception=True,
+    )
+    receipt = CapacityRecoveryState(SMALL_START_BASELINE_SECONDS, 3, 3).admit(
+        **args, starting_service=True
+    )
+    assert receipt["block_reserve_seconds"] == pytest.approx(131.284292)
+    with pytest.raises(ValueError, match="550-second"):
+        CapacityRecoveryState(SMALL_START_BASELINE_SECONDS, 3, 3).admit(
+            **(args | {"stage_seconds": 490}), starting_service=True
+        )
+    with pytest.raises(ValueError, match="only one small"):
+        CapacityRecoveryState(SMALL_START_BASELINE_SECONDS + 200, 4, 4).admit(
+            **(args | {"stage_seconds": 120}), diagnostic_generation=True
+        )
 
 
 def test_admits_only_complete_all_in_with_preserved_baseline():
@@ -22,7 +44,7 @@ def test_admits_only_complete_all_in_with_preserved_baseline():
     "state,kwargs,reason",
     [
         (CapacityRecoveryState(0, 0, 0), {}, "must not reset"),
-        (CapacityRecoveryState(BASELINE_SECONDS, 3, 0), {"starting_service": True}, "three-start"),
+        (CapacityRecoveryState(BASELINE_SECONDS, 4, 0), {"starting_service": True}, "four-start"),
         (
             CapacityRecoveryState(BASELINE_SECONDS, 0, 5),
             {"diagnostic_generation": True},
