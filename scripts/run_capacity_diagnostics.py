@@ -113,6 +113,7 @@ def setup(root, run):
         model_candidate="fallback",
         verified_snapshot_manifest_sha256=snapshot_manifest["manifest_sha256"],
     )
+    config = replace(config, guided_decoding_disable_any_whitespace=True)
     sampler = ResourceSampler(limits=limits, storage=StoragePreflight(root), ledger=ledger)
     service = VLLMService(
         configuration=config,
@@ -126,6 +127,26 @@ def setup(root, run):
 
 def count_reservations(block, kind):
     return len(list(block.glob(f"{kind}-*.json")))
+
+
+def diagnostic_metadata(http_root, request_hash):
+    journals = sorted(
+        http_root.glob(request_hash[:16] + "-*/events.jsonl"), key=lambda p: p.stat().st_mtime_ns
+    )
+    if not journals:
+        return {}
+    rows = [json.loads(line) for line in journals[-1].read_text().splitlines()]
+    metadata = {"journal": str(journals[-1]), "usage": {}}
+    for row in rows:
+        if row["event"] == "completion_metadata":
+            metadata.update(usage=row["usage"], finish_reason=row["finish_reason"])
+        elif row["event"] == "response_headers":
+            metadata["http_status"] = row["http_status"]
+        elif row["event"] == "response_complete":
+            metadata.update(response_complete=True, response_sha256=row["response_sha256"])
+        elif row["event"] == "failure":
+            metadata["failure_stage"] = row["stage"]
+    return metadata
 
 
 def actual_fixed(root, call, base_request, c1, tokenizer):
@@ -208,6 +229,14 @@ def controller(root, block, run, *, prepare_only=False):
         tokenizer,
     )
     _verify_second_recovery_decoder_compiles(first.output_schema)
+    import xgrammar
+
+    compiler = xgrammar.GrammarCompiler(xgrammar.TokenizerInfo.from_huggingface(tokenizer))
+    grammar = compiler.compile_json_schema(json.dumps(first.output_schema), any_whitespace=False)
+    matcher = xgrammar.GrammarMatcher(grammar)
+    # Exercise the exact compiled decoder, not just an instruction in the prompt.
+    if matcher.accept_string("{\n\n\n\n\n\n"):
+        raise ValueError("restricted decoder still admits the observed whitespace loop")
     inventory = read(root / "artifacts/restricted/v10_validation/terminal-verification.json")[
         "remaining_inventory_rows"
     ]
@@ -294,6 +323,12 @@ def controller(root, block, run, *, prepare_only=False):
         )
         sampler.sample(sample_id=run.name + "-ready", root_pid=service.pid)
         for index in (0, 1, 3):
+            if count_reservations(block, "attempt") >= 3:
+                print(
+                    json.dumps({"diagnostic_limit_reached": True, "not_complete_acceptance": True}),
+                    flush=True,
+                )
+                break
             call = calls[index]
             fixed_fixture = None
             if index == 0:
@@ -422,6 +457,7 @@ def controller(root, block, run, *, prepare_only=False):
                     "message": str(exc),
                 }
                 immutable(attempt_root / "failure.json", failure)
+            transport_metadata = diagnostic_metadata(run / "http", request.request_hash)
             # Every raw response is already fsynced by the HTTP journal before
             # parsing, including failures with no GenerationResult.
             response_artifact = None
@@ -441,6 +477,7 @@ def controller(root, block, run, *, prepare_only=False):
                 "template_inclusive_input_tokens": request.rendered_input_token_count,
                 "output_allowance": request.decoding.maximum_output_tokens,
                 "response": None if result is None else result.public_manifest(),
+                "transport_metadata": transport_metadata,
                 "generation_event_seconds": seconds,
                 "generation_and_validation_seconds": time.monotonic() - tic,
                 "generation_wall_seconds": generation_seconds,
@@ -466,8 +503,12 @@ def controller(root, block, run, *, prepare_only=False):
                 else response_artifact.content_hash,
                 construction_unit_hash=canonical_sha256({"fixture": call.request_fixture}),
                 served_context_count=1,
-                prompt_tokens=0 if result is None else result.prompt_tokens,
-                completion_tokens=0 if result is None else result.completion_tokens,
+                prompt_tokens=transport_metadata.get("usage", {}).get("prompt_tokens", 0)
+                if result is None
+                else result.prompt_tokens,
+                completion_tokens=transport_metadata.get("usage", {}).get("completion_tokens", 0)
+                if result is None
+                else result.completion_tokens,
                 allocated_gpu_seconds=seconds,
                 successful=failure is None,
             )
@@ -514,7 +555,7 @@ def controller(root, block, run, *, prepare_only=False):
                 - BASELINE_SECONDS,
                 "complete_acceptance": False,
                 "remaining_forecast": forecast,
-                "resource_samples": [asdict(s) for s in sampler.samples],
+                "resource_samples": [s.public_manifest() for s in sampler.samples],
                 "open_allocations": len(ledger.unresolved_gpu_allocations()),
                 "open_service_journals": len(ledger.unresolved_gpu_service_journals()),
             },

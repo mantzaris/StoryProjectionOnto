@@ -393,8 +393,11 @@ class VLLMLaunchConfiguration:
     speculative_decoding: bool = False
     enforce_eager: bool = True
     verified_snapshot_manifest_sha256: str | None = None
+    guided_decoding_disable_any_whitespace: bool = False
 
     def __post_init__(self) -> None:
+        if type(self.guided_decoding_disable_any_whitespace) is not bool:
+            raise RuntimeConfigurationError("decoder whitespace policy must be an exact boolean")
         snapshot = self.snapshot_path.resolve(strict=True)
         cache = self.shared_cache.resolve(strict=True)
         try:
@@ -533,6 +536,8 @@ class VLLMLaunchConfiguration:
             "runtime_environment_passthrough": list(RUNTIME_ENVIRONMENT_PASSTHROUGH),
             "verified_snapshot_manifest_sha256": self.verified_snapshot_manifest_sha256,
         }
+        if self.guided_decoding_disable_any_whitespace:
+            payload["guided_decoding_disable_any_whitespace"] = True
         return {**payload, "manifest_sha256": canonical_sha256(payload)}
 
     def command(self, python_executable: str = sys.executable) -> tuple[str, ...]:
@@ -574,7 +579,8 @@ class VLLMLaunchConfiguration:
             "--no-enable-log-requests",
             "--uvicorn-log-level",
             "warning",
-        )
+        ) + (("--guided-decoding-disable-any-whitespace",)
+             if self.guided_decoding_disable_any_whitespace else ())
 
     def environment(self, base: Mapping[str, str] | None = None) -> dict[str, str]:
         inherited = os.environ if base is None else base

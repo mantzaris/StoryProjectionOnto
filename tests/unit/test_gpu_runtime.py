@@ -122,6 +122,15 @@ def launch_configuration(tmp_path: Path) -> VLLMLaunchConfiguration:
     return VLLMLaunchConfiguration(snapshot_path=snapshot, shared_cache=cache)
 
 
+def test_whitespace_repair_changes_only_explicit_decoder_flag_and_identity(launch_configuration):
+    from dataclasses import replace
+    repaired = replace(launch_configuration, guided_decoding_disable_any_whitespace=True)
+    assert repaired.command() == (*launch_configuration.command(), "--guided-decoding-disable-any-whitespace")
+    assert repaired.configuration_hash != launch_configuration.configuration_hash
+    assert "guided_decoding_disable_any_whitespace" not in launch_configuration.public_manifest()
+    assert repaired.maximum_model_length == launch_configuration.maximum_model_length == 12288
+
+
 def test_launcher_is_pinned_local_concurrency_one_and_no_offload(
     launch_configuration: VLLMLaunchConfiguration,
 ) -> None:

@@ -57,8 +57,9 @@ def test_guardian_kills_owned_controller_and_adopts_only_for_cleanup(tmp_path, m
         resume_live_service_lease=lambda **kw: observed.append(("adopt", kw)) or True,
         shutdown=lambda **kw: observed.append(("shutdown", kw)),
     )
-    ledger = SimpleNamespace(unresolved_gpu_allocations=lambda: [],
-                             unresolved_gpu_service_journals=lambda: [])
+    ledger = SimpleNamespace(
+        unresolved_gpu_allocations=lambda: [], unresolved_gpu_service_journals=lambda: []
+    )
     monkeypatch.setattr(driver, "setup", lambda *a: (ledger, None, service))
     monkeypatch.setattr(driver, "source_binding", lambda *a: {})
 
@@ -69,10 +70,17 @@ def test_guardian_kills_owned_controller_and_adopts_only_for_cleanup(tmp_path, m
         def __init__(self, command, **kwargs):
             run = Path(command[3])
             binding = driver.read(run / "binding.json")
-            driver.immutable(run / "state.json", {
-                "pid": self.pid, "binding_hash": driver.canonical_sha256(binding),
-                "deadline_monotonic": -1, "stage": "generation",
-                "session": "capacity-start-1", "event": "capacity-start-1-load"})
+            driver.immutable(
+                run / "state.json",
+                {
+                    "pid": self.pid,
+                    "binding_hash": driver.canonical_sha256(binding),
+                    "deadline_monotonic": -1,
+                    "stage": "generation",
+                    "session": "capacity-start-1",
+                    "event": "capacity-start-1-load",
+                },
+            )
 
         def poll(self):
             return self.returncode
