@@ -52,6 +52,10 @@ from story_projection_onto.contracts import (
     canonical_json,
     canonical_sha256,
 )
+from story_projection_onto.controller_preparation import (
+    PreparedController,
+    wait_for_allocation_release,
+)
 from story_projection_onto.development_artifacts import (
     FALLBACK_V9_RECOVERY_SERVICE_START_EVENT_IDS,
 )
@@ -622,6 +626,8 @@ _FALLBACK_CORE_IMPLEMENTATION_FILES = (
     "src/story_projection_onto/fallback_v7_runtime_incident.py",
     "src/story_projection_onto/fallback_v7_lease_repair.py",
     "src/story_projection_onto/gpu_runtime.py",
+    "src/story_projection_onto/http_diagnostics.py",
+    "src/story_projection_onto/controller_preparation.py",
     "src/story_projection_onto/held_out_execution.py",
     "src/story_projection_onto/ledger_verify.py",
     "src/story_projection_onto/llm.py",
@@ -6213,6 +6219,8 @@ def _failure_kind(exc: Exception) -> FailureKind:
         return FailureKind.TIMEOUT
     if isinstance(exc, MemoryError) or "out of memory" in str(exc).casefold():
         return FailureKind.OUT_OF_MEMORY
+    if getattr(exc, "failure_stage", None) == "decoding":
+        return FailureKind.INVALID_OUTPUT
     return FailureKind.SERVICE
 
 
@@ -8198,6 +8206,7 @@ class FallbackAcceptanceRunner:
         failure_details: dict[str, object] = {
             "exception_type": type(exc).__name__,
             "call_id": call.call_id,
+            "failure_stage": getattr(exc, "failure_stage", "transport"),
         }
         restricted_diagnostics_artifact_hash = None
         transport_details = restricted_transport_failure_details(exc)
@@ -9794,6 +9803,7 @@ class FallbackAcceptanceRunner:
                         authoritative_prompt_tokens=generated.prompt_tokens,
                         authoritative_completion_tokens=generated.completion_tokens,
                         legacy_provenance_bridge=self.legacy_provenance_bridge,
+                        diagnostic_journal=generated.diagnostic_journal,
                     )
                     audit["operator_behavior"] = _require_call_operator_coverage(
                         call,
@@ -9802,6 +9812,8 @@ class FallbackAcceptanceRunner:
                         root=self.root,
                     )
                 except Exception as validation_error:
+                    if generated.diagnostic_journal is not None:
+                        generated.diagnostic_journal.failure("schema_validation", validation_error)
                     # The model call completed and its GPU event succeeded; the
                     # separate validation/failure records below capture that the
                     # returned ontology draft was structurally inadmissible.
@@ -10159,6 +10171,7 @@ class FallbackAcceptanceRunner:
                 authoritative_prompt_tokens=generated.prompt_tokens,
                 authoritative_completion_tokens=generated.completion_tokens,
                 legacy_provenance_bridge=self.legacy_provenance_bridge,
+                diagnostic_journal=generated.diagnostic_journal,
             )
             audit["operator_behavior"] = _require_call_operator_coverage(
                 call,
@@ -10175,6 +10188,8 @@ class FallbackAcceptanceRunner:
         except Exception as exc:
             # Transport/model execution succeeded even though the resulting
             # repair failed subsequent structural validation.
+            if generated.diagnostic_journal is not None:
+                generated.diagnostic_journal.failure("schema_validation", exc)
             self.ledger.record_model_call(**common_call, successful=True)
             terminal_at = datetime.now(UTC)
             self._advance_one(
@@ -12579,6 +12594,7 @@ def _orchestrate_controller_processes(options: argparse.Namespace) -> int:
     guardian_result_hash: str | None = None
     controller_result_hash: str | None = None
     raised: BaseException | None = None
+    preallocated_controller: PreparedController | None = None
     try:
         if options.resume_orchestrator and paths.cleanup_output.exists():
             cleanup_result = _validate_controller_stage_result(
@@ -12635,6 +12651,27 @@ def _orchestrate_controller_processes(options: argparse.Namespace) -> int:
                     raise FileExistsError(
                         "fallback handoff output exists before its selected controller stage"
                     )
+                if preparation_stage == "prepare":
+                    # Wait for stage two's CPU setup BEFORE stage one can load
+                    # the model. It has not opened its ledger writer or adopted
+                    # a service. The exact child PID survives the pipe barrier.
+                    preallocated_controller = PreparedController(
+                        _internal_controller_command(
+                            options, stage="run", output=paths.result_output, guard=guard_path,
+                        ),
+                    )
+                    cpu_receipt = {
+                        "kind": "fallback_preallocation_cpu_preparation",
+                        "run_id": options.run_id,
+                        "orchestration_invocation_sha256": invocation["manifest_sha256"],
+                        "preparation_seconds": preallocated_controller.preparation_seconds,
+                        "completed_before_service_start": True,
+                        "live_checks_deferred_until_release": True,
+                    }
+                    _write_append_only_json(
+                        paths.checkpoint.with_name(paths.checkpoint.name + ".cpu-preparation.json"),
+                        {**cpu_receipt, "manifest_sha256": canonical_sha256(cpu_receipt)},
+                    )
                 prepared = subprocess.run(
                     _internal_controller_command(
                         options,
@@ -12653,16 +12690,16 @@ def _orchestrate_controller_processes(options: argparse.Namespace) -> int:
                     invocation=invocation,
                     expected_stage=preparation_stage,
                 )
-            executed = subprocess.run(
-                _internal_controller_command(
-                    options,
-                    stage="run",
-                    output=paths.result_output,
-                    guard=guard_path,
-                ),
-                check=False,
-            )
-            run_return_code = executed.returncode
+            if preallocated_controller is not None:
+                run_return_code = preallocated_controller.release_and_wait()
+            else:
+                executed = subprocess.run(
+                    _internal_controller_command(
+                        options, stage="run", output=paths.result_output, guard=guard_path,
+                    ),
+                    check=False,
+                )
+                run_return_code = executed.returncode
             result = _validate_controller_stage_result(
                 paths.result_output,
                 options=options,
@@ -12688,6 +12725,8 @@ def _orchestrate_controller_processes(options: argparse.Namespace) -> int:
         raised = exc
         raise
     finally:
+        if preallocated_controller is not None:
+            preallocated_controller.close()
         if not physical_shutdown_verified:
             try:
                 if paths.cleanup_output.exists():
@@ -13950,6 +13989,23 @@ def main(
         trust_remote_code=False,
         revision=FALLBACK_MODEL_REVISION,
     )
+    if options.controller_stage == "run" and wait_for_allocation_release():
+        # Only invariant CPU setup moved. All live authority, bytes, device,
+        # storage and later ledger/adoption/admission checks are retained.
+        _validate_orchestrator_guard(options)
+        if validate_source_association(
+            options.source_association, source_root=root,
+        ) != source_association:
+            raise RuntimeError("source identity changed across CPU preparation")
+        if validate_fallback_snapshot_manifest(
+            options.verified_model_manifest, policy=policy, policy_path=policy_path,
+            snapshot_path=options.snapshot, shared_cache=options.shared_cache,
+        ) != snapshot_manifest:
+            raise RuntimeError("snapshot identity changed across CPU preparation")
+        gpu_hardware = capture_gpu_hardware_identity(
+            root / "artifacts/public/manifests/environment.json"
+        )
+        preflight = storage.check(**phase_one.preflight_arguments())
     result: dict[str, object]
     with Ledger(options.ledger) as ledger:
         ledger.record_storage_sample(preflight, phase=f"phase1_fallback:{options.run_id}")
@@ -14084,7 +14140,10 @@ def main(
             if observed_baseline != pre_fallback_accounting:
                 raise RuntimeError("pre-fallback GPU accounting baseline changed")
         meter = AllocatedGPUMeter.from_limits(ledger, limits)
-        client = VLLMGuidedJSONClient(configuration.base_url)
+        client = VLLMGuidedJSONClient(
+            configuration.base_url,
+            diagnostic_root=root / "artifacts/restricted/http_diagnostics" / options.run_id,
+        )
         sampler = ResourceSampler(limits=limits, storage=storage, ledger=ledger)
         service = VLLMService(
             configuration=configuration,

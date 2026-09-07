@@ -1,6 +1,38 @@
 # Run status
 
-Updated: 2026-09-06 23:22 UTC
+Updated: 2026-09-06 23:57 UTC
+
+## CPU-only repair completed locally — GPU remains unauthorized
+
+The transport now preserves restricted response fragments and full diagnostic
+chains before decoding. Schema and scientific validation failures are distinguished
+without weakening their gates. The separate run controller now prepares before
+model allocation and retains fresh live identity, resource, and budget checks.
+See `docs/CPU_ONLY_REPAIR_REPORT.md` for changed files, measurements, and limits.
+
+Focused verification: 256 unique tests pass across the final runs (234 unit and
+22 real loopback HTTP tests). An exact-metadata test was updated for the required
+new failure-stage field and passed its targeted rerun; unaffected passes were
+reused. The earlier interrupted host-permission test batch and all subsequent
+logs/XML are preserved in ignored restricted storage. Ruff/diff checks pass.
+
+The local measured preparation subset has a 0.696744-second median over five
+samples; credited pod/GPU savings are **zero**. No remote execution or deployment,
+new model output, GPU allocation, plan/config amendment, or PDF generation occurred.
+The canonical V9 ledger and result hashes remain unchanged; actual allocated
+time remains **2,936.238858 seconds**.
+
+The proposed (not authorized) next C1 recovery-gate envelope is 840 seconds,
+including startup, live checks, one retry, drain, and shutdown. Earmarking its
+already-forecast 240-second long-reserve slot gives an all-in bound of
+**33,523.583202 seconds**, so the current 32,400-second ordinary gate still fails.
+The concrete proposal is **33,660 scheduled seconds (9.35 hours)** with the strict
+actual hard stop still below 36,000 seconds. No mandatory work or prior second is
+removed. This resource amendment requires the user's decision; whole-gate cap
+enforcement and a fresh source-bound preflight are still prerequisites to any
+future launch. Acceptance/development continuation must retain the same live
+service if separately authorized and all gates pass. Held-out review remains
+required. The older V9 outcome below is preserved as historical evidence.
 
 ## V9 terminal outcome — no further GPU start authorized
 

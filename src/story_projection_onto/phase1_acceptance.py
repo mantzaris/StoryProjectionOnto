@@ -65,6 +65,7 @@ from story_projection_onto.gpu_runtime import (
     public_runtime_manifest,
     restricted_transport_failure_details,
 )
+from story_projection_onto.http_diagnostics import RestrictedResponseJournal
 from story_projection_onto.llm import (
     CapabilityManifest,
     DecodingManifest,
@@ -79,6 +80,7 @@ from story_projection_onto.phase1_legacy_provenance import (
     Phase1LegacyEvidenceProvenanceBridge,
 )
 from story_projection_onto.scorer_only.acceptance_grounding import (
+    AcceptanceGroundingAudit,
     audit_acceptance_semantic_grounding,
 )
 from story_projection_onto.store import (
@@ -138,6 +140,7 @@ ACCEPTANCE_IMPLEMENTATION_FILES = (
     "src/story_projection_onto/contracts.py",
     "src/story_projection_onto/experiment.py",
     "src/story_projection_onto/gpu_runtime.py",
+    "src/story_projection_onto/http_diagnostics.py",
     "src/story_projection_onto/llm.py",
     "src/story_projection_onto/model_gate.py",
     "src/story_projection_onto/phase1_acceptance.py",
@@ -878,6 +881,31 @@ def validate_acceptance_generation(
     authoritative_prompt_tokens: int | None = None,
     authoritative_completion_tokens: int | None = None,
     legacy_provenance_bridge: Phase1LegacyEvidenceProvenanceBridge | None = None,
+    diagnostic_journal: RestrictedResponseJournal | None = None,
+) -> dict[str, object]:
+    """Keep the unchanged acceptance gates, with optional restricted stage evidence."""
+    operation = partial(
+        _validate_acceptance_generation,
+        root=root, call=call, parsed_object=parsed_object,
+        authoritative_prompt_tokens=authoritative_prompt_tokens,
+        authoritative_completion_tokens=authoritative_completion_tokens,
+        legacy_provenance_bridge=legacy_provenance_bridge,
+        diagnostic_journal=diagnostic_journal,
+    )
+    return operation() if diagnostic_journal is None else diagnostic_journal.validate(
+        "schema_validation", operation,
+    )
+
+
+def _validate_acceptance_generation(
+    *,
+    root: Path,
+    call: AcceptanceCall,
+    parsed_object: Mapping[str, object],
+    authoritative_prompt_tokens: int | None = None,
+    authoritative_completion_tokens: int | None = None,
+    legacy_provenance_bridge: Phase1LegacyEvidenceProvenanceBridge | None = None,
+    diagnostic_journal: RestrictedResponseJournal | None = None,
 ) -> dict[str, object]:
     """Mechanically audit schema, budget, evidence, and condition capabilities."""
 
@@ -1068,11 +1096,15 @@ def validate_acceptance_generation(
     ]
     if missing_grounding or unsupported_descriptions or missing_why_support:
         raise ValueError("generated draft lacks required evidence/description grounding")
-    semantic_grounding = audit_acceptance_semantic_grounding(
-        draft=draft,
-        evidence=evidence,
+    def assess_semantic_grounding() -> AcceptanceGroundingAudit:
+        assessment = audit_acceptance_semantic_grounding(draft=draft, evidence=evidence)
+        assessment.raise_for_failure()
+        return assessment
+
+    semantic_grounding = (
+        assess_semantic_grounding() if diagnostic_journal is None else
+        diagnostic_journal.validate("scientific_validation", assess_semantic_grounding)
     )
-    semantic_grounding.raise_for_failure()
     constructive = sorted(
         {
             decision.operator.value

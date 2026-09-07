@@ -12,6 +12,7 @@ import copy
 import csv
 import fcntl
 import hashlib
+import http.client
 import importlib
 import importlib.metadata
 import json
@@ -41,6 +42,12 @@ from story_projection_onto.experiment import (
     AllocatedGPUMeter,
     ForecastAdmissionError,
     ResourceLimits,
+)
+from story_projection_onto.http_diagnostics import (
+    MAX_RESPONSE_BYTES,
+    FailureStage,
+    ResponseEvidenceLimitError,
+    RestrictedResponseJournal,
 )
 from story_projection_onto.llm import DecodingManifest, DecodingPass, PackingReport
 from story_projection_onto.store import (
@@ -155,6 +162,7 @@ class RuntimeTransportError(RuntimeError):
     ) -> None:
         super().__init__(message)
         self._restricted_diagnostics = dict(restricted_diagnostics or {})
+        self.failure_stage: FailureStage = "transport"
 
     @property
     def restricted_diagnostics(self) -> dict[str, object]:
@@ -165,6 +173,14 @@ class RuntimeTransportError(RuntimeError):
 
 class RuntimeWatchdogTimeout(TimeoutError):
     """A local service operation exceeded its admitted watchdog."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+        self._restricted_diagnostics: dict[str, object] = {}
+
+    @property
+    def restricted_diagnostics(self) -> dict[str, object]:
+        return copy.deepcopy(self._restricted_diagnostics)
 
 
 class RuntimeResourceLimitExceeded(RuntimeError):
@@ -229,7 +245,7 @@ def _non_200_transport_diagnostics(status: int, body: bytes) -> dict[str, object
 def restricted_transport_failure_details(error: BaseException) -> dict[str, object] | None:
     """Return non-public transport details suitable for restricted lineage."""
 
-    if not isinstance(error, RuntimeTransportError):
+    if not isinstance(error, (RuntimeTransportError, RuntimeWatchdogTimeout)):
         return None
     diagnostics = error.restricted_diagnostics
     return diagnostics or None
@@ -998,6 +1014,9 @@ class GenerationResult:
     completion_tokens: int = 0
     finish_reason: str | None = None
     service_request_id: str | None = None
+    diagnostic_journal: RestrictedResponseJournal | None = field(
+        default=None, repr=False, compare=False,
+    )
 
     def public_manifest(self) -> dict[str, object]:
         return {
@@ -1039,6 +1058,8 @@ def _urllib_transport(
     url: str,
     payload: bytes | None,
     timeout_seconds: float,
+    *,
+    diagnostic_journal: RestrictedResponseJournal | None = None,
 ) -> tuple[int, bytes, Mapping[str, str]]:
     request = urllib.request.Request(
         url,
@@ -1046,29 +1067,71 @@ def _urllib_transport(
         headers={"Content-Type": "application/json"} if payload is not None else {},
         method="POST" if payload is not None else "GET",
     )
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):  # type: ignore[no-untyped-def]
+            return None
+
+    def receive(response: object) -> tuple[int, bytes, Mapping[str, str]]:
+        stream = cast(http.client.HTTPResponse, response)
+        status = stream.status
+        headers = dict(stream.headers.items())
+        if diagnostic_journal is not None:
+            diagnostic_journal.headers(status, headers)
+        body = bytearray()
+        while True:
+            try:
+                fragment = stream.read1(64 * 1024)
+            except http.client.IncompleteRead as error:
+                if diagnostic_journal is not None:
+                    diagnostic_journal.fragment(error.partial)
+                raise
+            if not fragment:
+                break
+            if diagnostic_journal is not None:
+                diagnostic_journal.fragment(fragment)
+            body.extend(fragment)
+            if len(body) > MAX_RESPONSE_BYTES:
+                raise ResponseEvidenceLimitError("HTTP response exceeded diagnostic byte limit")
+        expected = stream.headers.get("content-length")
+        if expected is not None and int(expected) != len(body):
+            raise http.client.IncompleteRead(b"", int(expected) - len(body))
+        if diagnostic_journal is not None:
+            diagnostic_journal.complete()
+        return status, bytes(body), headers
+
     try:
-        with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
-            return response.status, response.read(), dict(response.headers.items())
-    except urllib.error.HTTPError as exc:
-        # Preserve the actual service response.  HTTPError is also a URLError,
-        # so it must be handled first or a schema/request rejection is
-        # misleadingly reported as a connection failure.
-        return exc.code, exc.read(), dict(exc.headers.items())
+        # The endpoint is loopback-only and unauthenticated. Ignore proxy
+        # environment variables; never forward a redirect or credentials.
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+        try:
+            response = opener.open(request, timeout=timeout_seconds)
+        except urllib.error.HTTPError as error:
+            response = error
+        with response:
+            return receive(response)
     except TimeoutError as exc:
         raise RuntimeWatchdogTimeout(f"local vLLM request exceeded {timeout_seconds}s") from exc
     except urllib.error.URLError as exc:
         if isinstance(exc.reason, TimeoutError):
             raise RuntimeWatchdogTimeout(f"local vLLM request exceeded {timeout_seconds}s") from exc
         raise RuntimeTransportError(f"cannot reach local vLLM service: {exc.reason}") from exc
+    except (http.client.HTTPException, OSError, ValueError, ResponseEvidenceLimitError) as exc:
+        raise RuntimeTransportError(
+            "local vLLM response transport was incomplete or invalid"
+        ) from exc
 
 
 class VLLMGuidedJSONClient:
     """Concurrency-one guided-JSON client restricted to a local vLLM service."""
 
-    def __init__(self, base_url: str, *, transport: Transport = _urllib_transport) -> None:
+    def __init__(
+        self, base_url: str, *, transport: Transport = _urllib_transport,
+        diagnostic_root: Path | None = None,
+    ) -> None:
         self.base_url = _loopback_base_url(base_url)
         self._transport = transport
         self._generation_lock = threading.Lock()
+        self.diagnostic_root = diagnostic_root
 
     def _transport_with_wall_deadline(
         self,
@@ -1190,20 +1253,56 @@ class VLLMGuidedJSONClient:
         if not self._generation_lock.acquire(blocking=False):
             raise RuntimeConfigurationError("concurrent vLLM generation is mechanically forbidden")
 
+        try:
+            journal = None if self.diagnostic_root is None else RestrictedResponseJournal(
+                self.diagnostic_root, request_hash=request.request_hash,
+            )
+        except BaseException:
+            self._generation_lock.release()
+            raise
+
         completed = threading.Event()
         result: list[GenerationResult] = []
         failure: list[BaseException] = []
 
         def run_generation() -> None:
+            stage: FailureStage = "transport"
             try:
-                status, body, headers = self._transport(
-                    f"{self.base_url}/v1/chat/completions",
-                    payload,
-                    watchdog_seconds,
-                )
-                result.append(self._decode_generation_response(request, status, body, headers))
+                if self._transport is _urllib_transport:
+                    status, body, headers = _urllib_transport(
+                        f"{self.base_url}/v1/chat/completions", payload, watchdog_seconds,
+                        diagnostic_journal=journal,
+                    )
+                else:
+                    status, body, headers = self._transport(
+                        f"{self.base_url}/v1/chat/completions", payload, watchdog_seconds,
+                    )
+                    if journal is not None:
+                        journal.headers(status, headers)
+                        journal.fragment(body)
+                        journal.complete()
+                stage = "http" if status != 200 else "decoding"
+                result.append(self._decode_generation_response(
+                    request, status, body, headers, diagnostic_journal=journal,
+                ))
             except BaseException as exc:
                 failure.append(exc)
+                if isinstance(exc, RuntimeTransportError):
+                    exc.failure_stage = stage
+                if journal is not None:
+                    try:
+                        journal.failure(stage, exc)
+                        if isinstance(exc, (RuntimeTransportError, RuntimeWatchdogTimeout)):
+                            exc._restricted_diagnostics.update({
+                                "failure_stage": stage,
+                                "diagnostic_journal": str(journal.path),
+                            })
+                    except BaseException as diagnostic_error:
+                        # Evidence-write failures must not turn into a success
+                        # or hide the original exception on the calling thread.
+                        failure[0] = BaseExceptionGroup(
+                            "response and diagnostic persistence failed", [exc, diagnostic_error],
+                        )
             finally:
                 self._generation_lock.release()
                 completed.set()
@@ -1219,9 +1318,15 @@ class VLLMGuidedJSONClient:
             self._generation_lock.release()
             raise
         if not completed.wait(watchdog_seconds):
-            raise RuntimeWatchdogTimeout(
+            error = RuntimeWatchdogTimeout(
                 f"local vLLM generation exceeded {watchdog_seconds}s total wall time"
             )
+            if journal is not None:
+                journal.failure("transport", error, cancel=True)
+                error._restricted_diagnostics.update({
+                    "failure_stage": "transport", "diagnostic_journal": str(journal.path),
+                })
+            raise error
         if failure:
             raise failure[0]
         if len(result) != 1:
@@ -1234,6 +1339,8 @@ class VLLMGuidedJSONClient:
         status: int,
         body: bytes,
         headers: Mapping[str, str],
+        *,
+        diagnostic_journal: RestrictedResponseJournal | None = None,
     ) -> GenerationResult:
         if status != 200:
             raise RuntimeTransportError(
@@ -1242,11 +1349,18 @@ class VLLMGuidedJSONClient:
             )
         try:
             response = json.loads(body)
+            if not isinstance(response, Mapping) or len(response.get("choices", [])) != 1:
+                raise ValueError("response must contain exactly one choice")
             choice = response["choices"][0]
+            if diagnostic_journal is not None:
+                diagnostic_journal.event(
+                    "completion_metadata", finish_reason=choice.get("finish_reason"),
+                    usage=response.get("usage"),
+                )
             content = choice["message"]["content"]
             parsed_object = json.loads(content)
             usage = response["usage"]
-        except (IndexError, KeyError, TypeError, json.JSONDecodeError) as exc:
+        except (IndexError, KeyError, TypeError, ValueError, UnicodeDecodeError) as exc:
             raise RuntimeTransportError("vLLM response is not one guided JSON choice") from exc
         if not isinstance(parsed_object, Mapping):
             raise RuntimeTransportError("guided_json response must decode to an object")
@@ -1279,6 +1393,7 @@ class VLLMGuidedJSONClient:
             completion_tokens=completion_tokens,
             finish_reason=finish_reason,
             service_request_id=service_request_id,
+            diagnostic_journal=diagnostic_journal,
         )
 
 

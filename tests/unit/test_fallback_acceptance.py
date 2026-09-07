@@ -4953,6 +4953,7 @@ def test_failed_transport_is_accounted_but_not_used_as_latency_proxy(
         assert details == {
             "call_id": "fallback-c1-01",
             "exception_type": "RuntimeTransportError",
+            "failure_stage": "transport",
             "restricted_diagnostics_artifact_hash": details[
                 "restricted_diagnostics_artifact_hash"
             ],
@@ -6237,6 +6238,21 @@ def test_orchestrator_supervises_two_controllers_and_closes_guard(
             "manifest_sha256": "e" * 64,
         }
 
+    class Prepared:
+        preparation_seconds = 0.25
+
+        def __init__(self, command):
+            self.command = command
+            stages.append("cpu-ready")
+
+        def release_and_wait(self):
+            return run(self.command, check=False).returncode
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(fallback_acceptance_module, "PreparedController", Prepared)
+
     monkeypatch.setattr(subprocess, "run", run)
     monkeypatch.setattr(
         fallback_acceptance_module,
@@ -6270,7 +6286,11 @@ def test_orchestrator_supervises_two_controllers_and_closes_guard(
     )
     monkeypatch.setattr(os, "getpgrp", os.getpid)
     assert _orchestrate_controller_processes(options) == 2
-    assert stages == ["prepare", "run"]
+    assert stages == ["cpu-ready", "prepare", "run"]
+    receipt = json.loads(options.checkpoint.with_name(
+        options.checkpoint.name + ".cpu-preparation.json"
+    ).read_text())
+    assert receipt["completed_before_service_start"] is True
     assert len(closed) == 1
     assert closed[0]["physical_shutdown_verified"] is True
 
@@ -6308,6 +6328,21 @@ def test_orchestrator_invokes_cleanup_when_run_does_not_verify_shutdown(
             raise RuntimeError("run lacks verified service shutdown")
         return {"manifest_sha256": "e" * 64, "physical_shutdown_verified": True}
 
+    class Prepared:
+        preparation_seconds = 0.25
+
+        def __init__(self, command):
+            self.command = command
+            stages.append("cpu-ready")
+
+        def release_and_wait(self):
+            return run(self.command, check=False).returncode
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(fallback_acceptance_module, "PreparedController", Prepared)
+
     monkeypatch.setattr(subprocess, "run", run)
     monkeypatch.setattr(
         fallback_acceptance_module,
@@ -6342,7 +6377,7 @@ def test_orchestrator_invokes_cleanup_when_run_does_not_verify_shutdown(
     monkeypatch.setattr(os, "getpgrp", os.getpid)
     with pytest.raises(RuntimeError, match="verified service shutdown"):
         _orchestrate_controller_processes(options)
-    assert stages == ["prepare", "run", "cleanup"]
+    assert stages == ["cpu-ready", "prepare", "run", "cleanup"]
 
 
 def test_controller_result_replay_rejects_coherent_outer_tampering(
