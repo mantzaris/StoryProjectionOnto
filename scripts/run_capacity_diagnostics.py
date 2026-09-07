@@ -76,6 +76,62 @@ from story_projection_onto.store import (
 BLOCK_ID = "output-capacity-recovery-v1"
 EXCEPTION_DRAIN_SECONDS = 5
 SMALL_REQUEST_HASH = "cde6c6b6eedefab00aa46b7a01833998ca0b291ad8ff1daf55e574ad23681e7a"
+SEMANTIC_SESSION = {
+    "block_id": "small-semantic-interface-validation-20260907",
+    "historical_actual_seconds": 5363.502630,
+    "maximum_new_starts": 1,
+    "maximum_new_attempts": 3,
+    "maximum_additional_seconds": 1100,
+    "global_maximum_seconds": 6463.502630,
+    "startup_seconds": 360,
+    "live_checks_seconds": 15,
+    "generation_seconds": 180,
+    "validation_seconds": 30,
+    "shutdown_seconds": 60,
+    "guard_seconds": 5,
+    "second_evidence_id": "ev-03",
+    "ordinary_execution_authorized": False,
+}
+
+
+def semantic_session_admit(actual, starts, attempts, *, starting=False, generating=False, seconds):
+    import math
+
+    settings = SEMANTIC_SESSION
+    if not all(math.isfinite(x) for x in (actual, seconds)) or (
+        actual < settings["historical_actual_seconds"] or seconds < 0
+    ):
+        raise ValueError("invalid semantic-session allocation")
+    if starts + int(starting) > 1 or attempts + int(generating) > 3:
+        raise ValueError("semantic-session start/attempt limit")
+    end = actual + seconds + settings["shutdown_seconds"]
+    if end > settings["global_maximum_seconds"] - 5 or end > 33660 or end >= 36000:
+        raise ValueError("semantic-session deadline must preserve shutdown and global limits")
+    return {
+        "actual_seconds": actual,
+        "envelope_end_seconds": end,
+        "baseline_actual_seconds": settings["historical_actual_seconds"],
+        "complete_forecast_exception": True,
+        "ordinary_execution_authorized": False,
+    }
+
+
+def diagnostic_policy(semantic):
+    if not semantic:
+        return comparison_policy
+    from types import SimpleNamespace
+
+    return SimpleNamespace(
+        BASELINE=SEMANTIC_SESSION["historical_actual_seconds"],
+        BLOCK_ID=SEMANTIC_SESSION["block_id"],
+        ALLOWANCE=1100,
+        STARTS=1,
+        ATTEMPTS=3,
+        GENERATION=180,
+        admit=semantic_session_admit,
+    )
+
+
 SMALL_SUCCESS_CRITERIA = {
     "scope": "one development evidence record; no expected answer supplied",
     "transport": "HTTP 200; SSE final choice, usage, DONE; finish_reason stop",
@@ -115,18 +171,20 @@ def source_binding(root):
     return {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest() for p in paths}
 
 
-def stage_deadline(*, started, now_monotonic, prior_block_seconds, stage_seconds, comparison=False):
+def stage_deadline(
+    *, started, now_monotonic, prior_block_seconds, stage_seconds, comparison=False, semantic=False
+):
     """Leave a full shutdown reserve before the whole block ends, including gaps."""
     whole = (
         started
         + (
-            comparison_policy.ALLOWANCE - prior_block_seconds
-            if comparison
+            diagnostic_policy(semantic).ALLOWANCE - prior_block_seconds
+            if comparison or semantic
             else min(BLOCK_SECONDS - prior_block_seconds, SMALL_START_SECONDS)
         )
         - GUARD_SECONDS
     )
-    limit = min(now_monotonic + stage_seconds, whole - SHUTDOWN_SECONDS)
+    limit = min(now_monotonic + stage_seconds, whole - (60 if semantic else SHUTDOWN_SECONDS))
     if limit <= now_monotonic:
         raise TimeoutError("block has no allocation left before shutdown reserve")
     return limit, whole
@@ -400,7 +458,43 @@ def next_diagnostic(*, completed, accepted_c1):
     return "small" if completed == 0 else None
 
 
-def controller(root, block, run, *, prepare_only=False, comparison=False):
+def prepare_structural_semantic_retry(request, failure, tokenizer):
+    """One diagnostic clarification of observed syntax/cross-field errors only.
+
+    Never feed the scorer's expected facts back to the model. Full evidence is
+    unchanged. An overlarge error or packing failure ends this repair branch.
+    """
+    if failure["stage"] not in {"canonical_schema_validation", "schema_or_structural_validation"}:
+        return None
+    message = failure["message"]
+    if "semantic grounding audit" in message or len(message) > 4000:
+        return None
+    from story_projection_onto.gpu_runtime import ChatMessage
+    from story_projection_onto.representation_diagnostic import _repack
+
+    system = request.messages[0].content + (
+        "\nStructural repair revision semantic-structural-retry-v1. The previous attempt "
+        "failed the following check(s). Reconstruct from the same complete evidence, "
+        "correcting these contract violations. No expected facts or graph are supplied. "
+        "Do not fill missing semantics with unsupported guesses.\n" + message
+    )
+    try:
+        return _repack(
+            request,
+            (ChatMessage(role="system", content=system), *request.messages[1:]),
+            request.output_schema,
+            tokenizer,
+            label="semantic-structural-repair",
+        )
+    except ValueError:
+        return None
+
+
+def controller(root, block, run, *, prepare_only=False, comparison=False, semantic=False):
+    policy_mode = diagnostic_policy(semantic)
+    comparison = comparison or semantic
+    shutdown_seconds = 60 if semantic else SHUTDOWN_SECONDS
+    validation_seconds = 30 if semantic else VALIDATION_SECONDS
     cpu_started = time.monotonic()
     from transformers import AutoTokenizer
 
@@ -437,15 +531,49 @@ def controller(root, block, run, *, prepare_only=False, comparison=False):
     first = small
     if first.request_hash != SMALL_REQUEST_HASH:
         raise ValueError("small diagnostic request changed from the authorized exact request")
-    variants = (
-        comparison_policy.prepare_comparison(small, small_fixture, tokenizer)
-        if comparison
-        else {"small": small}
-    )
+    semantic_fixtures = {}
+    if semantic:
+        from story_projection_onto.semantic_generation import build_small_request
+
+        # Freeze both sources before allocation; no output-dependent selection.
+        second_evidence = next(e for e in small_oracle if e.evidence_id == "ev-03")
+        second_raw = small_fixture.model_dump(mode="json", exclude={"content_hash"})
+        second_raw.update(
+            request_id="semantic-small-second",
+            evidence=[second_evidence.model_dump(mode="json")],
+            snapshot_hash=canonical_sha256([second_evidence.model_dump(mode="json")]),
+            sealed_horizon={
+                "horizon_id": "semantic-second-horizon",
+                "max_discourse_position": {"passage_order": 3},
+                "max_revelation_position": {"revelation_order": 3},
+            },
+        )
+        semantic_fixtures = {
+            "semantic-first": small_fixture,
+            "semantic-second": PreconstructionRequest.model_validate(second_raw),
+        }
+        variants = {
+            k: replace(build_small_request(f, tokenizer, tokenizer_manifest), request_id=k)
+            for k, f in semantic_fixtures.items()
+        }
+        if variants["semantic-first"].request_hash != (
+            "bf083c095b1655da8bfb060f98e017c22e7554ef443e59c3bf22cbd5dc266ac4"
+        ):
+            raise ValueError("first semantic request differs from CPU-frozen interface")
+        for label, fixture in semantic_fixtures.items():
+            immutable(run / f"fixture-{label}.json", fixture.model_dump(mode="json"))
+    else:
+        variants = (
+            comparison_policy.prepare_comparison(small, small_fixture, tokenizer)
+            if comparison
+            else {"small": small}
+        )
     if comparison:
-        if {
-            label: req.request_hash for label, req in variants.items()
-        } != comparison_policy.FROZEN_REQUESTS:
+        if (
+            not semantic
+            and {label: req.request_hash for label, req in variants.items()}
+            != comparison_policy.FROZEN_REQUESTS
+        ):
             raise ValueError("prepared comparison differs from the CPU-frozen A/B/C requests")
         immutable(
             run / "comparison-requests.json",
@@ -527,6 +655,11 @@ def controller(root, block, run, *, prepare_only=False, comparison=False):
             sample = (
                 authored
                 if label in {"A", "B"}
+                else read(
+                    root
+                    / "artifacts/restricted/semantic-interface-cpu-v3/small-two-node-authored.json"
+                )
+                if semantic
                 else RecordTupleCodec(
                     req.canonical_output_schema,
                     req.sealed_record_copies,
@@ -567,8 +700,14 @@ def controller(root, block, run, *, prepare_only=False, comparison=False):
         run / "cpu-preparation.json",
         {
             "seconds": time.monotonic() - cpu_started,
-            "first_request_hash": first.request_hash,
-            "template_inclusive_tokens": first.rendered_input_token_count,
+            "first_request_hash": (
+                variants["semantic-first"].request_hash if semantic else first.request_hash
+            ),
+            "template_inclusive_tokens": (
+                variants["semantic-first"].rendered_input_token_count
+                if semantic
+                else first.rendered_input_token_count
+            ),
             "forecast": forecast,
             "source_binding": canonical_sha256(binding),
             "completed_at": now(),
@@ -586,12 +725,12 @@ def controller(root, block, run, *, prepare_only=False, comparison=False):
     attempts = count_reservations(block, "attempt")
     actual = service.meter.actual_allocated_gpu_seconds
     admission = (
-        comparison_policy.admit(
+        policy_mode.admit(
             actual,
             starts,
             attempts,
             starting=True,
-            seconds=comparison_policy.ALLOWANCE - SHUTDOWN_SECONDS - GUARD_SECONDS,
+            seconds=policy_mode.ALLOWANCE - shutdown_seconds - GUARD_SECONDS,
         )
         if comparison
         else CapacityRecoveryState(actual, starts, attempts).admit(
@@ -604,8 +743,14 @@ def controller(root, block, run, *, prepare_only=False, comparison=False):
         )
     )
     started = time.monotonic()
-    prior = actual - (comparison_policy.BASELINE if comparison else BASELINE_SECONDS)
-    session = f"representation-start-{starts + 1}" if comparison else f"capacity-start-{starts + 1}"
+    prior = actual - (policy_mode.BASELINE if comparison else BASELINE_SECONDS)
+    session = (
+        f"semantic-interface-start-{starts + 1}"
+        if semantic
+        else f"representation-start-{starts + 1}"
+        if comparison
+        else f"capacity-start-{starts + 1}"
+    )
     event = session + "-load"
     state = {
         "pid": os.getpid(),
@@ -623,6 +768,7 @@ def controller(root, block, run, *, prepare_only=False, comparison=False):
             prior_block_seconds=prior,
             stage_seconds=seconds,
             comparison=comparison,
+            semantic=semantic,
         )
         state.update(
             stage=name,
@@ -638,13 +784,15 @@ def controller(root, block, run, *, prepare_only=False, comparison=False):
     artifact_store = ArtifactStore(BlobStore(root / "artifacts/blobs/phase1_acceptance"), ledger)
     accepted_c1 = None
     accepted_c1_seal = None
+    semantic_next = "semantic-first"
+    semantic_retry_parent = None
     try:
         cap = stage("startup", STARTUP_SECONDS)
         service.start(
             session_id=session,
             event_id=event,
             watchdog_seconds=cap,
-            remaining_required_seconds=SHUTDOWN_SECONDS,
+            remaining_required_seconds=shutdown_seconds,
         )
         stage("live_checks", LIVE_CHECK_SECONDS)
         service.start_periodic_resource_watchdog(
@@ -660,13 +808,17 @@ def controller(root, block, run, *, prepare_only=False, comparison=False):
         sampler.sample(sample_id=run.name + "-ready", root_pid=service.pid)
         while True:
             kind = (
-                (list(variants)[len(outcomes)] if len(outcomes) < len(variants) else None)
+                semantic_next
+                if semantic
+                else (list(variants)[len(outcomes)] if len(outcomes) < len(variants) else None)
                 if comparison
                 else next_diagnostic(completed=len(outcomes), accepted_c1=accepted_c1 is not None)
             )
             if kind is None:
                 break
-            if count_reservations(block, "attempt") >= MAX_ATTEMPTS:
+            if count_reservations(block, "attempt") >= (
+                policy_mode.ATTEMPTS if comparison else MAX_ATTEMPTS
+            ):
                 print(
                     json.dumps({"diagnostic_limit_reached": True, "not_complete_acceptance": True}),
                     flush=True,
@@ -674,7 +826,7 @@ def controller(root, block, run, *, prepare_only=False, comparison=False):
                 break
             index = -1 if comparison else {"c1": 0, "c2": 1, "fixed": 3, "small": -1}[kind]
             call = (
-                replace(small_call, watchdog_seconds=comparison_policy.GENERATION)
+                replace(small_call, watchdog_seconds=policy_mode.GENERATION)
                 if comparison
                 else small_call
                 if kind == "small"
@@ -713,12 +865,12 @@ def controller(root, block, run, *, prepare_only=False, comparison=False):
                 raise ValueError("fifth start is restricted to one streamed small diagnostic")
             attempts = count_reservations(block, "attempt")
             receipt = (
-                comparison_policy.admit(
+                policy_mode.admit(
                     service.actual_allocated_service_seconds,
                     count_reservations(block, "start"),
                     attempts,
                     generating=True,
-                    seconds=comparison_policy.GENERATION + VALIDATION_SECONDS,
+                    seconds=policy_mode.GENERATION + validation_seconds,
                 )
                 if comparison
                 else CapacityRecoveryState(
@@ -734,7 +886,9 @@ def controller(root, block, run, *, prepare_only=False, comparison=False):
                 )
             )
             attempt_id = (
-                f"representation-diagnostic-{attempts + 1}"
+                f"semantic-diagnostic-{attempts + 1}"
+                if semantic
+                else f"representation-diagnostic-{attempts + 1}"
                 if comparison
                 else f"capacity-diagnostic-{attempts + 1}"
             )
@@ -770,16 +924,29 @@ def controller(root, block, run, *, prepare_only=False, comparison=False):
                     "run": run.name,
                     "admission": receipt,
                     "reserved_at": now(),
+                    "repair_parent": semantic_retry_parent,
                 },
             )
             job = ledger.create_or_resume_job(
-                {"block": block.name, "attempt": attempt_id, "request_hash": request.request_hash},
+                (
+                    {
+                        "block": block.name,
+                        "semantic_task_hash": semantic_fixtures[kind].content_hash,
+                    }
+                    if semantic
+                    else {
+                        "block": block.name,
+                        "attempt": attempt_id,
+                        "request_hash": request.request_hash,
+                    }
+                ),
                 release_class=ReleaseClass.RESTRICTED,
             )
             ledger.record_attempt(
                 attempt_id=attempt_id,
                 job_id=job.job_id,
-                attempt_kind=AttemptKind.BASE,
+                attempt_kind=AttemptKind.REPAIR if semantic_retry_parent else AttemptKind.BASE,
+                parent_attempt_id=semantic_retry_parent,
                 input_hash=request.request_hash,
                 config_hash=request.decoding.content_hash,
                 seed=call.seed_block,
@@ -788,14 +955,16 @@ def controller(root, block, run, *, prepare_only=False, comparison=False):
             failure = None
             validation = None
             schema_valid = False
+            generation_schema_valid = None
             cap = generation_watchdog(
                 stage(
                     "generation_and_exception_drain",
-                    comparison_policy.GENERATION if comparison else DIAGNOSTIC_SECONDS,
+                    policy_mode.GENERATION if comparison else DIAGNOSTIC_SECONDS,
                 ),
                 call.watchdog_seconds,
             )
             tic = time.monotonic()
+            generation_started_at = datetime.now(UTC)
             failure_stage = "client"
             try:
                 result = service.generate(
@@ -804,7 +973,7 @@ def controller(root, block, run, *, prepare_only=False, comparison=False):
                     watchdog_seconds=cap,
                     job_id=job.job_id,
                     attempt_id=attempt_id,
-                    remaining_required_seconds=SHUTDOWN_SECONDS,
+                    remaining_required_seconds=shutdown_seconds,
                     accounting_details={
                         "block_id": block.name,
                         "feasibility_diagnostic_only": True,
@@ -812,14 +981,51 @@ def controller(root, block, run, *, prepare_only=False, comparison=False):
                     },
                 )
                 generation_seconds = time.monotonic() - tic
-                stage("validation", VALIDATION_SECONDS)
+                generation_completed_at = datetime.now(UTC)
+                stage("validation", validation_seconds)
                 immutable(attempt_root / "decoded.json", result.parsed_object)
                 failure_stage = "canonical_schema_validation"
-                OntologyDraft.model_validate(result.parsed_object)
+                adapted = None
+                if semantic:
+                    from jsonschema import Draft202012Validator
+
+                    from story_projection_onto.semantic_generation import (
+                        ExecutionFacts,
+                        reconstruct,
+                    )
+
+                    generation_schema_valid = False
+                    Draft202012Validator(request.output_schema).validate(result.parsed_object)
+                    generation_schema_valid = True
+                    execution = ExecutionFacts(
+                        result.request_hash,
+                        result.response_sha256,
+                        generation_started_at,
+                        generation_completed_at,
+                        result.prompt_tokens,
+                        result.completion_tokens,
+                    )
+                    adapted = reconstruct(
+                        result.parsed_object,
+                        evidence=semantic_fixtures[kind].evidence,
+                        upper=semantic_fixtures[kind].upper_ontology,
+                        execution=execution,
+                        small=True,
+                    )
+                    immutable(
+                        attempt_root / "canonical.json", adapted.draft.model_dump(mode="json")
+                    )
+                    immutable(attempt_root / "adapter-provenance.json", adapted.provenance)
+                else:
+                    OntologyDraft.model_validate(result.parsed_object)
                 schema_valid = True
                 failure_stage = "schema_or_structural_validation"
                 validation = (
-                    validate_small_diagnostic(result, small_fixture, small_oracle)
+                    validate_named_semantic_diagnostic(
+                        result, semantic_fixtures[kind], small_oracle, execution
+                    )
+                    if semantic
+                    else validate_small_diagnostic(result, small_fixture, small_oracle)
                     if kind == "small" or comparison
                     else validate_acceptance_generation(
                         root=root,
@@ -855,8 +1061,9 @@ def controller(root, block, run, *, prepare_only=False, comparison=False):
                         attempt_root / "accepted-c1.json", accepted_c1.model_dump(mode="json")
                     )
             except Exception as exc:
-                generation_seconds = time.monotonic() - tic
-                stage("validation_and_failure_drain", VALIDATION_SECONDS)
+                if result is None:
+                    generation_seconds = time.monotonic() - tic
+                stage("validation_and_failure_drain", validation_seconds)
                 failure = {
                     "stage": failure_stage,
                     "exception_type": type(exc).__name__,
@@ -893,8 +1100,16 @@ def controller(root, block, run, *, prepare_only=False, comparison=False):
                 "accepted": failure is None,
                 "diagnostic_kind": kind,
                 "canonical_schema_valid": schema_valid,
+                "generation_schema_valid": generation_schema_valid,
+                "reference_cross_field_valid": (
+                    failure is None
+                    or transport_metadata.get("failure_stage") == "scientific_validation"
+                )
+                if semantic and schema_valid
+                else None,
                 "scientifically_valid": failure is None,
                 "production_form": kind != "small" and not comparison,
+                "repair_parent": semantic_retry_parent,
                 "failure": failure,
                 "validation": validation,
                 "completed_at": now(),
@@ -948,11 +1163,41 @@ def controller(root, block, run, *, prepare_only=False, comparison=False):
                 # A failed transport may leave an in-flight generation. Do not
                 # overlap it or keep using an unhealthy service.
                 break
+            if semantic:
+                if failure is None:
+                    semantic_next = "semantic-second" if kind.startswith("semantic-first") else None
+                    semantic_retry_parent = None
+                else:
+                    # No retry from scorer oracle diagnostics. Only a concrete
+                    # structural failure can support a prompt clarification.
+                    if (
+                        transport_metadata.get("failure_stage") == "scientific_validation"
+                        or failure["stage"] == "client"
+                        or attempts + 1 >= 3
+                        or semantic_retry_parent is not None
+                    ):
+                        semantic_next = None
+                    else:
+                        stage("bounded_structural_repair_preparation", 90)
+                        repaired = prepare_structural_semantic_retry(request, failure, tokenizer)
+                        if repaired is None:
+                            semantic_next = None
+                        else:
+                            semantic_next = kind + "-repair"
+                            variants[semantic_next] = repaired
+                            semantic_fixtures[semantic_next] = semantic_fixtures[kind]
+                            semantic_retry_parent = attempt_id
+                            compiler.compile_json_schema(
+                                json.dumps(repaired.output_schema), any_whitespace=False
+                            )
+                            immutable(
+                                run / f"prepared-{semantic_next}.json", repaired.wire_payload()
+                            )
     finally:
         state.update(
             stage="shutdown",
             deadline_monotonic=min(
-                time.monotonic() + SHUTDOWN_SECONDS, state["whole_deadline_monotonic"]
+                time.monotonic() + shutdown_seconds, state["whole_deadline_monotonic"]
             ),
             recorded_at=now(),
         )
@@ -965,7 +1210,7 @@ def controller(root, block, run, *, prepare_only=False, comparison=False):
                 "ended_at": now(),
                 "actual_allocated_seconds": service.meter.actual_allocated_gpu_seconds,
                 "additional_block_seconds": service.meter.actual_allocated_gpu_seconds
-                - (comparison_policy.BASELINE if comparison else BASELINE_SECONDS),
+                - (policy_mode.BASELINE if comparison else BASELINE_SECONDS),
                 "complete_acceptance": False,
                 "remaining_forecast": forecast,
                 "resource_samples": [s.public_manifest() for s in sampler.samples],
@@ -975,8 +1220,10 @@ def controller(root, block, run, *, prepare_only=False, comparison=False):
         )
 
 
-def guardian(root, *, prepare_only=False, comparison=False):
-    block = root / "artifacts/restricted" / (comparison_policy.BLOCK_ID if comparison else BLOCK_ID)
+def guardian(root, *, prepare_only=False, comparison=False, semantic=False):
+    policy_mode = diagnostic_policy(semantic)
+    comparison = comparison or semantic
+    block = root / "artifacts/restricted" / (policy_mode.BLOCK_ID if comparison else BLOCK_ID)
     block.mkdir(exist_ok=True, mode=0o700)
     with (block / "controller.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -986,10 +1233,9 @@ def guardian(root, *, prepare_only=False, comparison=False):
         if ledger.unresolved_gpu_allocations() or ledger.unresolved_gpu_service_journals():
             raise ValueError("existing allocation requires reconciliation; do not duplicate")
         if not prepare_only and (
-            count_reservations(block, "start")
-            >= (comparison_policy.STARTS if comparison else MAX_STARTS)
+            count_reservations(block, "start") >= (policy_mode.STARTS if comparison else MAX_STARTS)
             or count_reservations(block, "attempt")
-            >= (comparison_policy.ATTEMPTS if comparison else MAX_ATTEMPTS)
+            >= (policy_mode.ATTEMPTS if comparison else MAX_ATTEMPTS)
         ):
             raise ValueError("existing block counters exhausted")
         if (
@@ -1034,17 +1280,23 @@ def guardian(root, *, prepare_only=False, comparison=False):
         if comparison:
             # Separate explicit new allowance. Prior block remains immutable and
             # actual global ledger must include its terminal consumption.
-            current = authorization["representation_comparison"]
-            expected_comparison = {
-                "block_id": comparison_policy.BLOCK_ID,
-                "historical_actual_seconds": comparison_policy.BASELINE,
-                "maximum_new_starts": 1,
-                "maximum_new_attempts": 4,
-                "maximum_additional_seconds": 1200,
-                "permitted_variants": ["A", "B", "C"],
-                "fourth_call_requires_evidence_supported_repair": True,
-                "ordinary_execution_authorized": False,
-            }
+            current = authorization[
+                "semantic_interface_validation" if semantic else "representation_comparison"
+            ]
+            expected_comparison = (
+                SEMANTIC_SESSION
+                if semantic
+                else {
+                    "block_id": comparison_policy.BLOCK_ID,
+                    "historical_actual_seconds": comparison_policy.BASELINE,
+                    "maximum_new_starts": 1,
+                    "maximum_new_attempts": 4,
+                    "maximum_additional_seconds": 1200,
+                    "permitted_variants": ["A", "B", "C"],
+                    "fourth_call_requires_evidence_supported_repair": True,
+                    "ordinary_execution_authorized": False,
+                }
+            )
             if current != expected_comparison:
                 raise ValueError("comparison authorization differs from tested limits")
         binding = {
@@ -1059,7 +1311,9 @@ def guardian(root, *, prepare_only=False, comparison=False):
         command = [sys.executable, __file__, "--controller", str(run)]
         if prepare_only:
             command.append("--prepare-only")
-        if comparison:
+        if semantic:
+            command.append("--semantic")
+        elif comparison:
             command.append("--comparison")
         child = subprocess.Popen(command, cwd=root)
         cpu_deadline = time.monotonic() + 300
@@ -1149,6 +1403,7 @@ if __name__ == "__main__":
     parser.add_argument("--controller", type=Path)
     parser.add_argument("--prepare-only", action="store_true")
     parser.add_argument("--comparison", action="store_true")
+    parser.add_argument("--semantic", action="store_true")
     args = parser.parse_args()
     root = Path.cwd()
     if args.controller:
@@ -1158,10 +1413,11 @@ if __name__ == "__main__":
             args.controller,
             prepare_only=args.prepare_only,
             comparison=args.comparison,
+            semantic=args.semantic,
         )
     elif args.prepare_only:
-        guardian(root, prepare_only=True, comparison=args.comparison)
+        guardian(root, prepare_only=True, comparison=args.comparison, semantic=args.semantic)
     elif args.execute:
-        guardian(root, comparison=args.comparison)
+        guardian(root, comparison=args.comparison, semantic=args.semantic)
     else:
         parser.error("--execute is required; no service is started by importing")

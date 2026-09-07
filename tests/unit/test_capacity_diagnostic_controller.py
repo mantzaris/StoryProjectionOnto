@@ -27,6 +27,52 @@ def test_stage_caps_preserve_whole_deadline_and_shutdown():
         )
 
 
+def test_semantic_session_limits_are_new_and_preserve_every_historical_second():
+    s = driver.SEMANTIC_SESSION
+    assert s["historical_actual_seconds"] == 5363.502630
+    assert s["global_maximum_seconds"] == s["historical_actual_seconds"] + 1100
+    assert driver.semantic_session_admit(5363.502630, 0, 0, starting=True, seconds=1035)
+    for args in (
+        dict(actual=5363.502629, starts=0, attempts=0, seconds=0),
+        dict(actual=5363.502630, starts=1, attempts=0, starting=True, seconds=0),
+        dict(actual=5363.502630, starts=1, attempts=3, generating=True, seconds=0),
+        dict(actual=6400, starts=1, attempts=2, generating=True, seconds=4),
+    ):
+        with pytest.raises(ValueError):
+            driver.semantic_session_admit(**args)
+    limit, whole = driver.stage_deadline(
+        started=100, now_monotonic=1000, prior_block_seconds=0, stage_seconds=180, semantic=True
+    )
+    assert whole == 1195 and limit == 1135
+    assert driver.generation_watchdog(limit - 1000, 180) == 130
+    assert (
+        driver.read(ROOT / "configs/study/output_capacity_recovery.json")[
+            "semantic_interface_validation"
+        ]
+        == s
+    )
+
+
+def test_semantic_retry_never_uses_scorer_diagnostics():
+    assert (
+        driver.prepare_structural_semantic_retry(
+            None,
+            {
+                "stage": "schema_or_structural_validation",
+                "message": "semantic grounding audit failed: secret",
+            },
+            None,
+        )
+        is None
+    )
+    assert (
+        driver.prepare_structural_semantic_retry(
+            None, {"stage": "client", "message": "HTTP timeout"}, None
+        )
+        is None
+    )
+
+
 def test_reservations_survive_new_run_name(tmp_path):
     driver.immutable(tmp_path / "start-01.json", {"run": "old"})
     driver.immutable(tmp_path / "attempt-01.json", {"run": "old"})

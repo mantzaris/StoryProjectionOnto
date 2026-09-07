@@ -3,7 +3,8 @@
 This is the user-authorized CPU diagnostic interface and deterministic adapter,
 not an activated study/held-out protocol. The existing C1/C2/FixedSelect builders,
 transport, sampler, scheduling, accounting and scientific validators are unchanged.
-No GPU start is authorized or performed by this patch. The model, tokenizer,
+The initial CPU-only patch performed no GPU start. The subsequent explicitly
+authorized small live validation is bounded as recorded below. The model, tokenizer,
 non-thinking template, sampling family and 12,288-token context remain pinned.
 
 ## Separation of model decisions and runtime facts
@@ -130,6 +131,31 @@ they are diagnostic checks, not retrospective acceptance. The original A/B/C
 outcomes and artifacts are preserved.
 
 ## Activation boundary and next live proposal
+
+### Approved small validation session, 2026-09-07
+
+The existing controller's `--semantic` mode implements the user's subsequent
+authorization: one new start, at most three small attempts, at most 1,100 new
+allocated seconds, preserving 5,363.502630 historical seconds. Its global ceiling
+is 6,463.502630 seconds, not a reset of earlier blocks. Startup/live/generation/
+validation/shutdown/guard caps are 360/15/180 per call/30/60/5 seconds; the whole
+deadline takes precedence. Only complete-run forecast admission is excepted.
+The 33,660 scheduled and strict 36,000 actual limits remain unchanged.
+
+Both requests are prepared before allocation. The first is the frozen request
+below. The second uses only development evidence `ev-03` (mechanic Ash repairs
+the river pump while courier Lio remains at North Gate), selected before seeing
+any first-call output. It runs only after first-task scientific acceptance. The
+same semantic schema policy, tokenizer, settings and output allowance apply.
+There are no full C1, FixedSelect, ordinary or held-out calls in this mode.
+
+A remaining call may repair an observed schema/canonical structural defect by
+versioning the prompt with that exact error. Scorer-only grounding feedback is
+never supplied. No identical blind retry, semantic default, authored answer or
+new startup is permitted. Every attempt has its own restricted request, response,
+outcome and repair lineage; these are new diagnostics, not historical reserve
+slots or confirmatory results. After useful calls stop, the service shuts down.
+The existing guardian and repaired resource monitor enforce these bounds.
 
 Final CPU verification is backed up under
 `artifacts/restricted/semantic-interface.0TerjX/verified/`. The exact readable
