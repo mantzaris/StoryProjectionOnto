@@ -60,6 +60,50 @@ from story_projection_onto.evidence import build_evidence_snapshot
 BASE = datetime(2026, 9, 3, 10, 0, tzinfo=UTC)
 
 
+@pytest.mark.parametrize("left,right", [("Gate 1", "Gate 2"), ("Turn 17", "Turn 18"), ("R2", "R3")])
+def test_entity_identity_normalization_preserves_distinguishing_numbers(left, right):
+    from story_projection_onto.conditions.c0 import _normalized_surface
+
+    assert _normalized_surface(left, frozenset()) != _normalized_surface(right, frozenset())
+    assert _normalized_surface("Dr. " + left, frozenset({"dr"})) == left.casefold()
+
+
+def test_prequery_identity_keeps_two_numbered_places_separate():
+    text = "Mira visited Gate 1. Taro visited Gate 2."
+    record = EvidenceRecord(
+        evidence_id="ev-numbers",
+        passage_id="p-numbers",
+        text=text,
+        text_hash=digest(text),
+        discourse_position=DiscoursePosition(passage_order=1),
+        mention_candidates=tuple(
+            mention("ev-numbers", f"m-{i}", text, name, "place")
+            for i, name in enumerate(("Gate 1", "Gate 2"))
+        ),
+        provenance=ProvenanceReference(
+            provenance_id="prov-numbers",
+            evidence_id="ev-numbers",
+            extraction_method="fixture",
+            locator="fixture:numbers",
+            confidence=1,
+        ),
+        confidence=1,
+        release_class=ReleaseClass.PUBLIC,
+    )
+    builder = ClassicalPreBuilder()
+    draft = builder._construct_draft(
+        evidence_by_id={record.evidence_id: record},
+        analyses=(builder.candidate_backend.analyze(record, builder.config),),
+        upper_ontology=upper(),
+        budgets=semantic_budgets(),
+        constructed_at=BASE,
+    )
+    groups = [set(e.supported_mention_candidate_ids) for e in draft.instance_graph.entities]
+    assert any("m-0" in group for group in groups)
+    assert any("m-1" in group for group in groups)
+    assert not any({"m-0", "m-1"} <= group for group in groups)
+
+
 @pytest.mark.parametrize(
     "verb,expected", [("reported", "reported"), ("denied", "denied"), ("believed", "believed")]
 )

@@ -79,6 +79,7 @@ from story_projection_onto.validate import (
 )
 
 _WORD_PATTERN = re.compile(r"[A-Za-z][A-Za-z'-]*")
+_IDENTITY_TOKEN_PATTERN = re.compile(r"[A-Za-z0-9]+(?:['-][A-Za-z0-9]+)*")
 _NAME_PATTERN = re.compile(
     r"\b(?:(?:Captain|Commander|Doctor|Dr|King|Lady|Lord|Queen|Ser)\.?\s+)?"
     r"[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}\b"
@@ -145,7 +146,10 @@ def _words(value: str) -> frozenset[str]:
 
 
 def _normalized_surface(surface: str, honorifics: frozenset[str]) -> str:
-    tokens = [token.casefold().rstrip(".") for token in _WORD_PATTERN.findall(surface)]
+    # Numbers are identity-bearing (Gate 1 != Gate 2, R2 != R3). The lexical
+    # relevance tokenizer intentionally ignores numbers; entity normalization
+    # must not reuse that lossy representation.
+    tokens = [token.casefold().rstrip(".") for token in _IDENTITY_TOKEN_PATTERN.findall(surface)]
     while tokens and tokens[0] in honorifics:
         tokens.pop(0)
     return " ".join(tokens)
