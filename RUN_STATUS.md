@@ -47,7 +47,7 @@ inside the historical reserve, counted once. No invalid throughput is credited.
 The original nine-hour target was not met; neither approved ceiling changed.
 
 Sampled block peaks: **22,793,945,088 VRAM bytes**, **3,159,506,944 process-tree
-RAM bytes**, eight workers. Current block-reported project occupancy is
+RAM bytes**, eight workers. Last measured block-reported project occupancy is
 **16,429,932,544 bytes**, below 25 GB with protected headroom. Ledger apparent
 storage samples use a different filesystem measure and are not substituted for
 this conservative occupancy check.
@@ -66,7 +66,7 @@ Held-out review remains mandatory. The readable reviewer package remains at
 in `docs/INDEPENDENT_REVIEW_HANDOFF.md`. No human judgments were fabricated.
 
 Checkpoint commits: `930d69b` (bounded controller), `7e6d95d` (observed whitespace
-repair); subsequent tested CPU repair checkpoint follows in Git history.
+repair), and **`73d8c4a`** (last verified implementation/CPU repair and handoff).
 Focused final regression results: **119 passed** (92 codec/controller/C0/metrics/
 actual-client checks and 27 selected runtime/acceptance/shutdown checks).
 See `docs/CAPACITY_DIAGNOSTIC_OUTCOME.md` for the itemized outcome and proposed
