@@ -70,6 +70,7 @@ from story_projection_onto.development_adapter import (
 )
 from story_projection_onto.development_artifacts import (
     FALLBACK_V9_RECOVERY_SERVICE_START_EVENT_IDS,
+    FALLBACK_V10_RECOVERY_SERVICE_START_EVENT_IDS,
     HISTORICAL_SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
     SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
     DevelopmentAssessmentBundle,
@@ -170,25 +171,19 @@ def _validate_recovery_service_start_binding(
     hashes = (retry_amendment_sha256, second_recovery_overlay_sha256)
     if any(
         value is not None
-        and (
-            len(value) != 64
-            or any(character not in "0123456789abcdef" for character in value)
-        )
+        and (len(value) != 64 or any(character not in "0123456789abcdef" for character in value))
         for value in hashes
     ):
         raise DevelopmentContinuationError("GPU recovery overlay hash is invalid")
     if len(set(identifiers)) != len(identifiers):
         raise DevelopmentContinuationError("GPU recovery service IDs must be unique")
     if second_recovery_overlay_sha256 is not None:
-        if (
-            retry_amendment_sha256 is None
-            or identifiers
-            not in {
-                HISTORICAL_SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
-                SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
-                FALLBACK_V9_RECOVERY_SERVICE_START_EVENT_IDS,
-            }
-        ):
+        if retry_amendment_sha256 is None or identifiers not in {
+            HISTORICAL_SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
+            SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
+            FALLBACK_V9_RECOVERY_SERVICE_START_EVENT_IDS,
+            FALLBACK_V10_RECOVERY_SERVICE_START_EVENT_IDS,
+        }:
             raise DevelopmentContinuationError(
                 "second recovery requires an exact ordered v3+v7[/v8][/v9] service lineage"
             )

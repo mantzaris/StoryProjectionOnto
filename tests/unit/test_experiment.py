@@ -85,7 +85,9 @@ def test_resource_limits_are_typed_and_preserve_strict_ordering() -> None:
     limits = ResourceLimits.load(LIMITS_PATH)
 
     assert limits.preferred_forecast_gpu_seconds == 8.25 * 3600
-    assert limits.scheduled_gpu_seconds == 9 * 3600
+    # Explicit user-approved resource-feasibility amendment; historical nine-
+    # hour target remains in the amendment record, not a rewritten prior result.
+    assert limits.scheduled_gpu_seconds == 33660
     assert limits.hard_gpu_seconds == 10 * 3600
     assert limits.model_cpu_offload_allowed is False
     assert limits.generation_concurrency == 1

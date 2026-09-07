@@ -1,0 +1,20 @@
+{
+  "kind": "user_authorized_resource_feasibility_amendment",
+  "run_id": "fallback-qwen3-8b-awq-development-v10",
+  "authorized_by": "user",
+  "authorization_basis": "The user approved 33,660 scheduled seconds, preserving all prior allocation and the strict actual stop before 36,000 seconds, and exactly one new service start for unchanged fallback-c1-01. On failure stop with no further startup. On C1 success and fresh admission continue acceptance and development on the same service. Held-out execution remains blocked on independent review.",
+  "original_scheduled_seconds": 32400,
+  "amended_scheduled_seconds": 33660,
+  "strict_hard_seconds": 36000,
+  "original_nine_hour_target_met": false,
+  "authorized_service_starts": 1,
+  "additional_inference_slots": 0,
+  "earmarked_existing_reserve_long_slots": 1,
+  "stage_caps_seconds": {"startup": 300, "live_checks": 120, "c1_retry": 240, "validation_drain": 120, "shutdown": 60},
+  "whole_recovery_seconds": 840,
+  "model_revision": "4da05a8edb55c6046cce958586c33b61da07bb79",
+  "request_sha256": "190ee0e2f382bc4d356e5ce24e543ad7cd963aae0ad596ba5a4c310c447a29d5",
+  "historical_allocated_seconds": 2936.238858,
+  "historical_ledger_sha256": "53e4341b14f53dce48482cd765eb4654777df76061ff4948e0ea9bcf8a93dc5c",
+  "historical_result_sha256": "dbd5c1f5defccba571879548b152de59ffd59e90e5e1a6a6ea6f22eede2a03dc"
+}

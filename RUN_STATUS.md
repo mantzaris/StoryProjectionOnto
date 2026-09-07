@@ -1,6 +1,39 @@
 # Run status
 
-Updated: 2026-09-06 23:57 UTC
+Updated: 2026-09-07 — V10 authorized, engineering/preflight in progress
+
+## Approved scheduled-resource amendment and single V10 recovery
+
+The user approved **33,660 scheduled seconds (9.35h)** with the unchanged strict
+actual stop before **36,000 seconds**. The original nine-hour scheduled target
+was **not met**. All historical allocation and failed attempts remain charged.
+See `docs/RESOURCE_FEASIBILITY_AMENDMENT_V10.md` and
+`configs/study/bounded_recovery_v10.json` for the exact permission and caps.
+
+All-in prelaunch bound: 2,936.238858 + 29,987.34434394846 − 240 + 840 =
+**33,523.58320194846 seconds**, leaving **136.41679805154 seconds** scheduled
+reserve. The existing 240s reserve slot is earmarked once; no inference slots or
+mandatory comparisons are removed or added. No unmeasured speed saving is used.
+
+The repaired source is being focused-tested for one new bounded service start.
+The final focused batches pass 97 checks (75 unit/controller and 22 real HTTP).
+Earlier fixture/debug and historical-budget mismatch logs remain preserved.
+Startup/live checks/C1/validation-drain/shutdown caps are 300/120/240/120/60s,
+with a whole 840s recovery deadline independently monitored by the guardian.
+C1 failure requires shutdown without repair or another startup. C1 success is
+not complete acceptance; ordinary continuation requires fresh all-in admission
+and every remaining acceptance/development gate. Held-out work still awaits
+independent human review. No new GPU allocation has occurred as of this entry.
+
+Last tested local repair commit: `1b00c4f`. The existing remote project is idle;
+the canonical terminal V9 ledger still hashes to
+`53e4341b14f53dce48482cd765eb4654777df76061ff4948e0ea9bcf8a93dc5c`.
+The exact prospective operator command after deployment and passing preflight is
+`PYTHONPATH=src .venv/bin/python scripts/control_bounded_recovery.py launch`.
+This is a one-shot command, not permission to restart after a terminal result.
+
+The following sections are preserved historical status, superseded where the
+new explicit amendment or authorization applies.
 
 ## CPU-only repair completed locally — GPU remains unauthorized
 

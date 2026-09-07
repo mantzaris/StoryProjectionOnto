@@ -32,6 +32,10 @@ FALLBACK_V9_RECOVERY_SERVICE_START_EVENT_IDS = (
     *SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
     "fallback-qwen3-8b-awq-development-v9-service-start-001",
 )
+FALLBACK_V10_RECOVERY_SERVICE_START_EVENT_IDS = (
+    *FALLBACK_V9_RECOVERY_SERVICE_START_EVENT_IDS,
+    "fallback-qwen3-8b-awq-development-v10-service-start-001",
+)
 
 
 class LogicalCASReference(ImmutableRecord):
@@ -368,23 +372,18 @@ class DevelopmentForecastReceipt(ImmutableRecord):
         ):
             raise ValueError("recovery service-start overlay count is inconsistent")
         if self.second_recovery_overlay_sha256 is not None:
-            if (
-                self.retry_amendment_sha256 is None
-                or self.recovery_service_start_event_ids
-                not in {
-                    HISTORICAL_SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
-                    SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
-                    FALLBACK_V9_RECOVERY_SERVICE_START_EVENT_IDS,
-                }
-            ):
+            if self.retry_amendment_sha256 is None or self.recovery_service_start_event_ids not in {
+                HISTORICAL_SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
+                SECOND_FALLBACK_RECOVERY_SERVICE_START_EVENT_IDS,
+                FALLBACK_V9_RECOVERY_SERVICE_START_EVENT_IDS,
+                FALLBACK_V10_RECOVERY_SERVICE_START_EVENT_IDS,
+            }:
                 raise ValueError(
                     "second recovery must bind an exact ordered v3+v7[/v8][/v9] lineage"
                 )
-        elif (
-            len(self.recovery_service_start_event_ids) > 1
-            or bool(self.retry_amendment_sha256)
-            != bool(self.authorized_additional_service_start_events)
-        ):
+        elif len(self.recovery_service_start_event_ids) > 1 or bool(
+            self.retry_amendment_sha256
+        ) != bool(self.authorized_additional_service_start_events):
             raise ValueError("ordinary recovery must bind at most one service start")
         if len(set(self.recovery_service_start_event_ids)) != len(
             self.recovery_service_start_event_ids
