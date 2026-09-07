@@ -1,5 +1,65 @@
 # C0 development competence: denominator audit
 
+## Current decision: keep the denominator; clarify the competence scope
+
+The preserved current result is **29/269 precision, 29/84 recall, failed**.
+This CPU interface change does not rescore it, change a threshold, filter a
+prediction, or change a reference. The older 31/281 record below is historical.
+
+| Quantity | Prediction universe | Appropriate treatment of supported background |
+|---|---|---|
+| Query-blind extraction competence | Proposed: four sealed preconstructions, once per world | Assess against a complete direct-evidence reference, without query relevance |
+| Context-dependent projection precision | Current twelve final post-query projections | A supported but context-excluded assertion can be a false positive |
+| Unsupported-extraction rate | Explicit evidence-support audit of predictions | Absence from contextual gold is not proof of unsupportedness |
+| Reference eligibility/coverage | Audit of target inclusion, separately from predictions | Do not repair coverage by dropping predictions |
+
+### Verified execution route and authoritative scope
+
+`DevelopmentScientificAssessmentProvider.__call__` loads preconstructions to
+verify provenance, but passes `_load_cpu_projections(...)` into `_assess_c0`.
+`_load_cpu_projections` requires exactly twelve C0 and twelve C1 **final
+projections**, keyed by condition, unit and query ordinal. `_assess_c0` reads
+`item.projection.instance_graph`, not `ConditionPreparation.ontology_draft`.
+It obtains query-specific gold, applies `build_alignment_plan`'s relevance
+filter, then `_direct_assertion_ids`' evidence filter, and adds **all** emitted
+assertions to `predicted_count`. Strict matched assertions form the numerator.
+There is no route that currently computes this gate from four preconstructions.
+
+Methodology §12 defines contextual strict precision and requires endpoint/role,
+predicate, direction, essential story/intrinsic-validity, holder and supporting
+evidence agreement. That definition justifies the all-projection denominator;
+supported but irrelevant assertions must not be removed to improve it.
+Methodology §20(4) and implementation §13.2 name the separate competence target
+as “directly stated development qualified assertions,” with .85/.70 thresholds
+and fixture-family coverage. They do **not** expressly specify whether that
+competence denominator is preconstruction or contextual final output. C0's
+pre-query construction requirement (§4/§7.1) does not by itself settle the
+evaluation universe. Consequently a move to preconstruction scoring is an
+explicit scope clarification/amendment, not a silent routing bug fix.
+
+The causal/precedence eligibility issue is narrower: the generator explicitly
+writes separate witness sentences and compiles their supported assertions, but
+`ScorerWorldArtifact.fact_evidence_ids` serializes only `WorldSpec.facts`, not
+`NarrativeProducts.causal_evidence_ids` or `temporal_evidence_ids`.
+`_direct_assertion_ids` cannot see those witness maps. The four observed relevant
+causal targets are excluded for that reason, not because the prediction is
+unsupported. The proposed correction is to materialize a complete **source-bound
+direct-witness eligibility map**, including those explicit witness families,
+and use it condition-independently. Do not infer directness from matching a C0
+prediction, from an assertion's name, or merely from citation overlap. This
+requires a declared reference-eligibility revision and new scoring identity;
+the existing records remain immutable. No such target-universe change is
+activated in this CPU diagnostic-interface patch.
+
+Recommendation: approve the separate preconstruction competence scope and the
+source-bound eligibility-map revision together after reference coverage review.
+Retain contextual strict F1, every emitted projection assertion in its precision
+denominator, all strict temporal rules, and the existing failed calibration as
+a separately labeled historical result. Neither support-only filtering nor an
+improved-looking recalculation can establish baseline competence.
+
+## Earlier audit evidence and preserved calibration history
+
 No gold, metric scope or competence threshold is changed by this audit.
 Implementation plan §13.2 and methodology §20 require ≥.85 precision and ≥.70
 recall on **directly stated development qualified assertions**, explicit fixture

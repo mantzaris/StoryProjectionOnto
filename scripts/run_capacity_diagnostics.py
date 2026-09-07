@@ -326,14 +326,52 @@ def validate_small_diagnostic(result, fixture, oracle_evidence):
     supplied record is admissible to the structural validator. Neither oracle
     nor authored graphs are rendered into the request.
     """
+    draft = OntologyDraft.model_validate(result.parsed_object)
+    if draft.budget_accounting.input_tokens != 0 or draft.budget_accounting.output_tokens != 0:
+        raise ValueError("small diagnostic must preserve raw token sentinels")
+    return _validate_small_canonical_draft(draft, result, fixture, oracle_evidence)
+
+
+def validate_named_semantic_diagnostic(result, fixture, oracle_evidence, execution):
+    """Diagnostic adapter entry point only; no scheduler/counter/GPU route activated.
+
+    Retain the identical scientific checks, after runtime metadata reconstruction.
+    The old production parser above still requires its original raw sentinels.
+    """
+    from story_projection_onto.semantic_generation import reconstruct
+
+    if (
+        result.finish_reason != "stop"
+        or execution.input_tokens != result.prompt_tokens
+        or execution.output_tokens != result.completion_tokens
+        or execution.request_hash != result.request_hash
+        or execution.response_hash != result.response_sha256
+    ):
+        raise ValueError("semantic diagnostic requires bound response identity and observed usage")
+    adapted = result.diagnostic_journal.validate(
+        "schema_validation",
+        lambda: reconstruct(
+            result.parsed_object,
+            evidence=fixture.evidence,
+            upper=fixture.upper_ontology,
+            execution=execution,
+            small=True,
+        ),
+    )
+    verdict = _validate_small_canonical_draft(adapted.draft, result, fixture, oracle_evidence)
+    return {
+        **verdict,
+        "adapter_provenance": adapted.provenance,
+        "canonical_draft": adapted.draft.model_dump(mode="json"),
+    }
+
+
+def _validate_small_canonical_draft(draft, result, fixture, oracle_evidence):
     from story_projection_onto.scorer_only.acceptance_grounding import (
         audit_acceptance_semantic_grounding,
     )
     from story_projection_onto.validate import validate_draft_structure
 
-    draft = OntologyDraft.model_validate(result.parsed_object)
-    if draft.budget_accounting.input_tokens != 0 or draft.budget_accounting.output_tokens != 0:
-        raise ValueError("small diagnostic must preserve raw token sentinels")
     structural = validate_draft_structure(
         draft=draft,
         upper_ontology=fixture.upper_ontology,
