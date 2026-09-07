@@ -13990,7 +13990,7 @@ def _validate_execution_preflight(
         "contingency_inference_attempts_authorized": 0,
         "contingency_development_calls_authorized": 0,
         "post_start_scientific_work_requires_fresh_scheduled_admission": (
-            hard_contingency_admitted
+            hard_contingency_admitted or options.bounded_recovery_authorization is not None
         ),
         "protected_resource_sample_drain_seconds": float(
             DEFAULT_RESOURCE_SAMPLE_COMPLETION_SECONDS
@@ -14016,7 +14016,10 @@ def _validate_execution_preflight(
             else 0
         ),
         "maximum_inference_attempts": inventory.maximum_inference_attempts,
-        "authorized_retry_inference_attempts": (1 if second_overlay is not None else 0),
+        "authorized_retry_inference_attempts": (
+            1 if second_overlay is not None or options.bounded_recovery_authorization is not None
+            else 0
+        ),
         "additional_unreserved_inference_attempts": 0,
         "checkpoint_absent": True,
         "storage": {
