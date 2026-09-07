@@ -1,8 +1,79 @@
 # Run status
 
-Updated: 2026-09-07 — bounded diagnostics executed; acceptance remains blocked
+Updated: 2026-09-07 15:57 UTC — third start ended at C1 generation watchdog
 
 ## Current verified state
+
+The cumulative feasibility block has used **3/3 service starts, 3/5 attempts,
+and 1,119.715708/1,800 allocated seconds**. All historical allocation is retained.
+**Actual total: 4,347.542032 seconds.** No further start is authorized. The two
+unused attempts and 680.284292 seconds do not grant an additional service start.
+vLLM is physically stopped, GPU idle at 1 MiB, no unresolved allocations or
+service journals; the pod remains active. Held-out execution remains review-gated.
+
+The third start used checkpoint **`6d80893`**, pinned Qwen3-8B-AWQ revision
+`4da05a8edb55c6046cce958586c33b61da07bb79`, unchanged 12,288-token context and
+6,144-token constructive output cap. It activated bounded identifiers, retained
+the working whitespace restriction, and repaired the model-facing format with
+typed tuples, optional-field definitions, enums and readable complete JSON.
+Actual full C1 prompt: **5,902 template-inclusive tokens** (12,046 total reserved).
+See `docs/REPETITIVE_GENERATION_DIAGNOSTIC.md` for the inspected evidence and limits.
+
+Startup passed in **202.155146s**. C1's generation event used **239.981102s** and
+hit the 240-second stage boundary. The raw HTTP journal records a transport
+watchdog exception and **zero received bytes**; there is no HTTP status, completion
+usage, finish reason or generated text to inspect. Thus this is a measured timeout,
+**not evidence of another repetitive response or a semantic-validation failure**.
+The guardian stopped the service in **483.278186s** total allocation for this start.
+It interrupted ordinary outcome bookkeeping; the immutable reservation, request,
+HTTP timeout and recovered GPU event are reconciled in the restricted outcome
+receipt without inventing completion tokens or a completed model-call record.
+
+New observed outputs: **0 complete / 0 schema-valid / 0 scientifically valid**.
+Across the block, C1 has two retained length failures and this timeout; C2,
+FixedSelect and the prepared one-record small diagnostic were not executed.
+Full acceptance, second C2 seed, applicable repair, restart/resume validation and
+all 24 development calls remain incomplete. C2's implementation-only dependence
+on accepted C1 was removed for diagnostics; its empty pre-query inventory remains.
+FixedSelect still requires a genuine accepted and sealed C1 graph.
+
+Conservative remaining mandatory-work proxy: **40,162.013213s**, including all
+267 remaining generation/reserve slots, five main-study service envelopes and
+one pending acceptance/resume envelope. All-in: **44,509.555245s**; deficit versus
+33,660 scheduled seconds: **10,849.555245s**. This is an unmeasured allowance-ratio
+sensitivity, not successful-output p95. Invalid token speed is not credited; no
+required call or historical reserve is removed. Ordinary admission does not pass.
+The original nine-hour target was not met; the strict actual 36,000s stop remains.
+
+Canonical stopped-service ledger SHA-256:
+`5b2218be83f2fe489c9604c8fde34cffecac327c378508ba3f8de90efa7d0ba9`.
+New ignored backup: `artifacts/restricted/repetitive-block-terminal.avLzkF/`.
+The previous local V9 ledger and all older recovery snapshots remain untouched.
+Verification: 19 CAS artifacts, six attempt rows, five completed model-call rows
+plus the reconciled interrupted attempt, 17 GPU events, zero integrity issues.
+Outcome receipt: `artifacts/restricted/repetitive-diagnostic-outcome-v2.json`.
+Sampled block peaks: **22,793,945,088 VRAM bytes**, **3,187,638,272 process-tree RAM
+bytes**, eight workers. Block occupancy remains below 25 GB; apparent-size
+resource samples are a separate measure.
+
+Focused prelaunch tests: **64 passed**; C0/alignment follow-up: **31 passed**.
+Post-timeout controller/codec checks: **41 passed**, overlapping earlier checks.
+A CPU-only five-second exception-bookkeeping margin now separates the client
+watchdog from guardian termination, admitted inside the same whole-block limit;
+it does not extend the inference watchdog. It has not been exercised on a GPU.
+C0 calibration v5 is reused unchanged and still fails competence (precision and
+recall 0.00). Its 63 same-evidence comparisons have 62 validity mismatches, 30
+only in validity. No gold, threshold, or unsupported endpoint was changed.
+
+Next decision: whether to permit one additional service start for the existing
+small evidence-only diagnostic within the remaining cumulative allocation, with
+incremental response capture before any further full-size retry. No startup,
+ordinary acceptance or development is currently admitted. Remote status command:
+`cat artifacts/restricted/output-capacity-recovery-v1/run-20260907T154812161434/guardian-terminal.json`.
+GPU resume is blocked: `scripts/run_capacity_diagnostics.py --execute` correctly
+refuses a fourth start. Do not reset or rename the block to evade this gate.
+
+## Historical state before the cumulative third-start extension
 
 Two real C1 diagnostics ran under the approved **feasibility-only** exception.
 Neither produced complete JSON or reached scientific validation. C2 and

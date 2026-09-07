@@ -12,7 +12,11 @@ import zstandard
 
 from story_projection_onto.ledger_verify import verify_ledger
 from story_projection_onto.manifest import write_json_atomic
-from story_projection_onto.output_capacity_gate import BASELINE_SECONDS, capacity_forecast
+from story_projection_onto.output_capacity_gate import (
+    BASELINE_SECONDS,
+    BLOCK_SECONDS,
+    capacity_forecast,
+)
 
 
 def sha(path):
@@ -33,10 +37,50 @@ def main():
     assert verified.valid
     total = verified.gpu_total_allocated_microseconds / 1e6
     diagnostics = []
-    for path in sorted(block.glob("run-*/capacity-diagnostic-*/outcome.json")):
-        outcome = json.loads(path.read_bytes())
-        if outcome["accepted"]:
-            raise ValueError("successful diagnostics require a fresh class-specific forecast")
+    recorded = [
+        (p, json.loads(p.read_bytes()))
+        for p in sorted(block.glob("run-*/capacity-diagnostic-*/outcome.json"))
+    ]
+    recorded_ids = {d["attempt_id"] for _, d in recorded}
+    # The guardian may stop a controller after its client timeout but before
+    # ordinary outcome bookkeeping. Reconcile from immutable reservation,
+    # request, HTTP journal and recovered GPU event, never fabricate usage.
+    for reservation_path in sorted(block.glob("attempt-*.json")):
+        reservation = json.loads(reservation_path.read_bytes())
+        identity = reservation["attempt_id"]
+        if identity in recorded_ids:
+            continue
+        run = block / reservation["run"]
+        path = run / identity / "outcome.json"
+        terminal = json.loads((run / "guardian-terminal.json").read_bytes())
+        binding = json.loads((run / "binding.json").read_bytes())
+        with sqlite3.connect(f"file:{ledger_path}?mode=ro", uri=True) as connection:
+            allocation = connection.execute(
+                "SELECT allocated_microseconds FROM gpu_events WHERE event_id=?", (identity,)
+            ).fetchone()
+        if allocation is None:
+            raise ValueError("reserved attempt has no evidence of generation allocation")
+        recorded.append(
+            (
+                path,
+                {
+                    "attempt_id": identity,
+                    "condition": reservation["condition"],
+                    "request_hash": reservation["request_hash"],
+                    "configuration_hash": binding["configuration"],
+                    "accepted": False,
+                    "generation_event_seconds": allocation[0] / 1e6,
+                    "failure": {
+                        "stage": "guardian_generation_deadline",
+                        "message": terminal["reason"],
+                        "completion_tokens": None,
+                    },
+                    "reconciled_incomplete_controller_record": True,
+                    "guardian_terminal_sha256": sha(run / "guardian-terminal.json"),
+                },
+            )
+        )
+    for path, outcome in recorded:
         matches = list(
             path.parent.parent.glob("http/" + outcome["request_hash"][:16] + "-*/events.jsonl")
         )
@@ -54,11 +98,20 @@ def main():
                 assert event["offset"] == sum(map(len, chunks))
                 chunks.append(raw)
         body = b"".join(chunks)
-        complete = next(e for e in events if e["event"] == "response_complete")
-        assert hashlib.sha256(body).hexdigest() == complete["response_sha256"]
-        response = json.loads(body)
-        choice = response["choices"][0]
-        text = choice["message"]["content"]
+        complete = next((e for e in events if e["event"] == "response_complete"), None)
+        if complete is not None:
+            assert hashlib.sha256(body).hexdigest() == complete["response_sha256"]
+        try:
+            response = json.loads(body)
+            choice = response["choices"][0]
+            text = choice["message"]["content"]
+        except (ValueError, KeyError, IndexError, TypeError):
+            response, choice, text = {}, {}, ""
+        try:
+            json.loads(text)
+            json_complete = True
+        except ValueError:
+            json_complete = False
         diagnostics.append(
             {
                 "attempt_id": outcome["attempt_id"],
@@ -66,22 +119,35 @@ def main():
                 "request_hash": outcome["request_hash"],
                 "configuration_hash": outcome["configuration_hash"],
                 "accepted": outcome["accepted"],
-                "usage": response["usage"],
-                "finish_reason": choice["finish_reason"],
-                "http_complete": True,
+                "diagnostic_kind": outcome.get("diagnostic_kind", "c1"),
+                "production_form": outcome.get("production_form", True),
+                "complete_json": json_complete,
+                "canonical_schema_valid": outcome.get("canonical_schema_valid", False),
+                "scientifically_valid": outcome.get("scientifically_valid", False),
+                "usage": response.get("usage"),
+                "finish_reason": choice.get("finish_reason"),
+                "http_complete": complete is not None,
+                "received_bytes": len(body),
                 "http_status": next(
-                    e["http_status"] for e in events if e["event"] == "response_headers"
+                    (e["http_status"] for e in events if e["event"] == "response_headers"), None
                 ),
                 "failure_stage": next(
-                    e["stage"] for e in reversed(events) if e["event"] == "failure"
+                    (e["stage"] for e in reversed(events) if e["event"] == "failure"),
+                    (outcome.get("failure") or {}).get("stage"),
                 ),
+                "failure": outcome.get("failure"),
+                "reconciled_incomplete_controller_record": outcome.get(
+                    "reconciled_incomplete_controller_record", False
+                ),
+                "guardian_terminal_sha256": outcome.get("guardian_terminal_sha256"),
                 "generation_seconds": outcome["generation_event_seconds"],
-                "content_characters": len(text),
-                "whitespace_characters": sum(c.isspace() for c in text),
-                "newlines": text.count("\n"),
+                "model_content_available": bool(response),
+                "content_characters": len(text) if response else None,
+                "whitespace_characters": sum(c.isspace() for c in text) if response else None,
+                "newlines": text.count("\n") if response else None,
                 "prefix": text[:120],
-                "response_sha256": complete["response_sha256"],
-                "schema_and_scientific_validation": "not_reached",
+                "response_sha256": None if complete is None else complete["response_sha256"],
+                "validation": outcome.get("validation"),
             }
         )
     inventory = json.loads(args.v10_terminal.read_bytes())["remaining_inventory_rows"]
@@ -121,12 +187,27 @@ def main():
         "ledger_sha256": sha(ledger_path),
         "ledger_verification": verified.to_dict(),
         "diagnostics": diagnostics,
-        "accepted_by_condition": {"C1": 0, "C2": 0, "A-FixedSelect": 0},
-        "attempted_by_condition": {"C1": len(diagnostics), "C2": 0, "A-FixedSelect": 0},
+        "accepted_by_condition": {
+            c: sum(d["condition"] == c and d["accepted"] for d in diagnostics)
+            for c in ("C1", "C2", "A-FixedSelect")
+        },
+        "attempted_by_condition": {
+            c: sum(d["condition"] == c for d in diagnostics) for c in ("C1", "C2", "A-FixedSelect")
+        },
+        "production_form_outcomes": {
+            c: {
+                key: sum(
+                    d["condition"] == c and d["production_form"] and d[key] for d in diagnostics
+                )
+                for key in ("complete_json", "canonical_schema_valid", "scientifically_valid")
+            }
+            for c in ("C1", "C2", "A-FixedSelect")
+        },
+        "small_diagnostic_outcomes": [d for d in diagnostics if not d["production_form"]],
         "actual_allocated_seconds": total,
         "preserved_pre_block_seconds": BASELINE_SECONDS,
         "block_allocated_seconds": total - BASELINE_SECONDS,
-        "block_remaining_seconds": 1200 - (total - BASELINE_SECONDS),
+        "block_remaining_seconds": BLOCK_SECONDS - (total - BASELINE_SECONDS),
         "block_start_count": len(list(block.glob("start-*.json"))),
         "block_attempt_count": len(list(block.glob("attempt-*.json"))),
         "measured_load_seconds": load,
@@ -142,7 +223,22 @@ def main():
             "all_in_seconds": total + remaining,
             "scheduled_deficit_seconds": total + remaining - 33660,
             "hard_deficit_seconds": total + remaining - 36000,
-            "valid_generation_latency_samples": 0,
+            "valid_generation_latency_samples": sum(
+                d["scientifically_valid"] and d["production_form"] for d in diagnostics
+            ),
+            "valid_generation_seconds_by_condition": {
+                c: [
+                    d["generation_seconds"]
+                    for d in diagnostics
+                    if d["condition"] == c and d["scientifically_valid"] and d["production_form"]
+                ]
+                for c in ("C1", "C2", "A-FixedSelect")
+            },
+            "measurement_policy": (
+                "Keep the conservative unmeasured per-class sensitivity until complete "
+                "scientific acceptance; isolated diagnostics and small examples do not "
+                "establish p95 or justify transferring C1 speed to C2/FixedSelect."
+            ),
             "valid_completion_p95_established": False,
             "generation_proxy": (
                 "unmeasured allowance-ratio sensitivity capped at unchanged watchdogs"

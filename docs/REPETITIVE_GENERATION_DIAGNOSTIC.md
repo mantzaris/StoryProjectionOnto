@@ -77,3 +77,43 @@ Raw requests, rendered chats, hashes, HTTP fragments, parsing/validation outcome
 resource samples and allocation records stay in ignored restricted storage. The
 CPU preparation check took 39.660042 seconds with zero GPU allocation. CPU checks
 do not prove model comprehension, reliable completion, or successful throughput.
+
+## Actual third-start outcome
+
+The executed request had 5,902 template-inclusive input tokens, 6,144 output tokens
+reserved and unchanged settings. Startup took 202.155146 allocated seconds.
+The client recorded `RuntimeWatchdogTimeout` after 239.981102 seconds, with no
+HTTP status or received response bytes. The guardian's generation deadline then
+stopped the controller and service before ordinary outcome bookkeeping completed.
+The HTTP exception was retained. Total service allocation was 483.278186 seconds;
+the residual 41.141938 seconds includes live checks, bookkeeping and shutdown.
+No output content, completion-token count or finish reason is recoverable from
+this non-streaming request. The ~22.4–22.9 tokens/s server log samples are operational
+observations only, not successful-generation latency or evidence of repetition.
+
+C2, FixedSelect and the small diagnostic were **not executed**. Zero new outputs
+were received complete, schema-valid or scientifically valid. It remains unknown
+whether the representation repair resolves the former degeneration. The evidence
+establishes the earlier prompt information gap and the current generation timeout,
+not a proven model/decoder root cause. The pinned model and scientific validators
+were not changed to obtain a pass.
+
+The stopped-service ledger verifies at 4,347.542032 total seconds. Cumulative block
+use is 3 starts, 3 attempts, 1,119.715708 seconds. The 680.284292 seconds and two
+unused attempts do not authorize another start. Complete remaining forecast stays
+40,162.013213 seconds (unmeasured conservative sensitivity), all-in 44,509.555245,
+10,849.555245 above the amended scheduled ceiling. No ordinary run is admitted.
+
+The interrupted attempt is explicitly reconstructed in the restricted summary
+from its immutable reservation, request, HTTP journal, guardian receipt and GPU
+event. It is not represented as a fabricated completed model-call row. A focused
+CPU repair admits five seconds for exception bookkeeping inside the existing
+whole-block limit, while keeping the inference watchdog unchanged. Forty-one
+overlapping controller/codec tests pass; this repair has not run on a GPU.
+
+The smallest next diagnostic is the already prepared one-record evidence-only
+request, with incremental response capture so a timeout can retain generated
+prefixes. That transport mode must be CPU-tested before use. It would require
+explicit authorization for a fourth cumulative start, not a new block or a
+silent budget increase. Full acceptance, the restart/resume gate, development and
+the independent human review remain outstanding. No new PDF was generated.

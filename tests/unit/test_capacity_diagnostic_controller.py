@@ -52,6 +52,13 @@ def test_failed_c1_does_not_block_distinct_c2_diagnostic_or_supply_a_fixed_fixtu
     assert driver.next_diagnostic(completed=3, accepted_c1=False) is None
 
 
+def test_exception_drain_is_inside_block_and_does_not_expand_inference_watchdog():
+    assert driver.generation_watchdog(245, 240) == 240
+    assert driver.generation_watchdog(110, 240) == 105
+    with pytest.raises(TimeoutError):
+        driver.generation_watchdog(5, 240)
+
+
 def test_guardian_kills_owned_controller_and_adopts_only_for_cleanup(tmp_path, monkeypatch):
     from types import SimpleNamespace
 

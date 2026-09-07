@@ -66,6 +66,7 @@ from story_projection_onto.store import (
 )
 
 BLOCK_ID = "output-capacity-recovery-v1"
+EXCEPTION_DRAIN_SECONDS = 5
 
 
 def now():
@@ -99,6 +100,18 @@ def stage_deadline(*, started, now_monotonic, prior_block_seconds, stage_seconds
     if limit <= now_monotonic:
         raise TimeoutError("block has no allocation left before shutdown reserve")
     return limit, whole
+
+
+def generation_watchdog(stage_remaining, registered_watchdog):
+    """Client expires before the guardian so its failure can reach the ledger.
+
+    The extra CPU bookkeeping margin is admitted inside the SAME whole block,
+    not added to the registered inference watchdog or shutdown reserve.
+    """
+    cap = min(registered_watchdog, stage_remaining - EXCEPTION_DRAIN_SECONDS)
+    if cap <= 0:
+        raise TimeoutError("no diagnostic allocation before exception/shutdown drain")
+    return cap
 
 
 def setup(root, run):
@@ -520,7 +533,7 @@ def controller(root, block, run, *, prepare_only=False):
                 attempts,
             ).admit(
                 remaining_mandatory_seconds=forecast["remaining_forecast_seconds"],
-                stage_seconds=call.watchdog_seconds,
+                stage_seconds=call.watchdog_seconds + EXCEPTION_DRAIN_SECONDS,
                 diagnostic_generation=True,
                 complete_packing=True,
                 feasibility_diagnostic_exception=True,
@@ -576,7 +589,13 @@ def controller(root, block, run, *, prepare_only=False):
             failure = None
             validation = None
             schema_valid = False
-            cap = stage("generation", call.watchdog_seconds)
+            cap = generation_watchdog(
+                stage(
+                    "generation_and_exception_drain",
+                    call.watchdog_seconds + EXCEPTION_DRAIN_SECONDS,
+                ),
+                call.watchdog_seconds,
+            )
             tic = time.monotonic()
             failure_stage = "client"
             try:
@@ -596,6 +615,7 @@ def controller(root, block, run, *, prepare_only=False):
                 generation_seconds = time.monotonic() - tic
                 stage("validation", 120)
                 immutable(attempt_root / "decoded.json", result.parsed_object)
+                failure_stage = "canonical_schema_validation"
                 OntologyDraft.model_validate(result.parsed_object)
                 schema_valid = True
                 failure_stage = "schema_or_structural_validation"

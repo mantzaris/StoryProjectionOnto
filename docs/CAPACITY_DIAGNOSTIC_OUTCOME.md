@@ -1,5 +1,10 @@
 # Bounded capacity diagnostics: measured outcome
 
+Historical two-start outcome. The later cumulative third-start extension and
+its timeout are recorded in `docs/REPETITIVE_GENERATION_DIAGNOSTIC.md` and the
+current top section of `RUN_STATUS.md`. Limits and eligibility below describe
+that earlier checkpoint, not current authority.
+
 Both authorized service starts were executed in the existing block. Two C1
 attempts failed; no C2 or FixedSelect diagnostic was eligible. No output reached
 schema/scientific validation. This is not fallback acceptance or development
