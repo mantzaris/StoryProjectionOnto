@@ -139,7 +139,8 @@ def test_predicate_normalization_is_general_and_validity_does_not_invent_end():
     raw["temporal_clues"] = []
     evidence = EvidenceRecord.model_validate(raw)
     _, validity = _story_and_validity(evidence, (), state_like=True)
-    assert validity.start == 1 and validity.end is None
+    assert validity.kind is TemporalKind.UNKNOWN
+    assert validity.start is None and validity.end is None
 
 
 def test_prequery_reification_requires_shared_candidate_anchor():
@@ -162,6 +163,44 @@ def test_prequery_reification_requires_shared_candidate_anchor():
     )
     assert not prepared.sealed_preontology.draft.instance_graph.events
     assert prepared.sealed_preontology.draft.instance_graph.assertions
+
+
+def test_parser_scratch_alias_is_not_published_as_a_frozen_mention_reference():
+    from story_projection_onto.conditions.c0 import RuleCandidateBackend
+
+    class ScratchAliasBackend:
+        def analyze(self, evidence, config):
+            base = RuleCandidateBackend().analyze(evidence, config)
+            original = base.mentions[0]
+            extra = type(original).model_validate(
+                original.model_dump(exclude={"content_hash"})
+                | {"mention_id": f"scratch-{evidence.evidence_id}"}
+            )
+            return type(base).model_validate(
+                base.model_dump(exclude={"content_hash"}) | {"mentions": (*base.mentions, extra)}
+            )
+
+    snapshot, evidence, _ = snapshot_and_packet()
+    prepared = ClassicalPreBuilder(candidate_backend=ScratchAliasBackend()).prepare(
+        snapshot=snapshot,
+        evidence=evidence,
+        upper_ontology=upper(),
+        preconstruction_budgets=semantic_budgets(),
+        constructed_at=BASE + timedelta(minutes=2),
+        sealed_at=BASE + timedelta(minutes=3),
+    )
+    draft = prepared.sealed_preontology.draft
+    frozen = {m.candidate_id for e in evidence for m in e.mention_candidates}
+    assert draft.instance_graph.entities and draft.instance_graph.assertions
+    assert all(
+        set(entity.supported_mention_candidate_ids) <= frozen
+        for entity in draft.instance_graph.entities
+    )
+    assert not any(
+        identifier.startswith("scratch-")
+        for decision in draft.decisions
+        for identifier in decision.input_object_ids
+    )
 
 
 def digest(value: str) -> str:
@@ -478,7 +517,10 @@ def test_c0_cpu_diagnostic_parses_development_story_step_and_validity_forms() ->
     # This is a deterministic parser diagnostic, not the registered C0
     # competence gate (which is produced only after the complete development
     # block has terminal ITT rows).
-    text = "At story step 1, Mira served as Harbor Warden for Harbor Guild through step 4."
+    text = (
+        "At story step 1, Mira served as Harbor Warden for Harbor Guild. "
+        "This relation held from story step 1 through story step 4."
+    )
     mira = mention("story-step-evidence", "m-story-mira", text, "Mira", "person")
     guild = mention(
         "story-step-evidence",

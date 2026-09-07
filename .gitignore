@@ -19,6 +19,9 @@ artifacts/restricted/
 artifacts/blobs/
 artifacts/tmp/
 artifacts/quarantine/
+# Generated scorer interpretations and human-review inputs stay restricted.
+# Prior versions remain in Git history and the semantic-amendment backup.
+data/synthetic/scorer_only/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal

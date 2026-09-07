@@ -35,6 +35,42 @@ class TemporalValidationStatus(StrEnum):
     CONTRADICTION = "contradiction"
 
 
+def query_time_visibility(
+    story_time: StoryTime, validity_time: ValidityTime, query_time: StoryTime
+) -> bool | None:
+    """Common, non-mutating query restriction for every condition.
+
+    Explicit intrinsic validity can extend an observation's visibility. Unknown
+    validity cannot establish exclusion outside its observed story occurrence;
+    it remains undetermined, not asserted persistent. None means undetermined.
+    This is selection/display logic, not ontology construction or qualification.
+    """
+    extent = (
+        validity_time
+        if validity_time.kind in {TemporalKind.POINT, TemporalKind.INTERVAL}
+        else story_time
+    )
+
+    def bounds(value: StoryTime | ValidityTime) -> tuple[float, float] | None:
+        if value.kind is TemporalKind.POINT:
+            assert value.point is not None
+            return value.point, value.point
+        if value.kind is TemporalKind.INTERVAL:
+            return (
+                float("-inf") if value.start is None else value.start,
+                float("inf") if value.end is None else value.end,
+            )
+        return None
+
+    source, query = bounds(extent), bounds(query_time)
+    if source is None or query is None:
+        return None
+    overlaps = max(source[0], query[0]) <= min(source[1], query[1])
+    if not overlaps and validity_time.kind is TemporalKind.UNKNOWN:
+        return None
+    return overlaps
+
+
 class TemporalDiagnosticCode(StrEnum):
     INVALID_INTERVAL_BOUNDS = "invalid_interval_bounds"
     INVALID_EXPLICIT_TIME = "invalid_explicit_time"

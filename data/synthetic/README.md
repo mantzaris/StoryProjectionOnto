@@ -1,3 +1,5 @@
-# Synthetic benchmark v3
+# Synthetic benchmark v4: evidence-grounded intrinsic validity
+
+Query visibility never changes intrinsic assertion validity. Exact office and event-duration targets are stated in shared query-blind evidence; otherwise unstated validity bounds remain unknown. Scorer files and human review materials are restricted pending review and study completion.
 
 Each directory below `condition_inputs/neutral_evidence` contains one query-blind full-evidence artifact and a certificate proving its deterministic projection to the corresponding model-visible artifact. It contains no query or scorer metadata. Each directory below `model_visible/prequery_stages` is an exact evidence-only C1 worker sandbox. Each directory below `model_visible/query_stages` contains the same sealed evidence and exactly one revealed query. Workers receive one directory, never the corpus root. Split routing, contexts, formal worlds, gold, mutations, reviewer bindings, and the pending review package are scorer-only. The draft seal is not authorization to run held-out conditions; a real independent response, typed adjudication, and nine reviewed semantic artifacts must reproduce the final seal.

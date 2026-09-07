@@ -72,6 +72,7 @@ from story_projection_onto.contracts import (
     runtime_structural_acceptance_record,
     to_model_visible_evidence,
 )
+from story_projection_onto.temporal import query_time_visibility
 from story_projection_onto.validate import (
     close_projection_dependencies,
     validate_draft_structure,
@@ -93,6 +94,11 @@ _STORY_STEP_POINT_PATTERN = re.compile(
 )
 _THROUGH_STEP_PATTERN = re.compile(
     r"\b(?:to|through|until)\s+(?:story\s+)?step\s+(\d+)\b",
+    re.IGNORECASE,
+)
+_INTRINSIC_STEP_PATTERN = re.compile(
+    r"\b(?:held|valid|served|in force)\s+from\s+(?:story\s+)?step\s+(\d+)"
+    r"\s+(?:(?:to|through|until)\s+(?:story\s+)?step\s+(\d+)|with its end unknown)",
     re.IGNORECASE,
 )
 _PRONOUNS = frozenset({"he", "her", "hers", "him", "his", "she", "they", "them", "their"})
@@ -1094,23 +1100,24 @@ def _story_and_validity(
             point=point,
             label=f"{point_label} {point}",
         )
-        if state_like:
-            explicit_end = _THROUGH_STEP_PATTERN.search(evidence.text)
-            end = int(explicit_end.group(1)) if explicit_end is not None else None
-            if end is not None and end < point:
-                end = None
+        explicit = _INTRINSIC_STEP_PATTERN.search(evidence.text)
+        if explicit:
             validity = ValidityTime(
                 kind=TemporalKind.INTERVAL,
-                start=point,
-                end=end,
-                label=(
-                    f"valid from {point_label} {point} through step {end}"
-                    if end is not None
-                    else f"valid from {point_label} {point}; end unknown"
-                ),
+                start=int(explicit.group(1)),
+                end=int(explicit.group(2)) if explicit.group(2) else None,
+                label="explicit intrinsic validity interval",
             )
-        else:
+        elif not state_like and re.search(
+            r"\b(?:enabled|occurred before)\b", evidence.text, re.IGNORECASE
+        ):
+            # Ordering between fixed occurrences is not a persisting state.
             validity = ValidityTime(kind=TemporalKind.NOT_APPLICABLE)
+        else:
+            validity = ValidityTime(
+                kind=TemporalKind.UNKNOWN,
+                reason="observation time does not establish intrinsic validity bounds",
+            )
         return story, validity
     return (
         StoryTime(
@@ -1350,7 +1357,22 @@ class ClassicalPreBuilder:
         )
         entity_id_by_mention: dict[str, str] = {}
         entity_specs: list[dict[str, object]] = []
+        frozen_mention_ids = {
+            candidate.candidate_id
+            for record in evidence_by_id.values()
+            for candidate in record.mention_candidates
+        }
+        unanchored_group_count = 0
         for group in groups:
+            supported_ids = tuple(
+                item.mention_id for item in group if item.mention_id in frozen_mention_ids
+            )
+            if not supported_ids:
+                # Parser scratch mentions can aid identity resolution, but are
+                # not new entries in the sealed shared evidence index. Do not
+                # emit unsupported reference IDs or fabricate replacement IDs.
+                unanchored_group_count += 1
+                continue
             entity_id = _identifier("c0-entity", *(item.mention_id for item in group))
             for mention in group:
                 entity_id_by_mention[mention.mention_id] = entity_id
@@ -1363,7 +1385,7 @@ class ClassicalPreBuilder:
                 {
                     "entity_id": entity_id,
                     "label": label,
-                    "mention_ids": tuple(item.mention_id for item in group),
+                    "mention_ids": supported_ids,
                     "aliases": tuple(
                         sorted({item.surface for item in group if item.surface != label})
                     ),
@@ -1805,6 +1827,14 @@ class ClassicalPreBuilder:
             ),
             decisions=tuple(decisions),
             budget_accounting=accounting,
+            uncertainty_and_abstentions=(
+                (
+                    f"Abstained on {unanchored_group_count} parser-only mention groups "
+                    "without any frozen shared-evidence mention anchor."
+                ),
+            )
+            if unanchored_group_count
+            else (),
         )
 
     def produce(self, inputs: ProduceInputs) -> ConditionAttemptRecord:
@@ -1833,17 +1863,12 @@ def _extent_interval(extent: StoryTime) -> tuple[int | None, int | None]:
 
 
 def _time_compatibility(assertion: QualifiedAssertion, query_story_time: StoryTime) -> float:
-    query_start, query_end = _extent_interval(query_story_time)
-    assertion_start, assertion_end = _extent_interval(assertion.temporal_scope.story_time)
-    if query_start is None and query_end is None:
-        return 0.0
-    if assertion_start is None and assertion_end is None:
-        return 0.0
-    left_start = float("-inf") if query_start is None else query_start
-    left_end = float("inf") if query_end is None else query_end
-    right_start = float("-inf") if assertion_start is None else assertion_start
-    right_end = float("inf") if assertion_end is None else assertion_end
-    return 1.0 if max(left_start, right_start) <= min(left_end, right_end) else -1.75
+    visible = query_time_visibility(
+        assertion.temporal_scope.story_time,
+        assertion.temporal_scope.validity_time,
+        query_story_time,
+    )
+    return 0.0 if visible is None else 1.0 if visible else -1.75
 
 
 def _assertion_endpoints(assertion: QualifiedAssertion) -> frozenset[str]:

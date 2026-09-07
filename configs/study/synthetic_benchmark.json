@@ -8,8 +8,8 @@
   "paraphrase_context_count": 12,
   "independent_review_world_count": 3,
   "matcher_revision": "synthetic-anchor-matcher-v3-joint",
-  "generator_revision": "semantic-query-compiler-v3",
-  "index_revision": "synthetic-query-blind-index-v3",
+  "generator_revision": "semantic-query-compiler-v4-intrinsic-validity",
+  "index_revision": "synthetic-query-blind-index-v4-explicit-durations",
   "development_surface_renderers": [
     "development_direct_v1"
   ],

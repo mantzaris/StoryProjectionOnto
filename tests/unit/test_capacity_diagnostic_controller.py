@@ -82,7 +82,9 @@ def test_guardian_kills_owned_controller_and_adopts_only_for_cleanup(tmp_path, m
     )
     monkeypatch.setattr(driver, "setup", lambda *a: (ledger, None, service))
     monkeypatch.setattr(driver, "source_binding", lambda *a: {})
-    monkeypatch.setattr(driver, "count_reservations", lambda path, kind: 4 if kind == "start" else 3)
+    monkeypatch.setattr(
+        driver, "count_reservations", lambda path, kind: 4 if kind == "start" else 3
+    )
     monkeypatch.setattr(
         driver,
         "ResourceSampler",

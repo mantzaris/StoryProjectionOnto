@@ -13,6 +13,7 @@ import hashlib
 import itertools
 import json
 import random
+import re
 from collections import Counter, defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -97,6 +98,7 @@ from story_projection_onto.contracts import (
     to_model_visible_evidence,
     to_model_visible_query,
 )
+from story_projection_onto.temporal import query_time_visibility
 
 DEFAULT_CONFIG_PATH = Path("configs/study/synthetic_benchmark.json")
 DEFAULT_OUTPUT_ROOT = Path("data/synthetic")
@@ -125,6 +127,7 @@ def benchmark_source_hashes() -> dict[str, str]:
         "synthetic_benchmark.py": _source_file_hash(Path(__file__)),
         "benchmark_runtime.py": _source_file_hash(package_root / "benchmark_runtime.py"),
         "contracts.py": _source_file_hash(package_root / "contracts.py"),
+        "temporal.py": _source_file_hash(package_root / "temporal.py"),
         "metrics/alignment.py": _source_file_hash(package_root / "metrics" / "alignment.py"),
     }
 
@@ -1652,10 +1655,7 @@ def _render_fact(spec: WorldSpec, fact: WorldFactSpec) -> tuple[str, list[tuple[
         )
         if title is None:
             raise ValueError("office fact holder has no registered title")
-        end = (
-            f" through step {fact.validity_end}" if fact.validity_end is not None else " thereafter"
-        )
-        core = f"{subject} served as {title} for {object_label}{end}"
+        core = f"{subject} served as {title} for {object_label}"
         mentions.extend(
             ((title, fact.subject_ref, "office_title"), (object_label, fact.object_ref, "object"))
         )
@@ -1689,6 +1689,22 @@ def _render_fact(spec: WorldSpec, fact: WorldFactSpec) -> tuple[str, list[tuple[
         text = f"Dispatch {fact.disclosure_order}: at story step {fact.story_position}, {core}."
     else:
         raise ValueError(f"unregistered narrative renderer {spec.surface_renderer}")
+    # The temporal-reference amendment verbalizes the two registered exact-
+    # duration targets, rather than treating latent world bounds as evidence.
+    # Other observed relations deliberately leave intrinsic validity unknown.
+    if fact.relation == "holds_office" or fact.event_ref is not None:
+        end_text = (
+            f"through story step {fact.validity_end}"
+            if fact.validity_end is not None
+            else "with its end unknown"
+        )
+        text += f" This relation held from story step {fact.story_position} {end_text}."
+    if fact.event_ref is not None:
+        event = next(item for item in spec.events if item.event_ref == fact.event_ref)
+        text += (
+            f" The {event.label} lasted from story step {event.story_position} "
+            f"through story step {event.story_position + event.duration}."
+        )
     return text, mentions
 
 
@@ -2008,10 +2024,10 @@ def _time_bounds(value: StoryTime) -> tuple[int, int]:
     raise ValueError("synthetic contexts use only point and bounded/through intervals")
 
 
-def _fact_overlaps_scope(fact: WorldFactSpec, scope: StoryTime) -> bool:
-    query_start, query_end = _time_bounds(scope)
-    fact_end = fact.validity_end if fact.validity_end is not None else 10**9
-    return fact.story_position <= query_end and fact_end >= query_start
+def _fact_overlaps_scope(fact: WorldFactSpec, scope: StoryTime, evidence: EvidenceRecord) -> bool:
+    intrinsic = _temporal_scope(fact, evidence, 0)
+    # Unknown duration is retained as uncertain, never asserted to persist.
+    return query_time_visibility(intrinsic.story_time, intrinsic.validity_time, scope) is not False
 
 
 def _event_overlaps_scope(event: WorldEventSpec, scope: StoryTime) -> bool:
@@ -2174,30 +2190,34 @@ def _temporal_scope(
     revelation_order: int,
     contextual_scope: StoryTime | None = None,
 ) -> TemporalScope:
-    validity_start = fact.story_position
-    validity_end = fact.validity_end
-    if contextual_scope is not None:
-        query_start, query_end = _time_bounds(contextual_scope)
-        validity_start = max(validity_start, query_start)
-        intrinsic_end = validity_end if validity_end is not None else 10**9
-        clipped_end = min(intrinsic_end, query_end)
-        validity_end = None if clipped_end == 10**9 else clipped_end
+    # Query restriction controls relevance/visibility, never intrinsic truth.
+    # Parse only the supplied evidence: changing latent bounds alone cannot
+    # change this qualification. Observation time is not an onset rule.
+    explicit = re.search(
+        r"This relation held from story step (\d+) "
+        r"(?:through story step (\d+)|with its end unknown)\.",
+        evidence.text,
+    )
+    validity = (
+        ValidityTime(
+            kind=TemporalKind.INTERVAL,
+            start=int(explicit.group(1)),
+            end=int(explicit.group(2)) if explicit.group(2) else None,
+            label="evidence-supported intrinsic validity",
+        )
+        if explicit
+        else ValidityTime(
+            kind=TemporalKind.UNKNOWN,
+            reason="the observation does not establish intrinsic validity bounds",
+        )
+    )
     return TemporalScope(
         story_time=StoryTime(
             kind=TemporalKind.POINT,
             point=fact.story_position,
             label=f"story step {fact.story_position}",
         ),
-        validity_time=ValidityTime(
-            kind=TemporalKind.INTERVAL,
-            start=validity_start,
-            end=validity_end,
-            label=(
-                f"contextually valid from step {validity_start}"
-                if validity_end is None
-                else f"contextually valid from step {validity_start} through {validity_end}"
-            ),
-        ),
+        validity_time=validity,
         discourse_position=evidence.discourse_position,
         revelation_position=RevelationPosition(
             revelation_order=revelation_order,
@@ -2211,15 +2231,31 @@ def _contextual_validity_time(
     end: int | None,
     contextual_scope: StoryTime | None,
 ) -> ValidityTime:
-    if contextual_scope is not None:
-        query_start, query_end = _time_bounds(contextual_scope)
-        clipped_start = max(start, query_start)
-        intrinsic_end = end if end is not None else 10**9
-        clipped_end = min(intrinsic_end, query_end)
-        if clipped_start <= clipped_end:
-            start = clipped_start
-            end = None if clipped_end == 10**9 else clipped_end
-    return ValidityTime(kind=TemporalKind.INTERVAL, start=start, end=end)
+    # Causal/precedence relations between fixed occurrences have no separate
+    # validity duration. Their event ordering remains essential story time.
+    # Neither the gap between events nor a query window is their truth interval.
+    return ValidityTime(kind=TemporalKind.NOT_APPLICABLE)
+
+
+def _evidence_event_occurrence(
+    event: WorldEventSpec, evidence: Sequence[EvidenceRecord]
+) -> StoryTime:
+    pattern = re.compile(
+        rf"The {re.escape(event.label)} lasted from story step (\d+) "
+        r"through story step (\d+)\."
+    )
+    bounds = {
+        (int(match.group(1)), int(match.group(2)))
+        for record in evidence
+        for match in pattern.finditer(record.text)
+    }
+    if len(bounds) != 1:
+        return StoryTime(
+            kind=TemporalKind.UNKNOWN,
+            reason="supporting evidence does not uniquely state this event's duration",
+        )
+    start, end = next(iter(bounds))
+    return StoryTime(kind=TemporalKind.INTERVAL, start=start, end=end)
 
 
 def _predicate_id(context: QueryContext, relation: str) -> str:
@@ -2763,11 +2799,12 @@ def _semantic_atom(
 
 
 def _fact_signature(fact: WorldFactSpec) -> str:
-    end = "open" if fact.validity_end is None else str(fact.validity_end)
+    # Answer identity is separate from strict qualified-assertion scoring.
+    # Never encode an unspoken latent duration as an answer requirement here.
     holder = fact.holder_ref or "world"
     return (
         f"fact:{fact.subject_ref}|{fact.relation}|{fact.object_ref}|"
-        f"{fact.story_position}:{end}|{fact.commitment.value}:{holder}"
+        f"observed:{fact.story_position}|{fact.commitment.value}:{holder}"
     )
 
 
@@ -2956,12 +2993,17 @@ def compile_gold_projection(
         item for item in spec.facts if narrative.fact_evidence_ids.get(item.fact_id)
     )
     fact_by_id = {item.fact_id: item for item in included_facts}
+
+    def fact_visible(fact: WorldFactSpec) -> bool:
+        evidence = evidence_by_id[narrative.fact_evidence_ids[fact.fact_id][0]]
+        return _fact_overlaps_scope(fact, effective_scope, evidence)
+
     assertions: list[QualifiedAssertion] = []
     assertion_fact: dict[str, WorldFactSpec] = {}
     relation_shapes: dict[str, tuple[int, tuple[str, ...]]] = {}
     event_support: dict[str, list[str]] = defaultdict(list)
     for fact in included_facts:
-        active = _fact_overlaps_scope(fact, effective_scope)
+        active = fact_visible(fact)
         lens_relevant = effective_lens in fact.relevant_lenses
         if viewpoint_holder_ref is not None and fact.commitment in {
             NeutralCommitment.REPORTED,
@@ -3010,9 +3052,7 @@ def compile_gold_projection(
             f"score.{context.context_id}.assertion.causal.{len(causal_assertion_ids):02d}"
         )
         evidence = evidence_by_id[evidence_ids[0]]
-        active = _fact_overlaps_scope(left, effective_scope) and _fact_overlaps_scope(
-            right, effective_scope
-        )
+        active = fact_visible(left) and fact_visible(right)
         assertions.append(
             QualifiedAssertion(
                 assertion_id=assertion_id,
@@ -3237,17 +3277,12 @@ def compile_gold_projection(
                 event_id=event_id_by_ref[event_spec.event_ref],
                 label=event_spec.label,
                 contextual_type_id=type_ids["event"],
-                occurrence_time=StoryTime(
-                    kind=TemporalKind.INTERVAL,
-                    start=event_spec.story_position,
-                    end=event_spec.story_position + event_spec.duration,
-                    label=(
-                        f"story steps {event_spec.story_position} through "
-                        f"{event_spec.story_position + event_spec.duration}"
-                    ),
+                occurrence_time=_evidence_event_occurrence(
+                    event_spec, tuple(evidence_by_id[item] for item in evidence_ids)
                 ),
                 reification_reason=(
-                    "Independent duration and participant roles require an event object "
+                    "Evidence-supported participant roles and occurrence organization "
+                    "require an event object "
                     "in this context."
                 ),
                 uncertainty=ExplicitValueState.KNOWN,
@@ -3273,9 +3308,7 @@ def compile_gold_projection(
             or fact.holder_ref == viewpoint_holder_ref
         )
         fact_relevance[assertion_id] = (
-            _fact_overlaps_scope(fact, effective_scope)
-            and holder_compatible
-            and effective_lens in fact.relevant_lenses
+            fact_visible(fact) and holder_compatible and effective_lens in fact.relevant_lenses
         )
     assertion_relevance = {
         item.assertion_id: (fact_relevance.get(item.assertion_id, item.contextual_relevance >= 0.9))
@@ -3456,17 +3489,33 @@ def compile_gold_projection(
             ),
         )
     )
-    scope_signature = (
-        f"{effective_scope.kind.value}:{effective_scope.point}:"
-        f"{effective_scope.start}:{effective_scope.end}"
+    # The legacy slot name is retained for consumers, but its semantics are
+    # now the actual qualified contextual relations, NOT the user's viewport.
+    # Scope-only selection cannot manufacture a nonselection decision change.
+    temporal_representation = sorted(
+        (
+            tuple(sorted(item.evidence_ids)),
+            item.predicate_id.rsplit(".predicate.", 1)[-1],
+            tuple(role.role for role in item.roles),
+            canonical_json(
+                {
+                    "story": item.temporal_scope.story_time.model_dump(
+                        exclude={"content_hash", "label", "reason"}
+                    ),
+                    "validity": item.temporal_scope.validity_time.model_dump(
+                        exclude={"content_hash", "label", "reason"}
+                    ),
+                }
+            ),
+        )
+        for item in assertions
     )
     all_atoms.append(
         _semantic_atom(
             slot_key="qualification/story-scope",
             operator=ConstructionOperator.TEMPORAL_QUALIFICATION,
-            signature=f"story-scope:{scope_signature}",
-            evidence_ids=(first_ev.evidence_id,),
-            anchor_ids=(first_ev.temporal_clues[0].clue_id,),
+            signature=f"intrinsic-qualified-representation:{canonical_json(temporal_representation)}",
+            evidence_ids=tuple(sorted({ev for item in assertions for ev in item.evidence_ids})),
             narrative=narrative,
             object_ids=tuple(item.assertion_id for item in assertions),
         )
@@ -3579,8 +3628,7 @@ def compile_gold_projection(
         sorted(
             _fact_signature(fact)
             for fact in included_facts
-            if _fact_overlaps_scope(fact, effective_scope)
-            and effective_lens in fact.relevant_lenses
+            if fact_visible(fact) and effective_lens in fact.relevant_lenses
         )
     )
     causal_paths = tuple(
@@ -3601,8 +3649,7 @@ def compile_gold_projection(
         sorted(
             _fact_signature(fact)
             for fact in included_facts
-            if fact.relation in {"holds_office", "member_of", "defects_to"}
-            and _fact_overlaps_scope(fact, effective_scope)
+            if fact.relation in {"holds_office", "member_of", "defects_to"} and fact_visible(fact)
         )
     )
     answer_signature = AnswerSignature(
@@ -4062,6 +4109,7 @@ class HeldOutDraftSeal(ImmutableRecord):
         if len(self.entries) != 12 or len({item.world_id for item in self.entries}) != 12:
             raise ValueError("draft held-out seal requires twelve unique worlds")
         if set(self.compiler_dependency_hashes) != {
+            "temporal.py",
             "synthetic_benchmark.py",
             "benchmark_runtime.py",
             "contracts.py",
@@ -4982,9 +5030,7 @@ def _registered_mutation_bundle_hash(bundle: Mapping[str, Any]) -> str:
             mode="python",
             exclude={"content_hash", "provenance"},
         )
-        frozen_evidence.append(
-            EvidenceRecord(**record_payload, provenance=frozen_provenance)
-        )
+        frozen_evidence.append(EvidenceRecord(**record_payload, provenance=frozen_provenance))
     frozen_bundle = dict(bundle)
     frozen_bundle["evidence"] = tuple(frozen_evidence)
     return canonical_sha256(frozen_bundle)
@@ -5133,12 +5179,8 @@ def build_mutation_manifest(
                     impact_kind=scorer.world_spec.rare_impact_kind,
                     before_answer_hash=before.content_hash,
                     after_answer_hash=after.content_hash,
-                    before_regenerated_bundle_hash=_registered_mutation_bundle_hash(
-                        before_bundle
-                    ),
-                    after_regenerated_bundle_hash=_registered_mutation_bundle_hash(
-                        after_bundle
-                    ),
+                    before_regenerated_bundle_hash=_registered_mutation_bundle_hash(before_bundle),
+                    after_regenerated_bundle_hash=_registered_mutation_bundle_hash(after_bundle),
                     changed_components=changed_components,
                 )
             )
@@ -5220,29 +5262,17 @@ def build_eligibility_manifest(
         base = scorer.gold_projections[index]
         policy = scorer.query_assignment.compiler_policies[index]
         if context.viewpoint is None:
-            replacement_scope = next(
-                _scope(block) for block in StoryScopeBlock if _scope(block) != context.story_scope
-            )
-            perturbed = compile_gold_projection(
-                spec,
-                _rebuild_context(context, story_scope=replacement_scope),
-                index,
-                narratives[spec.world_id],
-                config,
-                policy=policy,
-                selected_for_review=False,
-            ).projection
             relevance = {item.target_id: item.is_relevant for item in base.relevance}
-            base_temporal = {
-                item.assertion_id: canonical_sha256(item.temporal_scope)
+            # The ablation must lose an essential, evidence-supported temporal
+            # target. It need not (and must not) change intrinsic truth when a
+            # viewport is changed. Exact duration targets stay strictly scored.
+            if any(
+                relevance[item.assertion_id]
+                and item.temporal_scope.validity_time.kind is TemporalKind.INTERVAL
+                and item.temporal_scope.validity_time.start is not None
+                and item.temporal_scope.validity_time.end is not None
                 for item in base.qualified_assertions
-                if relevance[item.assertion_id]
-            }
-            changed_temporal = {
-                item.assertion_id: canonical_sha256(item.temporal_scope)
-                for item in perturbed.qualified_assertions
-            }
-            if any(changed_temporal.get(key) != value for key, value in base_temporal.items()):
+            ):
                 temporal_candidates.append(context_id)
         else:
             relevance = {item.target_id: item.is_relevant for item in base.relevance}
@@ -6365,7 +6395,11 @@ def build_file_payloads(
     payloads[f"{SCORER_ONLY_DIRECTORY}/audits/scientific_integrity.json"] = _json_bytes(audit)
     payloads[f"{MANIFEST_DIRECTORY}/seed_manifest.json"] = _json_bytes(build.seeds)
     readme = (
-        b"# Synthetic benchmark v3\n\n"
+        b"# Synthetic benchmark v4: evidence-grounded intrinsic validity\n\n"
+        b"Query visibility never changes intrinsic assertion validity. Exact office and "
+        b"event-duration targets are stated in shared query-blind evidence; otherwise "
+        b"unstated validity bounds remain unknown. Scorer files and human review "
+        b"materials are restricted pending review and study completion.\n\n"
         b"Each directory below `condition_inputs/neutral_evidence` contains one query-blind "
         b"full-evidence artifact and a certificate proving its deterministic projection to "
         b"the corresponding model-visible artifact. It contains no query or scorer metadata. "
@@ -6497,7 +6531,7 @@ def refresh_benchmark_lineage(
             continue
         if target.read_bytes() != expected_content:
             raise BenchmarkDriftError(
-                "lineage refresh cannot change scientific benchmark content: " f"{target}"
+                f"lineage refresh cannot change scientific benchmark content: {target}"
             )
     for relative in sorted(LINEAGE_REFRESH_PATHS):
         (output_root / relative).write_bytes(payloads[relative])

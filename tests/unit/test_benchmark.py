@@ -81,6 +81,7 @@ def test_seed_derivation_is_stable_complete_and_namespaced(benchmark_build) -> N
         "synthetic_benchmark.py",
         "benchmark_runtime.py",
         "contracts.py",
+        "temporal.py",
         "metrics/alignment.py",
     }
 
@@ -230,7 +231,7 @@ def test_context_fields_causally_change_compiled_semantics(benchmark_build) -> N
             item.signature
             for item in base.semantic_atoms
             if item.slot_key == "qualification/story-scope"
-        ) != next(
+        ) == next(
             item.signature
             for item in scope_changed.semantic_atoms
             if item.slot_key == "qualification/story-scope"
@@ -238,8 +239,8 @@ def test_context_fields_causally_change_compiled_semantics(benchmark_build) -> N
         changed_by_id = {
             item.assertion_id: item for item in scope_changed.projection.qualified_assertions
         }
-        assert any(
-            item.temporal_scope != changed_by_id[item.assertion_id].temporal_scope
+        assert all(
+            item.temporal_scope == changed_by_id[item.assertion_id].temporal_scope
             for item in base.projection.qualified_assertions
         )
         alternate_abstraction = next(

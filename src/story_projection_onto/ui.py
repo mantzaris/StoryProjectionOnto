@@ -1202,9 +1202,21 @@ def _assertion_passes_temporal_filter(
     assertion: VisualizationAssertion,
     temporal_filter: VisualizationTemporalFilter,
 ) -> bool:
-    if not _passes_story_filter(
-        assertion.temporal_scope.story_time,
-        temporal_filter.story_scope,
+    from story_projection_onto.temporal import query_time_visibility
+
+    if assertion.temporal_scope.story_time.kind in {
+        TemporalKind.HORIZON_WITHHELD,
+        TemporalKind.INVALID,
+    }:
+        return False
+    if (
+        temporal_filter.story_scope is not None
+        and query_time_visibility(
+            assertion.temporal_scope.story_time,
+            assertion.temporal_scope.validity_time,
+            temporal_filter.story_scope,
+        )
+        is False
     ):
         return False
     horizon = temporal_filter.spoiler_horizon

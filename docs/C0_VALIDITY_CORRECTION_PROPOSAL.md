@@ -1,4 +1,11 @@
-# C0 validity: development-only finding and proposed correction
+# C0 validity: approved correction and original development finding
+
+The user approved this benchmark-semantic amendment on 2026-09-07. The original
+proposal below is retained as provenance; its statements that no changes had
+been made describe the pre-amendment investigation. Implementation and the
+replacement artifact bindings are recorded in
+`docs/TEMPORAL_REFERENCE_AMENDMENT.md`. No hypothesis, condition, independent
+unit, strict-matching rule, competence threshold or comparison is relaxed.
 
 No gold, matching definition, scientific validator or competence threshold was
 changed. Failed calibration and all original comparisons remain preserved.

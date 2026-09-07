@@ -1,5 +1,18 @@
 # Independent review completion handoff
 
+## Current package: temporal-reference amendment, 2026-09-07
+
+Use the replacement readable packet and blank human worksheet in
+`artifacts/restricted/scorer_only/independent_review_handoff_v4_intrinsic/`.
+They contain three worlds, nine projections and 72 review items, no condition
+outputs and no authored reviewer judgments. Package hash:
+`d5a5dfdff316b399fce2cfd09fdf5d2322f7f5a08bd51298e1dc0be99bc6be8b`.
+
+The predecessor package is superseded by the approved intrinsic-validity
+correction. Any review of it does **not** approve these revised evidence and
+interpretations. Both remain preserved; give the reviewer only the replacement.
+See `docs/TEMPORAL_REFERENCE_AMENDMENT.md` for the general semantic change.
+
 This workflow completes—but never performs—the mandatory independent review of
 the nine condition-blind held-out projections. The methodological plan calls
 the human who performs it a **second reviewer**: one recorded seed selects one
@@ -44,7 +57,7 @@ independence criterion to the adjudicator.
 
    ```bash
    PYTHONPATH=src python scripts/render_independent_review_handoff.py \
-     --output-root artifacts/restricted/scorer_only/independent_review_handoff \
+     --output-root artifacts/restricted/scorer_only/independent_review_handoff_v4_intrinsic \
      --materialize
    ```
 
