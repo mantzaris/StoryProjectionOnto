@@ -1,6 +1,6 @@
 # Run status
 
-Updated: 2026-09-07 — V10 authorized, engineering/preflight in progress
+Updated: 2026-09-07 02:02 UTC — V10 launched in persistent tmux
 
 ## Approved scheduled-resource amendment and single V10 recovery
 
@@ -15,7 +15,7 @@ All-in prelaunch bound: 2,936.238858 + 29,987.34434394846 − 240 + 840 =
 reserve. The existing 240s reserve slot is earmarked once; no inference slots or
 mandatory comparisons are removed or added. No unmeasured speed saving is used.
 
-The repaired source is being focused-tested for one new bounded service start.
+The repaired source was tested and deployed for one new bounded service start.
 The final focused batches pass 97 checks (75 unit/controller and 22 real HTTP).
 Earlier fixture/debug and historical-budget mismatch logs remain preserved.
 Startup/live checks/C1/validation-drain/shutdown caps are 300/120/240/120/60s,
@@ -23,14 +23,23 @@ with a whole 840s recovery deadline independently monitored by the guardian.
 C1 failure requires shutdown without repair or another startup. C1 success is
 not complete acceptance; ordinary continuation requires fresh all-in admission
 and every remaining acceptance/development gate. Held-out work still awaits
-independent human review. No new GPU allocation has occurred as of this entry.
+independent human review. The persistent job `storyprojection-study-v10` was
+launched at 02:02:18 UTC. Its guardian and controllers prepare on CPU before
+model allocation. Do not launch a duplicate; use the status command below.
 
-Last tested local repair commit: `1b00c4f`. The existing remote project is idle;
-the canonical terminal V9 ledger still hashes to
+Tested caps/amendment commit: `0174fed`; preflight metadata correction: `b03706e`.
+Local and remote source trees are identical at
+`cfa8ba1e6155d013e938635c6dc2914f4d02c0c33660df5893d1b0ba104d88c1`.
+CPU preflight passed after 77.836s wall time; it verified the exact C1 request,
+decoder compilation, actual restricted diagnostic storage, and all 25 inventory
+rows (278 maximum inference attempts, 291 accounting events). Current occupied
+storage was 10,346,849,792 bytes; projected occupancy was 11,432,394,112 bytes.
+The prelaunch canonical terminal V9 ledger still hashed to
 `53e4341b14f53dce48482cd765eb4654777df76061ff4948e0ea9bcf8a93dc5c`.
-The exact prospective operator command after deployment and passing preflight is
-`PYTHONPATH=src .venv/bin/python scripts/control_bounded_recovery.py launch`.
-This is a one-shot command, not permission to restart after a terminal result.
+The single `launch` command has now been used. Current read-only status command:
+`PYTHONPATH=src .venv/bin/python scripts/control_bounded_recovery.py status`.
+Logs/checkpoints are under `artifacts/restricted/fallback-development-v10/`.
+There is no authorization to replay orchestration or start another service.
 
 The following sections are preserved historical status, superseded where the
 new explicit amendment or authorization applies.

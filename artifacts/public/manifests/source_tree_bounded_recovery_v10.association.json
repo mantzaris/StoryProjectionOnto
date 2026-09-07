@@ -1,0 +1,19 @@
+{
+  "branch": "implementation/query-dependent-temporal-ontology",
+  "byte_identity_checks": [
+    "Local and remote manifest JSON bytes are identical.",
+    "Both declared source-tree hashes were independently recomputed from their inventories."
+  ],
+  "git_commit": "b03706e82177fda3eb7ae7abaaeb2b1b1b94529c",
+  "kind": "local_remote_source_tree_association",
+  "local_manifest": "source_tree_bounded_recovery_v10.local.json",
+  "local_manifest_file_sha256": "485a0b907a663be55afc204d645c69781998bb1f1752ebc78faf649d7edcfd5b",
+  "local_tree_sha256": "cfa8ba1e6155d013e938635c6dc2914f4d02c0c33660df5893d1b0ba104d88c1",
+  "manifest_sha256": "9295060df8e091dbb65d272ff727dfeb45b118601265593e061b2a949f4027e5",
+  "recorded_at": "2026-09-07T01:57:33Z",
+  "remote_manifest": "source_tree_bounded_recovery_v10.remote.json",
+  "remote_manifest_file_sha256": "485a0b907a663be55afc204d645c69781998bb1f1752ebc78faf649d7edcfd5b",
+  "remote_tree_sha256": "cfa8ba1e6155d013e938635c6dc2914f4d02c0c33660df5893d1b0ba104d88c1",
+  "revision_label": "bounded-recovery-v10",
+  "schema_version": "1.0.0"
+}
