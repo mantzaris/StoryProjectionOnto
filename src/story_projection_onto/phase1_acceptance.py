@@ -882,6 +882,8 @@ def validate_acceptance_generation(
     authoritative_completion_tokens: int | None = None,
     legacy_provenance_bridge: Phase1LegacyEvidenceProvenanceBridge | None = None,
     diagnostic_journal: RestrictedResponseJournal | None = None,
+    actual_fixed_request: ConstructionRequest | None = None,
+    actual_c1_draft: OntologyDraft | None = None,
 ) -> dict[str, object]:
     """Keep the unchanged acceptance gates, with optional restricted stage evidence."""
     operation = partial(
@@ -891,6 +893,7 @@ def validate_acceptance_generation(
         authoritative_completion_tokens=authoritative_completion_tokens,
         legacy_provenance_bridge=legacy_provenance_bridge,
         diagnostic_journal=diagnostic_journal,
+        actual_fixed_request=actual_fixed_request, actual_c1_draft=actual_c1_draft,
     )
     return operation() if diagnostic_journal is None else diagnostic_journal.validate(
         "schema_validation", operation,
@@ -906,10 +909,19 @@ def _validate_acceptance_generation(
     authoritative_completion_tokens: int | None = None,
     legacy_provenance_bridge: Phase1LegacyEvidenceProvenanceBridge | None = None,
     diagnostic_journal: RestrictedResponseJournal | None = None,
+    actual_fixed_request: ConstructionRequest | None = None,
+    actual_c1_draft: OntologyDraft | None = None,
 ) -> dict[str, object]:
     """Mechanically audit schema, budget, evidence, and condition capabilities."""
 
     root = root.resolve(strict=True)
+    if (actual_fixed_request is None) != (actual_c1_draft is None):
+        raise ValueError("actual FixedSelect validation requires its actual C1 source")
+    if actual_fixed_request is not None and (
+        call.condition is not ConditionName.A_FIXED_SELECT or
+        actual_fixed_request.condition is not ConditionName.A_FIXED_SELECT
+    ):
+        raise ValueError("actual C1 source is permitted only for FixedSelect")
     if legacy_provenance_bridge is not None and legacy_provenance_bridge.root != root:
         raise ValueError("legacy provenance bridge belongs to a different project root")
     if (authoritative_prompt_tokens is None) != (authoritative_completion_tokens is None):
@@ -930,6 +942,8 @@ def _validate_acceptance_generation(
         request_raw = _load_json_object(root / "tests/fixtures/phase1/c2_query_request.json")
     else:
         request_raw = _load_json_object(root / call.request_fixture)
+    if actual_fixed_request is not None:
+        request_raw = actual_fixed_request.model_dump(mode="json")
     capabilities = CapabilityManifest.for_condition(call.condition)
     forbidden = [
         decision.operator.value
@@ -1024,7 +1038,7 @@ def _validate_acceptance_generation(
         if call.condition is ConditionName.A_FIXED_SELECT:
             if request.fixed_ontology is None:
                 raise ValueError("fixed acceptance request omitted its sealed ontology")
-            source_draft = OntologyDraft.model_validate(
+            source_draft = actual_c1_draft or OntologyDraft.model_validate(
                 _load_json_object(root / "tests/fixtures/phase1/c1_pre_output.json")
             )
             sealed = sealed_inventory_from_fixed_ontology(
@@ -1035,7 +1049,7 @@ def _validate_acceptance_generation(
             enforce_fixed_select_draft(wire_draft, sealed=sealed, seed_block=call.seed_block)
     if resolved_legacy is not None:
         evidence = resolved_legacy.evidence
-    if call.condition is ConditionName.A_FIXED_SELECT and resolved_legacy is not None:
+    if call.condition is ConditionName.A_FIXED_SELECT and resolved_legacy is not None and actual_c1_draft is None:
         effective = legacy_provenance_bridge.effective_draft(
             raw_draft=raw_draft,
             resolved=resolved_legacy,

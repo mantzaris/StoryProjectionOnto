@@ -62,3 +62,24 @@ def test_forecast_keeps_all_mandatory_rows_and_loads():
     assert result["rows"][1]["capacity_demand_exceeds_watchdog"]
     assert rows[1]["forecast_p95_seconds"] == 180
     assert result["truncated_output_throughput_credited"] is False
+
+
+def test_exception_only_bypasses_forecast_not_block_or_count_limits():
+    kwargs = dict(
+        remaining_mandatory_seconds=40000,
+        stage_seconds=240,
+        complete_packing=True,
+        diagnostic_generation=True,
+        feasibility_diagnostic_exception=True,
+    )
+    assert CapacityRecoveryState(BASELINE_SECONDS, 1, 0).admit(**kwargs)[
+        "complete_forecast_exception_applied"
+    ]
+    with pytest.raises(ValueError, match="whole recovery"):
+        CapacityRecoveryState(BASELINE_SECONDS + 950, 1, 0).admit(**kwargs)
+    with pytest.raises(ValueError, match="three-diagnostic"):
+        CapacityRecoveryState(BASELINE_SECONDS, 1, 3).admit(**kwargs)
+    with pytest.raises(ValueError, match="diagnostic-only"):
+        CapacityRecoveryState(BASELINE_SECONDS, 0, 0).admit(
+            **(kwargs | {"diagnostic_generation": False})
+        )

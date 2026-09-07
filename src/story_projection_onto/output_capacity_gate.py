@@ -32,6 +32,7 @@ class CapacityRecoveryState:
         starting_service: bool = False,
         diagnostic_generation: bool = False,
         complete_packing: bool = False,
+        feasibility_diagnostic_exception: bool = False,
     ) -> dict[str, float]:
         values = (self.actual_allocated_seconds, remaining_mandatory_seconds, stage_seconds)
         if not all(math.isfinite(v) and v >= 0 for v in values):
@@ -50,14 +51,19 @@ class CapacityRecoveryState:
             raise ValueError("whole recovery allocation exhausted before safe shutdown")
         if self.actual_allocated_seconds + needed >= HARD_SECONDS - 1:
             raise ValueError("strict hard allocation stop")
+        if self.actual_allocated_seconds + needed > SCHEDULED_SECONDS:
+            raise ValueError("actual diagnostic envelope exceeds scheduled ceiling")
         all_in = self.actual_allocated_seconds + needed + remaining_mandatory_seconds
-        if all_in > SCHEDULED_SECONDS:
+        if feasibility_diagnostic_exception and not (starting_service or diagnostic_generation):
+            raise ValueError("forecast exception is diagnostic-only")
+        if all_in > SCHEDULED_SECONDS and not feasibility_diagnostic_exception:
             raise ValueError(f"all-in forecast {all_in:.6f} exceeds {SCHEDULED_SECONDS}")
         return {
             "all_in_seconds": all_in,
             "scheduled_reserve_seconds": SCHEDULED_SECONDS - all_in,
             "block_reserve_seconds": BLOCK_SECONDS - additional - needed,
             "hard_contingency_seconds": HARD_SECONDS - all_in,
+            "complete_forecast_exception_applied": feasibility_diagnostic_exception,
         }
 
 

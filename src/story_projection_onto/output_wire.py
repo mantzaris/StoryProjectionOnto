@@ -456,7 +456,7 @@ def capacity_messages(request, sections):
     return messages, aliases, copies
 
 
-def pack_capacity_candidate(request, tokenizer):
+def pack_capacity_candidate(request, tokenizer, *, sections_override=None, schema_override=None):
     """Repack an existing, complete request under the symmetric candidate policy.
 
     This has no service/ledger side effects. It refuses packing overflow before
@@ -470,7 +470,18 @@ def pack_capacity_candidate(request, tokenizer):
     from story_projection_onto.gpu_runtime import GuidedJSONRequest
     from story_projection_onto.llm import DecodingManifest, PackingReport, PackingSection
 
-    messages, aliases, copies = capacity_messages(request, json.loads(request.messages[1].content))
+    if sections_override is not None or schema_override is not None:
+        from types import SimpleNamespace
+        # Rebind the complete real FixedSelect input before compact packing. An
+        # uncompressed intermediate need not fit; the complete wire input must.
+        if request.condition.value != "A-FixedSelect" or sections_override is None or schema_override is None:
+            raise OutputWireError("only complete paired FixedSelect overrides are permitted")
+        request = SimpleNamespace(**{
+            name: getattr(request, name) for name in (
+                "request_id", "model_name", "condition", "decoding", "packing", "messages")
+        }, output_schema=schema_override)
+    actual_sections = sections_override if sections_override is not None else json.loads(request.messages[1].content)
+    messages, aliases, copies = capacity_messages(request, actual_sections)
     codec = RecordTupleCodec(request.output_schema, copies, aliases)
     schema = codec.wire_schema()
     output_limit = 3072 if request.condition.value == "A-FixedSelect" else 6144
@@ -502,7 +513,9 @@ def pack_capacity_candidate(request, tokenizer):
         PackingSection(
             name=s.name,
             section_content_hash=(
-                canonical_sha256(schema) if s.name == "output_schema" else s.section_content_hash
+                canonical_sha256(schema) if s.name == "output_schema" else
+                canonical_sha256(actual_sections[s.name]) if s.name in actual_sections else
+                s.section_content_hash
             ),
             token_count=0,
         )
