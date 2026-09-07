@@ -1,6 +1,77 @@
 # Run status
 
-Updated: 2026-09-07 02:02 UTC — V10 launched in persistent tmux
+Updated: 2026-09-07 — V10 terminal, service stopped, acceptance blocked
+
+## V10 terminal outcome — no further startup authorized
+
+The authorized unchanged `fallback-c1-01` retry produced **zero accepted outputs**.
+Its HTTP 200 response arrived completely (7,229 bytes), but the server reported
+`finish_reason=length`, 6,609 prompt tokens and exactly 2,048 completion tokens.
+The embedded JSON ends inside a string. The preserved exception chain identifies
+**decoding**, before schema or scientific validation, as the failure stage
+(`JSONDecodeError`, line 163, column 9, character 5,974). This establishes the V10
+diagnosis; it does not retroactively establish V9's unknown exact failure.
+
+The restricted response SHA-256 is
+`2255e9b240a2566a4e82f4bb6b8b41a7de9ece78ce7f634b96bf49c3ba7e3715`.
+The HTTP fragments, status/headers, completion metadata, full exception chain,
+attempt/failure records, and controller/guardian logs remain on the pod. There
+were no repairs, C2/FixedSelect calls, or development calls during V10. The
+separate-controller adoption proof passed; complete fallback acceptance did not.
+
+V10 allocated **291.587466 seconds**: startup 161.043200, failed call 20.152956,
+and service overhead 110.391310. The recovered historical 2,936.238858 seconds
+remain charged, bringing the authoritative total to **3,227.826324 seconds**.
+Measured stage wall times were startup 161.108612, live checks 99.841234, C1
+20.227330, and shutdown 10.486681 seconds. Schema/scientific validation was not
+reached. All stage caps and the 840s whole envelope were respected. CPU
+preparation completed 54.065389 seconds of work before model allocation; this is
+not a claim of improved GPU generation throughput.
+
+The guardian's early shutdown trigger fired after the 10s cooperative grace,
+preserving the remaining shutdown margin. It terminated post-failure controller
+work and verified physical service shutdown at 02:10:20 UTC, inside the 60s cap.
+The ordinary runner result was not published; no successful or normally finalized
+runner result is claimed. The on-host terminal verifier independently checked the
+ledger/CAS, retained HTTP fragments, stage records, and guardian accounting.
+Integrity verification passes; no allocation or service journal remains open.
+
+Peak sampled V10 resources: VRAM **22,793,945,088 bytes**, process RAM
+**6,769,758,208 bytes**, project storage **10,348,645,888 bytes**, and 8 CPU
+study workers. The service is stopped; the RunPod pod remains active.
+
+Remaining registered forecast: **29,747.34434394846 seconds**. All-in:
+**32,975.17066794846 seconds**, leaving **684.82933205154 seconds** under the
+approved 33,660s scheduled ceiling. All five future base loads and mandatory
+comparisons remain; three of four long reserve slots have now been consumed.
+Failed-output token throughput is not used to shorten the forecast. The original
+nine-hour scheduled target remains unmet. A hypothetical further identical 840s
+envelope, earmarking the last existing 240s long slot once, would total
+33,575.17066794846s; that arithmetic is **not authorization** for another start or
+for an output-budget/request amendment.
+
+The authoritative **remote** terminal ledger SHA-256 is
+`10b82d5a51e95b1a21e2cf64483f7301a9287ec7b64117b7d6f67347c2e6ecd2`.
+The transfer guard denied downloading restricted artifacts and publishing the
+derived verification artifact. No such transfer or publication was performed.
+The verification receipt remains at the remote ignored path
+`artifacts/restricted/v10_validation/terminal-verification.json`; raw diagnostics
+remain under `artifacts/restricted/http_diagnostics/fallback-qwen3-8b-awq-development-v10/`.
+**The local ledger remains the preserved V9 ledger and is stale for admission.**
+Do not substitute its lower total for the authoritative remote total. An explicit
+restricted-transfer approval is needed for a local V10 recovery backup.
+
+Next milestone: CPU-only output-serialization/packing adequacy analysis, followed
+by a concrete proposal if the registered 10,240-input/2,048-output split must
+change. Do not loosen validators, reconstruct missing ontology semantics on the
+CPU, or infer permission to amend the request/model context limit. Any new GPU
+start requires new authorization. Held-out execution also remains blocked on
+independent human review. No PDF was regenerated.
+
+Executed source: `b03706e`; cap implementation: `0174fed`; preflight checkpoint:
+`ab217cc`. Read-only remote status command:
+`PYTHONPATH=src .venv/bin/python scripts/control_bounded_recovery.py status`.
+There is no authorized GPU resume command. Earlier sections below are historical.
 
 ## Approved scheduled-resource amendment and single V10 recovery
 
