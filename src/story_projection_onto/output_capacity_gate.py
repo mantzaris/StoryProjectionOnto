@@ -88,7 +88,12 @@ class CapacityRecoveryState:
         }
 
 
-def capacity_forecast(rows: Sequence[Mapping], *, output_tokens: int = 6144) -> dict:
+def capacity_forecast(
+    rows: Sequence[Mapping],
+    *,
+    output_tokens: int = 6144,
+    pending_acceptance_resume_seconds: float = 0,
+) -> dict:
     """Preserve every remaining row; scale only unmeasured generation proxies.
 
     Output-cap ratio is a sensitivity/admission proxy, not measured p95. No
@@ -97,6 +102,11 @@ def capacity_forecast(rows: Sequence[Mapping], *, output_tokens: int = 6144) -> 
     """
     if output_tokens < 2048:
         raise ValueError("capacity repair cannot silently lower required output allocation")
+    if (
+        not math.isfinite(pending_acceptance_resume_seconds)
+        or pending_acceptance_resume_seconds < 0
+    ):
+        raise ValueError("invalid pending acceptance/resume envelope")
     updated = []
     for row in rows:
         item = dict(row)
@@ -125,13 +135,16 @@ def capacity_forecast(rows: Sequence[Mapping], *, output_tokens: int = 6144) -> 
         )
         item["remaining_forecast_seconds"] = item["remaining_count"] * item["forecast_p95_seconds"]
         updated.append(item)
-    remaining = math.fsum(row["remaining_forecast_seconds"] for row in updated)
+    inventory_remaining = math.fsum(row["remaining_forecast_seconds"] for row in updated)
+    remaining = inventory_remaining + pending_acceptance_resume_seconds
     return {
         "kind": "unmeasured_capacity_proxy_capped_at_unchanged_watchdogs",
         "valid_completion_forecast_established": False,
         "rows": updated,
         "actual_allocated_seconds": BASELINE_SECONDS,
         "remaining_forecast_seconds": remaining,
+        "inventory_remaining_seconds": inventory_remaining,
+        "pending_acceptance_resume_service_seconds": pending_acceptance_resume_seconds,
         "all_in_seconds": BASELINE_SECONDS + remaining,
         "plus_full_authorized_recovery_block": BASELINE_SECONDS + remaining + BLOCK_SECONDS,
         "original_nine_hour_target_met": False,

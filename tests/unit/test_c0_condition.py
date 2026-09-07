@@ -104,6 +104,63 @@ def test_prequery_identity_keeps_two_numbered_places_separate():
     assert not any({"m-0", "m-1"} <= group for group in groups)
 
 
+def test_occurrence_order_is_preserved_as_relation_not_third_event():
+    text = "Launch occurred before Landing at story step 3."
+    record = EvidenceRecord(
+        evidence_id="ev-order",
+        passage_id="p-order",
+        text=text,
+        text_hash=digest(text),
+        discourse_position=DiscoursePosition(passage_order=1),
+        mention_candidates=tuple(
+            mention("ev-order", f"m-order-{i}", text, name, "event")
+            for i, name in enumerate(("Launch", "Landing"))
+        ),
+        relation_phrase_candidates=(
+            RelationPhraseCandidate(
+                candidate_id="r-order",
+                evidence_id="ev-order",
+                subject_mention_candidate_id="m-order-0",
+                object_mention_candidate_id="m-order-1",
+                surface_phrase="occurred before",
+                confidence=1,
+            ),
+        ),
+        event_candidates=(
+            EventCandidate(
+                candidate_id="ec-order",
+                evidence_id="ev-order",
+                trigger_surface="occurred before",
+                trigger_start_char=7,
+                trigger_end_char=22,
+                participant_mention_candidate_ids=("m-order-0", "m-order-1"),
+                confidence=1,
+            ),
+        ),
+        provenance=ProvenanceReference(
+            provenance_id="prov-order",
+            evidence_id="ev-order",
+            extraction_method="fixture",
+            locator="fixture:order",
+            confidence=1,
+        ),
+        confidence=1,
+        release_class=ReleaseClass.PUBLIC,
+    )
+    builder = ClassicalPreBuilder()
+    draft = builder._construct_draft(
+        evidence_by_id={record.evidence_id: record},
+        analyses=(builder.candidate_backend.analyze(record, builder.config),),
+        upper_ontology=upper(),
+        budgets=semantic_budgets(),
+        constructed_at=BASE,
+    )
+    assert not draft.instance_graph.events
+    assert any(
+        a.predicate_id == "c0-predicate-occurred_before" for a in draft.instance_graph.assertions
+    )
+
+
 @pytest.mark.parametrize(
     "verb,expected", [("reported", "reported"), ("denied", "denied"), ("believed", "believed")]
 )

@@ -1455,6 +1455,15 @@ class ClassicalPreBuilder:
             )
 
         for event_candidate in (event for analysis in analyses for event in analysis.events):
+            # An occurrence-order relation connects two events; it is not a
+            # third event with those events as agents. Neutral candidates are
+            # defeasible. Keep the explicit binary ordering assertion above.
+            if re.fullmatch(
+                r"(?:occur(?:red|s)?|happen(?:ed|s)?|took place|takes? place)\s+(?:before|after)",
+                event_candidate.trigger.strip(),
+                re.IGNORECASE,
+            ):
+                continue
             # The common validator requires a neutral event-candidate anchor in
             # cited evidence. Dependency parsing can propose extra occurrences
             # (including state verbs); retain their binary relations but do not
@@ -1815,6 +1824,8 @@ class ClassicalPreBuilder:
         except ValueError as exc:
             raise ConditionIntegrityError(
                 "C0 comprehensive preconstruction exceeds its declared prebuild budget; "
+                f"nodes={node_count}/{budgets.node_budget}, "
+                f"assertions={assertion_count}/{budgets.assertion_budget}; "
                 "refusing silent truncation"
             ) from exc
         return OntologyDraft(

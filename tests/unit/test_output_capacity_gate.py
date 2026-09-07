@@ -105,3 +105,11 @@ def test_exception_only_bypasses_forecast_not_block_or_count_limits():
         CapacityRecoveryState(BASELINE_SECONDS, 0, 0).admit(
             **(kwargs | {"diagnostic_generation": False})
         )
+
+
+def test_pending_acceptance_resume_is_in_addition_to_five_science_loads():
+    rows = [{"call_class": "gpu_session_start", "remaining_count": 5, "forecast_p95_seconds": 333}]
+    result = capacity_forecast(rows, pending_acceptance_resume_seconds=333)
+    assert result["inventory_remaining_seconds"] == 5 * 333
+    assert result["remaining_forecast_seconds"] == 6 * 333
+    assert result["pending_acceptance_resume_service_seconds"] == 333

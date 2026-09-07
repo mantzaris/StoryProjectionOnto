@@ -461,7 +461,12 @@ def controller(root, block, run, *, prepare_only=False, comparison=False):
     inventory = read(root / "artifacts/restricted/v10_validation/terminal-verification.json")[
         "remaining_inventory_rows"
     ]
-    forecast = capacity_forecast(inventory)
+    # The phase inventory's five future science loads do not include the still
+    # pending acceptance/restart/resume service after this diagnostic stops.
+    load_proxy = next(
+        row["forecast_p95_seconds"] for row in inventory if row["call_class"] == "gpu_session_start"
+    )
+    forecast = capacity_forecast(inventory, pending_acceptance_resume_seconds=load_proxy)
     immutable(run / "small-success-criteria.json", SMALL_SUCCESS_CRITERIA)
     # Authored development fixture, never supplied to the model. This measures
     # representation capacity only, not a valid answer to the small snapshot.
