@@ -11,6 +11,11 @@ preserved and remains stale. V10 ledger/CAS verification passes with zero issues
 Actual allocation remains **3,227.826324 seconds**, with **zero** new GPU starts,
 diagnostics, or development calls during the capacity repair. Accepted model
 outputs: C1=0, C2=0, FixedSelect=0. vLLM is stopped; the pod remains active.
+Current project storage samples: **16,395,871,744 block-reported bytes** and
+10,347,766,286 apparent bytes. The conservative block count remains below 25 GB
+and leaves more than 5 GB of the planned 30 GB allocation unused. These two
+filesystem measures are distinct; neither is silently substituted for historical
+ledger samples. No model weights or dependencies were newly downloaded.
 
 V10's complete HTTP 200 response exhausted 2,048 output tokens and truncated JSON
 inside a string. Implemented opt-in repair: compact record tuples, lossless input
@@ -51,8 +56,8 @@ readable package and response worksheet are under
 `artifacts/restricted/scorer_only/independent_review_handoff/`; instructions are
 in `docs/INDEPENDENT_REVIEW_HANDOFF.md`. No reviewer judgment was fabricated.
 
-Previous checkpoint: `df5bd57`; the capacity-repair checkpoint is the commit that
-adds `docs/OUTPUT_CAPACITY_REPAIR.md`. Earlier sections below are historical;
+Previous checkpoint: `df5bd57`; tested capacity-repair checkpoint: **`18a9790`**.
+Earlier sections below are historical;
 their transfer/start prohibitions are superseded only by the latest explicit
 authorization, which still requires fresh all-in admission.
 

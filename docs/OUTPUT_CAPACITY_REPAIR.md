@@ -151,6 +151,14 @@ Actual hard headroom is still 32,772.173676 seconds, exclusively; that fact does
 not override the complete-run admission rule. The earlier 29,747.344344 remaining
 forecast used the inadequate output allowances and is not fresh admission.
 
+Read-only storage samples after CPU work are 10,347,766,286 apparent bytes
+(`du -sb`) and 16,395,871,744 block-reported bytes (`du -sB1`). Use the larger
+sample conservatively: it remains below 25 GB occupied and leaves 13,604,128,256
+bytes of the planned 30 GB allocation, including the protected 5 GB headroom.
+These are different filesystem accounting conventions, not evidence of a new
+six-gigabyte download. No dependencies or weights were installed/downloaded
+during this repair. Do not silently compare unlike historical storage samples.
+
 The small CPU admission module tests preserved history, two starts, three
 diagnostics, the whole 1,200-second allocation bound, shutdown reserve, strict
 hard stop and all-in scheduled admission. It does **not** claim to be a deployed
