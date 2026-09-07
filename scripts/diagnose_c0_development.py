@@ -186,14 +186,121 @@ def validity_examples(source, output):
     print(json.dumps({"validity_only_comparisons": len(rows), "examples": len(selected)}))
 
 
+def classify_validity(source, output):
+    """Separate evidence support, latent intrinsic bounds and query clipping.
+
+    Reads only the already-diagnosed DEVELOPMENT worlds. This classifies the
+    reference construction; it does not change or rescore any assertion.
+    """
+    from story_projection_onto.synthetic_benchmark import StoryScopeBlock, _scope, _time_bounds
+
+    if output.exists() or "restricted" not in output.parts:
+        raise ValueError("new restricted classification required")
+    root = Path.cwd()
+    diagnosis = json.loads(source.read_bytes())
+    neutral, visible, _ = load_development_prequery_evidence(
+        root, load_development_call_manifest(root)
+    )
+    worlds = {}
+    for unit, artifact in neutral.items():
+        world_id = resolve_development_world_id(
+            root, visible[unit].content_hash, artifact.content_hash
+        )
+        world = json.loads(
+            (root / f"data/synthetic/scorer_only/development/{world_id}.json").read_bytes()
+        )
+        assert world["world_spec"]["split"] == "development"
+        worlds[unit] = world
+    rows = []
+    for original in diagnosis["rows"]:
+        if set(original.get("mismatched_fields", {})) != {"validity_time"}:
+            continue
+        world = worlds[original["unit"]]
+        evidence_ids = set(original["evidence_ids"])
+        candidates = [
+            f
+            for f in world["world_spec"]["facts"]
+            if evidence_ids.intersection(world["fact_evidence_ids"].get(f["fact_id"], []))
+            and f["relation"] == original["expected_normalized"]["predicate"]
+        ]
+        assert len(candidates) == 1
+        fact = candidates[0]
+        scope = _scope(
+            StoryScopeBlock(world["query_assignment"]["story_scopes"][original["query"] - 1])
+        )
+        start, end = _time_bounds(scope)
+        reference = original["expected_normalized"]["validity_time"]
+        intrinsic = {"start": fact["story_position"], "end": fact["validity_end"]}
+        clipped_end = min(end, fact["validity_end"] if fact["validity_end"] is not None else 10**9)
+        assert reference["start"] == max(start, intrinsic["start"])
+        assert reference["end"] == (None if clipped_end == 10**9 else clipped_end)
+        evidence = [e for e in neutral[original["unit"]].evidence if e.evidence_id in evidence_ids]
+        prose = " ".join(e.text for e in evidence)
+        explicit_duration = "through step " in prose or " thereafter" in prose
+        rows.append(
+            {
+                "unit": original["unit"],
+                "query": original["query"],
+                "prediction_id": original["prediction_id"],
+                "reference_id": original["gold_id"],
+                "evidence": [e.text for e in evidence],
+                "temporal_clues": [
+                    clue.normalized_expression for e in evidence for clue in e.temporal_clues
+                ],
+                "predicate": fact["relation"],
+                "world_intrinsic_validity": intrinsic,
+                "query_scope": clean(scope.model_dump(mode="json")),
+                "reference_validity": reference,
+                "c0_validity": original["actual_normalized"]["validity_time"],
+                "explicit_duration_language": explicit_duration,
+                "query_window_clipped": reference["start"] != intrinsic["start"]
+                or reference["end"] != intrinsic["end"],
+                "unstated_finite_intrinsic_end": fact["validity_end"] is not None
+                and not explicit_duration,
+                "authoritative_rule_supplies_exact_intrinsic_interval": False,
+                "reference_interval_fully_explicit": explicit_duration,
+                "interpretation": (
+                    "Query visibility is a restriction, not a new onset/cessation claim. "
+                    "A story point alone does not establish a full validity interval."
+                ),
+            }
+        )
+    counts = {
+        key: sum(r[key] for r in rows)
+        for key in (
+            "query_window_clipped",
+            "unstated_finite_intrinsic_end",
+            "reference_interval_fully_explicit",
+            "authoritative_rule_supplies_exact_intrinsic_interval",
+        )
+    }
+    write_json_atomic(
+        {
+            "kind": "development_reference_validity_classification_not_rescoring",
+            "source_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+            "comparison_count": len(rows),
+            "overlapping_counts": counts,
+            "rows": rows,
+            "gold_changed": False,
+            "scoring_changed": False,
+            "held_out_opened": False,
+        },
+        output,
+    )
+    print(json.dumps({"comparisons": len(rows), "overlapping_counts": counts}))
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     inputs = parser.add_mutually_exclusive_group(required=True)
     inputs.add_argument("--calibration", type=Path)
     inputs.add_argument("--validity-from", type=Path)
+    inputs.add_argument("--classify-validity-from", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    if args.validity_from:
+    if args.classify_validity_from:
+        classify_validity(args.classify_validity_from, args.output)
+    elif args.validity_from:
         validity_examples(args.validity_from, args.output)
     else:
         run(Path.cwd(), args.calibration, args.output)

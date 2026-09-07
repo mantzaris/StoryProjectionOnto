@@ -65,6 +65,10 @@ def test_guardian_kills_owned_controller_and_adopts_only_for_cleanup(tmp_path, m
     config_path = tmp_path / "configs/study/output_capacity_recovery.json"
     config_path.parent.mkdir(parents=True)
     driver.immutable(config_path, config)
+    driver.immutable(
+        config_path.with_name("resource_limits.json"),
+        driver.read(ROOT / "configs/study/resource_limits.json"),
+    )
     (tmp_path / "artifacts/restricted").mkdir(parents=True)
     observed = []
     service = SimpleNamespace(
@@ -79,6 +83,15 @@ def test_guardian_kills_owned_controller_and_adopts_only_for_cleanup(tmp_path, m
     monkeypatch.setattr(driver, "setup", lambda *a: (ledger, None, service))
     monkeypatch.setattr(driver, "source_binding", lambda *a: {})
     monkeypatch.setattr(driver, "count_reservations", lambda *a: 3)
+    monkeypatch.setattr(
+        driver,
+        "ResourceSampler",
+        lambda **kw: SimpleNamespace(
+            prepare=lambda **kw: observed.append(("storage_checkpoint", kw)),
+            close_probes=lambda: None,
+            _storage_observation={"valid": True},
+        ),
+    )
 
     class Child:
         pid = 123
@@ -111,7 +124,7 @@ def test_guardian_kills_owned_controller_and_adopts_only_for_cleanup(tmp_path, m
 
     monkeypatch.setattr(driver.subprocess, "Popen", Child)
     driver.guardian(tmp_path)
-    assert [item[0] for item in observed] == ["kill", "adopt", "shutdown"]
+    assert [item[0] for item in observed] == ["kill", "adopt", "shutdown", "storage_checkpoint"]
     assert observed[1][1]["cleanup_only"] is True
     assert observed[1][1]["expected_event_id"] == "capacity-start-1-load"
 

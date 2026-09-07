@@ -5535,10 +5535,10 @@ class StoragePreflight:
         for controlled in self._device_check_paths:
             self._require_quota_device(controlled)
         for controlled in self.controlled_paths:
-            if not controlled.exists():
+            if not controlled.exists() and not controlled.is_symlink():
                 continue
             candidates: Iterator[Path]
-            if controlled.is_file():
+            if not controlled.is_dir() or controlled.is_symlink():
                 candidates = iter((controlled,))
             else:
                 def traversal_error(error: OSError) -> None:
@@ -5546,15 +5546,17 @@ class StoragePreflight:
                         "cannot completely traverse project-controlled storage"
                     ) from error
 
-                candidates = (
-                    Path(directory) / filename
-                    for directory, _, filenames in os.walk(
-                        controlled,
-                        followlinks=False,
-                        onerror=traversal_error,
-                    )
-                    for filename in filenames
-                )
+                def all_entries(root: Path) -> Iterator[Path]:
+                    yield root
+                    for directory, directories, filenames in os.walk(
+                        root, followlinks=False, onerror=traversal_error
+                    ):
+                        # Directory blocks and directory symlinks occupy quota
+                        # too. Hard-link identity deduplication remains below.
+                        for name in (*directories, *filenames):
+                            yield Path(directory) / name
+
+                candidates = all_entries(controlled)
             for candidate in candidates:
                 stat = candidate.lstat()
                 identity = (stat.st_dev, stat.st_ino)

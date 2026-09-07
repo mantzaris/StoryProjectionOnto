@@ -124,8 +124,12 @@ def launch_configuration(tmp_path: Path) -> VLLMLaunchConfiguration:
 
 def test_whitespace_repair_changes_only_explicit_decoder_flag_and_identity(launch_configuration):
     from dataclasses import replace
+
     repaired = replace(launch_configuration, guided_decoding_disable_any_whitespace=True)
-    assert repaired.command() == (*launch_configuration.command(), "--guided-decoding-disable-any-whitespace")
+    assert repaired.command() == (
+        *launch_configuration.command(),
+        "--guided-decoding-disable-any-whitespace",
+    )
     assert repaired.configuration_hash != launch_configuration.configuration_hash
     assert "guided_decoding_disable_any_whitespace" not in launch_configuration.public_manifest()
     assert repaired.maximum_model_length == launch_configuration.maximum_model_length == 12288
@@ -316,9 +320,7 @@ class FakeTokenizer:
         assert kwargs["enable_thinking"] is False
         assert isinstance(conversation, (list, tuple))
         contents = [str(message["content"]) for message in conversation]
-        rendered = " chat_turn ".join(
-            ("chat_start", *contents, "assistant_start", "chat_end")
-        )
+        rendered = " chat_turn ".join(("chat_start", *contents, "assistant_start", "chat_end"))
         if kwargs["tokenize"]:
             return list(range(len(rendered.split())))
         return rendered
@@ -495,9 +497,7 @@ def _acceptance_execution_plan_hash(
 ) -> str:
     return canonical_sha256(
         {
-            "acceptance_plan_manifest_sha256": acceptance_plan_manifest(ROOT)[
-                "manifest_sha256"
-            ],
+            "acceptance_plan_manifest_sha256": acceptance_plan_manifest(ROOT)["manifest_sha256"],
             "launcher_configuration_sha256": launch_configuration.configuration_hash,
             "tokenizer_manifest_sha256": _tokenizer_manifest().manifest_sha256,
             "legacy_evidence_provenance_certificate_sha256": (
@@ -1049,10 +1049,9 @@ def _write_fake_proc_identity(
     (process_root / "cmdline").write_bytes(encoded_command + b"\0")
     if service_instance_token is not None:
         (process_root / "environ").write_bytes(
-            (
-                f"{gpu_runtime.SERVICE_INSTANCE_ENVIRONMENT_KEY}="
-                f"{service_instance_token}\0"
-            ).encode("ascii")
+            (f"{gpu_runtime.SERVICE_INSTANCE_ENVIRONMENT_KEY}={service_instance_token}\0").encode(
+                "ascii"
+            )
         )
 
 
@@ -1350,7 +1349,7 @@ def test_default_cpu_affinity_sampler_uses_current_process_sentinel(
     assert all(isinstance(cpu, int) and cpu >= 0 for cpu in available)
 
 
-def test_service_start_deadline_retains_process_until_startup_sample_drains(
+def test_service_start_deadline_signals_before_legacy_startup_sample_drains(
     tmp_path: Path,
     launch_configuration: VLLMLaunchConfiguration,
 ) -> None:
@@ -1387,7 +1386,7 @@ def test_service_start_deadline_retains_process_until_startup_sample_drains(
             affinity_setter=lambda pid, cpus: None,
         )
         started = time.monotonic()
-        with pytest.raises(RuntimeError, match="retaining service and lease ownership"):
+        with pytest.raises(RuntimeError, match=r"could not be stopped|cleanup incomplete"):
             service.start(
                 session_id="pilot",
                 event_id="slow-startup-sample",
@@ -1396,8 +1395,8 @@ def test_service_start_deadline_retains_process_until_startup_sample_drains(
         elapsed = time.monotonic() - started
 
         assert elapsed < 0.5
-        assert process.running is True
-        assert signals == []
+        assert process.running is False
+        assert signals == [signal.SIGTERM]
         assert service._service_lock_stream is not None
         assert service._startup_resource_watchdog is not None
         assert service._startup_resource_watchdog.sample_in_flight is True
@@ -1492,7 +1491,7 @@ def test_durable_exec_wait_is_clipped_to_absolute_service_start_deadline(
 
 
 @pytest.mark.parametrize("caller_path", ("fallback", "phase1"))
-def test_periodic_watchdog_drain_timeout_blocks_every_runner_shutdown_path(
+def test_periodic_watchdog_drain_timeout_does_not_block_physical_shutdown(
     tmp_path: Path,
     launch_configuration: VLLMLaunchConfiguration,
     caller_path: str,
@@ -1561,21 +1560,19 @@ def test_periodic_watchdog_drain_timeout_blocks_every_runner_shutdown_path(
         assert entered.wait(0.5)
 
         # Both registered runners now use this service-owned stop before their
-        # finally-block shutdown.  A timeout must remain a shutdown barrier.
-        assert (
-            service.stop_periodic_resource_watchdog(watchdog, raise_failure=False)
-            is False
-        )
-        with pytest.raises(RuntimeError, match="periodic resource sample remains"):
+        # finally-block shutdown. A timeout may retain accounting ownership,
+        # but cannot prevent the verified owned service from being terminated.
+        assert service.stop_periodic_resource_watchdog(watchdog, raise_failure=False) is False
+        with pytest.raises(RuntimeError, match=r"could not be stopped|cleanup incomplete"):
             service.shutdown(shutdown_seconds=0.1)
 
-        assert signals == []
-        assert process.running is True
+        assert signals == [signal.SIGTERM]
+        assert process.running is False
         assert service._service_lock_stream is not None
         assert service._periodic_resource_watchdog is watchdog
         lease = service.read_authoritative_service_lease()
         assert lease is not None
-        assert lease["lease_state"] == "live"
+        assert lease["lease_state"] == "accounting_pending"
         assert lease["service_pid"] == process.pid
         assert lease["process_start_ticks"] == 71_020
         assert lease["process_group_id"] == process.pid
@@ -1653,15 +1650,12 @@ def test_periodic_watchdog_callback_cannot_unregister_its_own_live_thread(
         deadline = time.monotonic() + 0.5
         while watchdog.running and time.monotonic() < deadline:
             time.sleep(0.001)
-        assert (
-            service.stop_periodic_resource_watchdog(watchdog, raise_failure=False)
-            is True
-        )
+        assert service.stop_periodic_resource_watchdog(watchdog, raise_failure=False) is True
         assert service._periodic_resource_watchdog is None
         service.shutdown(shutdown_seconds=0.1)
 
 
-def test_heartbeat_failure_never_signals_while_periodic_sample_owns_ledger(
+def test_heartbeat_failure_signals_even_while_legacy_periodic_sample_is_stuck(
     tmp_path: Path,
     launch_configuration: VLLMLaunchConfiguration,
 ) -> None:
@@ -1718,8 +1712,8 @@ def test_heartbeat_failure_never_signals_while_periodic_sample_owns_ledger(
 
         assert emergency_thread.is_alive() is False
         assert isinstance(service._emergency_stop_failure, RuntimeError)
-        assert signals == []
-        assert process.running is True
+        assert signals == [signal.SIGTERM]
+        assert process.running is False
         assert service._service_lock_stream is not None
         assert service._periodic_resource_watchdog is watchdog
 
@@ -1792,9 +1786,7 @@ def test_emergency_coordinator_is_started_before_publication_and_blocks_handoff(
 
             def attempt_detach() -> None:
                 try:
-                    service.detach_for_controller_restart(
-                        tmp_path / "race.checkpoint.json"
-                    )
+                    service.detach_for_controller_restart(tmp_path / "race.checkpoint.json")
                 except BaseException as exc:
                     detach_failures.append(exc)
 
@@ -1883,7 +1875,7 @@ def test_periodic_failure_callback_and_runner_shutdown_serialize_one_signal(
         runner_thread = threading.Thread(target=runner_shutdown)
         runner_thread.start()
         time.sleep(0.01)
-        assert signals == []
+        assert signals == [signal.SIGTERM]
         release.set()
         runner_thread.join(timeout=1)
         assert runner_thread.is_alive() is False
@@ -1941,9 +1933,7 @@ def test_controller_handoff_rejects_owned_periodic_watchdog(
         assert entered.wait(0.5)
 
         with pytest.raises(RuntimeError, match="must stop before controller detach"):
-            service.detach_for_controller_restart(
-                tmp_path / "detached-service.checkpoint.json"
-            )
+            service.detach_for_controller_restart(tmp_path / "detached-service.checkpoint.json")
         assert not (tmp_path / "detached-service.checkpoint.json").exists()
         with pytest.raises(RuntimeError, match="must stop before controller handoff"):
             service.handoff_resume(tmp_path / "service.checkpoint.json")
@@ -2448,9 +2438,7 @@ def test_atomic_lease_snapshot_recovers_torn_lock_after_target_exec(
             assert snapshot_hash == canonical_sha256(snapshot)
             assert snapshot["lease_state"] == "live"
             assert snapshot["service_pid"] == process.pid
-            assert snapshot["process_command_sha256"] == canonical_sha256(
-                list(target)
-            )
+            assert snapshot["process_command_sha256"] == canonical_sha256(list(target))
 
             original._stop_service_heartbeat()
             original._release_service_lock()
@@ -2475,8 +2463,7 @@ def test_atomic_lease_snapshot_recovers_torn_lock_after_target_exec(
 
             assert uptime is not None
             assert signaled_groups and all(
-                process_group == process.pid
-                for process_group, _ in signaled_groups
+                process_group == process.pid for process_group, _ in signaled_groups
             )
             assert process.poll() is not None
             _assert_process_group_is_gone(process.pid)
@@ -2503,9 +2490,7 @@ def test_cleanup_adopts_token_bound_group_after_service_leader_exits(
     ready_path = tmp_path / "orphan-worker.ready"
     release_path = tmp_path / "release-service-leader"
     child_program = (
-        "import signal,time; "
-        "signal.signal(signal.SIGTERM, signal.SIG_IGN); "
-        "time.sleep(30)"
+        "import signal,time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(30)"
     )
     leader_program = (
         "import pathlib,subprocess,sys,time; "
@@ -2550,9 +2535,7 @@ def test_cleanup_adopts_token_bound_group_after_service_leader_exits(
         try:
             original._process = leader
             original._last_service_pid = leader.pid
-            original._last_process_start_ticks = gpu_runtime._process_start_ticks(
-                leader.pid
-            )
+            original._last_process_start_ticks = gpu_runtime._process_start_ticks(leader.pid)
             original._last_process_command_sha256 = canonical_sha256(list(command))
             original._capture_process_group_identity(leader.pid, required=True)
             original._open_service_journal()
@@ -2602,9 +2585,7 @@ def test_cleanup_adopts_token_bound_group_after_service_leader_exits(
                 with suppress(ProcessLookupError):
                     os.killpg(leader.pid, signal.SIGKILL)
                 leader.wait(timeout=2)
-            if child_pid is not None and original.process_group_liveness_check(
-                leader.pid
-            ):
+            if child_pid is not None and original.process_group_liveness_check(leader.pid):
                 with suppress(ProcessLookupError):
                     os.killpg(leader.pid, signal.SIGKILL)
 
@@ -2640,9 +2621,7 @@ def test_cleanup_only_adopts_token_bound_service_after_argv_drift(
         )
         # setproctitle-style padding can leave an empty argv element rather than
         # merely a different valid argv hash.
-        (proc_root / str(process.pid) / "cmdline").write_bytes(
-            b"VLLM::EngineCore\0\0"
-        )
+        (proc_root / str(process.pid) / "cmdline").write_bytes(b"VLLM::EngineCore\0\0")
         clock.advance(3)
 
         def signal_group(pid: int, signal_number: int) -> None:
@@ -2776,9 +2755,7 @@ def test_failed_cleanup_adoption_and_emergency_stop_preserve_exact_lease_identit
             monotonic_clock=clock.monotonic,
             wall_clock=clock.wall,
             sleep=clock.advance,
-            process_group_signaler=lambda pid, signal_number: signaled.append(
-                (pid, signal_number)
-            ),
+            process_group_signaler=lambda pid, signal_number: signaled.append((pid, signal_number)),
             process_liveness_check=lambda pid: process.running,
             process_group_liveness_check=lambda pid: process.running,
         )
@@ -2960,9 +2937,7 @@ def test_atomic_lease_snapshot_rejects_hash_inconsistent_metadata(
 ) -> None:
     clock = FakeClock()
     process = FakeProcess(6010)
-    snapshot_path = launch_configuration.shared_cache / (
-        ".story-projection-onto-vllm.lease.json"
-    )
+    snapshot_path = launch_configuration.shared_cache / (".story-projection-onto-vllm.lease.json")
     with Ledger(tmp_path / "tampered-lease-snapshot.sqlite3") as ledger:
         service = VLLMService(
             configuration=launch_configuration,
@@ -3028,10 +3003,14 @@ def test_service_journal_heartbeats_while_process_is_allocated(
             affinity_setter=lambda pid, cpus: None,
         )
         service.start(session_id="pilot", event_id="load", watchdog_seconds=180)
+        # FakeClock advances monotonic and wall fields in two assignments. Do
+        # not let the real heartbeat thread observe that artificial half-step.
+        service._stop_service_heartbeat()
         clock.advance(2)
+        service._start_service_heartbeat()
         deadline = time.monotonic() + 1
         latest = ledger.latest_gpu_service_journal("load")
-        while latest is not None and latest.elapsed_microseconds < 2_000_000:
+        while latest is None or latest.elapsed_microseconds < 2_000_000:
             assert time.monotonic() < deadline
             time.sleep(0.001)
             latest = ledger.latest_gpu_service_journal("load")
@@ -3134,9 +3113,7 @@ def test_stale_service_recovery_accepts_exact_current_lease_manifest(
 ) -> None:
     clock = FakeClock()
     process = FakeProcess(6031)
-    snapshot_path = launch_configuration.shared_cache / (
-        ".story-projection-onto-vllm.lease.json"
-    )
+    snapshot_path = launch_configuration.shared_cache / (".story-projection-onto-vllm.lease.json")
     with Ledger(tmp_path / "manifest-pinned-recovery.sqlite3") as ledger:
         meter = AllocatedGPUMeter(
             ledger,
@@ -3180,9 +3157,10 @@ def test_stale_service_recovery_accepts_exact_current_lease_manifest(
         assert record is not None
         assert record.service_seconds == 3
         assert ledger.unresolved_gpu_service_journals() == ()
-        assert json.loads(snapshot_path.read_text(encoding="utf-8"))[
-            "lease_state"
-        ] == "stopped_verified"
+        assert (
+            json.loads(snapshot_path.read_text(encoding="utf-8"))["lease_state"]
+            == "stopped_verified"
+        )
 
 
 def test_stale_service_recovery_rejects_current_lease_manifest_drift_under_lock(
@@ -3191,9 +3169,7 @@ def test_stale_service_recovery_rejects_current_lease_manifest_drift_under_lock(
 ) -> None:
     clock = FakeClock()
     process = FakeProcess(6032)
-    snapshot_path = launch_configuration.shared_cache / (
-        ".story-projection-onto-vllm.lease.json"
-    )
+    snapshot_path = launch_configuration.shared_cache / (".story-projection-onto-vllm.lease.json")
     with Ledger(tmp_path / "manifest-drift-recovery.sqlite3") as ledger:
         meter = AllocatedGPUMeter(
             ledger,
@@ -3221,9 +3197,7 @@ def test_stale_service_recovery_rejects_current_lease_manifest_drift_under_lock(
         drifted = json.loads(snapshot_path.read_text(encoding="utf-8"))
         drifted["controller_pid"] += 1
         drifted_payload = {
-            key: value
-            for key, value in drifted.items()
-            if key != "lease_manifest_sha256"
+            key: value for key, value in drifted.items() if key != "lease_manifest_sha256"
         }
         drifted["lease_manifest_sha256"] = canonical_sha256(drifted_payload)
         snapshot_path.write_text(canonical_json(drifted) + "\n", encoding="utf-8")
@@ -4119,6 +4093,7 @@ def test_checkpoint_adoption_probe_failure_stops_and_reconciles_owned_process(
 def test_live_lease_adoption_accepts_v3_lease_without_exec_gate_fields(
     tmp_path: Path,
     launch_configuration: VLLMLaunchConfiguration,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     clock = FakeClock()
     process = FakeProcess(3457)
@@ -4129,6 +4104,16 @@ def test_live_lease_adoption_accepts_v3_lease_without_exec_gate_fields(
         pid=process.pid,
         start_ticks=start_ticks,
         configuration=launch_configuration,
+    )
+    # An injected process must not accidentally resolve a real host PID when
+    # this CPU test runs outside the PID sandbox.
+    monkeypatch.setattr(
+        "story_projection_onto.gpu_runtime._process_start_ticks",
+        lambda pid, proc_root=proc_root: start_ticks,
+    )
+    monkeypatch.setattr(
+        "story_projection_onto.gpu_runtime._process_command_sha256",
+        lambda pid, proc_root=proc_root: canonical_sha256(list(launch_configuration.command())),
     )
     lock_path = launch_configuration.shared_cache / ".story-projection-onto-vllm.lock"
 
@@ -4145,6 +4130,7 @@ def test_live_lease_adoption_accepts_v3_lease_without_exec_gate_fields(
             popen_factory=lambda *args, **kwargs: process,
             monotonic_clock=clock.monotonic,
             wall_clock=clock.wall,
+            sleep=clock.advance,
             process_group_signaler=lambda pid, signal_number: None,
             process_group_liveness_check=lambda pid: process.running,
             available_cpu_sampler=lambda: set(range(16)),
@@ -4176,9 +4162,7 @@ def test_live_lease_adoption_accepts_v3_lease_without_exec_gate_fields(
             encoding="utf-8",
         )
         lock_path.with_name(".story-projection-onto-vllm.lease.json").unlink()
-        assert "launch_protocol" not in json.loads(
-            lock_path.read_text(encoding="utf-8")
-        )
+        assert "launch_protocol" not in json.loads(lock_path.read_text(encoding="utf-8"))
         clock.advance(5)
 
         spawned: list[object] = []
@@ -4218,9 +4202,7 @@ def test_live_lease_adoption_accepts_v3_lease_without_exec_gate_fields(
         assert lease["launch_protocol"] is None
         assert lease["launch_gate_token_sha256"] is None
         assert lease["launch_supervisor_command_sha256"] is None
-        assert str(launch_configuration.snapshot_path) not in lock_path.read_text(
-            encoding="utf-8"
-        )
+        assert str(launch_configuration.snapshot_path) not in lock_path.read_text(encoding="utf-8")
         recovering.shutdown(shutdown_seconds=0.1)
         assert process.running is False
 
@@ -4321,9 +4303,7 @@ def test_production_exec_gate_never_runs_target_when_supervisor_precedes_pid_lea
             assert self._process is not None
             observed_process.append(cast(subprocess.Popen[bytes], self._process))
             assert os.getpgid(service_pid) == service_pid
-            observed_pidless_leases.append(
-                json.loads(lock_path.read_text(encoding="utf-8"))
-            )
+            observed_pidless_leases.append(json.loads(lock_path.read_text(encoding="utf-8")))
             raise RuntimeError("simulated controller death before PID persistence")
         original_write(
             self,
@@ -4572,9 +4552,7 @@ def test_pidless_preexec_lease_is_conservatively_recovered_without_launch(
         interrupted._started_monotonic = clock.monotonic()
         interrupted._allocated_at_start = meter.actual_allocated_gpu_seconds
         assert interrupted._prepare_durable_exec_gate()
-        interrupted._write_service_lock_metadata(
-            lease_state="launch_supervisor_pending"
-        )
+        interrupted._write_service_lock_metadata(lease_state="launch_supervisor_pending")
         interrupted._open_service_journal()
         interrupted._release_service_lock()
         clock.advance(3)
@@ -4625,9 +4603,7 @@ def test_pidless_preexec_recovery_without_service_journal_keeps_failure_allocati
         interrupted._started_monotonic = clock.monotonic()
         interrupted._allocated_at_start = meter.actual_allocated_gpu_seconds
         assert interrupted._prepare_durable_exec_gate()
-        interrupted._write_service_lock_metadata(
-            lease_state="launch_supervisor_pending"
-        )
+        interrupted._write_service_lock_metadata(lease_state="launch_supervisor_pending")
         interrupted._release_service_lock()
         ledger.record_gpu_allocation_observation(
             allocation_id="load",
@@ -4721,9 +4697,7 @@ def test_cleanup_only_adopts_and_kills_live_terminalizing_pid(
                     elapsed_seconds=2,
                     observed_at=clock.wall() + timedelta(seconds=1),
                     process_stopped=True,
-                    details={
-                        "prior_stop_contradicted_by_exact_live_identity": False
-                    },
+                    details={"prior_stop_contradicted_by_exact_live_identity": False},
                 )
             with pytest.raises(ValueError, match="process_stopped->process_stopped"):
                 meter.observe_service_journal(
@@ -4731,9 +4705,7 @@ def test_cleanup_only_adopts_and_kills_live_terminalizing_pid(
                     elapsed_seconds=2,
                     observed_at=clock.wall(),
                     process_stopped=True,
-                    details={
-                        "prior_stop_contradicted_by_exact_live_identity": True
-                    },
+                    details={"prior_stop_contradicted_by_exact_live_identity": True},
                 )
             with pytest.raises(ValueError, match="process_stopped->process_stopped"):
                 meter.observe_service_journal(
@@ -4741,9 +4713,7 @@ def test_cleanup_only_adopts_and_kills_live_terminalizing_pid(
                     elapsed_seconds=1,
                     observed_at=clock.wall() + timedelta(seconds=1),
                     process_stopped=True,
-                    details={
-                        "prior_stop_contradicted_by_exact_live_identity": True
-                    },
+                    details={"prior_stop_contradicted_by_exact_live_identity": True},
                 )
             with pytest.raises(DuplicateConflictError, match="identity changed"):
                 ledger.record_gpu_service_observation(
@@ -4759,9 +4729,7 @@ def test_cleanup_only_adopts_and_kills_live_terminalizing_pid(
                     ),
                     hard_limit_seconds=meter.hard_limit_seconds,
                     observed_at=clock.wall() + timedelta(seconds=1),
-                    details={
-                        "prior_stop_contradicted_by_exact_live_identity": True
-                    },
+                    details={"prior_stop_contradicted_by_exact_live_identity": True},
                 )
         original._write_service_lock_metadata(
             lease_state=lease_state,
@@ -4805,14 +4773,13 @@ def test_cleanup_only_adopts_and_kills_live_terminalizing_pid(
         assert process.running is False
         assert ledger.unresolved_gpu_service_journals() == ()
         observations = ledger.gpu_service_journal_records()
-        stopped = [
-            row for row in observations if row.state.value == "process_stopped"
-        ]
+        stopped = [row for row in observations if row.state.value == "process_stopped"]
         assert len(stopped) == (2 if prior_stop_recorded else 1)
         assert stopped[-1].elapsed_microseconds == 3_000_000
-        assert json.loads(stopped[-1].details_json)[
-            "prior_stop_contradicted_by_exact_live_identity"
-        ] is prior_stop_recorded
+        assert (
+            json.loads(stopped[-1].details_json)["prior_stop_contradicted_by_exact_live_identity"]
+            is prior_stop_recorded
+        )
 
 
 def test_live_lease_adoption_rejects_pid_reuse_and_retains_exclusive_lock(
@@ -4971,8 +4938,16 @@ def test_explicit_controller_restart_handoff_requires_a_different_pid(
 def test_service_overhead_is_durable_nonoverlapping_and_carries_hard_budget(
     tmp_path: Path,
     launch_configuration: VLLMLaunchConfiguration,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     clock = FakeClock()
+
+    def absent_fixture_pid(pid, proc_root=None):
+        raise FileNotFoundError("CPU fixture has no process identity")
+
+    monkeypatch.setattr(
+        "story_projection_onto.gpu_runtime._process_start_ticks", absent_fixture_pid
+    )
     with Ledger(tmp_path / "durable-service-time.sqlite3") as ledger:
         for ordinal, idle_seconds in ((1, 30), (2, 20)):
             process = FakeProcess(5000 + ordinal)
@@ -5035,8 +5010,16 @@ def test_service_overhead_is_durable_nonoverlapping_and_carries_hard_budget(
 def test_spawn_failure_stops_child_and_preserves_restricted_log(
     tmp_path: Path,
     launch_configuration: VLLMLaunchConfiguration,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     process = FakeProcess(4567)
+
+    def absent_fixture_pid(pid, proc_root=None):
+        raise FileNotFoundError("CPU fixture has no process identity")
+
+    monkeypatch.setattr(
+        "story_projection_onto.gpu_runtime._process_start_ticks", absent_fixture_pid
+    )
     log_path = tmp_path / "runtime" / "vllm.log"
     with Ledger(tmp_path / "ledger.sqlite3") as ledger:
         service = VLLMService(
@@ -5275,14 +5258,11 @@ def test_mechanical_acceptance_audit_validates_condition_fixtures(
             request_fixture=call.request_fixture,
         )
         source_hashes = {
-            item.evidence_id: item.provenance.source_artifact_hash
-            for item in resolved.evidence
+            item.evidence_id: item.provenance.source_artifact_hash for item in resolved.evidence
         }
         for assertion in output["instance_graph"]["assertions"]:
             for provenance in assertion["provenance"]:
-                provenance["source_artifact_hash"] = source_hashes[
-                    provenance["evidence_id"]
-                ]
+                provenance["source_artifact_hash"] = source_hashes[provenance["evidence_id"]]
     audit = validate_acceptance_generation(
         root=ROOT,
         call=call,
@@ -5302,12 +5282,8 @@ def test_legacy_c1_acceptance_horizon_requires_exact_paired_evidence(
     fixture_root = tmp_path / "tests" / "fixtures" / "phase1"
     fixture_root.mkdir(parents=True)
     source_fixture_root = ROOT / "tests" / "fixtures" / "phase1"
-    c1_request = json.loads(
-        (source_fixture_root / "c1_pre_request.json").read_text()
-    )
-    paired_request = json.loads(
-        (source_fixture_root / "c2_query_request.json").read_text()
-    )
+    c1_request = json.loads((source_fixture_root / "c1_pre_request.json").read_text())
+    paired_request = json.loads((source_fixture_root / "c2_query_request.json").read_text())
     paired_request["packet"]["evidence"][0]["text"] += " altered"
     (fixture_root / "c1_pre_request.json").write_text(json.dumps(c1_request))
     (fixture_root / "c2_query_request.json").write_text(json.dumps(paired_request))
@@ -5401,9 +5377,7 @@ class FixtureAcceptanceClient:
             }
             for assertion in parsed["instance_graph"]["assertions"]:
                 for provenance in assertion["provenance"]:
-                    provenance["source_artifact_hash"] = source_hashes[
-                        provenance["evidence_id"]
-                    ]
+                    provenance["source_artifact_hash"] = source_hashes[provenance["evidence_id"]]
         envelope = {
             "id": f"private-{request.request_id}",
             "choices": [{"message": {"content": json.dumps(parsed)}, "finish_reason": "stop"}],
@@ -5676,9 +5650,7 @@ def test_acceptance_runner_executes_exact_calls_lifecycle_forecast_and_gates(
         assert result["timing_gate"]["model_load_sample_count_exact"] is True
         assert result["timing_gate"]["service_overhead_seconds_included"] == 20
         assert result["actual_plus_remaining_forecast"]["admitted"] is True
-        assert (
-            result["actual_plus_remaining_forecast"]["consumed_gpu_session_start_slots"] == 3
-        )
+        assert result["actual_plus_remaining_forecast"]["consumed_gpu_session_start_slots"] == 3
         assert result["calls"][0]["packing_report"]["truncation_applied"] is False
         assert result["calls"][0]["decoding_manifest"]["thinking_mode"] is False
         kinds = {kind for kind, _ in ledger.gpu_summary().by_kind_microseconds}
@@ -5803,9 +5775,7 @@ def test_acceptance_failed_transport_is_accounted_but_not_a_timing_proxy(
                 "exception_type": "RuntimeTransportError",
             }
         ]
-        timings = {
-            row["call_class"]: row for row in result["timing_by_call_class"]
-        }
+        timings = {row["call_class"]: row for row in result["timing_by_call_class"]}
         assert "acceptance_c1" not in timings
         acceptance_c1_forecast = next(
             row
@@ -5820,9 +5790,7 @@ def test_acceptance_failed_transport_is_accounted_but_not_a_timing_proxy(
         model_call = ledger.get_model_call("failed-transport-pilot-c1-01")
         assert model_call.successful is False
         assert model_call.allocated_gpu_microseconds == 2_000_000
-        failure = ledger.failures_for_lineage(
-            "failed-transport-pilot-c1-01-attempt"
-        )[0]
+        failure = ledger.failures_for_lineage("failed-transport-pilot-c1-01-attempt")[0]
         assert failure.artifact_hash is not None
         diagnostic_record = ledger.get_artifact(failure.artifact_hash)
         assert diagnostic_record.release_class is ReleaseClass.RESTRICTED

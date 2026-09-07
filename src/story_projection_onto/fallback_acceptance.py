@@ -625,6 +625,7 @@ _FALLBACK_CORE_IMPLEMENTATION_FILES = (
     "src/story_projection_onto/fallback_v7_runtime_incident.py",
     "src/story_projection_onto/fallback_v7_lease_repair.py",
     "src/story_projection_onto/gpu_runtime.py",
+    "src/story_projection_onto/resource_probe.py",
     "src/story_projection_onto/http_diagnostics.py",
     "src/story_projection_onto/controller_preparation.py",
     "src/story_projection_onto/bounded_recovery.py",

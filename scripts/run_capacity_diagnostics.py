@@ -362,6 +362,7 @@ def controller(root, block, run, *, prepare_only=False):
     from story_projection_onto.phase1_legacy_provenance import Phase1LegacyEvidenceProvenanceBridge
 
     ledger, sampler, service = setup(root, run)
+    sampler.prepare()
     binding = read(run / "binding.json")
     if (
         binding["source"] != source_binding(root)
@@ -465,6 +466,7 @@ def controller(root, block, run, *, prepare_only=False):
         },
     )
     if prepare_only:
+        sampler.close_probes()
         print(json.dumps({"cpu_preparation_passed": True, "gpu_allocated": False}), flush=True)
         return
     # Live hardware/storage checks stay here, after invariant preparation.
@@ -935,6 +937,29 @@ def guardian(root, *, prepare_only=False):
                     "open_service_journals": len(ledger.unresolved_gpu_service_journals()),
                 },
             )
+        # After the controller/guardian has terminally reconciled shutdown, a
+        # bounded CPU census does not hold the allocated service or its deadline.
+        if (
+            not prepare_only
+            and not ledger.unresolved_gpu_allocations()
+            and not ledger.unresolved_gpu_service_journals()
+        ):
+            checkpoint_sampler = ResourceSampler(
+                limits=ResourceLimits.load(root / "configs/study/resource_limits.json"),
+                storage=StoragePreflight(root),
+            )
+            try:
+                checkpoint_sampler.prepare(timeout_seconds=120)
+                checkpoint = checkpoint_sampler._storage_observation
+            except Exception as error:
+                checkpoint = {
+                    "valid": False,
+                    "error_type": type(error).__name__,
+                    "exception_chain": traceback.format_exc(),
+                }
+            finally:
+                checkpoint_sampler.close_probes()
+            immutable(run / "storage-terminal-checkpoint.json", checkpoint)
         print(
             json.dumps({"run": str(run.relative_to(root)), "exit_code": child.returncode}),
             flush=True,

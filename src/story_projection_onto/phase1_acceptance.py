@@ -140,6 +140,7 @@ ACCEPTANCE_IMPLEMENTATION_FILES = (
     "src/story_projection_onto/contracts.py",
     "src/story_projection_onto/experiment.py",
     "src/story_projection_onto/gpu_runtime.py",
+    "src/story_projection_onto/resource_probe.py",
     "src/story_projection_onto/http_diagnostics.py",
     "src/story_projection_onto/llm.py",
     "src/story_projection_onto/model_gate.py",

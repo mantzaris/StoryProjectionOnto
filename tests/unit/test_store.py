@@ -193,9 +193,7 @@ def test_only_exact_frozen_v3_failure_can_use_legacy_query_blind_retry_branch(
         attempt_id=attempt_id,
         details={
             "reserve_call_class": "reserve_long",
-            "reserve_reservation_id": (
-                "fallback-qwen3-8b-awq-development-v3:fallback-c1-01"
-            ),
+            "reserve_reservation_id": ("fallback-qwen3-8b-awq-development-v3:fallback-c1-01"),
         },
     )
     ledger.record_model_call(
@@ -210,9 +208,7 @@ def test_only_exact_frozen_v3_failure_can_use_legacy_query_blind_retry_branch(
         decoding_manifest_hash=HASH_B,
         request_hash=request_hash,
         response_artifact_hash=None,
-        construction_unit_hash=(
-            "c91e2eeb87d9f9c05713396b3403ddab702573da73c14893eb7ed0c7158e6317"
-        ),
+        construction_unit_hash=("c91e2eeb87d9f9c05713396b3403ddab702573da73c14893eb7ed0c7158e6317"),
         served_context_count=1,
         prompt_tokens=0,
         completion_tokens=0,
@@ -278,9 +274,7 @@ def test_query_reveal_must_strictly_follow_prequery_seal(ledger: Ledger) -> None
     with pytest.raises(InvalidTransitionError, match="strictly follow"):
         ledger.transition_job(job.job_id, JobState.QUERY_REVEALED, occurred_at=T1)
 
-    revealed = ledger.transition_job(
-        job.job_id, JobState.QUERY_REVEALED, occurred_at=T2
-    )
+    revealed = ledger.transition_job(job.job_id, JobState.QUERY_REVEALED, occurred_at=T2)
     assert revealed.occurred_at == "2026-09-03T12:00:02.000000Z"
 
 
@@ -969,7 +963,8 @@ def test_storage_measurement_deduplicates_hardlinks(tmp_path: Path) -> None:
     preflight = StoragePreflight(tmp_path)
     occupied = preflight.measure_occupied_bytes()
     allocated_once = source.stat().st_blocks * 512 or source.stat().st_size
-    assert occupied == allocated_once
+    directory_blocks = tmp_path.stat().st_blocks * 512 or tmp_path.stat().st_size
+    assert occupied == allocated_once + directory_blocks
 
 
 def test_storage_preflight_minimizes_nested_trees_deterministically(
@@ -1002,7 +997,13 @@ def test_storage_preflight_minimizes_nested_trees_deterministically(
 
     expected = sum(
         path.stat().st_blocks * 512 or path.stat().st_size
-        for path in (nested / "payload.bin", second_tree / "payload.bin")
+        for path in (
+            first_tree,
+            nested,
+            second_tree,
+            nested / "payload.bin",
+            second_tree / "payload.bin",
+        )
     )
     assert occupied == expected
     assert walked_roots == [first_tree, second_tree]
@@ -1301,9 +1302,7 @@ def test_phase_one_metadata_families_are_typed_deduplicated_and_append_only(
             evidence_support_status=EvidenceSupportStatus.SUPPORTED,
             temporal_status=TemporalValidationStatus.VALID,
             commitment_status=CommitmentCheckStatus.VALID,
-            semantic_assessment_scope=(
-                SemanticAssessmentScope.POSTHOC_SCORER_OR_REVIEWER
-            ),
+            semantic_assessment_scope=(SemanticAssessmentScope.POSTHOC_SCORER_OR_REVIEWER),
             diagnostics_artifact_hash=diagnostics_artifact.content_hash,
             created_at=T2,
         )
@@ -1318,13 +1317,13 @@ def test_phase_one_metadata_families_are_typed_deduplicated_and_append_only(
                 input_artifact_hash=response_artifact.content_hash,
                 validator_manifest_hash=HASH_A,
                 validation_status=ValidationStatus.ACCEPTED,
-            evidence_support_status=EvidenceSupportStatus.SUPPORTED,
-            temporal_status=TemporalValidationStatus.NOT_APPLICABLE,
-            commitment_status=CommitmentCheckStatus.NOT_APPLICABLE,
-            semantic_assessment_scope=(
-                SemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED
-            ),
-            created_at=T2,
+                evidence_support_status=EvidenceSupportStatus.SUPPORTED,
+                temporal_status=TemporalValidationStatus.NOT_APPLICABLE,
+                commitment_status=CommitmentCheckStatus.NOT_APPLICABLE,
+                semantic_assessment_scope=(
+                    SemanticAssessmentScope.RUNTIME_STRUCTURAL_ONLY_NOT_ASSESSED
+                ),
+                created_at=T2,
             )
         with pytest.raises(ValueError, match="migration provenance"):
             ledger.record_validation(
@@ -1637,9 +1636,10 @@ def test_v2_ledger_migrates_additively_without_rewriting_existing_rows(
     with Ledger(database) as migrated:
         assert migrated.schema_versions() == (1, 2, store_module.SCHEMA_VERSION)
         assert migrated.get_job(HASH_A).state is JobState.PLANNED
-        assert migrated.get_validation(
-            "legacy-validation"
-        ).semantic_assessment_scope is SemanticAssessmentScope.LEGACY_UNSPECIFIED
+        assert (
+            migrated.get_validation("legacy-validation").semantic_assessment_scope
+            is SemanticAssessmentScope.LEGACY_UNSPECIFIED
+        )
         expected_new_tables = {
             "studies",
             "study_jobs",

@@ -18,6 +18,7 @@ import importlib.metadata
 import json
 import math
 import os
+import select
 import signal
 import stat
 import subprocess
@@ -1632,6 +1633,7 @@ def sample_gpu_vram(pids: frozenset[int], *, runner: CommandRunner = subprocess.
         check=True,
         capture_output=True,
         text=True,
+        timeout=2,
     )
     total_mib = 0
     for line in result.stdout.splitlines():
@@ -1658,6 +1660,7 @@ class ResourceSnapshot:
     filesystem_free_bytes: int
     cpu_worker_count: int
     violations: tuple[str, ...] = ()
+    measurement_details: Mapping[str, object] = field(default_factory=dict)
 
     def public_manifest(self) -> dict[str, object]:
         return {
@@ -1672,7 +1675,88 @@ class ResourceSnapshot:
             "filesystem_free_bytes": self.filesystem_free_bytes,
             "cpu_worker_count": self.cpu_worker_count,
             "violations": list(self.violations),
+            "measurement_details": dict(self.measurement_details),
         }
+
+
+class _ResourceProbe:
+    """Cancellable observer process; only its owning controller writes SQLite."""
+
+    def __init__(self, mode: str, root: Path):
+        directory = root / "artifacts/restricted/resource-monitor"
+        directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+        fd, name = tempfile.mkstemp(prefix=mode + "-", suffix=".jsonl", dir=directory)
+        os.close(fd)
+        self.journal = Path(name)
+        self._lock = threading.Lock()
+        self._cancel_lock = threading.Lock()
+        self._process = subprocess.Popen(
+            [
+                sys.executable,
+                "-B",
+                str(Path(__file__).with_name("resource_probe.py")),
+                mode,
+                str(os.getpid()),
+                name,
+            ],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+            bufsize=0,
+        )
+        self._birth_ticks = _process_start_ticks(self._process.pid, PROC_ROOT)
+
+    def request(self, value: dict, timeout: float) -> dict:
+        deadline = time.monotonic() + timeout
+        if not self._lock.acquire(timeout=timeout):
+            raise RuntimeWatchdogTimeout("resource probe synchronization deadline")
+        try:
+            process = self._process
+            if process.poll() is not None:
+                raise RuntimeError("resource probe is not live")
+            os.write(process.stdin.fileno(), (json.dumps(value) + "\n").encode())
+            data = b""
+            while b"\n" not in data:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0 or not select.select([process.stdout], [], [], remaining)[0]:
+                    raise RuntimeWatchdogTimeout("resource probe observation deadline")
+                fragment = os.read(process.stdout.fileno(), 65536)
+                if not fragment:
+                    raise RuntimeError("resource probe exited without an observation")
+                data += fragment
+                if len(data) > 1024 * 1024:
+                    raise RuntimeError("resource probe response bound exceeded")
+            record = json.loads(data)
+            if not record["ok"]:
+                raise RuntimeError("resource probe: " + record["error"])
+            return record["value"]
+        except BaseException:
+            self.cancel()
+            raise
+        finally:
+            self._lock.release()
+
+    def cancel(self) -> None:
+        # No RPC/sample/ledger lock is acquired. Popen retains exact child
+        # ownership; a live child leads this deliberately separate session.
+        with self._cancel_lock:
+            process = self._process
+            if process.poll() is None:
+                with suppress(ProcessLookupError, FileNotFoundError):
+                    if (
+                        os.getpgid(process.pid) != process.pid
+                        or _process_start_ticks(process.pid, PROC_ROOT) != self._birth_ticks
+                    ):
+                        raise RuntimeError("resource probe process-group identity changed")
+                    os.killpg(process.pid, signal.SIGKILL)
+            process.wait(timeout=1)
+
+    def close(self) -> None:
+        self.cancel()
+        for stream in (self._process.stdin, self._process.stdout):
+            if stream is not None:
+                stream.close()
 
 
 class ResourceSampler:
@@ -1709,6 +1793,88 @@ class ResourceSampler:
         )
         self._wall_clock = wall_clock
         self._samples: list[ResourceSnapshot] = []
+        self._pending_samples: list[tuple[ResourceSnapshot, str | None, str | None]] = []
+        self._native_probes = (
+            process_sampler is sample_process_tree
+            and gpu_sampler is sample_gpu_vram
+            and filesystem_free_sampler is None
+        )
+        self._fast_probe: _ResourceProbe | None = None
+        self._storage_probe: _ResourceProbe | None = None
+        self._storage_observation: dict | None = None
+        self._root_identities: dict[int, int] = {}
+        self._flush_lock = threading.Lock()
+
+    def prepare(self, *, force: bool = False, timeout_seconds: float = 120) -> None:
+        """Complete exact storage census BEFORE allocation; never in a fast sample.
+
+        A new service/checkpoint starts a new census, not a silently stale cache.
+        Event loss or stale live observations fail closed until another checkpoint.
+        """
+        if not self._native_probes:
+            return
+        if self._storage_probe is not None and not force:
+            return
+        if self._storage_probe is not None:
+            self._storage_probe.close()
+        probe = _ResourceProbe("storage", self.storage.quota_root)
+        self._storage_probe = probe
+        try:
+            value = probe.request({"root": str(self.storage.quota_root)}, timeout_seconds)
+            self.storage.require(
+                current_occupied_bytes=value["occupied_bytes"],
+                filesystem_free_bytes=value["filesystem_free_bytes"],
+            )
+            self._storage_observation = value
+        except BaseException:
+            self.close_probes()
+            raise
+
+    def cancel_pending(self) -> None:
+        """Interrupt the bounded fast observer without stopping storage tracking."""
+        if self._fast_probe is not None:
+            self._fast_probe.cancel()
+
+    def close_probes(self) -> None:
+        for name in ("_fast_probe", "_storage_probe"):
+            probe = getattr(self, name)
+            if probe is not None:
+                probe.close()
+                setattr(self, name, None)
+
+    def flush(self) -> None:
+        """The controlling process commits collected rows, never probe workers."""
+        if not self._flush_lock.acquire(timeout=2):
+            raise RuntimeWatchdogTimeout("resource ledger checkpoint synchronization deadline")
+        try:
+            self._flush_pending()
+        finally:
+            self._flush_lock.release()
+
+    def _flush_pending(self) -> None:
+        while self._pending_samples:
+            snapshot, job_id, gpu_event_id = self._pending_samples[0]
+            if self.ledger is not None:
+                self.ledger.record_storage_sample(
+                    self.storage.check(
+                        current_occupied_bytes=snapshot.project_storage_bytes,
+                        filesystem_free_bytes=snapshot.filesystem_free_bytes,
+                    ),
+                    phase=f"resource_sample:{snapshot.sample_id}",
+                    sampled_at=snapshot.sampled_at,
+                )
+                self.ledger.record_resource_sample(
+                    sample_id=snapshot.sample_id,
+                    job_id=job_id,
+                    gpu_event_id=gpu_event_id,
+                    process_ram_bytes=snapshot.process_ram_bytes,
+                    system_available_ram_bytes=snapshot.system_available_ram_bytes,
+                    gpu_vram_bytes=snapshot.gpu_vram_bytes,
+                    project_storage_bytes=snapshot.project_storage_bytes,
+                    cpu_worker_count=snapshot.cpu_worker_count,
+                    sampled_at=snapshot.sampled_at,
+                )
+            self._pending_samples.pop(0)
 
     @property
     def samples(self) -> tuple[ResourceSnapshot, ...]:
@@ -1723,18 +1889,53 @@ class ResourceSampler:
         root_pid: int,
         job_id: str | None = None,
         gpu_event_id: str | None = None,
+        persist: bool = True,
     ) -> ResourceSnapshot:
         _require_plain_identifier("sample_id", sample_id)
-        process = self._process_sampler(root_pid)
-        project_storage = self.storage.measure_occupied_bytes()
-        filesystem_free = self._filesystem_free_sampler()
-        values = {
-            "process_ram_bytes": process.rss_bytes,
-            "system_available_ram_bytes": self._system_ram_sampler(),
-            "gpu_vram_bytes": self._gpu_sampler(process.pids),
-            "project_storage_bytes": project_storage,
-            "filesystem_free_bytes": filesystem_free,
-        }
+        details = {}
+        if self._native_probes:
+            if self._storage_probe is None:
+                if root_pid != os.getpid():
+                    raise RuntimeConfigurationError(
+                        "full storage preparation required before sampling"
+                    )
+                # Existing pre-allocation controller checkpoints remain usable.
+                self.prepare()
+            if self._fast_probe is None or self._fast_probe._process.poll() is not None:
+                if self._fast_probe is not None:
+                    self._fast_probe.close()
+                self._fast_probe = _ResourceProbe("fast", self.storage.quota_root)
+            measured = self._fast_probe.request(
+                {"pid": root_pid, "expected_start": self._root_identities.get(root_pid)}, 3
+            )
+            self._root_identities[root_pid] = measured["root_start_ticks"]
+            # Only drain/update the separate event index; never do a traversal here.
+            storage_value = self._storage_probe.request({}, 1)
+            if time.monotonic() - measured["timing"]["began"]["monotonic"] > 5:
+                raise RuntimeWatchdogTimeout("resource observation exceeded freshness deadline")
+            self._storage_observation = storage_value
+            process = ProcessTreeUsage(
+                frozenset(measured["process_ids"]), measured["process_ram_bytes"]
+            )
+            project_storage = storage_value["occupied_bytes"]
+            filesystem_free = storage_value["filesystem_free_bytes"]
+            values = measured
+            details = {
+                "fast": measured["timing"],
+                "process_identities": measured["identities"],
+                "storage": storage_value,
+                "maximum_observation_age_seconds": 5,
+            }
+        else:
+            # Dependency-injected CPU fixtures: storage first, then fresh process/GPU.
+            project_storage = self.storage.measure_occupied_bytes()
+            filesystem_free = self._filesystem_free_sampler()
+            process = self._process_sampler(root_pid)
+            values = {
+                "process_ram_bytes": process.rss_bytes,
+                "system_available_ram_bytes": self._system_ram_sampler(),
+                "gpu_vram_bytes": self._gpu_sampler(process.pids),
+            }
         violations: list[str] = []
         if values["process_ram_bytes"] >= self.limits.maximum_process_ram_bytes:
             violations.append("process_ram_not_below_limit")
@@ -1761,29 +1962,14 @@ class ResourceSampler:
             filesystem_free_bytes=filesystem_free,
             cpu_worker_count=self.cpu_worker_count,
             violations=tuple(violations),
+            measurement_details=details,
         )
         self._samples.append(snapshot)
-        if self.ledger is not None:
-            storage_report = self.storage.check(
-                current_occupied_bytes=project_storage,
-                filesystem_free_bytes=filesystem_free,
-            )
-            self.ledger.record_storage_sample(
-                storage_report,
-                phase=f"resource_sample:{sample_id}",
-                sampled_at=sampled_at,
-            )
-            self.ledger.record_resource_sample(
-                sample_id=sample_id,
-                job_id=job_id,
-                gpu_event_id=gpu_event_id,
-                process_ram_bytes=snapshot.process_ram_bytes,
-                system_available_ram_bytes=snapshot.system_available_ram_bytes,
-                gpu_vram_bytes=snapshot.gpu_vram_bytes,
-                project_storage_bytes=snapshot.project_storage_bytes,
-                cpu_worker_count=snapshot.cpu_worker_count,
-                sampled_at=sampled_at,
-            )
+        self._pending_samples.append((snapshot, job_id, gpu_event_id))
+        if persist:
+            self.flush()
+        if len(self._pending_samples) > 4096:
+            raise RuntimeError("resource observations require a bounded ledger checkpoint")
         if violations:
             raise RuntimeResourceLimitExceeded(snapshot)
         return snapshot
@@ -1924,12 +2110,15 @@ class ResourceWatchdog:
                     root_pid=self.root_pid,
                     job_id=self.job_id,
                     gpu_event_id=self.gpu_event_id,
+                    **({"persist": False} if isinstance(self.sampler, ResourceSampler) else {}),
                 )
             except RuntimeResourceLimitExceeded as exc:
                 self._record_failure(exc)
                 sample_failure = exc
                 limit_snapshot = exc.snapshot
             except BaseException as exc:
+                if self._stop.is_set() and isinstance(self.sampler, ResourceSampler):
+                    return  # Requested cancellation, not an invented resource violation.
                 self._record_failure(exc)
                 sample_failure = exc
             finally:
@@ -1963,16 +2152,12 @@ class ResourceWatchdog:
         raise_failure: bool = True,
         completion_timeout_seconds: float | None = None,
     ) -> bool:
-        """Request stop and drain one in-flight sample within an explicit bound.
-
-        The sampling interval controls cadence only.  Storage accounting may
-        legitimately take much longer than that interval, so shutdown owns the
-        sampler thread until its separate completion deadline.  A deadline miss
-        is retained as the watchdog's first failure and reported through the
-        boolean return even when an outer exception asks not to be masked.
-        """
+        """Cancel bounded collection; completion never gates service signaling."""
 
         self._stop.set()
+        cancel = getattr(self.sampler, "cancel_pending", None)
+        if callable(cancel):
+            cancel()
         if self._thread is None:
             return True
         completion_timeout = self.sample_completion_timeout_seconds
@@ -1983,13 +2168,15 @@ class ResourceWatchdog:
                 )
             completion_timeout = min(completion_timeout, completion_timeout_seconds)
         with self._failure_lock:
-            if self._completion_deadline_monotonic is None:
-                self._completion_deadline_monotonic = time.monotonic() + completion_timeout
+            # Each cleanup invocation has its own bounded join. Physical
+            # shutdown is already independent; an expired earlier drain must
+            # not prevent reaping a now-cancelled observer.
+            self._completion_deadline_monotonic = time.monotonic() + completion_timeout
             completion_deadline = self._completion_deadline_monotonic
         if self._thread is threading.current_thread():
             # A callback runs only after the sample releases ledger ownership,
             # but the watchdog thread still owns its lifecycle.  A distinct
-            # coordinator must join it before unregistering or signaling vLLM.
+            # coordinator must join it before unregistering, not before signaling.
             return False
         self._thread.join(timeout=max(0.0, completion_deadline - time.monotonic()))
         if self._thread.is_alive():
@@ -3510,24 +3697,9 @@ class VLLMService:
                     )
                 )
                 self._startup_resource_watchdog = None
-        except BaseException as start_error:
-            if startup_watchdog is not None:
-                sampler_drained = startup_watchdog.stop(
-                    raise_failure=False,
-                    completion_timeout_seconds=max(
-                        0.0,
-                        startup_deadline - self.monotonic_clock(),
-                    ),
-                )
-                if sampler_drained:
-                    if self._startup_resource_watchdog is startup_watchdog:
-                        self._startup_resource_watchdog = None
-                else:
-                    self.state = ServiceState.FAILED
-                    raise RuntimeError(
-                        "startup resource sample exceeded the service-start deadline; "
-                        "retaining service and lease ownership without concurrent cleanup"
-                    ) from start_error
+        except BaseException:
+            # Signal the verified service before draining observers. A slow
+            # sample must never extend allocation or suppress physical cleanup.
             self._stop_process(release_lock=False)
             raise
 
@@ -3588,27 +3760,36 @@ class VLLMService:
             # its completed coordinator must not contaminate the new lifecycle.
             self._emergency_stop_thread = None
             self._emergency_stop_failure = None
-        with self.meter.session_start(
-            event_id=event_id,
-            maximum_seconds=watchdog_seconds,
-            admission_forecast_seconds=effective_admission_forecast_seconds,
-            remaining_required_seconds=remaining_required_seconds,
-            contingency_unlocked=contingency_unlocked,
-            essential_recovery=essential_recovery,
-            details={
-                "session_id": session_id,
-                "configuration_hash": self.configuration.configuration_hash,
-                "service_start_watchdog_seconds": watchdog_seconds,
-                "admission_forecast_seconds": effective_admission_forecast_seconds,
-                "contingency_unlocked": contingency_unlocked,
-                "essential_recovery": essential_recovery,
-            },
-        ):
-            self._start_unmetered(
-                session_id=session_id,
+        if isinstance(self.startup_resource_sampler, ResourceSampler):
+            # Invariant full census occurs outside the allocated session. Exact
+            # live identity/resource checks still run after spawn and before calls.
+            self.startup_resource_sampler.prepare()
+        try:
+            with self.meter.session_start(
                 event_id=event_id,
-                watchdog_seconds=watchdog_seconds,
-            )
+                maximum_seconds=watchdog_seconds,
+                admission_forecast_seconds=effective_admission_forecast_seconds,
+                remaining_required_seconds=remaining_required_seconds,
+                contingency_unlocked=contingency_unlocked,
+                essential_recovery=essential_recovery,
+                details={
+                    "session_id": session_id,
+                    "configuration_hash": self.configuration.configuration_hash,
+                    "service_start_watchdog_seconds": watchdog_seconds,
+                    "admission_forecast_seconds": effective_admission_forecast_seconds,
+                    "contingency_unlocked": contingency_unlocked,
+                    "essential_recovery": essential_recovery,
+                },
+            ):
+                self._start_unmetered(
+                    session_id=session_id,
+                    event_id=event_id,
+                    watchdog_seconds=watchdog_seconds,
+                )
+        except BaseException:
+            if self._process is None and isinstance(self.startup_resource_sampler, ResourceSampler):
+                self.startup_resource_sampler.close_probes()
+            raise
 
     def restart(
         self,
@@ -4680,10 +4861,14 @@ class VLLMService:
         """Leave enough allocation to terminate and, if needed, kill the service."""
 
         shutdown_reserve_seconds = RESOURCE_AWARE_HARD_STOP_RESERVE_SECONDS
-        if (
-            self.actual_allocated_service_seconds + shutdown_reserve_seconds
-            >= self.meter.hard_limit_seconds
-        ):
+        # Allocation supervision of a live, concurrency-one owned service is
+        # pure monotonic arithmetic. It must not wait for a SQLite writer lock.
+        actual = (
+            self._allocated_at_start + self._elapsed_service_seconds()
+            if self._allocated_at_start is not None and self._started_monotonic is not None
+            else self.meter.actual_allocated_gpu_seconds
+        )
+        if actual + shutdown_reserve_seconds >= self.meter.hard_limit_seconds:
             raise GpuBudgetExceeded("vLLM service reached its protected hard-stop margin")
 
     def _endpoint_live(self, timeout_seconds: float) -> bool:
@@ -4782,7 +4967,9 @@ class VLLMService:
         watchdog = self._periodic_resource_watchdog
         if watchdog is None:
             return
-        if not self.stop_periodic_resource_watchdog(watchdog, raise_failure=False):
+        if not self.stop_periodic_resource_watchdog(
+            watchdog, raise_failure=False, completion_timeout_seconds=1
+        ):
             self.state = ServiceState.FAILED
             raise RuntimeError(
                 "cannot terminate vLLM while its periodic resource sample remains in flight"
@@ -4800,8 +4987,8 @@ class VLLMService:
                 try:
                     self.emergency_stop()
                 except BaseException as exc:
-                    # A bounded sampler-drain failure deliberately leaves the
-                    # exact process and lease owned for guardian cleanup.
+                    # Physical cleanup precedes observer draining. Retain the
+                    # exact lease if verification or accounting still fails.
                     self._emergency_stop_failure = exc
 
             self._emergency_stop_failure = None
@@ -4859,24 +5046,21 @@ class VLLMService:
             raise RuntimeConfigurationError(
                 "an intermediate restart cannot terminalize the service journal"
             )
-        self._drain_startup_resource_watchdog()
-        self._drain_periodic_resource_watchdog()
+        verification_deadline = self.monotonic_clock() + shutdown_seconds
         heartbeat_stop_error: BaseException | None = None
-        try:
-            self._stop_service_heartbeat()
-        except BaseException as exc:
-            # Physical termination is mandatory even if a stuck persistence
-            # thread cannot yet be joined.  In that case the journal remains
-            # unresolved and the exclusive lease stays fail-closed.
-            heartbeat_stop_error = exc
+        # Stop scheduling heartbeat writes, but do not join a writer before
+        # the exact owned process has received its termination signal.
+        self._service_heartbeat_stop.set()
         process = self._process
         if process is None and self._service_lock_stream is None:
+            if isinstance(self.startup_resource_sampler, ResourceSampler):
+                self.startup_resource_sampler.close_probes()
             self._close_log_stream()
             self.state = (
                 ServiceState.STOPPED if heartbeat_stop_error is None else ServiceState.FAILED
             )
             if heartbeat_stop_error is not None:
-                raise RuntimeError("vLLM service heartbeat could not be stopped") from (
+                raise RuntimeError("vLLM service monitoring cleanup incomplete") from (
                     heartbeat_stop_error
                 )
             return
@@ -4893,9 +5077,8 @@ class VLLMService:
                         signal.SIGTERM,
                     )
                 with suppress(subprocess.TimeoutExpired):
-                    process.wait(timeout=shutdown_seconds)
+                    process.wait(timeout=min(5.0, shutdown_seconds / 3))
 
-            verification_deadline = self.monotonic_clock() + shutdown_seconds
             leader_live, group_live, endpoint_live = self._shutdown_status(
                 process,
                 process_group,
@@ -4955,6 +5138,41 @@ class VLLMService:
                     raise RuntimeError("monotonic service clock moved backwards")
                 self._physically_stopped_at = verified_at
                 self._physically_stopped_seconds = service_seconds
+
+            # Collection workers have private diagnostics and never SQLite
+            # ownership. Kill/reap them even if observation or fsync is stuck.
+            samplers = []
+            for watchdog in (self._startup_resource_watchdog, self._periodic_resource_watchdog):
+                if watchdog is not None:
+                    watchdog._stop.set()
+                if (
+                    watchdog is not None
+                    and isinstance(watchdog.sampler, ResourceSampler)
+                    and watchdog.sampler not in samplers
+                ):
+                    samplers.append(watchdog.sampler)
+            if (
+                isinstance(self.startup_resource_sampler, ResourceSampler)
+                and self.startup_resource_sampler not in samplers
+            ):
+                samplers.append(self.startup_resource_sampler)
+            for sampler in samplers:
+                if continuing_service:
+                    # A registered same-controller restart keeps the storage
+                    # event stream continuous while the model process reloads.
+                    sampler.cancel_pending()
+                else:
+                    sampler.close_probes()
+            try:
+                self._drain_startup_resource_watchdog(completion_timeout_seconds=1)
+                self._drain_periodic_resource_watchdog()
+                self._stop_service_heartbeat()
+                # The caller is now the only monitor-ledger writer. If a
+                # commit fails, the lease remains pending; physical stop stands.
+                for sampler in samplers:
+                    sampler.flush()
+            except BaseException as exc:
+                heartbeat_stop_error = exc
 
             if self._service_lock_stream is not None:
                 prior_state = (
