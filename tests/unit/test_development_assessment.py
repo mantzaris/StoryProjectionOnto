@@ -73,6 +73,26 @@ from story_projection_onto.store import ValidationStatus as LedgerValidationStat
 from story_projection_onto.validate import validate_draft_structure
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_development_scorer_resolves_anonymized_evidence_without_gold_id_leak():
+    from story_projection_onto.development_continuation import load_development_prequery_evidence
+    from story_projection_onto.scorer_only.development_assessment import (
+        resolve_development_world_id,
+    )
+
+    manifest = load_development_call_manifest(ROOT)
+    neutral, visible, _ = load_development_prequery_evidence(ROOT, manifest)
+    resolved = []
+    for unit, artifact in neutral.items():
+        world_id = resolve_development_world_id(
+            ROOT, visible[unit].content_hash, artifact.content_hash
+        )
+        assert world_id != artifact.snapshot.world_or_window_id
+        resolved.append(world_id)
+    assert set(resolved) == {"syn-dev-01", "syn-dev-02", "syn-dev-03", "syn-dev-04"}
+
+
 NOW = datetime(2026, 9, 4, 12, 0, tzinfo=UTC)
 
 
@@ -125,15 +145,11 @@ def assessment_manifest() -> DevelopmentAssessmentInputManifest:
         assessment_bundle_artifact_hash=digest("assessment-bundle"),
         runtime_source_manifest=opaque_reference("source-manifest"),
         prequery_preparation_artifacts=tuple(reference(("prep", index)) for index in range(11)),
-        call_receipt_artifact_hashes=tuple(
-            digest(("call-receipt", index)) for index in range(24)
-        ),
+        call_receipt_artifact_hashes=tuple(digest(("call-receipt", index)) for index in range(24)),
         service_result_artifact_hashes=tuple(
             digest(("service-result", index)) for index in range(24)
         ),
-        cpu_projection_receipt_artifact_hashes=tuple(
-            digest(("cpu", index)) for index in range(24)
-        ),
+        cpu_projection_receipt_artifact_hashes=tuple(digest(("cpu", index)) for index in range(24)),
         packing_preflight_artifact_hash=digest("packing-preflight"),
         runtime_sources=runtime_bindings(),
     )
@@ -141,9 +157,7 @@ def assessment_manifest() -> DevelopmentAssessmentInputManifest:
 
 def test_assessment_manifest_requires_every_immutable_output() -> None:
     payload = assessment_manifest().model_dump(mode="python", exclude={"content_hash"})
-    payload["service_result_artifact_hashes"] = payload[
-        "service_result_artifact_hashes"
-    ][:-1]
+    payload["service_result_artifact_hashes"] = payload["service_result_artifact_hashes"][:-1]
     with pytest.raises(ValueError, match="24 service-result"):
         DevelopmentAssessmentInputManifest.model_validate(payload)
 
@@ -155,9 +169,7 @@ def test_assessment_manifest_requires_every_immutable_output() -> None:
         DevelopmentAssessmentInputManifest.model_validate(payload)
 
     payload = assessment_manifest().model_dump(mode="python", exclude={"content_hash"})
-    payload["call_receipt_artifact_hashes"] = payload[
-        "call_receipt_artifact_hashes"
-    ][:-1]
+    payload["call_receipt_artifact_hashes"] = payload["call_receipt_artifact_hashes"][:-1]
     with pytest.raises(ValueError, match="24 call-receipt"):
         DevelopmentAssessmentInputManifest.model_validate(payload)
 
@@ -219,9 +231,7 @@ def test_cas_reader_checks_both_artifact_and_logical_hashes(tmp_path: Path) -> N
         reader = _CASReader(ledger, blobs)
         assert reader.logical(stored, LogicalCASReference) == value
 
-        changed = stored.model_copy(
-            update={"logical_content_hash": digest("wrong-logical-hash")}
-        )
+        changed = stored.model_copy(update={"logical_content_hash": digest("wrong-logical-hash")})
         with pytest.raises(DevelopmentAssessmentIntegrityError, match="logical hash"):
             reader.logical(changed, LogicalCASReference)
     finally:
@@ -368,8 +378,7 @@ def test_development_ledger_integrity_requires_structural_only_status_tuple(
         )
 
 
-def test_scorer_marks_structurally_valid_false_assertion_unsupported_and_strict_miss(
-) -> None:
+def test_scorer_marks_structurally_valid_false_assertion_unsupported_and_strict_miss() -> None:
     request_payload = json.loads(
         (ROOT / "tests/fixtures/phase1/c2_query_request.json").read_text(encoding="utf-8")
     )
@@ -408,9 +417,7 @@ def test_scorer_marks_structurally_valid_false_assertion_unsupported_and_strict_
             target_id=f"gold-{entity.entity_id}",
             kind=NodeKind.ENTITY,
             anchor_kind=AnchorKind.MENTION,
-            permissible_anchor_sets=(
-                tuple(sorted(entity.supported_mention_candidate_ids)),
-            ),
+            permissible_anchor_sets=(tuple(sorted(entity.supported_mention_candidate_ids)),),
         )
         for entity in source.instance_graph.entities
     ) + tuple(

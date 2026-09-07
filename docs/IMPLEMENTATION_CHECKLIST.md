@@ -88,6 +88,9 @@ hash-addressed artifact or a passing test; prose-only completion does not count.
   recall, and valid evidence for every assertion). This unchecked item is an
   execution/calibration gate; it does not mean the C0 implementation is absent
   or incomplete.
+  CPU calibration has now run: four preconstructions and twelve structurally
+  valid projections, but the competence thresholds failed. The negative record
+  is preserved; this item remains unchecked. See `docs/OUTPUT_CAPACITY_REPAIR.md`.
 - [x] Implement query-blind GPU C1 preconstruction reused across three contexts.
 - [x] Implement active post-query GPU C2 construction with merge/split, event
   reification, local schema/relation, abstraction, temporal/epistemic, rare

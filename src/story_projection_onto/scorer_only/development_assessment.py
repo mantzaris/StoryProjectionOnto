@@ -346,6 +346,32 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def resolve_development_world_id(root: Path, model_visible_hash: str, neutral_hash: str) -> str:
+    """Resolve anonymized runtime evidence only through the frozen scorer routing.
+
+    Runtime unit IDs deliberately are not gold world IDs. This resolver stays
+    scorer-only and may run only after generation, never in model preparation.
+    """
+    from story_projection_onto.synthetic_benchmark import ModelRoutingEntry
+
+    relative = "scorer_only/routing/model_artifacts.json"
+    path = root / "data/synthetic" / relative
+    benchmark = json.loads((root / "data/synthetic/manifests/benchmark_manifest.json").read_bytes())
+    records = [row for row in benchmark["generated_files"] if row["relative_path"] == relative]
+    if len(records) != 1 or path.is_symlink() or _sha256_file(path) != records[0]["sha256"]:
+        raise DevelopmentAssessmentIntegrityError("development scorer routing hash changed")
+    matches = [
+        ModelRoutingEntry.model_validate(row)
+        for row in json.loads(path.read_bytes())
+        if row.get("split") == "development"
+        and row.get("artifact_hash") == model_visible_hash
+        and row.get("neutral_evidence_artifact_hash") == neutral_hash
+    ]
+    if len(matches) != 1:
+        raise DevelopmentAssessmentIntegrityError("no unique development-only scorer route")
+    return matches[0].world_id
+
+
 def _read_manifest(path: Path, expected_sha256: str) -> DevelopmentAssessmentInputManifest:
     if path.is_symlink() or not path.is_file():
         raise DevelopmentAssessmentIntegrityError(
@@ -2539,7 +2565,12 @@ class DevelopmentScientificAssessmentProvider:
         scorer_by_unit: dict[str, Any] = {}
         file_hashes: set[str] = set()
         for unit in self.prequery_inputs.unit_bindings:
-            manifest_relative = f"scorer_only/development/{unit.runtime_unit_id}.json"
+            world_id = resolve_development_world_id(
+                self.root,
+                unit.staged_model_visible_evidence_hash,
+                unit.neutral_full_evidence_artifact_hash,
+            )
+            manifest_relative = f"scorer_only/development/{world_id}.json"
             record = file_records.get(manifest_relative)
             path = self.root / "data/synthetic" / manifest_relative
             if record is None or path.is_symlink() or not path.is_file():
@@ -2561,7 +2592,7 @@ class DevelopmentScientificAssessmentProvider:
                     f"development scorer artifact is invalid: {manifest_relative}"
                 ) from exc
             if (
-                scorer.world_spec.world_id != unit.runtime_unit_id
+                scorer.world_spec.world_id != world_id
                 or scorer.world_spec.split is not BenchmarkSplit.DEVELOPMENT
                 or len(scorer.gold_projections) != 3
             ):

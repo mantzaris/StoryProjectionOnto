@@ -1,8 +1,62 @@
 # Run status
 
-Updated: 2026-09-07 — V10 terminal, service stopped, acceptance blocked
+Updated: 2026-09-07 — output-capacity CPU repair; GPU admission blocked
 
-## V10 terminal outcome — no further startup authorized
+## Current verified state
+
+The authorized restricted V10 recovery succeeded. Its local backup is
+`artifacts/restricted/v10-recovery.TI5xOY/`; the original local V9 ledger is
+preserved and remains stale. V10 ledger/CAS verification passes with zero issues,
+19 artifacts, three historical failed C1 calls, and no open allocation journals.
+Actual allocation remains **3,227.826324 seconds**, with **zero** new GPU starts,
+diagnostics, or development calls during the capacity repair. Accepted model
+outputs: C1=0, C2=0, FixedSelect=0. vLLM is stopped; the pod remains active.
+
+V10's complete HTTP 200 response exhausted 2,048 output tokens and truncated JSON
+inside a string. Implemented opt-in repair: compact record tuples, lossless input
+tables and opaque-reference handles, plus exact sealed-C1 record references for
+FixedSelect. Canonical reconstruction is deterministic; no missing semantics are
+invented and validators are unchanged. Candidate allocations are 6,144/6,144 for
+constructive input/output and 9,216/3,072 for selection, with unchanged total
+context 12,288 and pinned Qwen3-8B-AWQ revision
+`4da05a8edb55c6046cce958586c33b61da07bb79`. The policy is **not activated**.
+All four pilot packing and XGrammar checks now pass. Template-inclusive input
+counts are 4,479 / 4,887 / 4,888 / 6,327; the intact twenty-node C1-to-FixedSelect
+check uses 9,036 input plus 3,072 reserved output = 12,108 tokens and restores
+all canonical records. These are CPU capacity checks, not accepted model results.
+
+Focused checks: **71 unit/calibration and 24 actual-client CPU HTTP tests pass**.
+Production CPU C0 completed four preconstructions and twelve structurally valid
+projections; its competence record **fails** (coverage 0.20, precision/recall 0.00,
+valid evidence references 1.00). No gold or threshold was changed to make it pass.
+
+The revised-output conservative remaining-attempt proxy is **39,828.344344s**;
+all-in **43,056.170668s**, before any new recovery work. With the full authorized
+1,200s recovery envelope it is **44,256.170668s**. These are unmeasured capacity
+sensitivity estimates capped at unchanged watchdogs, not valid-completion p95s.
+They do not pass the **33,660s scheduled / strict-before-36,000s actual** limits.
+No truncated-output throughput or unmeasured GPU speedup is credited. All mandatory
+comparisons, five future base loads, restart/resume checks, 24 development calls
+and remaining historical reserves are retained. New diagnostics are not charged
+as old reserve slots. The original nine-hour scheduled target was not met.
+
+See `docs/OUTPUT_CAPACITY_REPAIR.md` for the itemized calculation, measurements,
+changed files, limitations and the proposed **one-call feasibility-only timing
+exception**. That exception is not approved. There is no admitted GPU resume
+command; do not replay the historical V10 launcher. The repeatable CPU receipt
+command is in that report. No PDF was regenerated or public bundle released.
+
+Held-out execution remains blocked pending genuine human review. The existing
+readable package and response worksheet are under
+`artifacts/restricted/scorer_only/independent_review_handoff/`; instructions are
+in `docs/INDEPENDENT_REVIEW_HANDOFF.md`. No reviewer judgment was fabricated.
+
+Previous checkpoint: `df5bd57`; the capacity-repair checkpoint is the commit that
+adds `docs/OUTPUT_CAPACITY_REPAIR.md`. Earlier sections below are historical;
+their transfer/start prohibitions are superseded only by the latest explicit
+authorization, which still requires fresh all-in admission.
+
+## Historical V10 terminal outcome — before output-capacity authorization
 
 The authorized unchanged `fallback-c1-01` retry produced **zero accepted outputs**.
 Its HTTP 200 response arrived completely (7,229 bytes), but the server reported

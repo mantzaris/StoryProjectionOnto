@@ -1,0 +1,64 @@
+import pytest
+
+from story_projection_onto.output_capacity_gate import (
+    BASELINE_SECONDS,
+    CapacityRecoveryState,
+    capacity_forecast,
+)
+
+
+def test_admits_only_complete_all_in_with_preserved_baseline():
+    state = CapacityRecoveryState(BASELINE_SECONDS, 0, 0)
+    receipt = state.admit(
+        remaining_mandatory_seconds=1000,
+        stage_seconds=100,
+        complete_packing=True,
+        starting_service=True,
+    )
+    assert receipt["all_in_seconds"] == BASELINE_SECONDS + 1000 + 100 + 60
+
+
+@pytest.mark.parametrize(
+    "state,kwargs,reason",
+    [
+        (CapacityRecoveryState(0, 0, 0), {}, "must not reset"),
+        (CapacityRecoveryState(BASELINE_SECONDS, 2, 0), {"starting_service": True}, "two-start"),
+        (
+            CapacityRecoveryState(BASELINE_SECONDS, 0, 3),
+            {"diagnostic_generation": True},
+            "three-diagnostic",
+        ),
+        (CapacityRecoveryState(BASELINE_SECONDS + 1040, 1, 1), {}, "whole recovery"),
+        (
+            CapacityRecoveryState(BASELINE_SECONDS, 0, 0),
+            {"complete_packing": False},
+            "capacity gate",
+        ),
+        (
+            CapacityRecoveryState(BASELINE_SECONDS, 0, 0),
+            {"remaining_mandatory_seconds": 31000},
+            "all-in",
+        ),
+    ],
+)
+def test_rejects_each_bound(state, kwargs, reason):
+    params = {
+        "remaining_mandatory_seconds": 1000,
+        "stage_seconds": 100,
+        "complete_packing": True,
+    } | kwargs
+    with pytest.raises(ValueError, match=reason):
+        state.admit(**params)
+
+
+def test_forecast_keeps_all_mandatory_rows_and_loads():
+    rows = [
+        {"call_class": "gpu_session_start", "remaining_count": 5, "forecast_p95_seconds": 333},
+        {"call_class": "synthetic_c1", "remaining_count": 24, "forecast_p95_seconds": 180},
+    ]
+    result = capacity_forecast(rows)
+    assert len(result["rows"]) == len(rows)
+    assert result["remaining_forecast_seconds"] == 5 * 333 + 24 * 240
+    assert result["rows"][1]["capacity_demand_exceeds_watchdog"]
+    assert rows[1]["forecast_p95_seconds"] == 180
+    assert result["truncated_output_throughput_credited"] is False

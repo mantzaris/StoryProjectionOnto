@@ -448,6 +448,12 @@ class DecodingManifest(RuntimeManifest):
             DecodingPass.FIRST_PASS: (10_240, 2_048),
             DecodingPass.REPAIR: (10_752, 1_536),
         }[self.decoding_pass]
+        # Explicit pre-held-out capacity candidate; historical record shape and
+        # hashes remain unchanged. Activation still requires packing/admission.
+        if (self.maximum_input_tokens, self.maximum_output_tokens) == (6_144, 6_144):
+            input_ceiling, output_ceiling = 6_144, 6_144
+        if (self.maximum_input_tokens, self.maximum_output_tokens) == (9_216, 3_072):
+            input_ceiling, output_ceiling = 9_216, 3_072
         if self.maximum_input_tokens > input_ceiling:
             raise ValueError(
                 f"{self.decoding_pass.value} input cap exceeds registered {input_ceiling}"

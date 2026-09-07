@@ -60,6 +60,28 @@ from story_projection_onto.evidence import build_evidence_snapshot
 BASE = datetime(2026, 9, 3, 10, 0, tzinfo=UTC)
 
 
+def test_prequery_reification_requires_shared_candidate_anchor():
+    snapshot, evidence, _ = snapshot_and_packet()
+    evidence = tuple(
+        EvidenceRecord.model_validate(
+            strip_content_hashes(row.model_dump()) | {"event_candidates": []}
+        )
+        for row in evidence
+    )
+    builder = ClassicalPreBuilder()
+    assert any(builder.candidate_backend.analyze(row, builder.config).events for row in evidence)
+    prepared = builder.prepare(
+        snapshot=snapshot,
+        evidence=evidence,
+        upper_ontology=upper(),
+        preconstruction_budgets=semantic_budgets(),
+        constructed_at=BASE + timedelta(minutes=2),
+        sealed_at=BASE + timedelta(minutes=3),
+    )
+    assert not prepared.sealed_preontology.draft.instance_graph.events
+    assert prepared.sealed_preontology.draft.instance_graph.assertions
+
+
 def digest(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
@@ -374,10 +396,7 @@ def test_c0_cpu_diagnostic_parses_development_story_step_and_validity_forms() ->
     # This is a deterministic parser diagnostic, not the registered C0
     # competence gate (which is produced only after the complete development
     # block has terminal ITT rows).
-    text = (
-        "At story step 1, Mira served as Harbor Warden for Harbor Guild "
-        "through step 4."
-    )
+    text = "At story step 1, Mira served as Harbor Warden for Harbor Guild through step 4."
     mira = mention("story-step-evidence", "m-story-mira", text, "Mira", "person")
     guild = mention(
         "story-step-evidence",
@@ -580,13 +599,9 @@ def test_c0_projection_recursively_retains_sealed_epistemic_holder_and_binds_tar
     source = original.sealed_preontology
     graph_payload = strip_content_hashes(source.draft.instance_graph.model_dump(mode="python"))
     assertions = graph_payload["assertions"]
-    report = next(
-        item for item in assertions if item["predicate_id"] == "c0-predicate-reported"
-    )
+    report = next(item for item in assertions if item["predicate_id"] == "c0-predicate-reported")
     endpoints = {report["subject_id"], report["object_id"]}
-    holder = next(
-        item for item in graph_payload["entities"] if item["entity_id"] not in endpoints
-    )
+    holder = next(item for item in graph_payload["entities"] if item["entity_id"] not in endpoints)
     assert report["epistemic_scope"] is not None
     report["epistemic_scope"]["holder_id"] = holder["entity_id"]
     required_nodes = endpoints | {holder["entity_id"]}
@@ -691,9 +706,7 @@ def test_c0_projection_recursively_retains_sealed_epistemic_holder_and_binds_tar
     assert {item.assertion_id for item in projection.instance_graph.assertions} == {
         report["assertion_id"]
     }
-    assert holder["entity_id"] in {
-        item.entity_id for item in projection.instance_graph.entities
-    }
+    assert holder["entity_id"] in {item.entity_id for item in projection.instance_graph.entities}
     expected_target = projection_validation_target_hash(
         condition=projection.condition,
         snapshot_hash=projection.snapshot_hash,

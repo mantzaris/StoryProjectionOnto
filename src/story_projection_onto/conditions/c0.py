@@ -1381,6 +1381,12 @@ class ClassicalPreBuilder:
             )
 
         for event_candidate in (event for analysis in analyses for event in analysis.events):
+            # The common validator requires a neutral event-candidate anchor in
+            # cited evidence. Dependency parsing can propose extra occurrences
+            # (including state verbs); retain their binary relations but do not
+            # reify an occurrence that cannot pass the shared grounding contract.
+            if not evidence_by_id[event_candidate.evidence_id].event_candidates:
+                continue
             event_id = _identifier("c0-event", event_candidate.event_candidate_id)
             participants = tuple(
                 dict.fromkeys(
@@ -1978,9 +1984,11 @@ def project_sealed_c0(
         capabilities=ConstructionCapabilities.fixed_selection(),
     )
     if not structural_report.accepted:
-        raise ConditionIntegrityError(
+        error = ConditionIntegrityError(
             "C0 selected projection failed deterministic structural validation"
         )
+        error.validation_report = structural_report
+        raise error
     projection_id = _identifier(
         "c0-projection", preontology.content_hash, inputs.context.content_hash
     )

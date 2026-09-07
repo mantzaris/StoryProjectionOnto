@@ -35,6 +35,59 @@ from tests.unit.test_fallback_acceptance import FakeTokenizer, fallback_tokenize
 ROOT = Path(__file__).resolve().parents[2]
 
 
+@pytest.mark.parametrize("broken", [False, True])
+def test_tuple_wire_uses_actual_http_and_preserves_complete_response(
+    tmp_path, representative, broken
+):
+    from story_projection_onto.output_wire import (
+        RecordTupleCodec,
+        pack_capacity_candidate,
+        translate_references,
+    )
+
+    call, bridge, old, envelope = representative
+    request = pack_capacity_candidate(old, FakeTokenizer())
+    codec = RecordTupleCodec(
+        request.canonical_output_schema,
+        request.sealed_record_copies,
+        request.opaque_reference_aliases,
+    )
+    canonical = json.loads(envelope["choices"][0]["message"]["content"])
+    wire = codec.encode(
+        translate_references(canonical, request.opaque_reference_aliases, decode=False)
+    )
+    if broken:
+        wire["draft"].pop()
+    envelope["choices"][0]["message"]["content"] = json.dumps(wire, separators=(",", ":"))
+    envelope["usage"]["prompt_tokens"] = request.rendered_input_token_count
+    body = json.dumps(envelope).encode()
+    diagnostics = tmp_path / "restricted" / "tuple"
+    with response_server(body) as (url, requests):
+        client = VLLMGuidedJSONClient(url, diagnostic_root=diagnostics)
+        if broken:
+            with pytest.raises(RuntimeTransportError):
+                client.generate(request, watchdog_seconds=5)
+        else:
+            result = client.generate(request, watchdog_seconds=5)
+            assert validate_acceptance_generation(
+                root=ROOT,
+                call=call.acceptance_call(),
+                parsed_object=result.parsed_object,
+                authoritative_prompt_tokens=result.prompt_tokens,
+                authoritative_completion_tokens=result.completion_tokens,
+                legacy_provenance_bridge=bridge,
+                diagnostic_journal=result.diagnostic_journal,
+            )["grounding_complete"]
+        assert "guided_whitespace_pattern" not in json.loads(requests[0][2])
+    events, raw = recovered(diagnostics)
+    assert raw == body
+    binding = next(e for e in events if e["event"] == "lossless_wire_binding")
+    assert binding["opaque_reference_aliases"] == request.opaque_reference_aliases
+    assert [e["stage"] for e in events if e["event"] == "failure"] == (
+        ["decoding"] if broken else []
+    )
+
+
 @pytest.fixture
 def representative():
     call = fallback_pilot_calls(

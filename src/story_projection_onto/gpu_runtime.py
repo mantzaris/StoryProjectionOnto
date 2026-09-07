@@ -933,8 +933,34 @@ class GuidedJSONRequest:
     decoding: DecodingManifest
     packing: PackingReport
     rendered_input_token_count: int
+    canonical_output_schema: Mapping[str, object] | None = None
+    opaque_reference_aliases: Mapping[str, str] | None = None
+    sealed_record_copies: Mapping[str, object] | None = None
 
     def __post_init__(self) -> None:
+        if self.canonical_output_schema is not None:
+            from story_projection_onto.output_wire import RecordTupleCodec
+
+            expected = RecordTupleCodec(
+                self.canonical_output_schema,
+                self.sealed_record_copies,
+                self.opaque_reference_aliases,
+            ).wire_schema()
+            if canonical_sha256(expected) != canonical_sha256(self.output_schema):
+                raise RuntimeConfigurationError("tuple wire schema differs from canonical binding")
+        if self.opaque_reference_aliases is not None and (
+            self.canonical_output_schema is None or not self.messages or (
+                "Opaque reference binding SHA256=" + canonical_sha256(self.opaque_reference_aliases)
+                not in self.messages[0].content
+            )
+        ):
+            raise RuntimeConfigurationError("opaque reference map is not request-bound")
+        if self.sealed_record_copies and (
+            self.condition is not ConditionName.A_FIXED_SELECT
+            or "Sealed copy binding SHA256=" + canonical_sha256(self.sealed_record_copies)
+            not in self.messages[0].content
+        ):
+            raise RuntimeConfigurationError("sealed copies require bound FixedSelect input")
         _require_plain_identifier("request_id", self.request_id)
         _require_plain_identifier("model_name", self.model_name)
         if not _is_allowlisted_model_alias(self.model_name):
@@ -1257,6 +1283,17 @@ class VLLMGuidedJSONClient:
             journal = None if self.diagnostic_root is None else RestrictedResponseJournal(
                 self.diagnostic_root, request_hash=request.request_hash,
             )
+            if request.opaque_reference_aliases is not None:
+                if journal is None:
+                    raise RuntimeConfigurationError(
+                        "opaque references require restricted diagnostics"
+                    )
+                journal.event(
+                    "lossless_wire_binding",
+                    canonical_output_schema=request.canonical_output_schema,
+                    opaque_reference_aliases=request.opaque_reference_aliases,
+                    sealed_record_copies=request.sealed_record_copies,
+                )
         except BaseException:
             self._generation_lock.release()
             raise
@@ -1359,6 +1396,20 @@ class VLLMGuidedJSONClient:
                 )
             content = choice["message"]["content"]
             parsed_object = json.loads(content)
+            if request.canonical_output_schema is not None:
+                from story_projection_onto.output_wire import RecordTupleCodec
+
+                codec = RecordTupleCodec(
+                    request.canonical_output_schema, request.sealed_record_copies,
+                    request.opaque_reference_aliases,
+                )
+                parsed_object = codec.decode(parsed_object)
+                if request.opaque_reference_aliases is not None:
+                    from story_projection_onto.output_wire import translate_references
+
+                    parsed_object = translate_references(
+                        parsed_object, request.opaque_reference_aliases, decode=True,
+                    )
             usage = response["usage"]
         except (IndexError, KeyError, TypeError, ValueError, UnicodeDecodeError) as exc:
             raise RuntimeTransportError("vLLM response is not one guided JSON choice") from exc
