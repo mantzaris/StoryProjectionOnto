@@ -106,3 +106,6 @@ competence. Small-interface validity, production-method approval/packing, full
 fallback acceptance including restart/resume, ordinary timing admission, C0
 competence and independent human review remain gates. No held-out activation,
 ordinary 24-call development execution or interim PDF was performed.
+
+Post-session verification at `e841572`: 136 focused local tests pass; 15 focused
+deployed CPU tests pass, and both C0 evaluations reproduce exactly on the pod.

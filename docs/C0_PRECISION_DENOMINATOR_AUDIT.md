@@ -84,6 +84,11 @@ hashes are recorded/verified. CPU scoring and diagnosis: **3.439123 seconds**;
 no construction repeated, zero GPU. The first scoring-only `c0-extraction-scope-v1`
 and the old calibration remain preserved.
 
+Verification: **89 focused C0/alignment/temporal/scorer/firewall tests** and
+**47 interface/controller tests** pass locally. After deployment at `e841572`,
+**15 focused CPU tests** pass on the pod, which reproduces both evaluations
+exactly in **2.976049 seconds**. No GPU allocation during this CPU verification.
+
 ## Historical scope proposal and prior audit
 
 The preserved current result is **29/269 precision, 29/84 recall, failed**.

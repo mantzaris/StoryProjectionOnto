@@ -1,60 +1,73 @@
 # Run status
 
-Updated: 2026-09-07 — CPU semantic interface implemented and verified; no GPU start
+Updated: 2026-09-07 — small semantic session terminal; approved C0 scope implemented
 
 ## Current verified state
 
-Tested source checkpoint **`a211cd3`** on
-`implementation/query-dependent-temporal-ontology`. Diagnostic-only named
-semantic schema/adapter is implemented; no ordinary condition or held-out
-protocol is activated. Binary/n-ary bindings, exclusive temporal forms,
-evidence/mention/upper enums and separate runtime bookkeeping are tested.
-The existing controller exposes an adapter validation hook using the same
-structural/grounding checks; scheduling, monitor and allocation limits are unchanged.
+Tested source checkpoint **`e841572`**, branch
+`implementation/query-dependent-temporal-ontology`; live diagnostic source
+**`f2354ae`**. One new service session ran two small calls, then verified shutdown.
+No full C1, ordinary development inference or held-out calls were run.
 
-**89 focused tests pass locally and remotely.** Pinned CPU grammar checks accept
-complete authored fixtures and reject missing endpoints, mixed times, invalid
-references/parents and empty small graphs. Exact A/B/C responses are replayed
-unchanged, not retrospectively accepted. Full field mapping, residual semantic
-checks and required production-method amendment:
-`docs/SEMANTIC_GENERATION_INTERFACE.md`.
+Both calls returned HTTP 200 and complete SSE. First: **2,083 output tokens**,
+stop, generation-schema valid, canonical failure from reused entity/assertion IDs.
+Repair: **6,144 tokens**, length, repetitive auxiliary propositions and truncated
+JSON. **Zero scientifically accepted outputs**; scientific validation was not
+reached. The preselected second development passage was not run.
+Exact outcomes: `docs/SEMANTIC_INTERFACE_VALIDATION_OUTCOME.md`.
+Readable evidence and actual graphs:
+`artifacts/restricted/semantic-session-backup.72UAKV/EVIDENCE_AND_GENERATED_GRAPHS.md`.
+All **729** restricted backup files hash-match the pod, including the authoritative
+ledger; previous ledgers and failed outputs remain preserved.
 
-The exact small request uses **4,712 template-inclusive input tokens**, reserves
-**6,144 output tokens**, and has **1,432 tokens** of context margin. Authored
-capacity examples use **844 / 1,881 / 2,029** completion tokens plus one termination
-token; these are not model results or production-capacity/throughput guarantees.
-New interface model calls: **zero**. Full fallback acceptance remains incomplete.
+New allocation **391.719812 s**; prior history **5,363.502630 s**;
+global actual **5,755.222442 s**. Of the 1,100-second session allowance,
+**708.280188 s** remains unused but does not authorize a new start.
+vLLM stopped, no GPU compute process, zero open allocation/service journals;
+pod remains active. Sampled peaks: VRAM **22,793,945,088 bytes**, RAM
+**7,084,208,128**, project storage **16,720,313,856**. Stopped full storage census
+**16,718,024,704 bytes**. No observed resource violation.
 
-Restricted request/schema/replay/verification package:
-`artifacts/restricted/semantic-interface.0TerjX/verified/`, including readable
-`MODEL_REQUEST_AND_SCHEMA.md`. Nine manifest-listed files and four tested source
-hashes reconcile with the pod. CPU verification took **66.537044 s**; initial
-CPU import failure and later logs are preserved in the backup's `history/`.
+Remaining mandatory proxy **40,162.013213 s**; all-in **45,917.235655 s**.
+Ordinary admission still fails **33,660 s** scheduled; strict actual stop before
+**36,000 s** remains unchanged. Original nine-hour scheduled target was not met.
+No valid production-output p95 is established. Small failure timings were not
+credited as production speed. A stale baseline in forecast display was corrected
+after the session; live admission and terminal accounting used current actuals.
 
-**No additional GPU allocation**; global actual remains **5,363.502630 s**.
-vLLM stopped, GPU idle at 1 MiB, pod active. No new storage-intensive installation,
-model download, novel transfer or PDF. Last complete proxy remains
-**40,162.013213 s remaining / 45,525.515843 s all-in**; ordinary admission fails
-against **33,660 s** scheduled. Strict actual stop before **36,000 s** remains;
-the original nine-hour scheduled target was not met.
+Approved `development-query-blind-direct-extraction-v1` and
+`source-bound-direct-witness-v1` are implemented, with integrated competence
+routing to **four sealed preconstructions once per world**. All 114 direct
+witnesses are covered by source-bound references before predictions are scored.
+No C0 extraction implementation or held-out gold changed.
 
-C0's **29/269 precision, 29/84 recall, failed competence record** is unchanged.
-The audit now traces the actual final-projection route and distinguishes it from
-proposed query-blind extraction competence. Context-excluded but supported
-predictions are not dropped from contextual precision. The source-bound
-direct-witness eligibility revision and competence-scope clarification require
-an explicit decision; neither gold nor scorer thresholds/routing were changed.
-See `docs/C0_PRECISION_DENOMINATOR_AUDIT.md`.
+- Preserved historical competence: **29/269 precision, 29/84 recall**, failed.
+- Revised extraction: **53/154 precision (.344156), 53/114 recall (.464912)**,
+  F1 **.395522**, family coverage **.80**, evidence validity **1.00**; still fails.
+- Unchanged contextual evaluation: **29/269 precision (.107807),
+  29/91 recall (.318681)**, F1 **.161111**. All 269 assertions remain in precision,
+  including 73 strictly supported but context-excluded assertions.
 
-Next proposed live session (not authorized): one start, at most three small calls,
-at most **1,100 additional allocated seconds**, diagnostic-only forecast exception;
-maximum global **6,463.502630 s**, protected shutdown and no full C1/study run.
-The corrected human-review package remains
+Results and remaining error examples: `docs/C0_PRECISION_DENOMINATOR_AUDIT.md`;
+immutable scorer-only output: `artifacts/restricted/c0-extraction-scope-v2/`.
+Twelve sidecar and six source hashes verify; repeat scoring matches exactly.
+The changed evaluation universe is not claimed as C0 implementation improvement.
+
+**136 focused local tests pass**: 89 C0/alignment/temporal/scorer/firewall and 47
+interface/controller. The live source passed 46 interface/controller tests on the
+pod before allocation. **15 post-deployment focused CPU tests pass**; the pod
+reproduces both C0 metrics exactly (2.976049 s scoring/diagnosis). No
+new service, model installation, novel transfer, public scorer release or PDF.
+
+Remaining gates: small semantic-interface validity, explicit production-interface
+approval/packing, complete fallback acceptance including restart/resume, C0
+competence, fresh ordinary admission, and required independent human review.
+Corrected review package remains
 `artifacts/restricted/scorer_only/independent_review_handoff_v4_intrinsic/`.
-Held-out execution stays blocked on human review and all acceptance/admission gates.
-Safe CPU resume: `python -m pytest -q tests/unit/test_semantic_generation.py
-tests/unit/test_capacity_diagnostic_controller.py tests/unit/test_output_wire.py
-tests/unit/test_intrinsic_validity_amendment.py tests/unit/test_representation_diagnostic.py`.
+No further GPU start or inference is authorized by the completed session.
+Safe CPU verification:
+`python -m pytest -q tests/unit/test_direct_extraction_scope.py
+tests/unit/test_capacity_diagnostic_controller.py`.
 
 ## Historical representation comparison and C0 calibration
 
