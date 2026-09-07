@@ -205,19 +205,26 @@ each change. The restricted aggregate receipt is
 Ordinary acceptance/development cannot launch under the current complete-run
 forecast. Increasing only the scheduled ceiling would not solve the conservative
 hard-cap overrun. The concrete proposed decision is a **feasibility-only timing
-exception to complete-run forecast admission for one revised C1 diagnostic**,
+exception to complete-run forecast admission for the already bounded diagnostic block**,
 not an amendment to either allocation ceiling or the study comparisons.
 
-Use at most one start and one generation, with the already tested 840-second
-envelope (300 startup, 120 live checks, 240 generation, 120 validation/drain,
-60 shutdown) inside the authorized 1,200-second block. Charge every second as
-new recovery, with zero historical-reserve subtraction: actual allocation would
-remain at most **4,067.826324 seconds**. This exception is **not yet approved**.
-First bind the revised request/source to the persistent controller and guardian;
-then obtain a scientifically valid timing, shut down if admission still fails,
-and report the revised complete forecast. One timing is not a p95 estimate or
-full acceptance. No development or held-out execution is included in this
-proposed exception. Scientific validity, packing and review gates remain intact.
+Retain at most two starts, three diagnostic generations and 1,200 additional
+allocated seconds across the block, including checks, failures and shutdown.
+Start with the revised C1 request; use a healthy service for subsequent
+condition-representative diagnostics only when the remaining block allocation
+and shutdown reserve permit. The previously tested C1 stage caps (300 startup,
+120 live checks, 240 generation, 120 validation/drain, 60 shutdown) fit inside
+this block, not in addition to it. Charge every second as new recovery with
+zero historical-reserve subtraction: actual allocation would remain at most
+**4,427.826324 seconds**. This forecast-admission exception is **not yet approved**.
+First bind the revised requests/source to the persistent controller and guardian.
+One C1 timing cannot by itself resolve the C2/FixedSelect timing uncertainty;
+even three diagnostics are not p95 estimates or complete acceptance. Stop when
+the issue is resolved or a bound is reached, then recompute the complete forecast.
+The exception does not admit ordinary acceptance/development while that forecast
+fails, and it never admits held-out work without review. Existing automatic
+continuation authority applies only after fresh ordinary admission and all
+remaining acceptance gates, including restart/resume, genuinely pass.
 
 Reproduce the restricted CPU receipt locally with:
 

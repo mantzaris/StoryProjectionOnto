@@ -46,7 +46,7 @@ and remaining historical reserves are retained. New diagnostics are not charged
 as old reserve slots. The original nine-hour scheduled target was not met.
 
 See `docs/OUTPUT_CAPACITY_REPAIR.md` for the itemized calculation, measurements,
-changed files, limitations and the proposed **one-call feasibility-only timing
+changed files, limitations and the proposed **bounded feasibility-only timing
 exception**. That exception is not approved. There is no admitted GPU resume
 command; do not replay the historical V10 launcher. The repeatable CPU receipt
 command is in that report. No PDF was regenerated or public bundle released.
