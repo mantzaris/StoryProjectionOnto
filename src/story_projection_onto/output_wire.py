@@ -456,6 +456,41 @@ def capacity_messages(request, sections):
     return messages, aliases, copies
 
 
+def bounded_identifier_schema(schema):
+    """Candidate format repair for the observed unbounded assertion-ID loop.
+
+    Only identifier spellings are restricted, not prose or ontology semantics.
+    Existing closed enumerations remain exact. This helper is CPU-tested but
+    is NOT activated by pack_capacity_candidate or a service controller.
+    """
+    import copy
+
+    result = copy.deepcopy(schema)
+
+    def visit(node, field=""):
+        if not isinstance(node, dict):
+            return
+        if (
+            node.get("type") == "string"
+            and field.endswith(("_id", "_ids"))
+            and "enum" not in node
+            and "const" not in node
+        ):
+            node["pattern"] = r"^[A-Za-z0-9_.:-]{1,96}$"
+        for key, value in node.items():
+            if key == "properties":
+                for name, child in value.items():
+                    visit(child, name)
+            elif isinstance(value, dict):
+                visit(value, field)
+            elif isinstance(value, list):
+                for child in value:
+                    visit(child, field)
+
+    visit(result)
+    return result
+
+
 def pack_capacity_candidate(request, tokenizer, *, sections_override=None, schema_override=None):
     """Repack an existing, complete request under the symmetric candidate policy.
 
@@ -472,15 +507,34 @@ def pack_capacity_candidate(request, tokenizer, *, sections_override=None, schem
 
     if sections_override is not None or schema_override is not None:
         from types import SimpleNamespace
+
         # Rebind the complete real FixedSelect input before compact packing. An
         # uncompressed intermediate need not fit; the complete wire input must.
-        if request.condition.value != "A-FixedSelect" or sections_override is None or schema_override is None:
+        if (
+            request.condition.value != "A-FixedSelect"
+            or sections_override is None
+            or schema_override is None
+        ):
             raise OutputWireError("only complete paired FixedSelect overrides are permitted")
-        request = SimpleNamespace(**{
-            name: getattr(request, name) for name in (
-                "request_id", "model_name", "condition", "decoding", "packing", "messages")
-        }, output_schema=schema_override)
-    actual_sections = sections_override if sections_override is not None else json.loads(request.messages[1].content)
+        request = SimpleNamespace(
+            **{
+                name: getattr(request, name)
+                for name in (
+                    "request_id",
+                    "model_name",
+                    "condition",
+                    "decoding",
+                    "packing",
+                    "messages",
+                )
+            },
+            output_schema=schema_override,
+        )
+    actual_sections = (
+        sections_override
+        if sections_override is not None
+        else json.loads(request.messages[1].content)
+    )
     messages, aliases, copies = capacity_messages(request, actual_sections)
     codec = RecordTupleCodec(request.output_schema, copies, aliases)
     schema = codec.wire_schema()
@@ -513,9 +567,11 @@ def pack_capacity_candidate(request, tokenizer, *, sections_override=None, schem
         PackingSection(
             name=s.name,
             section_content_hash=(
-                canonical_sha256(schema) if s.name == "output_schema" else
-                canonical_sha256(actual_sections[s.name]) if s.name in actual_sections else
-                s.section_content_hash
+                canonical_sha256(schema)
+                if s.name == "output_schema"
+                else canonical_sha256(actual_sections[s.name])
+                if s.name in actual_sections
+                else s.section_content_hash
             ),
             token_count=0,
         )

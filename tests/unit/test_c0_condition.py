@@ -60,6 +60,88 @@ from story_projection_onto.evidence import build_evidence_snapshot
 BASE = datetime(2026, 9, 3, 10, 0, tzinfo=UTC)
 
 
+@pytest.mark.parametrize(
+    "verb,expected", [("reported", "reported"), ("denied", "denied"), ("believed", "believed")]
+)
+def test_embedded_claim_keeps_named_holder_without_promoting_to_world_truth(verb, expected):
+    from story_projection_onto.contracts import NarrativeCommitment
+
+    text = f"At story step 5, Mira {verb} that Taro plans to leave Harbor Guild."
+    candidates = tuple(
+        mention("ev-claim", f"m-{i}", text, name, kind)
+        for i, (name, kind) in enumerate(
+            (("Mira", "person"), ("Taro", "person"), ("Harbor Guild", "collective"))
+        )
+    )
+    relation = RelationPhraseCandidate(
+        candidate_id="r-content",
+        evidence_id="ev-claim",
+        subject_mention_candidate_id="m-1",
+        object_mention_candidate_id="m-2",
+        surface_phrase="plans to leave",
+        confidence=0.95,
+    )
+    record = EvidenceRecord(
+        evidence_id="ev-claim",
+        passage_id="p-claim",
+        text=text,
+        text_hash=digest(text),
+        discourse_position=DiscoursePosition(passage_order=1),
+        mention_candidates=candidates,
+        relation_phrase_candidates=(relation,),
+        provenance=ProvenanceReference(
+            provenance_id="prov-claim",
+            evidence_id="ev-claim",
+            extraction_method="fixture",
+            locator="fixture:claim",
+            confidence=1,
+        ),
+        confidence=1,
+        release_class=ReleaseClass.PUBLIC,
+    )
+    builder = ClassicalPreBuilder()
+    draft = builder._construct_draft(
+        evidence_by_id={record.evidence_id: record},
+        analyses=(builder.candidate_backend.analyze(record, builder.config),),
+        upper_ontology=upper(),
+        budgets=semantic_budgets(),
+        constructed_at=BASE,
+    )
+    assertion = next(
+        a
+        for a in draft.instance_graph.assertions
+        if a.predicate_id == "c0-predicate-plans_to_leave"
+    )
+    assert assertion.narrative_commitment is NarrativeCommitment.HOLDER_ATTRIBUTED
+    assert assertion.epistemic_scope.attitude.value == expected
+    holder = next(
+        e
+        for e in draft.instance_graph.entities
+        if e.entity_id == assertion.epistemic_scope.holder_id
+    )
+    assert "m-0" in holder.supported_mention_candidate_ids
+    assert assertion.proposition_content_id
+
+
+def test_predicate_normalization_is_general_and_validity_does_not_invent_end():
+    from story_projection_onto.conditions.c0 import _normalize_predicate, _story_and_validity
+
+    assert _normalize_predicate("served as", ClassicalRuleConfig()) == "holds_office"
+    assert _normalize_predicate("revealed", ClassicalRuleConfig()) == "revealed"
+    assert _normalize_predicate("led", ClassicalRuleConfig()) == "led"
+    record = evidence_fixture()[0]
+    raw = strip_content_hashes(record.model_dump())
+    raw["text"] = "At story step 1, Mira belongs to Harbor Guild."
+    raw["text_hash"] = digest(raw["text"])
+    raw["mention_candidates"] = []
+    raw["relation_phrase_candidates"] = []
+    raw["event_candidates"] = []
+    raw["temporal_clues"] = []
+    evidence = EvidenceRecord.model_validate(raw)
+    _, validity = _story_and_validity(evidence, (), state_like=True)
+    assert validity.start == 1 and validity.end is None
+
+
 def test_prequery_reification_requires_shared_candidate_anchor():
     snapshot, evidence, _ = snapshot_and_packet()
     evidence = tuple(
@@ -470,7 +552,7 @@ def test_c0_cpu_diagnostic_parses_development_story_step_and_validity_forms() ->
     assertion = next(
         item
         for item in preparation.sealed_preontology.draft.instance_graph.assertions
-        if item.predicate_id == "c0-predicate-served_as"
+        if item.predicate_id == "c0-predicate-holds_office"
     )
     assert assertion.temporal_scope.story_time == StoryTime(
         kind=TemporalKind.POINT,

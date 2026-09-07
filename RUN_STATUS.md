@@ -1,8 +1,86 @@
 # Run status
 
-Updated: 2026-09-07 — output-capacity CPU repair; GPU admission blocked
+Updated: 2026-09-07 — bounded diagnostics executed; acceptance remains blocked
 
 ## Current verified state
+
+Two real C1 diagnostics ran under the approved **feasibility-only** exception.
+Neither produced complete JSON or reached scientific validation. C2 and
+FixedSelect were not attempted because there is no accepted C1 graph.
+
+| Diagnostic | Input/output tokens | Generation seconds | Concrete failure |
+|---|---:|---:|---|
+| 1 | 4,479 / 6,144 | 56.266611 | HTTP 200, length stop; 30,605 of 30,628 content characters were whitespace |
+| 2 | 4,479 / 6,144 | 55.974436 | Whitespace restriction active; repeated `0, 0, …` inside an unterminated assertion-ID string |
+
+The same block has used **2/2 starts**, **2/3 attempts**, and
+**636.437522/1,200 allocated seconds**. Historical allocation is unchanged.
+Actual total: **3,864.263846 seconds**. vLLM is physically stopped; no open
+allocation/service journals remain. The pod remains active. Do not launch a
+third start under the current authorization.
+
+The authoritative stopped-service ledger is backed up in
+`artifacts/restricted/capacity-block-terminal.JD1MdQ/` (SHA-256
+`d187bc1b6b417e6e0606fe1fcc20b0fb69fc404a62f1d3e3efc5d3892cfa07d1`).
+Verification: 19 CAS artifacts, five failed historical/diagnostic model-call
+records, zero integrity issues. Both earlier V9/V10 ledgers and the first
+diagnostic checkpoint are preserved. Raw responses, exact schemas/maps, exception
+chains, source bindings, and resource/timing records remain restricted.
+
+Pinned model and context are unchanged: Qwen3-8B-AWQ revision
+`4da05a8edb55c6046cce958586c33b61da07bb79`, 12,288 tokens. Constructive
+input/output policy is 6,144/6,144; FixedSelect is 9,216/3,072 with complete
+sealed-record references. The supported V1 decoder whitespace flag was measured
+in diagnostic 2. A further **unactivated CPU-only identifier-bound candidate**
+now rejects the observed repeated-ID prefix in pinned XGrammar. It is not a
+model result or evidence of semantic reliability.
+
+No valid generation latency sample exists. The unchanged mandatory inventory
+proxy is **39,828.344344s remaining**, plus **333.668869s** for a still-pending
+acceptance/resume service envelope after this block stopped. Complete conservative
+remaining forecast: **40,162.013213s**; all-in: **44,026.277059s**, exceeding the
+33,660s scheduled ceiling by **10,366.277059s**. These are unmeasured allowance
+sensitivity proxies, not successful-output p95s. All 267 remaining generation/
+reserve slots, five main-study service envelopes, and the acceptance/resume
+envelope are retained. Existing C1/C2/FixedSelect acceptance earmarks remain
+inside the historical reserve, counted once. No invalid throughput is credited.
+The original nine-hour target was not met; neither approved ceiling changed.
+
+Sampled block peaks: **22,793,945,088 VRAM bytes**, **3,159,506,944 process-tree
+RAM bytes**, eight workers. Current block-reported project occupancy is
+**16,429,932,544 bytes**, below 25 GB with protected headroom. Ledger apparent
+storage samples use a different filesystem measure and are not substituted for
+this conservative occupancy check.
+
+C0's genuine holder-attribution and predicate-normalization bugs are repaired.
+Production CPU calibration v5 completed four preconstructions and twelve valid
+projections in **67.547288s**, using zero GPU seconds. Competence still **fails**:
+coverage 0.20, precision/recall 0.00, valid references 1.00. The updated graph
+contains 275 assertions versus 286 previously; no gold or thresholds changed.
+Remaining identity/event limitations and gold validity/clipping problems are
+documented in `docs/C0_DEVELOPMENT_REPAIR.md`; full evidence-to-reference examples
+are restricted in `artifacts/restricted/C0_DEVELOPMENT_ERROR_EXAMPLES.md`.
+
+Held-out review remains mandatory. The readable reviewer package remains at
+`artifacts/restricted/scorer_only/independent_review_handoff/`, with instructions
+in `docs/INDEPENDENT_REVIEW_HANDOFF.md`. No human judgments were fabricated.
+
+Checkpoint commits: `930d69b` (bounded controller), `7e6d95d` (observed whitespace
+repair); subsequent tested CPU repair checkpoint follows in Git history.
+Focused final regression results: **119 passed** (92 codec/controller/C0/metrics/
+actual-client checks and 27 selected runtime/acceptance/shutdown checks).
+See `docs/CAPACITY_DIAGNOSTIC_OUTCOME.md` for the itemized outcome and proposed
+resource decision. No GPU resume command is currently authorized. CPU-only
+reproduction:
+
+```bash
+python scripts/summarize_capacity_diagnostics.py --recovery artifacts/restricted/capacity-block-terminal.JD1MdQ --v10-terminal artifacts/restricted/v10-recovery.TI5xOY/artifacts/restricted/v10_validation/terminal-verification.json --output artifacts/restricted/capacity-diagnostic-outcome-recheck.json
+```
+
+No PDF, novel transfer, public release, model download, or dependency installation
+was performed during this bounded diagnostic block.
+
+## Historical pre-diagnostic capacity state — superseded by the measurements above
 
 The authorized restricted V10 recovery succeeded. Its local backup is
 `artifacts/restricted/v10-recovery.TI5xOY/`; the original local V9 ledger is

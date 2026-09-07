@@ -18,6 +18,32 @@ from story_projection_onto.output_wire import (
 ROOT = Path(__file__).resolve().parents[2]
 
 
+def test_proposed_identifier_bound_does_not_change_semantics_or_closed_ids():
+    import re
+
+    from story_projection_onto.output_wire import bounded_identifier_schema
+
+    original = canonical_json_schema(OntologyDraft)
+    bounded = bounded_identifier_schema(original)
+    pattern = bounded["$defs"]["QualifiedAssertion"]["properties"]["assertion_id"]["pattern"]
+    assert re.fullmatch(pattern, "n-assertion-01")
+    assert not re.fullmatch(pattern, "0, " * 100)
+    assert not re.fullmatch(pattern, "n" * 97)
+    assert (
+        bounded["$defs"]["Entity"]["properties"]["description"]
+        == original["$defs"]["Entity"]["properties"]["description"]
+    )
+    enum = {
+        "type": "object",
+        "properties": {"entity_id": {"type": "string", "enum": ["sealed id with spaces"]}},
+    }
+    assert bounded_identifier_schema(enum) == enum
+    for name in ("c1_pre_output", "c2_query_output", "fixed_select_output"):
+        draft = json.loads((ROOT / f"tests/fixtures/phase1/{name}.json").read_bytes())
+        codec = RecordTupleCodec(bounded)
+        assert codec.decode(codec.encode(draft)) == draft
+
+
 def test_opaque_references_are_lossless_without_rewriting_prose():
     value = {
         "evidence_id": "opaque-evidence-001",

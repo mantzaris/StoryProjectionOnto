@@ -257,6 +257,7 @@ class ClassicalRuleConfig(ImmutableRecord):
             "located at": "located_at",
             "opposed": "opposed",
             "reported": "reported",
+            "served as": "holds_office",
             "supported": "supported",
             "trusted": "trusted",
             "warned": "warned",
@@ -353,7 +354,7 @@ def _normalize_predicate(surface: str, config: ClassicalRuleConfig) -> str:
     for phrase, predicate in sorted(
         config.relation_lemmas.items(), key=lambda item: (-len(item[0]), item[0])
     ):
-        if phrase in folded:
+        if f" {phrase} " in f" {folded} ":
             return predicate
     if folded:
         return folded.replace(" ", "_")
@@ -1128,6 +1129,47 @@ def _holder_time(story_time: StoryTime) -> HolderRelativeTime:
     return HolderRelativeTime(**values)
 
 
+def _embedded_holder(
+    evidence: EvidenceRecord,
+    relation: ClassicalRelation,
+    mentions: Mapping[str, ClassicalMention],
+) -> tuple[EpistemicAttitude, str] | None:
+    """Attribute an explicit 'X reported/denied/believed that S ...' clause.
+
+    Only a same-sentence, preceding, named holder is accepted. This general
+    pre-query rule uses source offsets, not development identities or gold.
+    It does not propagate attribution into the next sentence or coordination.
+    """
+    subject = mentions[relation.subject_mention_id]
+    object_mention = mentions[relation.object_mention_id]
+    clause_start = max(
+        (m.end() for m in re.finditer(r"[.!?;]", evidence.text[: subject.start_char])), default=0
+    )
+    prefix = evidence.text[clause_start : subject.start_char]
+    matches = list(re.finditer(r"\b(reported|denied|believed)\s+that\s+", prefix, re.I))
+    if not matches or object_mention.start_char < subject.start_char:
+        return None
+    cue = matches[-1]
+    cue_start = clause_start + cue.start()
+    holders = [
+        m
+        for m in mentions.values()
+        if m.evidence_id == evidence.evidence_id
+        and not m.is_pronoun
+        and clause_start <= m.start_char < m.end_char <= cue_start
+        and not evidence.text[m.end_char : cue_start].strip()
+    ]
+    if not holders:
+        return None
+    holder = min(holders, key=lambda m: (m.start_char, m.mention_id))
+    attitude = {
+        "reported": EpistemicAttitude.REPORTED,
+        "denied": EpistemicAttitude.DENIED,
+        "believed": EpistemicAttitude.BELIEVED,
+    }[cue.group(1).casefold()]
+    return attitude, holder.mention_id
+
+
 def _revelation(evidence: EvidenceRecord) -> RevelationPosition:
     return RevelationPosition(
         revelation_order=evidence.discourse_position.passage_order,
@@ -1350,6 +1392,7 @@ class ClassicalPreBuilder:
                 "member_of",
                 "opposed",
                 "served_as",
+                "holds_office",
                 "supported",
                 "trusted",
             }
@@ -1358,6 +1401,11 @@ class ClassicalPreBuilder:
                 "denied": EpistemicAttitude.DENIED,
                 "reported": EpistemicAttitude.REPORTED,
             }.get(relation.predicate)
+            holder_id = subject_id if attitude is not None else None
+            embedded = _embedded_holder(evidence_record, relation, mentions)
+            if embedded is not None:
+                attitude, holder_mention_id = embedded
+                holder_id = entity_id_by_mention[holder_mention_id]
             assertion_specs.append(
                 _AssertionSpec(
                     assertion_id=_identifier("c0-assertion", relation.relation_id),
@@ -1372,7 +1420,7 @@ class ClassicalPreBuilder:
                         state_like=state_like,
                     ),
                     epistemic_attitude=attitude,
-                    holder_id=subject_id if attitude is not None else None,
+                    holder_id=holder_id,
                     why_matters=(
                         f"The explicit {relation.surface_phrase.strip()} relation connects "
                         "two supported narrative objects."
@@ -1903,10 +1951,9 @@ def project_sealed_c0(
         source_graph,
         seed_assertion_ids=selected_assertion_ids,
     )
-    if (
-        final_closure.assertion_ids != frozenset(selected_assertion_ids)
-        or final_closure.node_ids != frozenset(selected_node_ids)
-    ):
+    if final_closure.assertion_ids != frozenset(
+        selected_assertion_ids
+    ) or final_closure.node_ids != frozenset(selected_node_ids):
         raise ConditionIntegrityError("C0 dependency closure changed after selection")
     selected_assertions = tuple(
         item for item in source_graph.assertions if item.assertion_id in selected_assertion_ids
@@ -2006,9 +2053,7 @@ def project_sealed_c0(
         budgets=inputs.context.budgets,
     )
     validation = runtime_structural_acceptance_record(
-        validation_id=_identifier(
-            "c0-validation", preontology.content_hash, validation_target
-        ),
+        validation_id=_identifier("c0-validation", preontology.content_hash, validation_target),
         target_id=validation_target,
         validated_at=inputs.query_processing_started_at,
         diagnostics=(f"structural_report_sha256:{structural_report.content_hash}",),

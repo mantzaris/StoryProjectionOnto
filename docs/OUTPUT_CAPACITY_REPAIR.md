@@ -1,5 +1,10 @@
 # Output-capacity repair and feasibility gate
 
+Historical CPU-preparation report. The subsequent authorized GPU measurements
+and current decision are in `docs/CAPACITY_DIAGNOSTIC_OUTCOME.md` and `RUN_STATUS.md`.
+Statements below that no service ran or that the feasibility exception was
+unapproved describe the earlier checkpoint, not current state.
+
 Status: CPU implementation and capacity checks, not GPU acceptance. No new GPU
 service or generation was started. The active model remains Qwen/Qwen3-8B-AWQ at
 `4da05a8edb55c6046cce958586c33b61da07bb79`; total context remains 12,288 tokens.

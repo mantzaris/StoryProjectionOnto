@@ -47,6 +47,15 @@ HASH_A = "a" * 64
 HASH_B = "b" * 64
 
 
+def test_development_office_state_labels_normalize_without_relaxing_events():
+    from story_projection_onto.metrics.alignment import _normalize_predicate
+
+    assert _normalize_predicate("served as", {}) == _normalize_predicate("holds-office", {})
+    assert _normalize_predicate("serves_as", {}) == "holds_office"
+    assert _normalize_predicate("appointed to", {}) == "appointed_to"
+    assert _normalize_predicate("succeeds", {}) == "succeeds"
+
+
 def time_point(point: int) -> TemporalExtentSignature:
     return TemporalExtentSignature(kind=TemporalKind.POINT, point=point)
 

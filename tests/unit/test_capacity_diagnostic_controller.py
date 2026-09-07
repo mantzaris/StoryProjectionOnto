@@ -117,10 +117,12 @@ def test_actual_fixed_requires_accepted_source_and_is_exact():
     original = driver.pack_capacity_candidate
     try:
         driver.pack_capacity_candidate = lambda *a, **kw: kw
-        packed, fixture = driver.actual_fixed(ROOT, wrapper, base, draft, None)
+        seal = driver.seal_actual_c1(ROOT, draft)
+        packed, fixture = driver.actual_fixed(ROOT, wrapper, base, draft, None, seal=seal)
     finally:
         driver.pack_capacity_candidate = original
     assert fixture.fixed_ontology.instance_graph == draft.instance_graph
+    assert fixture.requested_at >= seal.sealed_at
     assert set(fixture.fixed_ontology.construction_seal.sealed_object_ids) == set(
         sealed_semantic_ids(draft)
     )

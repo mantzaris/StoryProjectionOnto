@@ -107,7 +107,8 @@ def setup(root, run):
     snapshot_manifest = read(root / "artifacts/public/manifests/model_snapshot_fallback.json")
     config = VLLMLaunchConfiguration.from_model_configuration(
         snapshot_path=root
-        / ".cache/shared/hub/models--Qwen--Qwen3-8B-AWQ/snapshots/4da05a8edb55c6046cce958586c33b61da07bb79",
+        / ".cache/shared/hub/models--Qwen--Qwen3-8B-AWQ/snapshots"
+        / "4da05a8edb55c6046cce958586c33b61da07bb79",
         shared_cache=root / ".cache/shared",
         model_configuration_path=root / "configs/study/model.json",
         model_candidate="fallback",
@@ -149,13 +150,12 @@ def diagnostic_metadata(http_root, request_hash):
     return metadata
 
 
-def actual_fixed(root, call, base_request, c1, tokenizer):
+def seal_actual_c1(root, c1):
     from story_projection_onto.conditions.base import preontology_semantic_hash, sealed_semantic_ids
-    from story_projection_onto.phase1_acceptance import _condition_output_schema, _request_sections
 
-    raw = read(root / call.request_fixture)
+    raw = read(root / "tests/fixtures/phase1/c1_pre_request.json")
     upper = UpperOntology.model_validate(raw["upper_ontology"])
-    seal = ConstructionSeal(
+    return ConstructionSeal(
         seal_id="capacity-actual-c1-seal",
         condition=ConditionName.C1_LLM_PRE,
         snapshot_hash=raw["snapshot_hash"],
@@ -164,6 +164,20 @@ def actual_fixed(root, call, base_request, c1, tokenizer):
         sealed_at=datetime.now(UTC),
         sealed_object_ids=sealed_semantic_ids(c1),
     )
+
+
+def actual_fixed(root, call, base_request, c1, tokenizer, *, seal):
+    from story_projection_onto.conditions.base import preontology_semantic_hash, sealed_semantic_ids
+    from story_projection_onto.phase1_acceptance import _condition_output_schema, _request_sections
+
+    raw = read(root / call.request_fixture)
+    upper = UpperOntology.model_validate(raw["upper_ontology"])
+    if (
+        seal.snapshot_hash != raw["snapshot_hash"]
+        or seal.ontology_hash != preontology_semantic_hash(upper, c1)
+        or seal.sealed_object_ids != sealed_semantic_ids(c1)
+    ):
+        raise ValueError("actual C1 seal differs from its accepted complete source")
     fixed = FixedOntologyInput(
         construction_seal=seal,
         upper_ontology=upper,
@@ -302,6 +316,7 @@ def controller(root, block, run, *, prepare_only=False):
     outcomes = []
     artifact_store = ArtifactStore(BlobStore(root / "artifacts/blobs/phase1_acceptance"), ledger)
     accepted_c1 = None
+    accepted_c1_seal = None
     try:
         cap = stage("startup", 300)
         service.start(
@@ -347,7 +362,9 @@ def controller(root, block, run, *, prepare_only=False):
                 if index == 3:
                     if accepted_c1 is None:
                         raise ValueError("FixedSelect requires actual accepted C1")
-                    request, fixed_fixture = actual_fixed(root, call, base, accepted_c1, tokenizer)
+                    request, fixed_fixture = actual_fixed(
+                        root, call, base, accepted_c1, tokenizer, seal=accepted_c1_seal
+                    )
                 else:
                     request = pack_capacity_candidate(base, tokenizer)
                 _verify_second_recovery_decoder_compiles(request.output_schema)
@@ -445,6 +462,12 @@ def controller(root, block, run, *, prepare_only=False):
                 immutable(attempt_root / "validation.json", validation)
                 if index == 0:
                     accepted_c1 = OntologyDraft.model_validate(result.parsed_object)
+                    # Seal before opening any C2/FixedSelect query fixture, not
+                    # retrospectively at FixedSelect request preparation.
+                    accepted_c1_seal = seal_actual_c1(root, accepted_c1)
+                    immutable(
+                        attempt_root / "c1-seal.json", accepted_c1_seal.model_dump(mode="json")
+                    )
                     immutable(
                         attempt_root / "accepted-c1.json", accepted_c1.model_dump(mode="json")
                     )

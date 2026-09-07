@@ -337,7 +337,12 @@ def _normalize_predicate(value: str, aliases: Mapping[str, str]) -> str:
     for prefix in ("contextual_", "actor_", "collective_", "event_role_"):
         if normalized.startswith(prefix):
             normalized = normalized.removeprefix(prefix)
-    return aliases.get(normalized, normalized)
+    # Development-frozen lexical equivalents, applied identically to gold and
+    # every condition. This is predicate normalization, not relaxed assertion
+    # matching: endpoints/roles, direction, time, epistemic scope and evidence
+    # must still match. Appointment/succession events are NOT office states.
+    office_state_aliases = {"served_as": "holds_office", "serves_as": "holds_office"}
+    return aliases.get(normalized, office_state_aliases.get(normalized, normalized))
 
 
 def _epistemic_signature(
