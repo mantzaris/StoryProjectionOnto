@@ -6,27 +6,30 @@ allocation records remain authoritative. The next start is **not authorized**.
 
 ## Measured stopped-pod costs
 
-The two restricted `resource-component-profile*.json` records include UTC and
+The three restricted `resource-component-profile*.json` records include UTC and
 monotonic timestamps. Each small component was measured three times per profile;
 these are observations, not p95 estimates or loaded-service throughput.
 
 | Component | Observed duration |
 |---|---:|
 | Process enumeration + RAM (two enumerations per profile row) | 0.14–0.35 ms |
-| GPU query including nearby process enumeration | 16.8–31.1 ms |
-| Read-only canonical ledger query | 2.4–67.8 ms |
-| Status-file read | 3.1–10.2 ms |
+| GPU query including nearby process enumeration | 16.5–31.5 ms |
+| Read-only canonical ledger query | 1.9–90.3 ms |
+| Status-file read | 2.2–22.5 ms |
 | 1,000 uncontended in-process lock cycles | 0.096–0.171 ms |
-| Existing controller file-lock acquire/release | 1.53–3.49 ms |
+| Existing controller file-lock acquire/release | 0.84–3.49 ms |
 | Old recursive storage walk | 49.884 s; 50.213 s |
-| Repaired full census, including storage-worker startup | 10.223 s |
-| Repaired fast observation, including first fast-worker startup | 201.6 ms |
-| Subsequent fast observations | 45.3 ms; 39.2 ms |
-| Cancel and reap both idle observer workers | 16.6 ms |
+| Corrected standalone full traversal including directories | 41.410 s |
+| Repaired full census, including storage-worker startup | 9.620 s; 10.223 s |
+| Repaired fast observation, including first fast-worker startup | 201.6 ms; 224.4 ms |
+| Subsequent fast observations | 39.2–122.4 ms (four observations) |
+| Cancel and reap both idle observer workers | 16.5–16.6 ms |
 
 The old walk counted files but omitted directory blocks. The repaired census
 includes directories and symlinks, deduplicates hard links, and measured
-16,442,173,952 occupied bytes initially. The old approximately 10.36 GB samples
+16,442,173,952 occupied bytes initially. The final source-bound standalone census
+measured 16,443,250,688 bytes; subsequent writes were retained by the event index.
+The old approximately 10.36 GB samples
 are retained as historical undercounts, not rewritten. Both the native monitor
 and `StoragePreflight` now include directory occupancy. The 25 GB occupied,
 30 GB planned allocation and protected 5 GB headroom gates are unchanged.
@@ -83,6 +86,13 @@ diagnostics, and no unresolved fixture allocation or service journal. Separate
 tests cover RPC timeout/reaping, event loss, identity changes, storage/headroom
 failure and restart/checkpoint continuity. These are CPU tests, not a claim of
 measured live vLLM shutdown latency.
+
+Final verification: **179 focused tests passed locally and 179 on the pod**;
+**31 unchanged C0/alignment tests passed locally**. The classification reproduced
+byte-for-byte. Lint and whitespace checks pass. The first remote collection
+attempt lacked the unchanged streaming fixture (zero tests run); both that
+record and the successful rerun are retained. Deployed source/test checksums
+match the local source checkpoint `00db0fa`; nothing was pushed.
 
 Restricted backup: `artifacts/restricted/resource-monitor-repair.V995HH/`.
 Canonical ledger SHA-256 remains

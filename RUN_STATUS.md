@@ -1,8 +1,65 @@
 # Run status
 
-Updated: 2026-09-07 16:39 UTC — fourth small-only start failed before request receipt
+Updated: 2026-09-07 — CPU resource monitor/shutdown repair implemented
 
 ## Current verified state
+
+Verified source checkpoint: **`00db0fa`** on
+`implementation/query-dependent-temporal-ontology`. CPU-only repair separates
+process/RAM/GPU observations from full storage traversal and makes verified
+service signaling precede observer/heartbeat draining. Real SIGSTOP probe tests
+verify cancellation/reaping, preserved evidence and reconciled fixture accounting.
+Full storage census occurs before allocation and at stopped checkpoints; live
+loss-detecting write accounting preserves the occupied/headroom gates. Directory
+blocks are now counted; historical undercounts are retained, not rewritten.
+
+Local focused verification: **179 passed**, plus **31 C0/alignment tests passed**;
+remote focused verification: **179 passed**. The initial remote collection
+failure (one missing unchanged test file, zero tests run) is preserved; its
+fixture was deployed before the successful rerun. Lint/diff checks pass.
+Development-only validity classification reproduced
+byte-for-byte. Deployed source/tests checksum-match the local repair. Restricted
+CPU profiles and verification records are in
+`artifacts/restricted/resource-monitor-repair.V995HH/`.
+
+Measured stopped-pod costs: old storage traversal **49.884–50.213 s**;
+process/RAM **0.14–0.35 ms**, GPU query **16.5–31.5 ms**, read-only ledger
+**1.9–90.3 ms**. New full census **9.620–10.223 s** before allocation; warm fast
+observations **39–122 ms**; cancel/reap **16.5–16.6 ms**. The final corrected
+standalone traversal measured **16,443,250,688 occupied bytes** in **41.410 s**.
+These are component
+measurements, not inference throughput or proof of the cause of model-loading
+delay. Full measurement/freshness details: `docs/RESOURCE_MONITOR_REPAIR.md`.
+
+**No new GPU start or inference.** vLLM remains stopped; pod active. Actual
+allocation remains **4,633.801513 s**. Same block: **4 starts, 3 attempts,
+1,405.975189/1,800 s**, remaining **394.024811 s**. All prior failures, ledger
+records, mandatory calls and restart/resume acceptance requirements remain.
+Ordinary complete forecast is still **44,795.814726 s**, including remaining
+mandatory proxy **40,162.013213 s**; it fails the unchanged **33,660 s** scheduled
+ceiling. Strict actual stop remains before **36,000 s**. Original nine-hour
+target was not met. No new valid model timing or acceptance output was obtained.
+
+Next milestone requires approval of one **560 s** small-only envelope:
+startup 360, live checks 15, SSE diagnostic 120, validation/drain 15, protected
+shutdown 45, guard 5. This requires a fifth cumulative start and block cap
+**1,965.975189 s** (+**165.975189 s**), not a reset or full-study budget increase.
+The executable still rejects the exhausted four-start limit; no GPU resume
+command is authorized. Keep the existing frozen small evidence-only request,
+pinned model and validators. No full C1 request is proposed.
+
+C0 remains incompetent under the unchanged gate: among 30 validity-only
+development comparisons, **26 are query-clipped** and **8 have unstated finite
+intrinsic ends** (overlapping). The exact evidence/prediction/reference examples
+remain restricted. `docs/C0_VALIDITY_CORRECTION_PROPOSAL.md` distinguishes
+intrinsic validity from query visibility and specifies the proposed semantic
+correction. No gold, scoring rule or threshold was changed. Held-out execution
+remains independently review-gated. No new PDF was made.
+
+CPU-only verification command:
+`python -m pytest -q tests/unit/test_gpu_runtime.py tests/integration/test_resource_probe.py tests/integration/test_streaming_http_diagnostics.py tests/unit/test_capacity_diagnostic_controller.py tests/unit/test_store.py`
+
+## Historical fourth-start state (allocation remains authoritative)
 
 Executed checkpoint: **`589f4ba`**. The authorized fourth start ran with the
 production codec, tested SSE client and 550-second whole-start bound. Startup
