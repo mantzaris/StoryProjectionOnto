@@ -1402,6 +1402,8 @@ class VLLMGuidedJSONClient:
                 )
             content = choice["message"]["content"]
             parsed_object = json.loads(content)
+            if diagnostic_journal is not None:
+                diagnostic_journal.event("model_content_json_complete")
             if request.canonical_output_schema is not None:
                 from story_projection_onto.output_wire import RecordTupleCodec
 

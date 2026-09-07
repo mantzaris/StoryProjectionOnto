@@ -14,7 +14,9 @@ from dataclasses import dataclass
 BASELINE_SECONDS = 3227.826324
 SCHEDULED_SECONDS = 33660
 HARD_SECONDS = 36000
-BLOCK_SECONDS = 1200
+BLOCK_SECONDS = 1800
+MAX_STARTS = 3
+MAX_ATTEMPTS = 5
 SHUTDOWN_SECONDS = 60
 
 
@@ -41,10 +43,10 @@ class CapacityRecoveryState:
             raise ValueError("authoritative V10 allocation must not reset")
         if not complete_packing:
             raise ValueError("complete input/output capacity gate has not passed")
-        if not 0 <= self.service_starts + int(starting_service) <= 2:
-            raise ValueError("two-start recovery limit")
-        if not 0 <= self.diagnostic_attempts + int(diagnostic_generation) <= 3:
-            raise ValueError("three-diagnostic recovery limit")
+        if not 0 <= self.service_starts + int(starting_service) <= MAX_STARTS:
+            raise ValueError("three-start cumulative recovery limit")
+        if not 0 <= self.diagnostic_attempts + int(diagnostic_generation) <= MAX_ATTEMPTS:
+            raise ValueError("five-diagnostic cumulative recovery limit")
         additional = self.actual_allocated_seconds - BASELINE_SECONDS
         needed = stage_seconds + SHUTDOWN_SECONDS
         if additional + needed >= BLOCK_SECONDS - 1:

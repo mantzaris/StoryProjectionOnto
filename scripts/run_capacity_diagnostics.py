@@ -27,6 +27,7 @@ from story_projection_onto.contracts import (
     ConstructionSeal,
     FixedOntologyInput,
     OntologyDraft,
+    PreconstructionRequest,
     UpperOntology,
     canonical_sha256,
 )
@@ -44,6 +45,8 @@ from story_projection_onto.manifest import write_json_atomic
 from story_projection_onto.output_capacity_gate import (
     BASELINE_SECONDS,
     BLOCK_SECONDS,
+    MAX_ATTEMPTS,
+    MAX_STARTS,
     SHUTDOWN_SECONDS,
     CapacityRecoveryState,
     capacity_forecast,
@@ -147,6 +150,8 @@ def diagnostic_metadata(http_root, request_hash):
             metadata.update(response_complete=True, response_sha256=row["response_sha256"])
         elif row["event"] == "failure":
             metadata["failure_stage"] = row["stage"]
+        elif row["event"] == "model_content_json_complete":
+            metadata["model_content_json_complete"] = True
     return metadata
 
 
@@ -202,6 +207,100 @@ def actual_fixed(root, call, base_request, c1, tokenizer, *, seal):
     ), fixture
 
 
+def prepare_small_diagnostic(root, run, call, bridge, tokenizer, tokenizer_manifest):
+    """One complete evidence record, never an authored answer or acceptance proxy."""
+    from story_projection_onto.phase1_acceptance import build_acceptance_request
+
+    resolved = bridge.resolve_call(
+        call_id=call.call_id, condition=call.condition, request_fixture=call.request_fixture
+    )
+    raw = read(root / call.request_fixture)
+    raw.pop("content_hash", None)
+    evidence = resolved.evidence[:1]
+    raw.update(
+        request_id="capacity-small-evidence-only",
+        evidence=[e.model_dump(mode="json") for e in evidence],
+        snapshot_hash=canonical_sha256([e.model_dump(mode="json") for e in evidence]),
+        sealed_horizon={
+            "horizon_id": "capacity-small-horizon",
+            "max_discourse_position": {"passage_order": 1},
+            "max_revelation_position": {"revelation_order": 1},
+        },
+    )
+    fixture = PreconstructionRequest.model_validate(raw)
+    path = run / "small-evidence-only-request.json"
+    immutable(path, fixture.model_dump(mode="json"))
+    small_call = replace(
+        call, call_id="capacity-small-c1", request_fixture=str(path.relative_to(root))
+    )
+    request = build_acceptance_request(
+        root=root,
+        call=small_call.acceptance_call(),
+        tokenizer=tokenizer,
+        tokenizer_manifest=tokenizer_manifest,
+        model_name="qwen3-8b-awq-fallback",
+        model_revision=tokenizer_manifest.tokenizer_revision,
+        additional_sections={
+            "diagnostic_scope": "This complete one-passage development snapshot is a minimal "
+            "generation diagnostic, not full acceptance. Construct a small meaningful ontology "
+            "with at least two supported nodes and one qualified assertion, the local "
+            "types/predicate it needs, and an explicit supported construction decision. "
+            "No expected graph is supplied."
+        },
+    )
+    return small_call, pack_capacity_candidate(request, tokenizer), fixture, resolved.evidence
+
+
+def validate_small_diagnostic(result, fixture, oracle_evidence):
+    """Same production structural validator and existing development support audit.
+
+    The oracle requires its complete frozen evidence identity; only the single
+    supplied record is admissible to the structural validator. Neither oracle
+    nor authored graphs are rendered into the request.
+    """
+    from story_projection_onto.scorer_only.acceptance_grounding import (
+        audit_acceptance_semantic_grounding,
+    )
+    from story_projection_onto.validate import validate_draft_structure
+
+    draft = OntologyDraft.model_validate(result.parsed_object)
+    if draft.budget_accounting.input_tokens != 0 or draft.budget_accounting.output_tokens != 0:
+        raise ValueError("small diagnostic must preserve raw token sentinels")
+    structural = validate_draft_structure(
+        draft=draft,
+        upper_ontology=fixture.upper_ontology,
+        evidence=fixture.evidence,
+        horizon=fixture.sealed_horizon,
+        budgets=fixture.budgets,
+        capabilities=fixture.capabilities,
+    )
+    structural.raise_for_errors()
+    graph = draft.instance_graph
+    if len(graph.entities) + len(graph.events) < 2 or not graph.assertions or not draft.decisions:
+        raise ValueError("small diagnostic omitted its meaningful ontology structure")
+    audit = audit_acceptance_semantic_grounding(draft=draft, evidence=oracle_evidence)
+    audit.raise_for_failure()
+    return {
+        "small_diagnostic_only": True,
+        "schema_valid": True,
+        "structural_valid": True,
+        "scientific_valid": True,
+        "grounding": audit.public_manifest(),
+    }
+
+
+def next_diagnostic(*, completed, accepted_c1):
+    # Distinct discriminating tests, never repeat the same failed request. C2
+    # constructs directly from evidence/context, independently of a C1 result.
+    if completed == 0:
+        return "c1"
+    if completed == 1:
+        return "c2"
+    if completed == 2:
+        return "fixed" if accepted_c1 else "small"
+    return None
+
+
 def controller(root, block, run, *, prepare_only=False):
     cpu_started = time.monotonic()
     from transformers import AutoTokenizer
@@ -243,6 +342,18 @@ def controller(root, block, run, *, prepare_only=False):
         tokenizer,
     )
     _verify_second_recovery_decoder_compiles(first.output_schema)
+    immutable(
+        run / "c2-empty-prequery-inventory.json",
+        {
+            "condition": "C2",
+            "ontology_object_ids": [],
+            "hidden_ontology": False,
+            "created_at": now(),
+        },
+    )
+    small_call, small, small_fixture, small_oracle = prepare_small_diagnostic(
+        root, run, calls[0], bridge, tokenizer, tokenizer_manifest
+    )
     import xgrammar
 
     compiler = xgrammar.GrammarCompiler(xgrammar.TokenizerInfo.from_huggingface(tokenizer))
@@ -251,6 +362,32 @@ def controller(root, block, run, *, prepare_only=False):
     # Exercise the exact compiled decoder, not just an instruction in the prompt.
     if matcher.accept_string("{\n\n\n\n\n\n"):
         raise ValueError("restricted decoder still admits the observed whitespace loop")
+    identifier_grammar = compiler.compile_json_schema(
+        json.dumps(first.output_schema["$defs"]["QualifiedAssertion"]["prefixItems"][0]),
+        any_whitespace=False,
+    )
+    if xgrammar.GrammarMatcher(identifier_grammar).accept_string('"0, 0, 0, '):
+        raise ValueError("identifier grammar still admits the observed repetition")
+    if not xgrammar.GrammarMatcher(identifier_grammar).accept_string('"n-assertion/01"'):
+        raise ValueError("identifier grammar rejects legitimate scoped IDs")
+    for label, request in (("c1", first), ("small", small)):
+        compiler.compile_json_schema(json.dumps(request.output_schema), any_whitespace=False)
+        immutable(run / f"prepared-{label}.json", request.wire_payload())
+        rendered = tokenizer.apply_chat_template(
+            [asdict(m) for m in request.messages],
+            tokenize=False,
+            add_generation_prompt=True,
+            enable_thinking=False,
+        )
+        immutable(
+            run / f"rendered-{label}.json",
+            {
+                "text": rendered,
+                "token_count": request.rendered_input_token_count,
+                "request_hash": request.request_hash,
+                "tokenizer_manifest": asdict(tokenizer_manifest),
+            },
+        )
     inventory = read(root / "artifacts/restricted/v10_validation/terminal-verification.json")[
         "remaining_inventory_rows"
     ]
@@ -337,17 +474,22 @@ def controller(root, block, run, *, prepare_only=False):
             )
         )
         sampler.sample(sample_id=run.name + "-ready", root_pid=service.pid)
-        for index in (0, 1, 3):
-            if count_reservations(block, "attempt") >= 3:
+        while (
+            kind := next_diagnostic(completed=len(outcomes), accepted_c1=accepted_c1 is not None)
+        ) is not None:
+            if count_reservations(block, "attempt") >= MAX_ATTEMPTS:
                 print(
                     json.dumps({"diagnostic_limit_reached": True, "not_complete_acceptance": True}),
                     flush=True,
                 )
                 break
-            call = calls[index]
+            index = {"c1": 0, "c2": 1, "fixed": 3, "small": -1}[kind]
+            call = small_call if kind == "small" else calls[index]
             fixed_fixture = None
             if index == 0:
                 request = first
+            elif kind == "small":
+                request = small
             else:
                 stage("request_preparation", 120)
                 if index == 3:
@@ -366,6 +508,8 @@ def controller(root, block, run, *, prepare_only=False):
                         root, call, base, accepted_c1, tokenizer, seal=accepted_c1_seal
                     )
                 else:
+                    if "sealed_ontology" in json.loads(base.messages[1].content):
+                        raise ValueError("C2 diagnostic contains a preconstructed ontology")
                     request = pack_capacity_candidate(base, tokenizer)
                 _verify_second_recovery_decoder_compiles(request.output_schema)
             stage("pre_generation_checks", 120)
@@ -386,6 +530,18 @@ def controller(root, block, run, *, prepare_only=False):
             attempt_root.mkdir(mode=0o700)
             request_value = request.wire_payload()
             immutable(attempt_root / "request.json", request_value)
+            immutable(
+                attempt_root / "rendered-chat.json",
+                {
+                    "text": tokenizer.apply_chat_template(
+                        request_value["messages"],
+                        tokenize=False,
+                        add_generation_prompt=True,
+                        enable_thinking=False,
+                    ),
+                    "input_tokens": request.rendered_input_token_count,
+                },
+            )
             immutable(attempt_root / "packing.json", request.packing.model_dump(mode="json"))
             if fixed_fixture is not None:
                 immutable(
@@ -419,6 +575,7 @@ def controller(root, block, run, *, prepare_only=False):
             result = None
             failure = None
             validation = None
+            schema_valid = False
             cap = stage("generation", call.watchdog_seconds)
             tic = time.monotonic()
             failure_stage = "client"
@@ -439,22 +596,29 @@ def controller(root, block, run, *, prepare_only=False):
                 generation_seconds = time.monotonic() - tic
                 stage("validation", 120)
                 immutable(attempt_root / "decoded.json", result.parsed_object)
+                OntologyDraft.model_validate(result.parsed_object)
+                schema_valid = True
                 failure_stage = "schema_or_structural_validation"
-                validation = validate_acceptance_generation(
-                    root=root,
-                    call=call.acceptance_call(),
-                    parsed_object=result.parsed_object,
-                    authoritative_prompt_tokens=result.prompt_tokens,
-                    authoritative_completion_tokens=result.completion_tokens,
-                    legacy_provenance_bridge=bridge,
-                    diagnostic_journal=result.diagnostic_journal,
-                    actual_fixed_request=fixed_fixture,
-                    actual_c1_draft=accepted_c1 if index == 3 else None,
+                validation = (
+                    validate_small_diagnostic(result, small_fixture, small_oracle)
+                    if kind == "small"
+                    else validate_acceptance_generation(
+                        root=root,
+                        call=call.acceptance_call(),
+                        parsed_object=result.parsed_object,
+                        authoritative_prompt_tokens=result.prompt_tokens,
+                        authoritative_completion_tokens=result.completion_tokens,
+                        legacy_provenance_bridge=bridge,
+                        diagnostic_journal=result.diagnostic_journal,
+                        actual_fixed_request=fixed_fixture,
+                        actual_c1_draft=accepted_c1 if index == 3 else None,
+                    )
                 )
                 failure_stage = "scientific_capability_validation"
-                validation["operator_behavior"] = _require_call_operator_coverage(
-                    call, validation, result.parsed_object, root=root
-                )
+                if kind != "small":
+                    validation["operator_behavior"] = _require_call_operator_coverage(
+                        call, validation, result.parsed_object, root=root
+                    )
                 if result.finish_reason == "length":
                     raise ValueError(
                         "length-terminated output is not successful capacity acceptance"
@@ -505,6 +669,10 @@ def controller(root, block, run, *, prepare_only=False):
                 "generation_and_validation_seconds": time.monotonic() - tic,
                 "generation_wall_seconds": generation_seconds,
                 "accepted": failure is None,
+                "diagnostic_kind": kind,
+                "canonical_schema_valid": schema_valid,
+                "scientifically_valid": failure is None,
+                "production_form": kind != "small",
                 "failure": failure,
                 "validation": validation,
                 "completed_at": now(),
@@ -554,9 +722,9 @@ def controller(root, block, run, *, prepare_only=False):
                 ),
                 flush=True,
             )
-            if failure:
-                # Evidence-based repairs can resume this SAME block with its
-                # persistent counters. Never retry semantics by raising tokens.
+            if failure and transport_metadata.get("failure_stage") in {"transport", "http"}:
+                # A failed transport may leave an in-flight generation. Do not
+                # overlap it or keep using an unhealthy service.
                 break
     finally:
         state.update(
@@ -595,16 +763,19 @@ def guardian(root, *, prepare_only=False):
         ledger, _, service = setup(root, run)
         if ledger.unresolved_gpu_allocations() or ledger.unresolved_gpu_service_journals():
             raise ValueError("existing allocation requires reconciliation; do not duplicate")
-        if count_reservations(block, "start") >= 2 or count_reservations(block, "attempt") >= 3:
+        if not prepare_only and (
+            count_reservations(block, "start") >= MAX_STARTS
+            or count_reservations(block, "attempt") >= MAX_ATTEMPTS
+        ):
             raise ValueError("existing block counters exhausted")
         authorization = read(root / "configs/study/output_capacity_recovery.json")
         if authorization["activation_scope"] != "bounded_feasibility_diagnostics_only":
             raise ValueError("missing narrow diagnostic authorization")
         expected = {
             "amendment_id": BLOCK_ID,
-            "maximum_service_starts": 2,
-            "maximum_diagnostic_generation_attempts": 3,
-            "maximum_additional_allocated_seconds": 1200,
+            "maximum_service_starts": MAX_STARTS,
+            "maximum_diagnostic_generation_attempts": MAX_ATTEMPTS,
+            "maximum_additional_allocated_seconds": BLOCK_SECONDS,
             "historical_actual_allocated_seconds": BASELINE_SECONDS,
             "scheduled_seconds": 33660,
             "strict_hard_seconds": 36000,
@@ -618,6 +789,7 @@ def guardian(root, *, prepare_only=False):
             "authorization": authorization,
             "guardian_pid": os.getpid(),
             "created_at": now(),
+            "local_commit": os.environ.get("STORYPROJECTION_LOCAL_COMMIT", "CPU-check-only"),
         }
         immutable(run / "binding.json", binding)
         command = [sys.executable, __file__, "--controller", str(run)]

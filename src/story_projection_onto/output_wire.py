@@ -11,11 +11,13 @@ from __future__ import annotations
 
 import copy
 import json
+import re
 from collections import Counter
 from collections.abc import Mapping
 from typing import Any
 
 ADMIN = frozenset({"content_hash", "schema_version"})
+BOUNDED_ID_PATTERN = r"^[A-Za-z0-9_.:/-]{1,96}$"
 
 
 def is_reference_field(name: str) -> bool:
@@ -235,7 +237,7 @@ class RecordTupleCodec:
         self.schema = copy.deepcopy(dict(schema))
         inverse = {v: k for k, v in (opaque_aliases or {}).items()}
 
-        def alias_constraints(node):
+        def alias_constraints(node, field=""):
             if isinstance(node, dict):
                 if "enum" in node:
                     node["enum"] = [
@@ -243,11 +245,32 @@ class RecordTupleCodec:
                     ]
                 if isinstance(node.get("const"), str):
                     node["const"] = inverse.get(node["const"], node["const"])
-                for child in node.values():
-                    alias_constraints(child)
+                # A supplied SHA-256 becomes an I handle in the input. Its wire
+                # schema must admit that exact handle, not force 64 hex digits.
+                # Decode restores the original hash before canonical validation.
+                if (
+                    is_reference_field(field)
+                    and "pattern" in node
+                    and "enum" not in node
+                    and "const" not in node
+                ):
+                    handles = sorted(
+                        k for v, k in inverse.items() if re.fullmatch(node["pattern"], v)
+                    )
+                    if handles and any(not re.fullmatch(node["pattern"], k) for k in handles):
+                        original = copy.deepcopy(node)
+                        node.clear()
+                        node.update(anyOf=[original, {"type": "string", "enum": handles}])
+                        return
+                for key, child in node.items():
+                    if key == "properties":
+                        for name, prop in child.items():
+                            alias_constraints(prop, name)
+                    else:
+                        alias_constraints(child, field)
             elif isinstance(node, list):
                 for child in node:
-                    alias_constraints(child)
+                    alias_constraints(child, field)
 
         alias_constraints(self.schema)
         self.definitions = self.schema.get("$defs", {})
@@ -325,17 +348,63 @@ class RecordTupleCodec:
         }
 
     def legend(self) -> str:
+        def kind(node):
+            if "$ref" in node:
+                return node["$ref"].removeprefix("#/$defs/")
+            if "const" in node:
+                return json.dumps(node["const"], separators=(",", ":"))
+            if "enum" in node:
+                return "|".join(json.dumps(v) for v in node["enum"])
+            if "anyOf" in node:
+                return "|".join(kind(v) for v in node["anyOf"])
+            if node.get("type") == "array":
+                return "list<" + kind(node["items"]) + ">"
+            if node.get("type") == "object" and isinstance(node.get("additionalProperties"), dict):
+                return "map<string," + kind(node["additionalProperties"]) + ">"
+            result = node.get("type", "JSON")
+            if "pattern" in node:
+                if node["pattern"] == BOUNDED_ID_PATTERN:
+                    return "ID"
+                if node["pattern"] == r"^[A-Za-z0-9][A-Za-z0-9_.:/-]*$":
+                    return "symbol"
+                result += "(" + node["pattern"] + ")"
+            for key in ("minimum", "maximum", "format"):
+                if key in node:
+                    result += " " + key + "=" + str(node[key])
+            return result
+
         rows = [
             'Record-tuples-v1: return {"draft": ROOT}. Each record is an array in the '
             "listed field order, followed by an object of optional fields ({} if none). "
-            "Keep all required values; optional defaults have their canonical meanings. "
+            "This wire legend replaces canonical object field syntax, not its semantics. "
+            "Field:type entries below describe values; do not emit field names in tuples. "
+            "Named types refer to other rows. list<T> is an ordinary JSON array of T. "
+            "The last tuple element is an object; its permitted optional fields are listed. "
+            "Keep all required values; emit nondefault optional qualifications explicitly. "
             "Do not emit content_hash or schema_version; the canonical parser derives these. "
             "Use compact JSON without indentation. No fields or semantics may be dropped."
+            " ID is a 1..96 character string of letters, digits, _, ., :, /, -. "
+            "symbol starts with a letter/digit then those characters. "
+            "All descriptions and rationales are concise supported natural-language text, not IDs."
         ]
         for name, schema in [("ROOT", self.schema), *sorted(self.definitions.items())]:
             if "properties" in schema:
                 fields = self.fields(schema)
-                rows.append(f"{name}=[{','.join(fields)},{{optional canonical fields}}]")
+                properties = schema["properties"]
+                required = [f"{field}:{kind(properties[field])}" for field in fields]
+                optional = [
+                    f"{field}:{kind(value)}"
+                    + (
+                        "=" + json.dumps(value["default"], separators=(",", ":"))
+                        if "default" in value
+                        else ""
+                    )
+                    for field, value in properties.items()
+                    if field not in fields and field not in ADMIN
+                ]
+                rows.append(f"{name}=[{','.join(required)},{{{','.join(optional)}}}]")
+            else:
+                rows.append(f"{name}={kind(schema)}")
         if self.sealed_copies:
             rows.append(
                 "A complete unchanged record from the supplied sealed C1 may instead be "
@@ -424,7 +493,7 @@ class RecordTupleCodec:
         return self._convert(wire["draft"], self.schema, decode=True)
 
 
-def capacity_messages(request, sections):
+def capacity_messages(request, sections, *, table_input=False):
     """Build lossless model-visible text and its restricted inverse mapping."""
     from story_projection_onto.contracts import canonical_json, canonical_sha256
     from story_projection_onto.gpu_runtime import ChatMessage
@@ -442,7 +511,11 @@ def capacity_messages(request, sections):
             + "\n"
             + codec.legend()
             + "\n"
-            + TABLE_INSTRUCTIONS
+            + (
+                TABLE_INSTRUCTIONS
+                if table_input
+                else "Input is complete compact JSON with standard array and object meanings."
+            )
             + "\nI followed by digits is an immutable supplied opaque ID or hash handle. "
             "Preserve these references exactly. For new local IDs use short n-prefixed IDs. "
             "Do not use I-prefixed IDs for new objects. Prose is never an opaque reference. "
@@ -451,7 +524,10 @@ def capacity_messages(request, sections):
             + "\nSealed copy binding SHA256="
             + canonical_sha256(copies),
         ),
-        ChatMessage(role="user", content=canonical_json(pack_input_tables(encoded))),
+        ChatMessage(
+            role="user",
+            content=canonical_json(pack_input_tables(encoded) if table_input else encoded),
+        ),
     )
     return messages, aliases, copies
 
@@ -460,8 +536,8 @@ def bounded_identifier_schema(schema):
     """Candidate format repair for the observed unbounded assertion-ID loop.
 
     Only identifier spellings are restricted, not prose or ontology semantics.
-    Existing closed enumerations remain exact. This helper is CPU-tested but
-    is NOT activated by pack_capacity_candidate or a service controller.
+    Existing closed enumerations remain exact. Activated only in the bounded
+    diagnostic candidate; historical and ordinary request builders are unchanged.
     """
     import copy
 
@@ -476,7 +552,7 @@ def bounded_identifier_schema(schema):
             and "enum" not in node
             and "const" not in node
         ):
-            node["pattern"] = r"^[A-Za-z0-9_.:-]{1,96}$"
+            node["pattern"] = BOUNDED_ID_PATTERN
         for key, value in node.items():
             if key == "properties":
                 for name, child in value.items():
@@ -535,6 +611,17 @@ def pack_capacity_candidate(request, tokenizer, *, sections_override=None, schem
         if sections_override is not None
         else json.loads(request.messages[1].content)
     )
+    from types import SimpleNamespace
+
+    # This is a format-only constraint on new identifiers, not on prose. Keep
+    # the exact constrained schema in both the model-facing legend and decoder.
+    request = SimpleNamespace(
+        **{
+            name: getattr(request, name)
+            for name in ("request_id", "model_name", "condition", "decoding", "packing", "messages")
+        },
+        output_schema=bounded_identifier_schema(request.output_schema),
+    )
     messages, aliases, copies = capacity_messages(request, actual_sections)
     codec = RecordTupleCodec(request.output_schema, copies, aliases)
     schema = codec.wire_schema()
@@ -548,6 +635,19 @@ def pack_capacity_candidate(request, tokenizer, *, sections_override=None, schem
             enable_thinking=False,
         )
     )
+    # Same lossless policy for every condition: readable JSON first; use the
+    # declared table format only when the entire ordinary input exceeds its cap.
+    # Never truncate evidence or a sealed graph. Both representations are saved.
+    if count > input_limit:
+        messages, aliases, copies = capacity_messages(request, actual_sections, table_input=True)
+        count = len(
+            tokenizer.apply_chat_template(
+                [asdict(message) for message in messages],
+                tokenize=True,
+                add_generation_prompt=True,
+                enable_thinking=False,
+            )
+        )
     if count > input_limit:
         raise OutputWireError(
             f"complete candidate input {count} + output {output_limit} = {count + output_limit} "

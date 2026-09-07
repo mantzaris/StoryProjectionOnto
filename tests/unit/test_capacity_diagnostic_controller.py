@@ -16,14 +16,14 @@ def test_stage_caps_preserve_whole_deadline_and_shutdown():
         started=100, now_monotonic=200, prior_block_seconds=400, stage_seconds=300
     )
     assert deadline == 500
-    assert whole == 899
+    assert whole == 1499
     deadline, whole = driver.stage_deadline(
-        started=100, now_monotonic=800, prior_block_seconds=400, stage_seconds=300
+        started=100, now_monotonic=1400, prior_block_seconds=400, stage_seconds=300
     )
-    assert deadline == whole - 60 == 839
+    assert deadline == whole - 60 == 1439
     with pytest.raises(TimeoutError):
         driver.stage_deadline(
-            started=100, now_monotonic=840, prior_block_seconds=400, stage_seconds=240
+            started=100, now_monotonic=1440, prior_block_seconds=400, stage_seconds=240
         )
 
 
@@ -39,7 +39,17 @@ def test_reservations_survive_new_run_name(tmp_path):
 def test_controller_is_bound_to_existing_block_not_new_authority():
     assert driver.BLOCK_ID == "output-capacity-recovery-v1"
     assert driver.BASELINE_SECONDS == 3227.826324
-    assert driver.BLOCK_SECONDS == 1200
+    assert driver.BLOCK_SECONDS == 1800
+    assert driver.MAX_STARTS == 3
+    assert driver.MAX_ATTEMPTS == 5
+
+
+def test_failed_c1_does_not_block_distinct_c2_diagnostic_or_supply_a_fixed_fixture():
+    assert driver.next_diagnostic(completed=0, accepted_c1=False) == "c1"
+    assert driver.next_diagnostic(completed=1, accepted_c1=False) == "c2"
+    assert driver.next_diagnostic(completed=2, accepted_c1=False) == "small"
+    assert driver.next_diagnostic(completed=2, accepted_c1=True) == "fixed"
+    assert driver.next_diagnostic(completed=3, accepted_c1=False) is None
 
 
 def test_guardian_kills_owned_controller_and_adopts_only_for_cleanup(tmp_path, monkeypatch):

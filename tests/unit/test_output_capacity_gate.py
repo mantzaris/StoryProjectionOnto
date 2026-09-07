@@ -22,13 +22,13 @@ def test_admits_only_complete_all_in_with_preserved_baseline():
     "state,kwargs,reason",
     [
         (CapacityRecoveryState(0, 0, 0), {}, "must not reset"),
-        (CapacityRecoveryState(BASELINE_SECONDS, 2, 0), {"starting_service": True}, "two-start"),
+        (CapacityRecoveryState(BASELINE_SECONDS, 3, 0), {"starting_service": True}, "three-start"),
         (
-            CapacityRecoveryState(BASELINE_SECONDS, 0, 3),
+            CapacityRecoveryState(BASELINE_SECONDS, 0, 5),
             {"diagnostic_generation": True},
-            "three-diagnostic",
+            "five-diagnostic",
         ),
-        (CapacityRecoveryState(BASELINE_SECONDS + 1040, 1, 1), {}, "whole recovery"),
+        (CapacityRecoveryState(BASELINE_SECONDS + 1640, 1, 1), {}, "whole recovery"),
         (
             CapacityRecoveryState(BASELINE_SECONDS, 0, 0),
             {"complete_packing": False},
@@ -76,9 +76,9 @@ def test_exception_only_bypasses_forecast_not_block_or_count_limits():
         "complete_forecast_exception_applied"
     ]
     with pytest.raises(ValueError, match="whole recovery"):
-        CapacityRecoveryState(BASELINE_SECONDS + 950, 1, 0).admit(**kwargs)
-    with pytest.raises(ValueError, match="three-diagnostic"):
-        CapacityRecoveryState(BASELINE_SECONDS, 1, 3).admit(**kwargs)
+        CapacityRecoveryState(BASELINE_SECONDS + 1550, 1, 0).admit(**kwargs)
+    with pytest.raises(ValueError, match="five-diagnostic"):
+        CapacityRecoveryState(BASELINE_SECONDS, 1, 5).admit(**kwargs)
     with pytest.raises(ValueError, match="diagnostic-only"):
         CapacityRecoveryState(BASELINE_SECONDS, 0, 0).admit(
             **(kwargs | {"diagnostic_generation": False})

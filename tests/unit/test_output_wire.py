@@ -89,6 +89,47 @@ def test_reference_enum_translation_keeps_the_exact_closed_set():
     assert schema["properties"]["entity_id"]["enum"] == ["long-entity-id-001"]
 
 
+def test_supplied_hash_handle_is_admitted_by_the_same_wire_schema():
+    import re
+
+    schema = {
+        "type": "object",
+        "properties": {"source_artifact_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+        "required": ["source_artifact_hash"],
+    }
+    codec = RecordTupleCodec(schema, opaque_aliases={"I0": "a" * 64})
+    wire = codec.encode({"source_artifact_hash": "I0"})
+    alternatives = codec.wire_schema()["properties"]["draft"]["prefixItems"][0]["anyOf"]
+    assert alternatives == [
+        schema["properties"]["source_artifact_hash"],
+        {"type": "string", "enum": ["I0"]},
+    ]
+    assert wire["draft"][0] in alternatives[1]["enum"]
+    decoded = translate_references(codec.decode(wire), {"I0": "a" * 64}, decode=True)
+    assert re.fullmatch(
+        schema["properties"]["source_artifact_hash"]["pattern"], decoded["source_artifact_hash"]
+    )
+    assert decoded == {"source_artifact_hash": "a" * 64}
+    assert "I1" not in alternatives[1]["enum"]
+    assert not re.fullmatch(alternatives[0]["pattern"], "I1")
+
+
+def test_typed_legend_exposes_optional_semantics_and_enumerations():
+    codec = RecordTupleCodec(canonical_json_schema(OntologyDraft))
+    legend = codec.legend()
+    for text in (
+        "subject_id:",
+        "object_id:",
+        "epistemic_scope:EpistemicScope",
+        "NarrativeCommitment=",
+        "TemporalKind=",
+        "point:integer",
+        "kind:TemporalKind",
+        "input_object_ids:",
+    ):
+        assert text in legend
+
+
 @pytest.mark.parametrize(
     "name",
     [
