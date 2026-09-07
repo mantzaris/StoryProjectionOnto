@@ -1,8 +1,62 @@
 # Run status
 
-Updated: 2026-09-07 — representation comparison and C0 denominator audit completed
+Updated: 2026-09-07 — CPU semantic interface implemented and verified; no GPU start
 
 ## Current verified state
+
+Tested source checkpoint **`a211cd3`** on
+`implementation/query-dependent-temporal-ontology`. Diagnostic-only named
+semantic schema/adapter is implemented; no ordinary condition or held-out
+protocol is activated. Binary/n-ary bindings, exclusive temporal forms,
+evidence/mention/upper enums and separate runtime bookkeeping are tested.
+The existing controller exposes an adapter validation hook using the same
+structural/grounding checks; scheduling, monitor and allocation limits are unchanged.
+
+**89 focused tests pass locally and remotely.** Pinned CPU grammar checks accept
+complete authored fixtures and reject missing endpoints, mixed times, invalid
+references/parents and empty small graphs. Exact A/B/C responses are replayed
+unchanged, not retrospectively accepted. Full field mapping, residual semantic
+checks and required production-method amendment:
+`docs/SEMANTIC_GENERATION_INTERFACE.md`.
+
+The exact small request uses **4,712 template-inclusive input tokens**, reserves
+**6,144 output tokens**, and has **1,432 tokens** of context margin. Authored
+capacity examples use **844 / 1,881 / 2,029** completion tokens plus one termination
+token; these are not model results or production-capacity/throughput guarantees.
+New interface model calls: **zero**. Full fallback acceptance remains incomplete.
+
+Restricted request/schema/replay/verification package:
+`artifacts/restricted/semantic-interface.0TerjX/verified/`, including readable
+`MODEL_REQUEST_AND_SCHEMA.md`. Nine manifest-listed files and four tested source
+hashes reconcile with the pod. CPU verification took **66.537044 s**; initial
+CPU import failure and later logs are preserved in the backup's `history/`.
+
+**No additional GPU allocation**; global actual remains **5,363.502630 s**.
+vLLM stopped, GPU idle at 1 MiB, pod active. No new storage-intensive installation,
+model download, novel transfer or PDF. Last complete proxy remains
+**40,162.013213 s remaining / 45,525.515843 s all-in**; ordinary admission fails
+against **33,660 s** scheduled. Strict actual stop before **36,000 s** remains;
+the original nine-hour scheduled target was not met.
+
+C0's **29/269 precision, 29/84 recall, failed competence record** is unchanged.
+The audit now traces the actual final-projection route and distinguishes it from
+proposed query-blind extraction competence. Context-excluded but supported
+predictions are not dropped from contextual precision. The source-bound
+direct-witness eligibility revision and competence-scope clarification require
+an explicit decision; neither gold nor scorer thresholds/routing were changed.
+See `docs/C0_PRECISION_DENOMINATOR_AUDIT.md`.
+
+Next proposed live session (not authorized): one start, at most three small calls,
+at most **1,100 additional allocated seconds**, diagnostic-only forecast exception;
+maximum global **6,463.502630 s**, protected shutdown and no full C1/study run.
+The corrected human-review package remains
+`artifacts/restricted/scorer_only/independent_review_handoff_v4_intrinsic/`.
+Held-out execution stays blocked on human review and all acceptance/admission gates.
+Safe CPU resume: `python -m pytest -q tests/unit/test_semantic_generation.py
+tests/unit/test_capacity_diagnostic_controller.py tests/unit/test_output_wire.py
+tests/unit/test_intrinsic_validity_amendment.py tests/unit/test_representation_diagnostic.py`.
+
+## Historical representation comparison and C0 calibration
 
 Source checkpoint **`0262fca`**; branch `implementation/query-dependent-temporal-ontology`.
 One new diagnostic session at **`5b298e9`** ran **three small calls**, no fourth
