@@ -68,3 +68,64 @@ malformed event/UTF-8, HTTP 500, streaming server errors, canonical reconstructi
 failure, scientific rejection, cumulative admission, one-small-call restriction,
 guardian shutdown and unchanged non-streaming diagnostics. No GPU model output is
 represented by these fixture tests.
+
+## Actual execution: startup failed, small request not sent
+
+The fourth start executed checkpoint `589f4ba` in the existing project. All 145
+bound source/prompt/configuration hashes match. The prepared request hash is
+`cde6c6b6eedefab00aa46b7a01833998ca0b291ad8ff1daf55e574ad23681e7a`.
+The executed controller's invariant CPU preparation took 47.432633 seconds before
+allocation (the earlier separate CPU check was 45.241687 seconds).
+
+The service did not become healthy within its 240-second startup deadline. Logs
+show architecture/configuration initialization and model loading starting at
+16:37:46 UTC, with the first safetensors progress still at 0/2 shards when the
+deadline arrived. The error chain is `RuntimeWatchdogTimeout` (not healthy), then
+`startup resource sample exceeded the service-start deadline`, then
+`cannot terminate vLLM while its owned resource sample remains in flight`.
+The guardian retained the lease, completed cleanup and closed every allocation.
+No diagnostic request was issued, reserved, or counted as a model call.
+
+| Observation | Actual outcome |
+|---|---|
+| Server accepted small generation request | Not sent; unknown/not applicable HTTP status |
+| First response event / first content | Not observed |
+| Response content, usage, finish reason | None received; no inference attempted |
+| JSON parsing / canonical reconstruction | Not reached / not reached |
+| Canonical schema / structural validation | Not reached / not reached |
+| Scientific validation | Not reached, not a scientific rejection |
+| New complete / schema-valid / scientific outputs | 0 / 0 / 0 |
+| Classified startup failure allocation | 239.985306 seconds |
+| Shutdown and other allocated remainder | 46.274175 seconds |
+| Whole new start | 286.259481 seconds (<550) |
+| Preserved global actual allocation | 4,633.801513 seconds |
+| Same block used / remaining | 1,405.975189 / 394.024811 seconds |
+| Cumulative starts / diagnostic attempts | 4 / 3 |
+
+Physical shutdown was verified at 16:38:55 UTC, followed by idle GPU at 1 MiB and
+no service/controller processes. The pod remains active. The stopped ledger and
+19 CAS artifacts verify with no integrity issue or unresolved allocation. All
+historical attempts, logs and local ledgers are preserved. Restricted backup:
+`artifacts/restricted/small-stream-terminal.EkOCND/`. Its run directory contains
+the entire prepared request, rendered prompt, criteria, capacity receipt, source
+binding, startup log, guardian terminal record and controller exception log.
+There is no HTTP journal for this small request because transport never began.
+
+Four completed startup samples were spaced roughly 48–56 seconds apart despite
+the short requested sampling interval; the last reported 1,754,419,200 process-RAM
+bytes, eight workers and zero process-attributed VRAM. These sparse observations
+precede completion of weight loading and do not establish actual resource peaks.
+`ResourceSampler.sample` takes its process snapshot before a full project storage
+walk and only then samples GPU memory for those PIDs. An expensive storage walk
+can therefore delay resource checks and leave the PID snapshot stale. Logs do
+not isolate its component duration or prove it caused slow model initialization.
+That is a concrete CPU-only profiling/repair target, not a reason to extend a
+watchdog during execution. Project `du` occupancy is 16,442,096,640 bytes; the
+smaller file-traversal sampler value is not used to assert a tighter storage peak.
+
+Remaining mandatory-work proxy is unchanged at 40,162.013213 seconds. All-in with
+actual use is 44,795.814726, exceeding 33,660 by 11,135.814726 seconds. No valid
+production latency sample or p95 was obtained, no comparison/reserve was removed,
+and no throughput credit is taken. Another 550-second start would not fit the
+394.024811-second block remainder and is not authorized. Full acceptance,
+restart/resume, development execution, and the independent review remain pending.

@@ -6,6 +6,7 @@ import hashlib
 import json
 import math
 import sqlite3
+from contextlib import suppress
 from pathlib import Path
 
 import zstandard
@@ -17,6 +18,7 @@ from story_projection_onto.output_capacity_gate import (
     BLOCK_SECONDS,
     capacity_forecast,
 )
+from story_projection_onto.streaming_chat import ChatSSE, StreamProtocolError
 
 
 def sha(path):
@@ -101,12 +103,22 @@ def main():
         complete = next((e for e in events if e["event"] == "response_complete"), None)
         if complete is not None:
             assert hashlib.sha256(body).hexdigest() == complete["response_sha256"]
-        try:
-            response = json.loads(body)
-            choice = response["choices"][0]
-            text = choice["message"]["content"]
-        except (ValueError, KeyError, IndexError, TypeError):
-            response, choice, text = {}, {}, ""
+        stream = None
+        if any(e["event"] == "stream_first_event" for e in events):
+            stream = ChatSSE()
+            # Retain observed prefix without claiming completion on protocol failure.
+            with suppress(StreamProtocolError):
+                stream.feed(body, 0)
+            text = "".join(stream.content)
+            response = {"usage": stream.usage}
+            choice = {"finish_reason": stream.finish_reason}
+        else:
+            try:
+                response = json.loads(body)
+                choice = response["choices"][0]
+                text = choice["message"]["content"]
+            except (ValueError, KeyError, IndexError, TypeError):
+                response, choice, text = {}, {}, ""
         try:
             json.loads(text)
             json_complete = True
@@ -127,6 +139,18 @@ def main():
                 "usage": response.get("usage"),
                 "finish_reason": choice.get("finish_reason"),
                 "http_complete": complete is not None,
+                "stream_done": None if stream is None else stream.done,
+                "first_event_seconds": next(
+                    (e["elapsed_seconds"] for e in events if e["event"] == "stream_first_event"),
+                    None,
+                ),
+                "first_content_seconds": next(
+                    (e["elapsed_seconds"] for e in events if e["event"] == "stream_first_content"),
+                    None,
+                ),
+                "canonical_reconstruction_passed": any(
+                    e["event"] == "canonical_reconstruction_passed" for e in events
+                ),
                 "received_bytes": len(body),
                 "http_status": next(
                     (e["http_status"] for e in events if e["event"] == "response_headers"), None
@@ -178,6 +202,14 @@ def main():
                 "started_at,ended_at FROM gpu_events WHERE event_id LIKE 'capacity-%'"
             )
         ]
+        services = [
+            dict(r)
+            for r in connection.execute(
+                "SELECT session_id,service_microseconds,classified_event_microseconds,"
+                "overhead_microseconds,started_at,ended_at FROM gpu_service_sessions "
+                "WHERE session_id LIKE 'capacity-start-%' ORDER BY started_at"
+            )
+        ]
     load = math.fsum(
         e["allocated_microseconds"] / 1e6 for e in events if e["event_kind"] == "gpu_session_start"
     )
@@ -215,6 +247,18 @@ def main():
         "measured_other_service_seconds": total - BASELINE_SECONDS - load - generation,
         "resource_peaks": peaks,
         "gpu_events": events,
+        "service_sessions": services,
+        "service_only_starts": [
+            {
+                "session_id": service["session_id"],
+                "allocated_seconds": service["service_microseconds"] / 1e6,
+                "generation_attempts": 0,
+                "small_request_status": "not_sent",
+            }
+            for service in services
+            if service["session_id"] == "capacity-start-4"
+            and len(list(block.glob("attempt-*.json"))) == 3
+        ],
         "forecast": {
             "inventory_rows": forecast["rows"],
             "unchanged_inventory_remaining_seconds": forecast["remaining_forecast_seconds"],

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from collections import Counter
 from pathlib import Path
@@ -147,9 +148,52 @@ def run(root, calibration, output):
     print(json.dumps({k: v for k, v in value.items() if k != "rows"}))
 
 
+def validity_examples(source, output):
+    """Reuse the preserved development comparison; no scoring or gold mutation."""
+    if output.exists() or "restricted" not in output.parts:
+        raise ValueError("new restricted diagnosis required")
+    original = json.loads(source.read_bytes())
+    rows = [r for r in original["rows"] if set(r.get("mismatched_fields", {})) == {"validity_time"}]
+    # Declared rule: first comparison for each of these temporal-error families,
+    # in existing deterministic artifact order; never condition-output favorability.
+    selected = [
+        next(r for r in rows if r["actual_normalized"]["predicate"] == predicate)
+        for predicate in ("member_of", "coordinates_with", "acts_at")
+    ]
+    write_json_atomic(
+        {
+            "kind": "c0_validity_only_development_examples_not_rescoring",
+            "source_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+            "validity_only_comparisons": len(rows),
+            "selection_rule": "first preserved comparison for member_of, coordinates_with, acts_at",
+            "examples": selected,
+            "authoritative_rules": {
+                "method_4_C0": "No new temporal/epistemic qualification after query reveal.",
+                "method_7": "Story/event time and state/relation validity remain distinct; "
+                "unknown time and temporal underdetermination are explicit.",
+                "method_12": "Strict matching requires essential story/validity scope, "
+                "aligned endpoints/roles, normalized predicate, direction, applicable "
+                "epistemic status and valid supporting evidence.",
+                "implementation_543": "C0 competence: directly stated development qualified "
+                "assertions, precision .85, recall .70 and 100% valid references.",
+            },
+            "gold_changed": False,
+            "threshold_changed": False,
+            "held_out_gold_opened": False,
+        },
+        output,
+    )
+    print(json.dumps({"validity_only_comparisons": len(rows), "examples": len(selected)}))
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--calibration", type=Path, required=True)
+    inputs = parser.add_mutually_exclusive_group(required=True)
+    inputs.add_argument("--calibration", type=Path)
+    inputs.add_argument("--validity-from", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    run(Path.cwd(), args.calibration, args.output)
+    if args.validity_from:
+        validity_examples(args.validity_from, args.output)
+    else:
+        run(Path.cwd(), args.calibration, args.output)

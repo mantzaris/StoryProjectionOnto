@@ -45,6 +45,29 @@ No gold IDs, entity names, expected answers, thresholds, or query-time C0
 construction operations were added. Unknown validity endpoints remain unknown.
 No scorer temporal equivalence rule was changed.
 
+## Fourth-start CPU validity follow-up
+
+The preserved v5 diagnosis has exactly 30 comparisons differing only in normalized
+validity. Three reproducibly selected full evidence/prediction/reference examples
+and their explanation are in ignored restricted storage:
+`c0-validity-only-examples-v1.json` and `C0_VALIDITY_ONLY_EXAMPLES.md`.
+The matching endpoints, normalized predicates and other strict fields agree in
+these comparisons; surface-label matching is not their remaining failure.
+
+The authoritative methodological rule is §12's **essential story/validity scope**
+(line 298), together with §7's distinct story/state-validity and explicit unknown
+time (lines 187–203), and §4's prohibition on C0 query-time qualification (line 120).
+Implementation line 543 requires directly stated development qualified assertions.
+Neither plan specifies exact equality to a query-clipped interval as the only
+permissible equivalence or licenses an unstated latent validity endpoint.
+
+The follow-up distinguishes query-window clipping from latent intrinsic endpoints
+absent from both cited prose and evidence temporal clues. It also notes that a
+state observed at a point need not have begun there, and that treating action
+validity as `not_applicable` may need an explicit uncertainty convention. It does
+not assume C0 is entirely correct merely because the reference has a support issue.
+The old failed competence record, thresholds, gold and scores remain unchanged.
+
 ## Reference-semantics problems requiring a separate decision
 
 Among 67 same-evidence candidate comparisons, 66 differ in validity and 30

@@ -1,8 +1,66 @@
 # Run status
 
-Updated: 2026-09-07 15:57 UTC — third start ended at C1 generation watchdog
+Updated: 2026-09-07 16:39 UTC — fourth small-only start failed before request receipt
 
 ## Current verified state
+
+Executed checkpoint: **`589f4ba`**. The authorized fourth start ran with the
+production codec, tested SSE client and 550-second whole-start bound. Startup
+failed its 240-second readiness watchdog while model weights were loading.
+**The small diagnostic request was not sent: zero new generation attempts,
+zero complete JSON, zero canonical/schema-valid or scientifically valid outputs.**
+No full C1/C2/FixedSelect request or retry ran. First event/content, HTTP status,
+usage, finish reason and scientific outcome are **not observed/not reached**, not
+fabricated zeros or semantic failures. Full fallback acceptance remains incomplete.
+
+The startup exception chain also records an in-flight resource-sampler shutdown
+barrier. The guardian completed verified physical shutdown at 16:38:55 UTC;
+vLLM/controller processes are absent, GPU idle at 1 MiB, no unresolved allocation
+or service journals. The pod remains active. The source of slower initialization
+and component-level sampling latency remains unmeasured; this start provides no
+evidence about model repetition or small-example generation reliability.
+
+**This start: 286.259481s** (239.985306 classified startup failure + 46.274175
+shutdown/service remainder). **Actual total: 4,633.801513s**. Same cumulative
+block: **4/4 starts, 3/5 generation attempts, 1,405.975189/1,800s**; remaining
+394.024811s is not authorization for another start or call. Global scheduled
+33,660s and strict actual stop before 36,000s are unchanged; original nine-hour
+target was not met. Ordinary forecast admission remains failed: remaining proxy
+40,162.013213s; all-in **44,795.814726s**, deficit **11,135.814726s**. All mandatory
+work and pending acceptance/restart/resume envelopes remain included. This is an
+unmeasured conservative sensitivity, not successful-output p95.
+
+Prepared request: 3,453 template-inclusive input tokens + 6,144 reserved output,
+9,597 of 12,288 total. Pinned model revision remains
+`4da05a8edb55c6046cce958586c33b61da07bb79`. Task and predefined success criteria:
+`docs/SMALL_STREAMING_DIAGNOSTIC.md`. Focused streaming/controller/codec tests:
+**77 passed**; unchanged C0/alignment tests: **31 passed**. All 145 bound source,
+prompt and configuration hashes match the executed checkpoint.
+
+Stopped ledger SHA-256:
+`cae5d0dacd6382d68603d19acdfef155ee2c3c3ccf96599dbe0ada875514faff`.
+Ignored backup: `artifacts/restricted/small-stream-terminal.EkOCND/`.
+Computed receipt: `artifacts/restricted/small-stream-block-outcome-v2.json`.
+Verification: 19 CAS artifacts, six attempt rows, five model-call rows, 18 GPU
+events, 12 service sessions, zero integrity issues. All prior records/backups
+remain unchanged. Project `du` occupancy is 16,442,096,640 bytes (<25 GB), with
+protected 5 GB headroom in the planned 30 GB envelope. Fourth-start sparse samples
+do not establish its true resource peaks; do not treat their zero process VRAM
+as evidence that loading never allocated VRAM.
+
+C0 competence still fails. Three exact examples from the 30 validity-only
+comparisons are preserved in restricted `C0_VALIDITY_ONLY_EXAMPLES.md` and
+`c0-validity-only-examples-v1.json`. Query-clipped reference scope and unsupported
+intrinsic endpoints are distinguished; no gold, matching rule or threshold changed.
+The independent human-review gate remains intact; no interim PDF was generated.
+
+Next safe milestone is a bounded CPU diagnosis/repair of startup resource-sampler
+latency/cancellation, then a separately authorized diagnostic start if feasible.
+There is no admitted GPU resume command. `scripts/run_capacity_diagnostics.py
+--execute` rejects the exhausted four-start limit. Read-only remote status:
+`cat artifacts/restricted/output-capacity-recovery-v1/run-20260907T163234617188/guardian-terminal.json`.
+
+## Historical third-start state (superseded by the verified state above)
 
 The cumulative feasibility block has used **3/3 service starts, 3/5 attempts,
 and 1,119.715708/1,800 allocated seconds**. All historical allocation is retained.
