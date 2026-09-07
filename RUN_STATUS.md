@@ -1,8 +1,65 @@
 # Run status
 
-Updated: 2026-09-07 — CPU resource monitor/shutdown repair implemented
+Updated: 2026-09-07 — fifth small diagnostic completed; temporal amendment tested
 
 ## Current verified state
+
+The authorized fifth small streaming diagnostic at checkpoint `55637c1` is
+terminal. **HTTP 200, complete JSON, 138 tokens, stop; wire schema valid, canonical
+reconstruction rejected an unknown reference; scientific validation not reached.**
+The response contains an empty graph. Accepted outputs: **zero**. No full C1/C2/
+FixedSelect or retry ran. vLLM is stopped; pod active. Details and exact restricted
+evidence bindings: `docs/FIFTH_SMALL_DIAGNOSTIC_OUTCOME.md`.
+
+This start used **256.521126 s**. Global actual **4,890.322639 s**. Same block:
+**5 starts, 4 attempts, 1,662.496315 / 1,965.975189 s**, remaining **303.478874 s**;
+no further start is authorized. Complete remaining proxy **40,162.013213 s**;
+all-in **45,052.335852 s**, versus unchanged scheduled **33,660 s** and strict
+actual stop before **36,000 s**. Original nine-hour target was not met. This is
+not successful-output p95, and ordinary admission still fails.
+
+The approved intrinsic-validity benchmark correction is implemented and deployed
+at scientific source checkpoint **`c1f7b03`** on
+`implementation/query-dependent-temporal-ontology`.
+**117** focused temporal/scoring/UI/mutation/firewall tests, **10** development
+binding tests and **15** continuation tests pass locally. Strict matcher,
+thresholds, conditions, counts and mandatory comparisons are unchanged.
+General generation has replaced shared evidence, gold and source-bound seals;
+predecessors and failed calibration remain preserved. Updated scorer files stay
+ignored/restricted, not in new commits. Details:
+`docs/TEMPORAL_REFERENCE_AMENDMENT.md`.
+
+Replacement human review (3 worlds / 9 projections / 72 items):
+`artifacts/restricted/scorer_only/independent_review_handoff_v4_intrinsic/`.
+Old review packages do not approve the new artifacts. Held-out execution remains
+blocked on the required independent review and all ordinary acceptance gates.
+
+CPU C0 recalibration completed with four pre-query seals and twelve structurally
+valid projections: **precision 0.110320285 (31/281), recall 0.369047619 (31/84),
+family coverage 0.80, evidence references 1.00**. Competence **fails** the unchanged
+0.85/0.70/1.00/1.00 thresholds; the integrated 24-call gate remains incomplete.
+Successful CPU record: `artifacts/restricted/c0-calibration-intrinsic-v4-r3/` on
+the pod, backed up under the restricted amendment directory. CPU wall 78.652344 s,
+GPU zero, eight-thread limits. Both the stale-allowlist preparation failure and
+the subsequent scratch-mention reference failure are preserved. The latter was
+repaired before new pre-query construction, with **35** focused anchor/temporal
+tests passing (overlapping the earlier suite). Review rendering: **7 passed**.
+Deployed CPU verification: **45 passed**. The C0 ledger's 49 CAS artifacts verify
+with zero issues and zero GPU events. Final stopped-pod occupied storage is
+**16,605,194,752 bytes**, within the 25 GB occupied / 5 GB headroom limits.
+Among 67 comparable development pairs, story/validity mismatches are zero;
+identity, roles, predicates and holder alignment still fail. Another 214 emitted
+predictions have no eligible direct gold target sharing their evidence; these
+are not treated as proof of temporal correctness or silently dropped from scoring.
+
+No further GPU start, retry or ordinary inference is authorized/admitted. Required
+acceptance/restart/resume work, complete-run admission, C0 competence, and human
+review remain blocking gates. There is no authorized GPU resume command.
+Safe verification: `python scripts/generate_synthetic_benchmark.py --verify-only`.
+No interim PDF has been generated. Historical incidents follow; they do not
+replace the current state above.
+
+## Historical CPU monitor repair (before the fifth start)
 
 Verified source checkpoint: **`00db0fa`** on
 `implementation/query-dependent-temporal-ontology`. CPU-only repair separates

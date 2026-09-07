@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -127,6 +128,32 @@ def run(root: Path, output: Path, snapshot: Path):
     manifest = load_development_call_manifest(root)
     neutral, visible, _ = load_development_prequery_evidence(root, manifest)
     config = DevelopmentConstructionConfiguration.load()
+    write_json_atomic(
+        {
+            "pid": os.getpid(),
+            "started_at": started.isoformat(),
+            "local_commit": os.environ.get("STORYPROJECTION_LOCAL_COMMIT"),
+            "development_manifest_hash": manifest.content_hash,
+            "gpu_allocated_seconds": 0,
+            "thread_limits": {
+                name: os.environ.get(name)
+                for name in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS")
+            },
+            "source_sha256": {
+                relative: hashlib.sha256((root / relative).read_bytes()).hexdigest()
+                for relative in (
+                    "scripts/calibrate_c0_development.py",
+                    "src/story_projection_onto/conditions/c0.py",
+                    "src/story_projection_onto/temporal.py",
+                    "src/story_projection_onto/development_runtime.py",
+                    "src/story_projection_onto/scorer_only/development_assessment.py",
+                    "src/story_projection_onto/metrics/alignment.py",
+                    "configs/study/c0_rules.json",
+                )
+            },
+        },
+        output / "job-metadata.json",
+    )
     builder, backend = load_production_classical_builder()
     from transformers import AutoTokenizer
 

@@ -22,7 +22,7 @@ used. Template-inclusive input was 3,453 tokens, allowance 6,144, total reserved
 | Server/request | HTTP 200, SSE received, final usage and DONE received |
 | First event / first content | 1.951377 / 2.022473 seconds from client request |
 | Completion | 138 tokens, `finish_reason=stop`, complete JSON |
-| Effective wire schema | Pass in independent CPU JSON Schema check |
+| Effective wire schema | Pass in independent CPU JSON Schema check; not the canonical contract |
 | Canonical reconstruction | Rejected an unknown supplied opaque-reference handle |
 | Canonical schema / scientific validators | Not reached; no accepted output |
 | Predefined minimum structure | Failed: emitted an empty graph |
@@ -36,6 +36,12 @@ entities/events/assertions implementing it. This is not truncation or evidence
 of a generation stall. Prompt/representation following and the permissive
 structural grammar remain concerns; one small response cannot isolate model
 behavior from representation difficulty or establish production reliability.
+
+A post-hoc CPU field check also finds `decided_at` equal to a comma, not a valid
+datetime. The effective guided schema admits a string at that position, whereas
+canonical Pydantic validation rejects that value. The live path stopped earlier
+at reference translation, so this additional finding is not a live canonical-
+validation result or a repair. Original response bytes remain unchanged.
 
 Server logs show weight loading completed in 32.20 seconds and engine
 initialization in 1.52 seconds, within the longer observed startup. Earlier

@@ -68,3 +68,41 @@ The revised input lengths must be remeasured before any future ordinary LLM
 acceptance/development execution. This CPU correction is not a token-feasibility
 or model-acceptance result. The fifth small diagnostic used its frozen original
 request before these changes and cannot validate the revised benchmark.
+
+## Real CPU recalibration
+
+Production spaCy 3.8.16 / `en_core_web_sm` 3.8.0 produced four new pre-query seals
+and twelve structurally valid C0 projections in 78.652344 CPU wall seconds, with
+zero GPU allocation. Precision is **0.110320285** (31/281), recall
+**0.369047619** (31/84), explicit-family coverage **0.80**, valid evidence-reference
+rate **1.00**. The unchanged requirements are 0.85, 0.70, 1.00 and 1.00:
+**C0 competence still fails**, particularly the event-role family. This is a
+development competence diagnostic, not a confirmatory condition comparison or
+the integrated 24-call development gate.
+
+The initial corrected run stopped at stale allowlist hashes. After exact
+condition-blind rebindings, a second run exposed private spaCy scratch mention
+IDs incorrectly published as frozen-index references. The pre-query builder now
+retains merged entities but cites only their actual frozen mention anchors;
+parser-only groups without an anchor are explicitly abstained from, never turned
+into invented evidence IDs. A regression covers the actual scratch-alias case.
+Neither the validator nor evidence index was weakened. Both failures and the
+pre-repair source are preserved separately from the successful CPU execution.
+
+Recalibration's field-level comparison finds no story-time or validity mismatch
+among comparable development pairs. This does not certify all output temporal
+claims: some predictions have no eligible direct target sharing their evidence.
+Remaining overlapping mismatch counts are subject identity 26, object identity
+23, role structure 12, predicate 7 and holder/epistemic alignment 4. One concrete
+pattern is a binary participation link to an entity-like event name where the
+context requires an event-role frame; another is unresolved endpoint identity
+despite the correct membership relation and temporal qualification. No threshold
+or additional reference correction was made to erase these errors.
+
+Restricted, hash-verified outputs and exact evidence/prediction/reference examples:
+`artifacts/restricted/temporal-reference-amendment.SOjSCF/`, especially
+`c0-calibration-verification.json`, `c0-corrected-field-diagnosis.json` and
+`c0-corrected-error-examples.json`. The successful calibration is
+`artifacts/restricted/c0-calibration-intrinsic-v4-r3/` on the pod, with a complete
+local backup under the amendment directory. Historical zero-score calibration
+and all old reference interpretations remain intact.
