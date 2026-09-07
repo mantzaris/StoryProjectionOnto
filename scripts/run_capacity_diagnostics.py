@@ -21,6 +21,7 @@ from dataclasses import asdict, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
+from story_projection_onto import representation_diagnostic as comparison_policy
 from story_projection_onto.contracts import (
     ConditionName,
     ConstructionRequest,
@@ -114,9 +115,17 @@ def source_binding(root):
     return {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest() for p in paths}
 
 
-def stage_deadline(*, started, now_monotonic, prior_block_seconds, stage_seconds):
+def stage_deadline(*, started, now_monotonic, prior_block_seconds, stage_seconds, comparison=False):
     """Leave a full shutdown reserve before the whole block ends, including gaps."""
-    whole = started + min(BLOCK_SECONDS - prior_block_seconds, SMALL_START_SECONDS) - GUARD_SECONDS
+    whole = (
+        started
+        + (
+            comparison_policy.ALLOWANCE - prior_block_seconds
+            if comparison
+            else min(BLOCK_SECONDS - prior_block_seconds, SMALL_START_SECONDS)
+        )
+        - GUARD_SECONDS
+    )
     limit = min(now_monotonic + stage_seconds, whole - SHUTDOWN_SECONDS)
     if limit <= now_monotonic:
         raise TimeoutError("block has no allocation left before shutdown reserve")
@@ -353,7 +362,7 @@ def next_diagnostic(*, completed, accepted_c1):
     return "small" if completed == 0 else None
 
 
-def controller(root, block, run, *, prepare_only=False):
+def controller(root, block, run, *, prepare_only=False, comparison=False):
     cpu_started = time.monotonic()
     from transformers import AutoTokenizer
 
@@ -390,6 +399,30 @@ def controller(root, block, run, *, prepare_only=False):
     first = small
     if first.request_hash != SMALL_REQUEST_HASH:
         raise ValueError("small diagnostic request changed from the authorized exact request")
+    variants = (
+        comparison_policy.prepare_comparison(small, small_fixture, tokenizer)
+        if comparison
+        else {"small": small}
+    )
+    if comparison:
+        if {
+            label: req.request_hash for label, req in variants.items()
+        } != comparison_policy.FROZEN_REQUESTS:
+            raise ValueError("prepared comparison differs from the CPU-frozen A/B/C requests")
+        immutable(
+            run / "comparison-requests.json",
+            {
+                label: {
+                    "request_hash": req.request_hash,
+                    "schema_hash": canonical_sha256(req.output_schema),
+                    "template_inclusive_tokens": req.rendered_input_token_count,
+                    "output_allowance": req.decoding.maximum_output_tokens,
+                    "canonical_schema": req.canonical_output_schema,
+                    "reference_map": req.opaque_reference_aliases,
+                }
+                for label, req in variants.items()
+            },
+        )
     _verify_second_recovery_decoder_compiles(first.output_schema)
     import xgrammar
 
@@ -407,7 +440,7 @@ def controller(root, block, run, *, prepare_only=False):
         raise ValueError("identifier grammar still admits the observed repetition")
     if not xgrammar.GrammarMatcher(identifier_grammar).accept_string('"n-assertion/01"'):
         raise ValueError("identifier grammar rejects legitimate scoped IDs")
-    for label, request in (("small", small),):
+    for label, request in variants.items():
         compiler.compile_json_schema(json.dumps(request.output_schema), any_whitespace=False)
         immutable(run / f"prepared-{label}.json", request.wire_payload())
         rendered = tokenizer.apply_chat_template(
@@ -445,6 +478,31 @@ def controller(root, block, run, *, prepare_only=False):
     capacity_tokens = len(tokenizer.encode(capacity_text, add_special_tokens=False))
     if capacity_tokens >= first.decoding.maximum_output_tokens:
         raise ValueError("authored development representation exceeds small output capacity")
+    if comparison:
+        capacities = {}
+        for label, req in variants.items():
+            sample = (
+                authored
+                if label in {"A", "B"}
+                else RecordTupleCodec(
+                    req.canonical_output_schema,
+                    req.sealed_record_copies,
+                    req.opaque_reference_aliases,
+                ).encode(translate_references(authored, req.opaque_reference_aliases, decode=False))
+            )
+            tokens = len(
+                tokenizer.encode(
+                    json.dumps(sample, separators=(",", ":")), add_special_tokens=False
+                )
+            )
+            if tokens >= req.decoding.maximum_output_tokens:
+                raise ValueError("complete authored output does not fit comparison allowance")
+            capacities[label] = {
+                "authored_output_tokens": tokens,
+                "output_allowance": req.decoding.maximum_output_tokens,
+                "not_model_output_or_reliability_proof": True,
+            }
+        immutable(run / "comparison-capacity.json", capacities)
     immutable(
         run / "small-capacity-check.json",
         {
@@ -484,17 +542,27 @@ def controller(root, block, run, *, prepare_only=False):
     starts = count_reservations(block, "start")
     attempts = count_reservations(block, "attempt")
     actual = service.meter.actual_allocated_gpu_seconds
-    admission = CapacityRecoveryState(actual, starts, attempts).admit(
-        remaining_mandatory_seconds=forecast["remaining_forecast_seconds"],
-        # Full envelope with protected five-second guard; shutdown counted once.
-        stage_seconds=SMALL_START_SECONDS - SHUTDOWN_SECONDS - GUARD_SECONDS,
-        starting_service=True,
-        complete_packing=True,
-        feasibility_diagnostic_exception=True,
+    admission = (
+        comparison_policy.admit(
+            actual,
+            starts,
+            attempts,
+            starting=True,
+            seconds=comparison_policy.ALLOWANCE - SHUTDOWN_SECONDS - GUARD_SECONDS,
+        )
+        if comparison
+        else CapacityRecoveryState(actual, starts, attempts).admit(
+            remaining_mandatory_seconds=forecast["remaining_forecast_seconds"],
+            # Full envelope with protected five-second guard; shutdown counted once.
+            stage_seconds=SMALL_START_SECONDS - SHUTDOWN_SECONDS - GUARD_SECONDS,
+            starting_service=True,
+            complete_packing=True,
+            feasibility_diagnostic_exception=True,
+        )
     )
     started = time.monotonic()
-    prior = actual - BASELINE_SECONDS
-    session = f"capacity-start-{starts + 1}"
+    prior = actual - (comparison_policy.BASELINE if comparison else BASELINE_SECONDS)
+    session = f"representation-start-{starts + 1}" if comparison else f"capacity-start-{starts + 1}"
     event = session + "-load"
     state = {
         "pid": os.getpid(),
@@ -511,6 +579,7 @@ def controller(root, block, run, *, prepare_only=False):
             now_monotonic=time.monotonic(),
             prior_block_seconds=prior,
             stage_seconds=seconds,
+            comparison=comparison,
         )
         state.update(
             stage=name,
@@ -546,19 +615,32 @@ def controller(root, block, run, *, prepare_only=False):
             )
         )
         sampler.sample(sample_id=run.name + "-ready", root_pid=service.pid)
-        while (
-            kind := next_diagnostic(completed=len(outcomes), accepted_c1=accepted_c1 is not None)
-        ) is not None:
+        while True:
+            kind = (
+                (list(variants)[len(outcomes)] if len(outcomes) < len(variants) else None)
+                if comparison
+                else next_diagnostic(completed=len(outcomes), accepted_c1=accepted_c1 is not None)
+            )
+            if kind is None:
+                break
             if count_reservations(block, "attempt") >= MAX_ATTEMPTS:
                 print(
                     json.dumps({"diagnostic_limit_reached": True, "not_complete_acceptance": True}),
                     flush=True,
                 )
                 break
-            index = {"c1": 0, "c2": 1, "fixed": 3, "small": -1}[kind]
-            call = small_call if kind == "small" else calls[index]
+            index = -1 if comparison else {"c1": 0, "c2": 1, "fixed": 3, "small": -1}[kind]
+            call = (
+                replace(small_call, watchdog_seconds=comparison_policy.GENERATION)
+                if comparison
+                else small_call
+                if kind == "small"
+                else calls[index]
+            )
             fixed_fixture = None
-            if index == 0:
+            if comparison:
+                request = variants[kind]
+            elif index == 0:
                 request = first
             elif kind == "small":
                 request = small
@@ -584,21 +666,35 @@ def controller(root, block, run, *, prepare_only=False):
                         raise ValueError("C2 diagnostic contains a preconstructed ontology")
                     request = pack_capacity_candidate(base, tokenizer)
                 _verify_second_recovery_decoder_compiles(request.output_schema)
-            if kind != "small" or not request.stream_response:
+            if (not comparison and kind != "small") or not request.stream_response:
                 raise ValueError("fifth start is restricted to one streamed small diagnostic")
             attempts = count_reservations(block, "attempt")
-            receipt = CapacityRecoveryState(
-                service.actual_allocated_service_seconds,
-                count_reservations(block, "start"),
-                attempts,
-            ).admit(
-                remaining_mandatory_seconds=forecast["remaining_forecast_seconds"],
-                stage_seconds=DIAGNOSTIC_SECONDS + VALIDATION_SECONDS,
-                diagnostic_generation=True,
-                complete_packing=True,
-                feasibility_diagnostic_exception=True,
+            receipt = (
+                comparison_policy.admit(
+                    service.actual_allocated_service_seconds,
+                    count_reservations(block, "start"),
+                    attempts,
+                    generating=True,
+                    seconds=comparison_policy.GENERATION + VALIDATION_SECONDS,
+                )
+                if comparison
+                else CapacityRecoveryState(
+                    service.actual_allocated_service_seconds,
+                    count_reservations(block, "start"),
+                    attempts,
+                ).admit(
+                    remaining_mandatory_seconds=forecast["remaining_forecast_seconds"],
+                    stage_seconds=DIAGNOSTIC_SECONDS + VALIDATION_SECONDS,
+                    diagnostic_generation=True,
+                    complete_packing=True,
+                    feasibility_diagnostic_exception=True,
+                )
             )
-            attempt_id = f"capacity-diagnostic-{attempts + 1}"
+            attempt_id = (
+                f"representation-diagnostic-{attempts + 1}"
+                if comparison
+                else f"capacity-diagnostic-{attempts + 1}"
+            )
             attempt_root = run / attempt_id
             attempt_root.mkdir(mode=0o700)
             request_value = request.wire_payload()
@@ -634,7 +730,7 @@ def controller(root, block, run, *, prepare_only=False):
                 },
             )
             job = ledger.create_or_resume_job(
-                {"block": BLOCK_ID, "attempt": attempt_id, "request_hash": request.request_hash},
+                {"block": block.name, "attempt": attempt_id, "request_hash": request.request_hash},
                 release_class=ReleaseClass.RESTRICTED,
             )
             ledger.record_attempt(
@@ -652,7 +748,7 @@ def controller(root, block, run, *, prepare_only=False):
             cap = generation_watchdog(
                 stage(
                     "generation_and_exception_drain",
-                    DIAGNOSTIC_SECONDS,
+                    comparison_policy.GENERATION if comparison else DIAGNOSTIC_SECONDS,
                 ),
                 call.watchdog_seconds,
             )
@@ -667,7 +763,7 @@ def controller(root, block, run, *, prepare_only=False):
                     attempt_id=attempt_id,
                     remaining_required_seconds=SHUTDOWN_SECONDS,
                     accounting_details={
-                        "block_id": BLOCK_ID,
+                        "block_id": block.name,
                         "feasibility_diagnostic_only": True,
                         "complete_forecast_exception": True,
                     },
@@ -681,7 +777,7 @@ def controller(root, block, run, *, prepare_only=False):
                 failure_stage = "schema_or_structural_validation"
                 validation = (
                     validate_small_diagnostic(result, small_fixture, small_oracle)
-                    if kind == "small"
+                    if kind == "small" or comparison
                     else validate_acceptance_generation(
                         root=root,
                         call=call.acceptance_call(),
@@ -695,7 +791,7 @@ def controller(root, block, run, *, prepare_only=False):
                     )
                 )
                 failure_stage = "scientific_capability_validation"
-                if kind != "small":
+                if kind != "small" and not comparison:
                     validation["operator_behavior"] = _require_call_operator_coverage(
                         call, validation, result.parsed_object, root=root
                     )
@@ -755,7 +851,7 @@ def controller(root, block, run, *, prepare_only=False):
                 "diagnostic_kind": kind,
                 "canonical_schema_valid": schema_valid,
                 "scientifically_valid": failure is None,
-                "production_form": kind != "small",
+                "production_form": kind != "small" and not comparison,
                 "failure": failure,
                 "validation": validation,
                 "completed_at": now(),
@@ -826,7 +922,7 @@ def controller(root, block, run, *, prepare_only=False):
                 "ended_at": now(),
                 "actual_allocated_seconds": service.meter.actual_allocated_gpu_seconds,
                 "additional_block_seconds": service.meter.actual_allocated_gpu_seconds
-                - BASELINE_SECONDS,
+                - (comparison_policy.BASELINE if comparison else BASELINE_SECONDS),
                 "complete_acceptance": False,
                 "remaining_forecast": forecast,
                 "resource_samples": [s.public_manifest() for s in sampler.samples],
@@ -836,8 +932,8 @@ def controller(root, block, run, *, prepare_only=False):
         )
 
 
-def guardian(root, *, prepare_only=False):
-    block = root / "artifacts/restricted" / BLOCK_ID
+def guardian(root, *, prepare_only=False, comparison=False):
+    block = root / "artifacts/restricted" / (comparison_policy.BLOCK_ID if comparison else BLOCK_ID)
     block.mkdir(exist_ok=True, mode=0o700)
     with (block / "controller.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -847,12 +943,18 @@ def guardian(root, *, prepare_only=False):
         if ledger.unresolved_gpu_allocations() or ledger.unresolved_gpu_service_journals():
             raise ValueError("existing allocation requires reconciliation; do not duplicate")
         if not prepare_only and (
-            count_reservations(block, "start") >= MAX_STARTS
-            or count_reservations(block, "attempt") >= MAX_ATTEMPTS
+            count_reservations(block, "start")
+            >= (comparison_policy.STARTS if comparison else MAX_STARTS)
+            or count_reservations(block, "attempt")
+            >= (comparison_policy.ATTEMPTS if comparison else MAX_ATTEMPTS)
         ):
             raise ValueError("existing block counters exhausted")
-        if not prepare_only and (
-            count_reservations(block, "start") != 4 or count_reservations(block, "attempt") != 3
+        if (
+            not prepare_only
+            and not comparison
+            and (
+                count_reservations(block, "start") != 4 or count_reservations(block, "attempt") != 3
+            )
         ):
             raise ValueError(
                 "fifth-start-only authorization requires four historical starts and three attempts"
@@ -886,6 +988,22 @@ def guardian(root, *, prepare_only=False):
             or narrow["guard_seconds"] != GUARD_SECONDS
         ):
             raise ValueError("missing exact small-only authorization and stage caps")
+        if comparison:
+            # Separate explicit new allowance. Prior block remains immutable and
+            # actual global ledger must include its terminal consumption.
+            current = authorization["representation_comparison"]
+            expected_comparison = {
+                "block_id": comparison_policy.BLOCK_ID,
+                "historical_actual_seconds": comparison_policy.BASELINE,
+                "maximum_new_starts": 1,
+                "maximum_new_attempts": 4,
+                "maximum_additional_seconds": 1200,
+                "permitted_variants": ["A", "B", "C"],
+                "fourth_call_requires_evidence_supported_repair": True,
+                "ordinary_execution_authorized": False,
+            }
+            if current != expected_comparison:
+                raise ValueError("comparison authorization differs from tested limits")
         binding = {
             "source": source_binding(root),
             "configuration": service.configuration.configuration_hash,
@@ -898,6 +1016,8 @@ def guardian(root, *, prepare_only=False):
         command = [sys.executable, __file__, "--controller", str(run)]
         if prepare_only:
             command.append("--prepare-only")
+        if comparison:
+            command.append("--comparison")
         child = subprocess.Popen(command, cwd=root)
         cpu_deadline = time.monotonic() + 300
         reason = None
@@ -985,13 +1105,20 @@ if __name__ == "__main__":
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--controller", type=Path)
     parser.add_argument("--prepare-only", action="store_true")
+    parser.add_argument("--comparison", action="store_true")
     args = parser.parse_args()
     root = Path.cwd()
     if args.controller:
-        controller(root, args.controller.parent, args.controller, prepare_only=args.prepare_only)
+        controller(
+            root,
+            args.controller.parent,
+            args.controller,
+            prepare_only=args.prepare_only,
+            comparison=args.comparison,
+        )
     elif args.prepare_only:
-        guardian(root, prepare_only=True)
+        guardian(root, prepare_only=True, comparison=args.comparison)
     elif args.execute:
-        guardian(root)
+        guardian(root, comparison=args.comparison)
     else:
         parser.error("--execute is required; no service is started by importing")

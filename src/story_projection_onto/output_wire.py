@@ -65,7 +65,9 @@ def translate_references(value: Any, mapping: Mapping[str, str], *, decode: bool
             return [visit(child, field) for child in item]
         if isinstance(item, str) and is_reference_field(field):
             if decode and item.startswith("I") and item[1:].isdigit() and item not in lookup:
-                raise OutputWireError("unknown supplied opaque-reference handle")
+                raise OutputWireError(
+                    f"unknown supplied opaque-reference handle {item!r} in {field}"
+                )
             return lookup.get(item, item)
         return copy.deepcopy(item)
 
@@ -347,7 +349,7 @@ class RecordTupleCodec:
             "$defs": definitions,
         }
 
-    def legend(self) -> str:
+    def legend(self, *, named_fields: bool = False) -> str:
         def kind(node):
             if "$ref" in node:
                 return node["$ref"].removeprefix("#/$defs/")
@@ -387,6 +389,17 @@ class RecordTupleCodec:
             "symbol starts with a letter/digit then those characters. "
             "All descriptions and rationales are concise supported natural-language text, not IDs."
         ]
+        if named_fields:
+            rows = [
+                "Return ROOT directly as a named-field JSON object, not tuples and not a "
+                "draft wrapper. Each record below is an ordinary JSON object with the "
+                "listed required field names. Optional fields may be omitted only at their "
+                "listed defaults; emit nondefault qualifications explicitly. list<T> means "
+                "a JSON array. Named types refer to other rows. Do not emit field:type "
+                "notation: emit actual JSON keys and values. Omit only content_hash and "
+                "schema_version (administrative defaults). ID is a 1..96 character string "
+                "of letters, digits, _, ., :, /, -. Descriptions are supported prose."
+            ]
         for name, schema in [("ROOT", self.schema), *sorted(self.definitions.items())]:
             if "properties" in schema:
                 fields = self.fields(schema)
@@ -402,7 +415,13 @@ class RecordTupleCodec:
                     for field, value in properties.items()
                     if field not in fields and field not in ADMIN
                 ]
-                rows.append(f"{name}=[{','.join(required)},{{{','.join(optional)}}}]")
+                if named_fields:
+                    rows.append(
+                        f"{name}: required {{{','.join(required)}}}; "
+                        f"optional {{{','.join(optional)}}}"
+                    )
+                else:
+                    rows.append(f"{name}=[{','.join(required)},{{{','.join(optional)}}}]")
             else:
                 rows.append(f"{name}={kind(schema)}")
         if self.sealed_copies:

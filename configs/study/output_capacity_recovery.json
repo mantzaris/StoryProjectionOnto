@@ -12,6 +12,16 @@
   "fourth_start_only": {"baseline_actual_seconds": 4347.542032, "prior_starts": 3, "prior_attempts": 3, "maximum_allocated_seconds": 550, "maximum_new_attempts": 1, "permitted_task": "small_evidence_only", "stream_response": true, "startup_seconds": 240, "live_checks_seconds": 60, "diagnostic_seconds": 120, "exception_drain_seconds": 5, "validation_seconds": 60, "shutdown_seconds": 60},
   "small_start_only": {"baseline_actual_seconds": 4633.801513, "prior_block_seconds": 1405.975189, "prior_starts": 4, "prior_attempts": 3, "maximum_allocated_seconds": 560, "maximum_new_attempts": 1, "permitted_task": "small_evidence_only", "stream_response": true, "startup_seconds": 360, "live_checks_seconds": 15, "diagnostic_seconds": 120, "exception_drain_seconds": 5, "validation_seconds": 15, "shutdown_seconds": 45, "guard_seconds": 5, "request_hash": "cde6c6b6eedefab00aa46b7a01833998ca0b291ad8ff1daf55e574ad23681e7a"},
   "bounded_identifiers_activated": true,
+  "representation_comparison": {
+    "block_id": "small-representation-comparison-20260907",
+    "historical_actual_seconds": 4890.322639,
+    "maximum_new_starts": 1,
+    "maximum_new_attempts": 4,
+    "maximum_additional_seconds": 1200,
+    "permitted_variants": ["A", "B", "C"],
+    "fourth_call_requires_evidence_supported_repair": true,
+    "ordinary_execution_authorized": false
+  },
   "model_visible_typed_tuple_legend": true,
   "input_format_policy": "Symmetric readable compact JSON first; use complete lossless-json-tables-v3 only if ordinary JSON exceeds the condition's existing input cap. Never truncate. Tuple field order is unchanged; typed and optional-field instructions are now model-visible.",
   "scheduled_seconds": 33660,

@@ -947,10 +947,19 @@ class GuidedJSONRequest:
     opaque_reference_aliases: Mapping[str, str] | None = None
     sealed_record_copies: Mapping[str, object] | None = None
     stream_response: bool = False
+    unconstrained_diagnostic: bool = False
 
     def __post_init__(self) -> None:
         if type(self.stream_response) is not bool:
             raise RuntimeConfigurationError("stream_response must be an explicit boolean")
+        if type(self.unconstrained_diagnostic) is not bool or (
+            self.unconstrained_diagnostic
+            and (
+                not self.request_id.startswith("representation-diagnostic-")
+                or self.canonical_output_schema is not None
+            )
+        ):
+            raise RuntimeConfigurationError("unconstrained output is named-field diagnostic only")
         if self.canonical_output_schema is not None:
             from story_projection_onto.output_wire import RecordTupleCodec
 
@@ -1024,7 +1033,7 @@ class GuidedJSONRequest:
         return {
             "model": self.model_name,
             "messages": [asdict(message) for message in self.messages],
-            "guided_json": self.output_schema,
+            **({} if self.unconstrained_diagnostic else {"guided_json": self.output_schema}),
             "chat_template_kwargs": {"enable_thinking": False},
             "temperature": decoding.temperature,
             "top_p": decoding.top_p,
