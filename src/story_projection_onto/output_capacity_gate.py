@@ -14,12 +14,17 @@ from dataclasses import dataclass
 BASELINE_SECONDS = 3227.826324
 SCHEDULED_SECONDS = 33660
 HARD_SECONDS = 36000
-BLOCK_SECONDS = 1800
-MAX_STARTS = 4
+BLOCK_SECONDS = 1965.975189
+MAX_STARTS = 5
 MAX_ATTEMPTS = 5
-SHUTDOWN_SECONDS = 60
-SMALL_START_BASELINE_SECONDS = 4347.542032
-SMALL_START_SECONDS = 550
+SHUTDOWN_SECONDS = 45
+SMALL_START_BASELINE_SECONDS = 4633.801513
+SMALL_START_SECONDS = 560
+GUARD_SECONDS = 5
+STARTUP_SECONDS = 360
+LIVE_CHECK_SECONDS = 15
+DIAGNOSTIC_SECONDS = 120
+VALIDATION_SECONDS = 15
 
 
 @dataclass(frozen=True)
@@ -46,22 +51,24 @@ class CapacityRecoveryState:
         if not complete_packing:
             raise ValueError("complete input/output capacity gate has not passed")
         if not 0 <= self.service_starts + int(starting_service) <= MAX_STARTS:
-            raise ValueError("four-start cumulative recovery limit")
+            raise ValueError("five-start cumulative recovery limit")
         if not 0 <= self.diagnostic_attempts + int(diagnostic_generation) <= MAX_ATTEMPTS:
             raise ValueError("five-diagnostic cumulative recovery limit")
         additional = self.actual_allocated_seconds - BASELINE_SECONDS
         needed = stage_seconds + SHUTDOWN_SECONDS
-        if self.service_starts + int(starting_service) == 4:
+        if starting_service and self.service_starts != 4:
+            raise ValueError("only the fifth cumulative start is currently authorized")
+        if self.service_starts + int(starting_service) == 5:
             if self.actual_allocated_seconds < SMALL_START_BASELINE_SECONDS:
-                raise ValueError("fourth start must preserve its historical allocation")
+                raise ValueError("fifth start must preserve its historical allocation")
             if self.diagnostic_attempts + int(diagnostic_generation) > 4:
-                raise ValueError("fourth start authorizes only one small diagnostic")
+                raise ValueError("fifth start authorizes only one small diagnostic")
             if (
                 self.actual_allocated_seconds - SMALL_START_BASELINE_SECONDS + needed
-                >= SMALL_START_SECONDS
+                > SMALL_START_SECONDS - GUARD_SECONDS + 0.000001
             ):
-                raise ValueError("550-second fourth-start envelope exhausted")
-        if additional + needed >= BLOCK_SECONDS - 1:
+                raise ValueError("560-second fifth-start envelope exhausted")
+        if additional + needed > BLOCK_SECONDS - GUARD_SECONDS + 0.000001:
             raise ValueError("whole recovery allocation exhausted before safe shutdown")
         if self.actual_allocated_seconds + needed >= HARD_SECONDS - 1:
             raise ValueError("strict hard allocation stop")

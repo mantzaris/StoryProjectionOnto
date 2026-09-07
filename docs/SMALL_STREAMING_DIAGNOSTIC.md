@@ -1,5 +1,25 @@
 # Fourth-start small streaming diagnostic
 
+## Current fifth-start authorization (2026-09-07)
+
+The user authorized exactly one unchanged small streaming request on a fifth
+cumulative start. Historical fourth-start material below is preserved. The block
+cap is now 1,965.975189 seconds, retaining 1,405.975189 consumed seconds and the
+original global baseline. New-start maximum is 560 seconds: startup 360, live
+checks 15, diagnostic 120, validation/drain 15, protected shutdown 45, guard 5.
+The controller admits 555 seconds and enforces the five-second whole-start guard;
+the client reserves five seconds inside the diagnostic stage for cancellation.
+No full request or retry is allowed. The exact original small request hash is
+asserted before allocation. Global 33,660 scheduled / strict 36,000 actual limits
+and the diagnostic-only complete-forecast exception are unchanged. Complete
+acceptance and ordinary study admission remain separate unmet gates.
+
+The temporal-reference amendment is independent CPU work. Its revised benchmark
+will not be deployed onto this diagnostic's bound remote source or alter the
+prepared request or scientific validators during allocation.
+
+## Preserved fourth-start authorization
+
 This is the explicitly authorized fourth start in `output-capacity-recovery-v1`,
 not a new block. It permits exactly one small evidence-only call, then shutdown.
 No full C1, C2, FixedSelect, retry, acceptance certificate, or ordinary study call

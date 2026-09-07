@@ -16,14 +16,14 @@ def test_stage_caps_preserve_whole_deadline_and_shutdown():
         started=100, now_monotonic=200, prior_block_seconds=400, stage_seconds=300
     )
     assert deadline == 500
-    assert whole == 649
+    assert whole == 655
     deadline, whole = driver.stage_deadline(
         started=100, now_monotonic=550, prior_block_seconds=400, stage_seconds=300
     )
-    assert deadline == whole - 60 == 589
+    assert deadline == whole - 45 == 610
     with pytest.raises(TimeoutError):
         driver.stage_deadline(
-            started=100, now_monotonic=590, prior_block_seconds=400, stage_seconds=240
+            started=100, now_monotonic=611, prior_block_seconds=400, stage_seconds=240
         )
 
 
@@ -39,12 +39,12 @@ def test_reservations_survive_new_run_name(tmp_path):
 def test_controller_is_bound_to_existing_block_not_new_authority():
     assert driver.BLOCK_ID == "output-capacity-recovery-v1"
     assert driver.BASELINE_SECONDS == 3227.826324
-    assert driver.BLOCK_SECONDS == 1800
-    assert driver.MAX_STARTS == 4
+    assert driver.BLOCK_SECONDS == 1965.975189
+    assert driver.MAX_STARTS == 5
     assert driver.MAX_ATTEMPTS == 5
 
 
-def test_fourth_start_can_only_run_one_small_diagnostic():
+def test_fifth_start_can_only_run_one_small_diagnostic():
     for accepted in (False, True):
         assert driver.next_diagnostic(completed=0, accepted_c1=accepted) == "small"
         for completed in (1, 2, 3):
@@ -82,7 +82,7 @@ def test_guardian_kills_owned_controller_and_adopts_only_for_cleanup(tmp_path, m
     )
     monkeypatch.setattr(driver, "setup", lambda *a: (ledger, None, service))
     monkeypatch.setattr(driver, "source_binding", lambda *a: {})
-    monkeypatch.setattr(driver, "count_reservations", lambda *a: 3)
+    monkeypatch.setattr(driver, "count_reservations", lambda path, kind: 4 if kind == "start" else 3)
     monkeypatch.setattr(
         driver,
         "ResourceSampler",

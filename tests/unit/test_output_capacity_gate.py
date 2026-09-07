@@ -8,23 +8,23 @@ from story_projection_onto.output_capacity_gate import (
 )
 
 
-def test_fourth_start_whole_envelope_and_single_call_preserve_prior_usage():
+def test_fifth_start_whole_envelope_and_single_call_preserve_prior_usage():
     args = dict(
         remaining_mandatory_seconds=40000,
-        stage_seconds=489,
+        stage_seconds=510,
         complete_packing=True,
         feasibility_diagnostic_exception=True,
     )
-    receipt = CapacityRecoveryState(SMALL_START_BASELINE_SECONDS, 3, 3).admit(
+    receipt = CapacityRecoveryState(SMALL_START_BASELINE_SECONDS, 4, 3).admit(
         **args, starting_service=True
     )
-    assert receipt["block_reserve_seconds"] == pytest.approx(131.284292)
-    with pytest.raises(ValueError, match="550-second"):
-        CapacityRecoveryState(SMALL_START_BASELINE_SECONDS, 3, 3).admit(
-            **(args | {"stage_seconds": 490}), starting_service=True
+    assert receipt["block_reserve_seconds"] == pytest.approx(5)
+    with pytest.raises(ValueError, match="560-second"):
+        CapacityRecoveryState(SMALL_START_BASELINE_SECONDS, 4, 3).admit(
+            **(args | {"stage_seconds": 511}), starting_service=True
         )
     with pytest.raises(ValueError, match="only one small"):
-        CapacityRecoveryState(SMALL_START_BASELINE_SECONDS + 200, 4, 4).admit(
+        CapacityRecoveryState(SMALL_START_BASELINE_SECONDS + 200, 5, 4).admit(
             **(args | {"stage_seconds": 120}), diagnostic_generation=True
         )
 
@@ -35,22 +35,22 @@ def test_admits_only_complete_all_in_with_preserved_baseline():
         remaining_mandatory_seconds=1000,
         stage_seconds=100,
         complete_packing=True,
-        starting_service=True,
+        diagnostic_generation=True,
     )
-    assert receipt["all_in_seconds"] == BASELINE_SECONDS + 1000 + 100 + 60
+    assert receipt["all_in_seconds"] == BASELINE_SECONDS + 1000 + 100 + 45
 
 
 @pytest.mark.parametrize(
     "state,kwargs,reason",
     [
         (CapacityRecoveryState(0, 0, 0), {}, "must not reset"),
-        (CapacityRecoveryState(BASELINE_SECONDS, 4, 0), {"starting_service": True}, "four-start"),
+        (CapacityRecoveryState(BASELINE_SECONDS, 5, 0), {"starting_service": True}, "five-start"),
         (
             CapacityRecoveryState(BASELINE_SECONDS, 0, 5),
             {"diagnostic_generation": True},
             "five-diagnostic",
         ),
-        (CapacityRecoveryState(BASELINE_SECONDS + 1640, 1, 1), {}, "whole recovery"),
+        (CapacityRecoveryState(BASELINE_SECONDS + 1900, 1, 1), {}, "whole recovery"),
         (
             CapacityRecoveryState(BASELINE_SECONDS, 0, 0),
             {"complete_packing": False},
@@ -98,7 +98,7 @@ def test_exception_only_bypasses_forecast_not_block_or_count_limits():
         "complete_forecast_exception_applied"
     ]
     with pytest.raises(ValueError, match="whole recovery"):
-        CapacityRecoveryState(BASELINE_SECONDS + 1550, 1, 0).admit(**kwargs)
+        CapacityRecoveryState(BASELINE_SECONDS + 1700, 1, 0).admit(**kwargs)
     with pytest.raises(ValueError, match="five-diagnostic"):
         CapacityRecoveryState(BASELINE_SECONDS, 1, 5).admit(**kwargs)
     with pytest.raises(ValueError, match="diagnostic-only"):

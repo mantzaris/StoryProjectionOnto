@@ -45,11 +45,16 @@ from story_projection_onto.manifest import write_json_atomic
 from story_projection_onto.output_capacity_gate import (
     BASELINE_SECONDS,
     BLOCK_SECONDS,
+    DIAGNOSTIC_SECONDS,
+    GUARD_SECONDS,
+    LIVE_CHECK_SECONDS,
     MAX_ATTEMPTS,
     MAX_STARTS,
     SHUTDOWN_SECONDS,
     SMALL_START_BASELINE_SECONDS,
     SMALL_START_SECONDS,
+    STARTUP_SECONDS,
+    VALIDATION_SECONDS,
     CapacityRecoveryState,
     capacity_forecast,
 )
@@ -69,6 +74,7 @@ from story_projection_onto.store import (
 
 BLOCK_ID = "output-capacity-recovery-v1"
 EXCEPTION_DRAIN_SECONDS = 5
+SMALL_REQUEST_HASH = "cde6c6b6eedefab00aa46b7a01833998ca0b291ad8ff1daf55e574ad23681e7a"
 SMALL_SUCCESS_CRITERIA = {
     "scope": "one development evidence record; no expected answer supplied",
     "transport": "HTTP 200; SSE final choice, usage, DONE; finish_reason stop",
@@ -110,7 +116,7 @@ def source_binding(root):
 
 def stage_deadline(*, started, now_monotonic, prior_block_seconds, stage_seconds):
     """Leave a full shutdown reserve before the whole block ends, including gaps."""
-    whole = started + min(BLOCK_SECONDS - prior_block_seconds, SMALL_START_SECONDS) - 1
+    whole = started + min(BLOCK_SECONDS - prior_block_seconds, SMALL_START_SECONDS) - GUARD_SECONDS
     limit = min(now_monotonic + stage_seconds, whole - SHUTDOWN_SECONDS)
     if limit <= now_monotonic:
         raise TimeoutError("block has no allocation left before shutdown reserve")
@@ -382,6 +388,8 @@ def controller(root, block, run, *, prepare_only=False):
         root, run, calls[0], bridge, tokenizer, tokenizer_manifest
     )
     first = small
+    if first.request_hash != SMALL_REQUEST_HASH:
+        raise ValueError("small diagnostic request changed from the authorized exact request")
     _verify_second_recovery_decoder_compiles(first.output_schema)
     import xgrammar
 
@@ -478,9 +486,8 @@ def controller(root, block, run, *, prepare_only=False):
     actual = service.meter.actual_allocated_gpu_seconds
     admission = CapacityRecoveryState(actual, starts, attempts).admit(
         remaining_mandatory_seconds=forecast["remaining_forecast_seconds"],
-        # Admit the whole 549-second guarded envelope, not only startup.
-        # The 60-second shutdown slot is added exactly once by admit().
-        stage_seconds=SMALL_START_SECONDS - SHUTDOWN_SECONDS - 1,
+        # Full envelope with protected five-second guard; shutdown counted once.
+        stage_seconds=SMALL_START_SECONDS - SHUTDOWN_SECONDS - GUARD_SECONDS,
         starting_service=True,
         complete_packing=True,
         feasibility_diagnostic_exception=True,
@@ -520,14 +527,14 @@ def controller(root, block, run, *, prepare_only=False):
     accepted_c1 = None
     accepted_c1_seal = None
     try:
-        cap = stage("startup", 240)
+        cap = stage("startup", STARTUP_SECONDS)
         service.start(
             session_id=session,
             event_id=event,
             watchdog_seconds=cap,
             remaining_required_seconds=SHUTDOWN_SECONDS,
         )
-        stage("live_checks", 60)
+        stage("live_checks", LIVE_CHECK_SECONDS)
         service.start_periodic_resource_watchdog(
             ResourceWatchdog(
                 sampler=sampler,
@@ -578,7 +585,7 @@ def controller(root, block, run, *, prepare_only=False):
                     request = pack_capacity_candidate(base, tokenizer)
                 _verify_second_recovery_decoder_compiles(request.output_schema)
             if kind != "small" or not request.stream_response:
-                raise ValueError("fourth start is restricted to one streamed small diagnostic")
+                raise ValueError("fifth start is restricted to one streamed small diagnostic")
             attempts = count_reservations(block, "attempt")
             receipt = CapacityRecoveryState(
                 service.actual_allocated_service_seconds,
@@ -586,7 +593,7 @@ def controller(root, block, run, *, prepare_only=False):
                 attempts,
             ).admit(
                 remaining_mandatory_seconds=forecast["remaining_forecast_seconds"],
-                stage_seconds=call.watchdog_seconds + EXCEPTION_DRAIN_SECONDS,
+                stage_seconds=DIAGNOSTIC_SECONDS + VALIDATION_SECONDS,
                 diagnostic_generation=True,
                 complete_packing=True,
                 feasibility_diagnostic_exception=True,
@@ -645,7 +652,7 @@ def controller(root, block, run, *, prepare_only=False):
             cap = generation_watchdog(
                 stage(
                     "generation_and_exception_drain",
-                    call.watchdog_seconds + EXCEPTION_DRAIN_SECONDS,
+                    DIAGNOSTIC_SECONDS,
                 ),
                 call.watchdog_seconds,
             )
@@ -666,7 +673,7 @@ def controller(root, block, run, *, prepare_only=False):
                     },
                 )
                 generation_seconds = time.monotonic() - tic
-                stage("validation", 60)
+                stage("validation", VALIDATION_SECONDS)
                 immutable(attempt_root / "decoded.json", result.parsed_object)
                 failure_stage = "canonical_schema_validation"
                 OntologyDraft.model_validate(result.parsed_object)
@@ -710,6 +717,7 @@ def controller(root, block, run, *, prepare_only=False):
                     )
             except Exception as exc:
                 generation_seconds = time.monotonic() - tic
+                stage("validation_and_failure_drain", VALIDATION_SECONDS)
                 failure = {
                     "stage": failure_stage,
                     "exception_type": type(exc).__name__,
@@ -844,10 +852,10 @@ def guardian(root, *, prepare_only=False):
         ):
             raise ValueError("existing block counters exhausted")
         if not prepare_only and (
-            count_reservations(block, "start") != 3 or count_reservations(block, "attempt") != 3
+            count_reservations(block, "start") != 4 or count_reservations(block, "attempt") != 3
         ):
             raise ValueError(
-                "fourth-start-only authorization requires the existing three starts/attempts"
+                "fifth-start-only authorization requires four historical starts and three attempts"
             )
         authorization = read(root / "configs/study/output_capacity_recovery.json")
         if authorization["activation_scope"] != "bounded_feasibility_diagnostics_only":
@@ -864,14 +872,20 @@ def guardian(root, *, prepare_only=False):
         }
         if any(authorization.get(key) != value for key, value in expected.items()):
             raise ValueError("authorization differs from tested block constants")
-        narrow = authorization["fourth_start_only"]
+        narrow = authorization["small_start_only"]
         if (
             narrow["maximum_allocated_seconds"] != SMALL_START_SECONDS
             or narrow["baseline_actual_seconds"] != SMALL_START_BASELINE_SECONDS
             or narrow["maximum_new_attempts"] != 1
             or narrow["permitted_task"] != "small_evidence_only"
+            or narrow["startup_seconds"] != STARTUP_SECONDS
+            or narrow["live_checks_seconds"] != LIVE_CHECK_SECONDS
+            or narrow["diagnostic_seconds"] != DIAGNOSTIC_SECONDS
+            or narrow["validation_seconds"] != VALIDATION_SECONDS
+            or narrow["shutdown_seconds"] != SHUTDOWN_SECONDS
+            or narrow["guard_seconds"] != GUARD_SECONDS
         ):
-            raise ValueError("missing exact fourth-start-only authorization")
+            raise ValueError("missing exact small-only authorization and stage caps")
         binding = {
             "source": source_binding(root),
             "configuration": service.configuration.configuration_hash,
