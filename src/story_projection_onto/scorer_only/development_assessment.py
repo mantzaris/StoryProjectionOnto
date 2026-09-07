@@ -1529,7 +1529,7 @@ class DevelopmentScientificAssessmentProvider:
                 _assert_gold_free_payload(wire)
                 _assert_gold_free_payload(cast(BaseModel, call.semantic_request))
 
-        c0 = self._assess_c0(cpu, scorer_by_unit)
+        c0 = self._assess_c0_preconstructions(preparations, cpu, scorer_by_unit)
         c1 = self._assess_c1(processed, scorer_by_unit)
         c2_present = self._assess_c2_construction(processed, preparations)
         horizon_leaks = self._count_horizon_leaks(processed, cpu)
@@ -2616,11 +2616,61 @@ class DevelopmentScientificAssessmentProvider:
             compiled_alternatives=compile_alignment_alternatives(gold, alternatives),
         )
 
+    def _assess_c0_preconstructions(
+        self,
+        preparations: Mapping[tuple[str, ConditionName], ConditionPreparation],
+        cpu: Sequence[_ProcessedCPUProjection],
+        scorer_by_unit: Mapping[str, Any],
+    ) -> tuple[float, float, float, float]:
+        """Approved v1 extraction scope; contextual projection scoring is separate."""
+        from story_projection_onto.scorer_only.direct_extraction import (
+            aggregate_extraction,
+            compile_direct_reference,
+            score_direct_preconstruction,
+        )
+
+        # All source references are compiled before any draft is scored. The
+        # source/hash and complete direct-witness checks fail closed on coverage.
+        references, evidence_by_unit = {}, {}
+        for unit, scorer in sorted(scorer_by_unit.items()):
+            packets = [
+                item.packet
+                for item in cpu
+                if item.receipt.unit_id == unit
+                and item.receipt.condition is ConditionName.C0_CLASSICAL_PRE
+            ]
+            if len(packets) != 3 or len({canonical_sha256(p.evidence) for p in packets}) != 1:
+                raise DevelopmentAssessmentIntegrityError(
+                    "C0 extraction needs identical complete evidence across contexts"
+                )
+            evidence_by_unit[unit] = packets[0].evidence
+            references[unit] = compile_direct_reference(scorer, packets[0].evidence, self.root)
+        rows = []
+        for unit, reference in references.items():
+            preparation = preparations[(unit, ConditionName.C0_CLASSICAL_PRE)]
+            if preparation.sealed_preontology is None:
+                raise DevelopmentAssessmentIntegrityError(
+                    "C0 extraction needs a sealed preconstruction"
+                )
+            rows.append(
+                score_direct_preconstruction(
+                    preparation.sealed_preontology.draft, reference, evidence_by_unit[unit]
+                )
+            )
+        result = aggregate_extraction(rows)
+        return (
+            result["explicit_family_coverage"],
+            result["metric"]["precision"],
+            result["metric"]["recall"],
+            result["valid_evidence_reference_rate"],
+        )
+
     def _assess_c0(
         self,
         cpu: Sequence[_ProcessedCPUProjection],
         scorer_by_unit: Mapping[str, Any],
     ) -> tuple[float, float, float, float]:
+        """Historical projection/direct-filter competence; retained for exact replay."""
         true_positives = 0
         predicted_count = 0
         gold_count = 0

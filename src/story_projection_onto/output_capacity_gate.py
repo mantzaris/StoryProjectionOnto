@@ -93,6 +93,8 @@ def capacity_forecast(
     *,
     output_tokens: int = 6144,
     pending_acceptance_resume_seconds: float = 0,
+    actual_allocated_seconds: float = BASELINE_SECONDS,
+    additional_diagnostic_allowance: float = BLOCK_SECONDS,
 ) -> dict:
     """Preserve every remaining row; scale only unmeasured generation proxies.
 
@@ -102,6 +104,15 @@ def capacity_forecast(
     """
     if output_tokens < 2048:
         raise ValueError("capacity repair cannot silently lower required output allocation")
+    if (
+        not math.isfinite(actual_allocated_seconds)
+        or actual_allocated_seconds < BASELINE_SECONDS
+        or not math.isfinite(additional_diagnostic_allowance)
+        or additional_diagnostic_allowance < 0
+    ):
+        raise ValueError(
+            "forecast must preserve actual historical allocation and bounded allowance"
+        )
     if (
         not math.isfinite(pending_acceptance_resume_seconds)
         or pending_acceptance_resume_seconds < 0
@@ -141,13 +152,16 @@ def capacity_forecast(
         "kind": "unmeasured_capacity_proxy_capped_at_unchanged_watchdogs",
         "valid_completion_forecast_established": False,
         "rows": updated,
-        "actual_allocated_seconds": BASELINE_SECONDS,
+        "actual_allocated_seconds": actual_allocated_seconds,
         "remaining_forecast_seconds": remaining,
         "inventory_remaining_seconds": inventory_remaining,
         "pending_acceptance_resume_service_seconds": pending_acceptance_resume_seconds,
-        "all_in_seconds": BASELINE_SECONDS + remaining,
-        "plus_full_authorized_recovery_block": BASELINE_SECONDS + remaining + BLOCK_SECONDS,
+        "all_in_seconds": actual_allocated_seconds + remaining,
+        "plus_full_authorized_recovery_block": actual_allocated_seconds
+        + remaining
+        + additional_diagnostic_allowance,
         "original_nine_hour_target_met": False,
-        "fits_scheduled_before_new_recovery": BASELINE_SECONDS + remaining <= SCHEDULED_SECONDS,
+        "fits_scheduled_before_new_recovery": actual_allocated_seconds + remaining
+        <= SCHEDULED_SECONDS,
         "truncated_output_throughput_credited": False,
     }

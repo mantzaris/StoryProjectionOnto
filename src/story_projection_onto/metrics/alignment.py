@@ -393,6 +393,7 @@ def build_alignment_plan(
     *,
     compiled_alternatives: CompiledGoldAlternatives,
     predicate_aliases: Mapping[str, str] | None = None,
+    include_context_excluded_assertions: bool = False,
 ) -> AlignmentPlan:
     """Compile reviewed gold into executable anchor targets before condition scoring."""
 
@@ -478,7 +479,9 @@ def build_alignment_plan(
         )
     assertion_targets: list[AssertionAlignmentTarget] = []
     for assertion in gold.qualified_assertions:
-        if not relevance.get(assertion.assertion_id, True):
+        if not include_context_excluded_assertions and not relevance.get(
+            assertion.assertion_id, True
+        ):
             continue
         predicate = predicate_by_id.get(
             assertion.predicate_id,

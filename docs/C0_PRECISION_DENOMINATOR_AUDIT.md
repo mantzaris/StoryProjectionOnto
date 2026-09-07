@@ -1,6 +1,90 @@
 # C0 development competence: denominator audit
 
-## Current decision: keep the denominator; clarify the competence scope
+## Approved amendment and actual evaluations — 2026-09-07
+
+The user approved `development-query-blind-direct-extraction-v1` and
+`source-bound-direct-witness-v1`. The integrated assessor now routes competence
+to the four **sealed preconstructions**, once per world. Its previous final-
+projection/direct-filter function remains available for exact historical replay.
+No C0 extraction implementation changed in this amendment.
+
+| Evaluation | Strict TP / emitted predictions | Strict TP / eligible references | F1 |
+|---|---:|---:|---:|
+| Preserved historical competence (final projections plus incomplete direct filter) | 29/269 = .107807 | 29/84 = .345238 | Historical record preserved |
+| Approved query-blind extraction competence | 53/154 = .344156 | 53/114 = .464912 | .395522 |
+| Unchanged contextual strict projection evaluation | 29/269 = .107807 | 29/91 = .318681 | .161111 |
+
+Extraction **fails** the unchanged .85 precision/.70 recall thresholds. Explicit
+family coverage is .80 (no strictly matched event-role family), evidence-reference
+validity 1.00. All 154 emitted preconstruction assertions remain in extraction
+precision. All 269 final assertions remain in contextual precision. In particular,
+**73** final assertions strictly match a direct reference when relevance is
+ignored but are excluded by that query's gold relevance; they remain contextual
+false positives. They are not labeled unsupported merely because they are irrelevant.
+The recall denominators 84 and 91 differ because the historical competence filter
+omitted eligible contextual causal/precedence targets; the contextual definition
+itself has not changed.
+
+### Reference construction, coverage and scientific boundaries
+
+Before opening predictions, the scorer re-renders each development world's
+query-blind narrative from its frozen source specification. Every evidence ID and
+content hash must match the shared evidence. Direct eligibility comes from the
+generator's fact, explicit causal-witness and explicit precedence-witness maps,
+not C0 output, target labels or loose citation overlap. Every supplied evidence
+record must belong to one source-bound witness family. Each of the three existing
+reference organizations must cover every direct witness exactly once; missing or
+ambiguous coverage fails before scoring. This passes for **114 direct witnesses**
+across four worlds. Repeated mentions of one fact remain one witness target.
+
+The existing gold organizations and their already-declared alternatives provide
+permissible representations, with contextual relevance ignored **only for this
+extraction scope**. No endpoint, role, relation, epistemic or intrinsic-validity
+alternative is invented. Existing strict matching operates within each frozen
+organization; deterministic one-to-one matching across their source-witness IDs
+then prevents crediting one prediction or witness multiple times across contexts.
+The three organizations are not three independent observations or denominators.
+
+Strict matching still rejects wrong temporal bounds. Unknown and not-applicable
+remain distinct; query windows do not create intrinsic bounds. The held-out gold,
+benchmark evidence, hypotheses, thresholds and human-review package are unchanged.
+This development-only scoring sidecar does not substitute for independent review.
+
+### Remaining concrete development errors
+
+Source-sharing nearest-reference comparisons cover the 101 unmatched predictions:
+93 have strict signature differences; eight have an exact candidate but lose
+one-to-one/duplicate competition. Field counts overlap: subject alignment 75,
+object alignment 65, role bindings 50, predicate naming 41, epistemic qualification
+five. No validity-only difference occurs in these nearest comparisons; that is
+not proof of temporal correctness for every prediction.
+
+- “Galen Cedar's earlier action enabled Cyra Cedar's later action at story step
+  5”: C0 `enabled` versus reference `causally_enables`; this closest comparison
+  differs only in predicate normalization. It is a concrete lexical-mapping issue,
+  not absence of an eligible causal witness.
+- “Doran Cedar participates in Cedar Turn 1,” with explicit duration 3–4: C0
+  emits a binary relation to an entity representation of Turn 1; the reference
+  requires event/participant role bindings to the reified event. The intrinsic
+  interval agrees; event identity/organization and roles do not.
+- “Doran Cedar reported that Evin Cedar plans to leave Cedar Guild”: the report
+  attitude, holder-relative step and non-global commitment agree, but C0's holder
+  cannot align to the expected entity. The epistemic error is holder identity,
+  not a license to treat the reported proposition as global truth.
+
+The same unchanged predictions produced both new evaluations, so the numerical
+change is **not a C0 implementation improvement**. General extraction or lexical
+mapping fixes must be separately versioned and assessed. No scores are certified
+as competent merely because this scope amendment improves their appearance.
+
+Immutable result, four source-bound maps, four world scores and detailed error
+comparisons: `artifacts/restricted/c0-extraction-scope-v2/assessment.json` and its
+12 manifest-listed sidecars. Source hashes and the original 17 calibration-file
+hashes are recorded/verified. CPU scoring and diagnosis: **3.439123 seconds**;
+no construction repeated, zero GPU. The first scoring-only `c0-extraction-scope-v1`
+and the old calibration remain preserved.
+
+## Historical scope proposal and prior audit
 
 The preserved current result is **29/269 precision, 29/84 recall, failed**.
 This CPU interface change does not rescore it, change a threshold, filter a

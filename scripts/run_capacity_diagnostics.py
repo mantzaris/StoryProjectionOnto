@@ -632,7 +632,12 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
     load_proxy = next(
         row["forecast_p95_seconds"] for row in inventory if row["call_class"] == "gpu_session_start"
     )
-    forecast = capacity_forecast(inventory, pending_acceptance_resume_seconds=load_proxy)
+    forecast = capacity_forecast(
+        inventory,
+        pending_acceptance_resume_seconds=load_proxy,
+        actual_allocated_seconds=service.meter.actual_allocated_gpu_seconds,
+        additional_diagnostic_allowance=policy_mode.ALLOWANCE if comparison else BLOCK_SECONDS,
+    )
     immutable(run / "small-success-criteria.json", SMALL_SUCCESS_CRITERIA)
     # Authored development fixture, never supplied to the model. This measures
     # representation capacity only, not a valid answer to the small snapshot.

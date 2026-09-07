@@ -208,3 +208,17 @@ def test_actual_fixed_requires_accepted_source_and_is_exact():
     assert packed["sections_override"]["sealed_ontology"][
         "instance_graph"
     ] == draft.instance_graph.model_dump(mode="json")
+
+
+def test_forecast_display_uses_current_ledger_not_first_recovery_baseline():
+    from story_projection_onto.output_capacity_gate import capacity_forecast
+
+    report = capacity_forecast(
+        [],
+        pending_acceptance_resume_seconds=10,
+        actual_allocated_seconds=5755.222442,
+        additional_diagnostic_allowance=0,
+    )
+    assert report["actual_allocated_seconds"] == 5755.222442
+    assert report["all_in_seconds"] == 5765.222442
+    assert report["plus_full_authorized_recovery_block"] == 5765.222442
