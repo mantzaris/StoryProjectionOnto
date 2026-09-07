@@ -1,8 +1,65 @@
 # Run status
 
-Updated: 2026-09-07 — fifth small diagnostic completed; temporal amendment tested
+Updated: 2026-09-07 — representation comparison and C0 denominator audit completed
 
 ## Current verified state
+
+Source checkpoint **`0262fca`**; branch `implementation/query-dependent-temporal-ontology`.
+One new diagnostic session at **`5b298e9`** ran **three small calls**, no fourth
+call or ordinary acceptance/development. All returned HTTP 200, complete JSON/SSE
+and stop. A named/unconstrained: **3,130 tokens**, canonical failure. B
+named/constrained: **2,241 tokens**, matching JSON schema but canonical temporal
+failure. C production tuples: **62 tokens**, canonical reconstruction/schema
+valid but empty graph. **Zero task-accepted outputs.** A/B omitted assertion
+endpoints/roles. Output capacity was not limiting. Full findings:
+`docs/REPRESENTATION_COMPARISON.md`.
+
+New allocation **473.179991 s**; preserved global actual **5,363.502630 s**.
+The single-start allowance is exhausted; its unused **726.820009 s** does not
+authorize another start. vLLM stopped, GPU idle, pod active; zero open allocation
+or service journals. Sampled peaks: VRAM **22,793,945,088 bytes**, RAM
+**7,146,729,472**, project storage **16,654,564,864**. Stopped full census:
+**16,653,322,752 bytes**. No measured resource violation.
+
+Complete remaining proxy **40,162.013213 s**, including the existing **333.668869 s**
+pending acceptance/restart/resume envelope beyond the inventory subtotal.
+All-in **45,525.515843 s** fails scheduled **33,660 s**; strict actual stop before
+**36,000 s** unchanged. Original nine-hour target was not met. The initial terminal
+subtotal/derived summary are preserved; the corrected summary and regression test
+include the pending service envelope. No valid-output p95 has been established.
+
+C0 audit: of the previous **214** unmatched predictions, **210** cite references
+excluded as context-irrelevant, **4** relevant causal references excluded by the
+direct filter. These are eligibility counts, not truth labels. The preselected
+24-example audit found 22 supported/irrelevant, one supported/relevant eligibility
+failure, one numeric identity overmerge. The proposed query-blind direct-assertion
+competence scope is **not applied**; gold, scorers and thresholds are unchanged.
+See `docs/C0_PRECISION_DENOMINATOR_AUDIT.md`.
+
+C0 now preserves numeric identity tokens and occurrence-order relations without
+inventing third events. The intervening **31/30-node** prebuild failure is retained.
+New CPU calibration at `0262fca`: four preconstructions, twelve projections,
+**76.215800 s CPU**, zero GPU; precision **29/269 = 0.107806691**, recall
+**29/84 = 0.345238095**, family coverage **0.80**, evidence validity **1.00**.
+**Competence still fails.** All 17 listed output hashes and seven source hashes
+verify. A launch-label provenance correction is recorded without overwriting metadata.
+
+Focused tests: **60 comparison tests** locally/remotely, **40 C0/temporal tests**
+locally, **18 controller/accounting checks** locally (overlap with comparison
+suite). Existing stuck-sampler/shutdown checks pass. Restricted backup:
+`artifacts/restricted/representation-backup.maHyBy/`; **933 remote files hash-match**.
+Prior ledgers/failures preserved; no weights/novel transfer or new PDF.
+
+Corrected human-review package remains
+`artifacts/restricted/scorer_only/independent_review_handoff_v4_intrinsic/`.
+The assistant development audit is not independent review. Held-out review,
+complete fallback acceptance, C0 competence and ordinary admission remain blocking.
+No further GPU resume/start authorized. Next live test needs new authorization
+after a CPU-validated named-field assertion/temporal contract repair. The C0
+competence-scope proposal needs a user decision. Safe CPU verification:
+`python scripts/generate_synthetic_benchmark.py --verify-only`.
+
+## Historical fifth-small / intrinsic-validity checkpoint
 
 The authorized fifth small streaming diagnostic at checkpoint `55637c1` is
 terminal. **HTTP 200, complete JSON, 138 tokens, stop; wire schema valid, canonical

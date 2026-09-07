@@ -77,3 +77,36 @@ unchanged old scoring scope in the meantime.
 Restricted audit: `artifacts/restricted/c0-denominator-sample-v2.json` and
 `c0-denominator-judgments-v1.json`. The reproducible export script refuses held-out
 scorer files and never updates calibration, reference or scoring artifacts.
+
+## Actual repair and recalibration
+
+Numeric identity repair initially exposed a 31-node preconstruction against the
+unchanged 30-node budget in development world four. That failed run is preserved
+as `c0-calibration-numeric-v5`. Inspection found three spurious “Occurred Before”
+events: the neutral index's ordering hints had been treated as new events with
+the existing events as agents. A general occurrence-order rule now keeps the
+explicit ordering assertion but does not reify a third event. No evidence,
+mandatory temporal relation, budget or threshold was removed/changed. A focused
+fixture tests the retained relation and absence of the spurious event.
+
+Final source checkpoint `0262fca` completed four preconstructions and twelve
+structurally valid development projections in **76.215800437 CPU seconds**, GPU
+zero. Under the **unchanged** disputed competence scope: **29/269 precision
+(0.107806691)**, **29/84 recall (0.345238095)**, family coverage **0.80**, valid
+evidence **1.00**. It still fails, and scores did not improve versus the retained
+31/281 and 31/84 result. General bug fixes are not certified by favorable scores.
+Remaining comparable-pair errors include identity, roles, relation normalization
+and epistemic-holder matching; no temporal mismatch in those comparable pairs
+is proof of correctness for every emitted assertion.
+
+**40 focused C0/temporal tests pass.** All 17 listed calibration artifacts match
+their manifest hashes; all seven recorded source hashes match checkpoint
+`0262fca`. The launch environment accidentally recorded the literal label
+`checkpoint` instead of a revision; the separate restricted verification receipt
+resolves the source by hashes and preserves the original metadata. No output,
+timestamp or source record was retrospectively replaced.
+
+Final calibration and preserved failure are backed up under
+`artifacts/restricted/representation-backup.maHyBy/`. This audit proposes the
+competence-scope decision above; it does not authorize altered scoring or declare
+the integrated development gate complete.

@@ -66,3 +66,95 @@ The service stops after the comparison or on an unhealthy/uncancelled request.
 Report HTTP/completion, JSON syntax, reference integrity, nonempty structure,
 canonical schema, scientific grounding and timing separately. A/B/C success would
 not be full C1 acceptance, a p95 estimate, or full-study feasibility evidence.
+
+## Actual outcome
+
+Source checkpoint `5b298e9`; one start and three calls. All received HTTP 200,
+complete SSE/usage/DONE, complete JSON and finish_reason=stop. No fourth call or
+ordinary acceptance/development inference ran. The service is stopped.
+
+| Variant | Output tokens | JSON syntax | Matching JSON schema | Canonical Pydantic | Required graph | Accepted |
+|---|---:|---|---|---|---|---|
+| A: named, unconstrained | 3,130 | pass | fail | fail | fail | no |
+| B: named, constrained | 2,241 | pass | pass | fail | fail | no |
+| C: production tuples | 62 | pass | pass | pass | empty | no |
+
+Reference and semantic findings are separate from JSON syntax:
+
+- **A:** generated Lio, North Gate, Seal and Arrival, but duplicated Arrival across
+  entity/event arrays (five records, four distinct IDs). Its three assertions
+  had predicates and descriptions, but **no subject/object or role bindings**.
+  Evidence IDs were `ev-01`; required parents/schema ID/output-token sentinel were
+  missing. Point times omitted numeric points, and copied provenance hashes did
+  not match copied field values. The model wrote “The copper seal carried by Lio
+  is a key object, providing context for the event.” That partially reflects the
+  passage, but descriptive prose is not a valid linked qualified assertion.
+- **B:** produced four distinct nodes and one assertion, again **without endpoints
+  or roles**. Its JSON matched the grammar. Every point-time record also contained
+  a partial-order self-equality, forbidden by canonical cross-field rules. It used
+  point=0 for dawn despite the supplied day-1 clue, and gave intrinsic validity
+  that same point without evidence. `carries`/`arrived_at` were invented as upper
+  parents rather than local predicates under supplied upper terms. The node
+  “Arrival at North Gate” is understandable, but this is not scientific success.
+- **C:** lossless reconstruction passed with schema_id `nil`, no entities, events,
+  assertions, types, predicates or decisions. Reference resolution was vacuous,
+  not positive grounding evidence. The predefined meaningful-structure check
+  rejected it. Its complete text was only 103 characters.
+
+The full scientific-grounding audit was not reached: A/B failed canonical
+validation; C failed required nonempty structure. The evidence-grounded semantic
+task therefore passed for **zero** variants. The statements above are direct
+field-level inspection of unchanged failed outputs, not retroactive repairs.
+
+| Variant | First SSE event (s) | First content (s) | Allocated request event (s) | Client wall (s) |
+|---|---:|---:|---:|---:|
+| A | 1.302831 | 1.385437 | 74.960579 | 75.195217 |
+| B | 1.534872 | 1.620860 | 63.803129 | 63.899934 |
+| C | 0.452871 | 0.568566 | 3.224095 | 3.385467 |
+
+No token ceiling was reached. A contained 3,341 whitespace characters of 10,345;
+B 601/6,463; C 19/103. Authored capacity checks were 1,639 named / 1,152 tuple
+tokens; these were never model answers or reliability evidence.
+
+Allocation: startup **316.847788 s**, three request events **141.987803 s**,
+remaining service allocation including checks/shutdown **14.344400 s**, total
+**473.179991 s**. Global actual **5,363.502630 s**. New allowance unconsumed
+**726.820009 s**, but its one permitted start is exhausted. Previous block usage
+is unchanged. Sampled peaks: VRAM **22,793,945,088 bytes**, process RAM
+**7,146,729,472 bytes**, project storage **16,654,564,864 bytes**; no sampled
+violations. Stopped full storage census: **16,653,322,752 bytes**. No open GPU
+allocation or service journal remains; GPU idle at 1 MiB; pod remains active.
+
+Full remaining inventory proxy: **39,828.344344 s**, plus the already-declared
+pending acceptance/restart/resume envelope **333.668869 s** = **40,162.013213 s**.
+All-in **45,525.515843 s**, above scheduled 33,660 by **11,865.515843 s**. These
+are conservative incomplete-study proxies, not successful-output p95. The initial
+terminal's inventory subtotal and first derived summary omitted the extra envelope;
+both are preserved, and `comparison-summary-complete-inventory-v2.json` explicitly
+corrects that reporting omission. The controller calculation now includes it,
+with a focused regression test. No admission threshold changed, and this omission
+did not authorize ordinary work or expand the diagnostic's actual allocation cap.
+
+### Conclusion and next decision
+
+Constrained named fields improved syntactic compliance relative to unconstrained
+named fields; the evidence does **not** establish a decoder integration outage.
+Tuples reconstructed but yielded an empty answer. Named fields produced meaningful
+prose and objects but still failed linked-assertion and temporal requirements.
+Neither “named fields work” nor “the model cannot reason” is justified by one
+example. This is evidence of representation/task-contract difficulty with unresolved
+model behavior. A/B also show that the full canonical schema is still a demanding
+model-facing contract, despite the small evidence task.
+
+The next focused candidate should explain and encode assertion alternatives
+(binary endpoints or n-ary roles), mutually exclusive temporal shapes and supplied
+upper/reference vocabularies in a readable named-field diagnostic. Test CPU
+conversion without inventing semantics before any new live authorization. Do not
+redesign the full experiment or increase output allowances on this evidence. No
+fourth call was spent on an identical request or an arbitrary token increase.
+
+Restricted backup: `artifacts/restricted/representation-backup.maHyBy/`.
+All **933** manifest-listed remote files match local hashes, including fragments,
+requests, logs and ledger. Previous local ledgers remain preserved. Ledger SHA-256:
+`be2e8207018ca6a9719f48716bc198c1b612dcba331768a9d1148046f8643918`.
+No weights, novel, credentials or public model-output release was transferred.
