@@ -240,7 +240,10 @@ def test_fixed_exact_records_and_unknown_id_rejected(pinned):
         )
 
 
-def test_controller_scientific_failure_does_not_block_c2_or_shutdown(tmp_path, monkeypatch, pinned):
+@pytest.mark.parametrize("pre_event", [False, True])
+def test_controller_scientific_failure_does_not_block_c2_or_shutdown(
+    tmp_path, monkeypatch, pinned, pre_event
+):
     """Run the actual workload/queue with simulated transport; no model service."""
     import sys
     from types import SimpleNamespace
@@ -248,7 +251,7 @@ def test_controller_scientific_failure_does_not_block_c2_or_shutdown(tmp_path, m
 
     import scripts.run_capacity_diagnostics as controller
     import story_projection_onto.development_demo_execution as workload
-    from story_projection_onto.gpu_runtime import GenerationResult
+    from story_projection_onto.gpu_runtime import GenerationResult, VLLMService
     from story_projection_onto.manifest import write_json_atomic
 
     _, m = pinned
@@ -272,10 +275,11 @@ def test_controller_scientific_failure_does_not_block_c2_or_shutdown(tmp_path, m
     service.configuration = SimpleNamespace(
         configuration_hash="a" * 64,
         snapshot_path=ROOT / "artifacts/restricted/pinned-tokenizer-cpu",
+        served_model_name="qwen3-8b-awq-fallback",
     )
     service.meter.actual_allocated_gpu_seconds = 6716.108081
     service.actual_allocated_service_seconds = 6716.108081
-    service.generate.side_effect = lambda q, **kwargs: GenerationResult(
+    service.client.generate.side_effect = lambda q, **kwargs: GenerationResult(
         request_id=q.request_id,
         request_hash=q.request_hash,
         response_sha256="b" * 64,
@@ -285,6 +289,14 @@ def test_controller_scientific_failure_does_not_block_c2_or_shutdown(tmp_path, m
         completion_tokens=8,
         finish_reason="stop",
     )
+    service.generate.side_effect = lambda q, **kwargs: VLLMService.generate(service, q, **kwargs)
+    if pre_event:
+        from story_projection_onto.gpu_runtime import RuntimeConfigurationError
+
+        service.require_service_capacity.side_effect = RuntimeConfigurationError(
+            "CPU control: pre-event rejection"
+        )
+        ledger.gpu_events_with_prefix.return_value = []
     monkeypatch.setattr(controller, "setup", lambda *_: (ledger, sampler, service))
     monkeypatch.setattr(controller, "source_binding", lambda *_: {"cpu": "control"})
     monkeypatch.setattr(workload, "capture_tokenizer_manifest", lambda *a, **k: m)
@@ -325,11 +337,45 @@ def test_controller_scientific_failure_does_not_block_c2_or_shutdown(tmp_path, m
     )
     workload.execute_workload(ROOT, block, run)
     outcomes = read(run / "terminal.json")["outcomes"]
+    if pre_event:
+        assert len(outcomes) == 1
+        assert outcomes[0]["failure"]["stage"] == "pre_generation_service_contract"
+        assert len(list(run.glob("*/failure.json"))) == 1
+        ledger.record_model_call.assert_not_called()
+        service.client.generate.assert_not_called()
+        service.shutdown.assert_called_once()
+        return
     assert [x["kind"] for x in outcomes] == ["c1", "c1", "c2-q1", "c2-q1", "c2-q2", "c2-q2"]
     assert all(not x["scientific_accepted"] for x in outcomes)
     assert all(x["repair_parent"] is not None for x in outcomes[1::2])
     service.shutdown.assert_called_once()
     assert len(list(block.glob("attempt-*.json"))) == 6
+    assert service.client.generate.call_count == 6
+    assert service.meter.repair.call_count == 3
+
+
+def test_actual_service_repair_flag_guard_reproduces_pre_event_failure(pinned):
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+
+    from story_projection_onto.gpu_runtime import RuntimeConfigurationError, VLLMService
+
+    t, m = pinned
+    q, *_ = prepare_request(ROOT, "c1", t, m, previous={"parent": "failed"}, feedback=[])
+    service = SimpleNamespace(
+        require_ready=lambda: None,
+        require_service_capacity=lambda *a, **k: None,
+        configuration=SimpleNamespace(served_model_name=q.model_name),
+        meter=MagicMock(),
+        client=MagicMock(),
+    )
+    with pytest.raises(RuntimeConfigurationError, match="repair event kind differs"):
+        VLLMService.generate(service, q, event_id="cpu-control", watchdog_seconds=300)
+    service.client.generate.assert_not_called()
+    service.meter.repair.assert_not_called()
+    VLLMService.generate(service, q, event_id="cpu-control", watchdog_seconds=300, repair=True)
+    service.meter.repair.assert_called_once()
+    service.client.generate.assert_called_once()
 
 
 def test_report_pipeline_actual_c0_and_explicit_unattempted_llm(tmp_path):
@@ -354,7 +400,8 @@ def test_report_pipeline_actual_c0_and_explicit_unattempted_llm(tmp_path):
     table = (tmp_path / "reports/tables/preliminary_development_results.json").read_text()
     assert "score.ctx_" not in table and "assertion_target_ids" not in table
     fragment = complete_record_fragments(
-        '{"instance_graph":{"entities":[{"entity_id":"nE1","label":"actual complete fragment"},{"entity_id":"nE2","label":"cut'
+        '{"instance_graph":{"entities":[{"entity_id":"nE1","label":"actual '
+        'complete fragment"},{"entity_id":"nE2","label":"cut'
     )
     assert len(fragment["instance_graph"]["entities"]) == 1
     assert fragment["partial_records_only"]

@@ -1,0 +1,11 @@
+condition,context,attempt_id,repair_parent,schema_valid,canonical_valid,structure_valid,scientific_accepted,strict_precision,strict_recall,strict_f1,node_f1,essential_temporal_accuracy,grounding_precision,citation_validity,rare_pivotal_recall,rare_support_path_survival,acceptance_gated_strict_f1,finish_reason,input_tokens,output_tokens,output_allowance,request_seconds,failure
+C0,1,c0-attempt-ef2a20b4e74c07372e81,,True,True,True,False,0.5,0.6666666666666666,0.5714285714285715,0.888888888888889,0.6666666666666666,0.5,1.0,1.0,0.0,,,0,0,,,Exploratory source/description assessment includes unresolved matches; see HTML
+C0,2,c0-attempt-9857ed592d5f541f1aac,,True,True,True,False,0.07142857142857142,0.14285714285714285,0.09523809523809523,0.47058823529411764,0.14285714285714285,0.07142857142857142,1.0,,,,,0,0,,,Exploratory source/description assessment includes unresolved matches; see HTML
+C1,,nested-development-demonstration-20260908-attempt-01,,False,False,False,False,,,,,,,,,,,length,7603,4096,4096,94.651674,vLLM response is not one guided JSON choice
+C2,1,nested-development-demonstration-20260908-attempt-02,,False,False,False,False,,,,,,,,,,0.0,length,7839,4096,4096,102.006076,vLLM response is not one guided JSON choice
+C2,2,nested-development-demonstration-20260908-attempt-03,,False,False,False,False,,,,,,,,,,0.0,length,7827,4096,4096,86.300878,vLLM response is not one guided JSON choice
+C1,,nested-development-demonstration-20260908-attempt-04,nested-development-demonstration-20260908-attempt-01,,,,False,,,,,,,,,,,,,,4096,,Missing repair flag rejected the prepared call before a GPU event; subsequent bookkeeping masked the original exception. CPU-reproduced diagnosis; no new model response.
+C2,1,,nested-development-demonstration-20260908-attempt-02,,,,False,,,,,,,,,,,,,,,,Prepared repair not executed after the controller failure; no replacement output.
+C2,2,,nested-development-demonstration-20260908-attempt-03,,,,False,,,,,,,,,,,,,,,,Prepared repair not executed after the controller failure; no replacement output.
+A-FixedSelect,1,,,,,,False,,,,,,,,,,,,,,,,No accepted sealed C1; not attempted
+A-FixedSelect,2,,,,,,False,,,,,,,,,,,,,,,,No accepted sealed C1; not attempted

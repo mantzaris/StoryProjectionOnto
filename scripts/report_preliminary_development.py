@@ -12,6 +12,7 @@ import math
 import os
 import re
 import tempfile
+from contextlib import suppress
 from pathlib import Path
 
 from story_projection_onto.contracts import EvidenceRecord, OntologyDraft
@@ -91,12 +92,56 @@ def complete_record_fragments(text):
                     break
                 rest = rest[1:].lstrip()
         groups[field] = out
-    return {
+    result = {
         "instance_graph": {k: groups[k] for k in ("entities", "events", "assertions")},
         "local_schema": {k: groups[k] for k in ("contextual_types", "predicates")},
         "decisions": groups["decisions"],
         "partial_records_only": True,
     }
+    m = re.search(r'"contextual_interpretation"\s*:\s*', text)
+    if m:
+        with suppress(json.JSONDecodeError):
+            result["contextual_interpretation"] = json.JSONDecoder().raw_decode(text[m.end() :])[0]
+    return result
+
+
+def invalid_context_metrics(root, ordinal):
+    """Existing invalid-output scoring, separate from canonical graph scoring."""
+    from story_projection_onto.development_continuation import load_development_prequery_evidence
+    from story_projection_onto.development_runtime import load_development_call_manifest
+    from story_projection_onto.metrics.alignment import score_alignment
+    from story_projection_onto.metrics.rare import annotations_from_gold, score_rare_pivotal
+    from story_projection_onto.scorer_only.development_assessment import (
+        DevelopmentScientificAssessmentProvider,
+        resolve_development_world_id,
+    )
+    from story_projection_onto.synthetic_benchmark import ScorerWorldArtifact
+
+    n, v, _ = load_development_prequery_evidence(root, load_development_call_manifest(root))
+    world = resolve_development_world_id(
+        root, v["dev-unit-01"].content_hash, n["dev-unit-01"].content_hash
+    )
+    scorer = ScorerWorldArtifact.model_validate_json(
+        (root / f"data/synthetic/scorer_only/development/{world}.json").read_bytes()
+    )
+    assert scorer.world_spec.split.value == "development"
+    plan = DevelopmentScientificAssessmentProvider._alignment_plan(scorer, ordinal)
+    a = score_alignment(
+        plan=plan, predicted_nodes=(), predicted_assertions=(), invalid_semantic_output=True
+    )
+    rare = score_rare_pivotal(
+        annotations=annotations_from_gold(scorer.gold_projections[ordinal - 1]),
+        strictly_matched_assertion_target_ids=frozenset(),
+        invalid_semantic_output=True,
+    )
+    return metric_values(
+        {
+            "contextual_metrics": {
+                "alignment": a.model_dump(mode="json"),
+                "rare": rare.model_dump(mode="json"),
+            }
+        }
+    )
 
 
 def metric_values(assessment):
@@ -245,7 +290,9 @@ def build(root, run, output):
         p = original["projection"]
         assert p["snapshot_hash"] == neutral["snapshot"]["content_hash"]
         d = OntologyDraft(
-            contextual_interpretation="Previously executed, hash-verified C0 development projection",
+            contextual_interpretation=(
+                "Previously executed, hash-verified C0 development projection"
+            ),
             local_schema=p["local_schema"],
             instance_graph=p["instance_graph"],
             decisions=p["decisions"],
@@ -338,8 +385,110 @@ def build(root, run, output):
             graph = read(folder / "decoded.json")
         else:
             graph = complete_record_fragments(streamed_content(folder.parent, o["request_hash"]))
+        if graph.get("partial_records_only"):
+            from story_projection_onto.development_demo import aliases
+            from story_projection_onto.scorer_only.development_demo_assessment import (
+                source_feedback,
+            )
+
+            row["partial_source_diagnostics"] = source_feedback(graph, evidence, aliases(evidence))
+            row["partial_record_counts"] = {k: len(v) for k, v in graph["instance_graph"].items()}
+            row["received_construction_claims"] = [
+                {
+                    "operator": d["operator"],
+                    "created_node_id_count": sum(
+                        isinstance(x, str) and x.startswith(("nE", "nV"))
+                        for x in d["created_object_ids"]
+                    ),
+                    "created_id_count": len(d["created_object_ids"]),
+                }
+                for d in graph["decisions"]
+            ]
         graphs.append({"row": row, "graph": safe_graph(graph)})
         restricted.append({"attempt_id": row["attempt_id"], "assessment": assessment})
+    # Reconcile a reserved request which failed before a model-call event. Do
+    # not manufacture an outcome/response or overwrite the original terminal.
+    for request_path in run.glob("*/request.json"):
+        folder = request_path.parent
+        if (folder / "outcome.json").exists():
+            continue
+        reservation = next(
+            (
+                read(p)
+                for p in run.parent.glob("attempt-*.json")
+                if read(p)["attempt_id"] == folder.name
+            ),
+            None,
+        )
+        if reservation is None:
+            continue
+        packing = read(folder / "packing.json")
+        outer = read(run / "controller-failure.json")
+        reconciliation = {
+            "attempt_id": folder.name,
+            "kind": reservation["kind"],
+            "parent": reservation["parent"],
+            "request_hash": reservation["request_hash"],
+            "observed_outer_failure": outer["message"],
+            "original_pre_generation_exception_retained": False,
+            "cpu_reproduced_defect": (
+                "VLLMService.generate was called without repair=True for "
+                "DecodingPass.REPAIR; its pre-event guard rejects this combination"
+            ),
+            "server_request_observed": False,
+            "evidence": (
+                "No HTTP journal and no GPU generation event; request and packing "
+                "retained; original controller traceback identifies the "
+                "missing-event bookkeeping failure"
+            ),
+            "status": "reserved repair; not transmitted; separately reconciled, not a model output",
+        }
+        write_json_atomic(reconciliation, run / "offline-pre-generation-reconciliation.json")
+        rows.append(
+            {
+                "condition": "C1" if reservation["kind"] == "c1" else "C2",
+                "context": None if reservation["kind"] == "c1" else int(reservation["kind"][-1]),
+                "attempt_id": folder.name,
+                "repair_parent": reservation["parent"],
+                "request_hash": reservation["request_hash"],
+                "prepared_input_tokens": packing["input_token_count"],
+                "input_tokens": None,
+                "output_tokens": None,
+                "output_allowance": read(request_path)["max_tokens"],
+                "request_seconds": None,
+                "scientific_accepted": False,
+                "schema_valid": None,
+                "canonical_valid": None,
+                "structure_valid": None,
+                "execution_status": "not_transmitted",
+                "failure_stage": "pre_generation_controller",
+                "failure": (
+                    "Missing repair flag rejected the prepared call before a GPU event; "
+                    "subsequent bookkeeping masked the original exception. "
+                    "CPU-reproduced diagnosis; no new model response."
+                ),
+            }
+        )
+    pending = (
+        read(run / "pending-work.json")["queue"] if (run / "pending-work.json").exists() else []
+    )
+    for kind, parent, _ in pending:
+        if not parent or any(r.get("repair_parent") == parent for r in rows):
+            continue
+        rows.append(
+            {
+                "condition": "C1" if kind == "c1" else "C2",
+                "context": None if kind == "c1" else int(kind[-1]),
+                "attempt_id": None,
+                "repair_parent": parent,
+                "scientific_accepted": False,
+                "execution_status": "not_attempted",
+                "failure": (
+                    "Prepared repair not executed after the controller failure; no "
+                    "replacement output."
+                ),
+            }
+        )
     for ordinal in (1, 2):
         if not any(r["condition"] == "A-FixedSelect" and r["context"] == ordinal for r in rows):
             reason = "No accepted sealed C1; not attempted"
@@ -359,12 +508,25 @@ def build(root, run, output):
         read(root / unit["query_stages"][i - 1]["relative_path"] / "query.json")["query"]
         for i in (1, 2)
     ]
+    invalid_scores = {i: invalid_context_metrics(root, i) for i in (1, 2)}
+    for r in rows:
+        if r.get("context") and r.get("attempt_id") and r["condition"] != "C0":
+            values = {} if r["scientific_accepted"] else invalid_scores[r["context"]]
+            r.update({"acceptance_gated_" + k: v for k, v in values.items()})
     samples = terminal.get("resource_samples", [])
+    for prior_terminal in run.parent.glob("run-*/terminal.json"):
+        if prior_terminal != run / "terminal.json":
+            samples += read(prior_terminal).get("resource_samples", [])
     accounting = {
         "historical_seconds": 6716.108081,
-        "phase_seconds": terminal["actual_allocated_seconds"] - 6716.108081,
+        "phase_seconds": round(terminal["actual_allocated_seconds"] - 6716.108081, 6),
         "cumulative_seconds": terminal["actual_allocated_seconds"],
         "phase_cap_seconds": 3600,
+        "service_starts": len(list(run.parent.glob("start-*.json"))),
+        "reserved_attempts": len(list(run.parent.glob("attempt-*.json"))),
+        "transmitted_generations": sum(
+            (r.get("output_tokens") or 0) > 0 for r in rows if r["condition"] != "C0"
+        ),
         "global_scheduled_seconds": 33660,
         "global_hard_seconds": 36000,
         "open_allocations": terminal["open_allocations"],
@@ -385,6 +547,61 @@ def build(root, run, output):
         "ordinary_admission": False,
         "human_review_still_required": True,
     }
+    prior_gate_path = root / "artifacts/restricted/c0-repaired-extraction-v6/assessment.json"
+    prior_gate = read(prior_gate_path)
+    extraction_gate = prior_gate["revised_extraction_competence"]
+    contextual_gate = prior_gate["contextual_projection_metric"]
+    result["unchanged_c0_gate"] = {
+        "source_sha256": hashlib.sha256(prior_gate_path.read_bytes()).hexdigest(),
+        "extraction": extraction_gate,
+        "contextual": contextual_gate,
+    }
+    result["model"] = {
+        "repository": "Qwen/Qwen3-8B-AWQ",
+        "revision": read(root / "configs/study/preliminary_development_demo.json")[
+            "model_revision"
+        ],
+        "context_limit": 12288,
+        "thinking": False,
+        "backend": "vLLM 0.10.2 / XGrammar, no fallback, whitespace restriction enabled",
+    }
+    inventory_path = run / "remaining-registered-inventory.json"
+    if inventory_path.exists():
+        from story_projection_onto.output_capacity_gate import capacity_forecast
+
+        inventory = read(inventory_path)["rows"]
+        load_proxy = next(
+            r["forecast_p95_seconds"] for r in inventory if r["call_class"] == "gpu_session_start"
+        )
+        proxy = capacity_forecast(
+            inventory,
+            pending_acceptance_resume_seconds=load_proxy,
+            actual_allocated_seconds=terminal["actual_allocated_seconds"],
+            additional_diagnostic_allowance=0,
+        )
+        result["registered_remaining_work"] = {
+            "inventory": [
+                {
+                    "call_class": r["call_class"],
+                    "remaining_count": r["remaining_count"],
+                    "superseded_14b_row": r["superseded_without_execution"],
+                }
+                for r in inventory
+            ],
+            "fallback_gate_unpassed": {
+                "c1": 1,
+                "c2": 2,
+                "fixed_select": 1,
+                "conditional_short_repair_at_most": 1,
+                "accounted_within_reserve_rows_not_added_again": True,
+                "restart_resume_and_load_still_required": True,
+            },
+            "remaining_proxy_seconds": proxy["remaining_forecast_seconds"],
+            "all_in_proxy_seconds": proxy["all_in_seconds"],
+            "proxy_kind": proxy["kind"],
+            "valid_production_forecast_established": False,
+            "failed_throughput_credited": False,
+        }
     output.mkdir(parents=True, exist_ok=True)
     write_json_atomic(result, output / "tables/preliminary_development_results.json")
     write_json_atomic(graphs, output / "tables/preliminary_development_graphs.json")
@@ -407,6 +624,7 @@ def build(root, run, output):
         "citation_validity",
         "rare_pivotal_recall",
         "rare_support_path_survival",
+        "acceptance_gated_strict_f1",
         "finish_reason",
         "input_tokens",
         "output_tokens",
@@ -415,21 +633,41 @@ def build(root, run, output):
         "failure",
     ]
     f = io.StringIO()
-    w = csv.DictWriter(f, fieldnames=columns, extrasaction="ignore")
+    w = csv.DictWriter(f, fieldnames=columns, extrasaction="ignore", lineterminator="\n")
     w.writeheader()
     w.writerows(rows)
     atomic_text(output / "tables/preliminary_development_results.csv", f.getvalue())
-    fmt = lambda x: "—" if x is None else f"{x:.4f}" if isinstance(x, float) else str(x)
+
+    def fmt(x):
+        return "—" if x is None else f"{x:.4f}" if isinstance(x, float) else str(x)
+
     md = [
         "# Preliminary development results",
         "",
-        "Exploratory development only. One preselected easy world and two contrasting contexts over identical evidence; no significance testing, held-out efficacy, production acceptance or p95 claim.",
+        (
+            "Exploratory development only. One preselected easy world and two "
+            "contrasting contexts over identical evidence; no significance "
+            "testing, held-out efficacy, production acceptance or p95 claim."
+        ),
         "",
         "## Results",
         "",
-        "All base attempts and repairs are retained below. Scores describe canonical outputs even when other validation failed; they are not registered accepted-study results. Missing canonical outputs have no scored draft. Absence of a strict match is not proof of an invented claim.",
+        (
+            "All base attempts and prepared repairs are retained below. Scores "
+            "describe canonical outputs even when other validation failed; they "
+            "are not registered accepted-study results. Missing canonical "
+            "outputs have no scored draft. Separate acceptance_gated columns "
+            "apply the existing invalid-output rule to failed LLM attempts "
+            "(strict F1=0), without declaring every received statement false. "
+            "Not-transmitted and not-attempted repairs are not model outputs. "
+            "Absence of a strict match is not proof of an invented claim."
+        ),
         "",
-        "| Condition / context | Attempt | Schema / canonical / structure | Scientific acceptance | Strict P / R / F1 | Finish / tokens | Request s |",
+        (
+            "| Condition / context | Attempt | Schema / canonical / structure | "
+            "Scientific acceptance | Strict P / R / F1 | Finish / input : output "
+            "tokens | Request s |"
+        ),
         "|---|---|---|---|---|---|---|",
     ]
     for r in rows:
@@ -437,7 +675,7 @@ def build(root, run, output):
             "| "
             + " | ".join(
                 [
-                    r["condition"] + " / " + str(r.get("context") or "prequery"),
+                    r["condition"] + " / " + str(r.get("context") or "query-blind"),
                     "repair"
                     if r.get("repair_parent")
                     else "base"
@@ -451,9 +689,18 @@ def build(root, run, output):
                     " / ".join(
                         fmt(r.get(k)) for k in ("strict_precision", "strict_recall", "strict_f1")
                     ),
-                    str(r.get("finish_reason") or "CPU/blocked")
+                    str(
+                        r.get("finish_reason")
+                        or (
+                            "CPU"
+                            if r["condition"] == "C0"
+                            else r.get("execution_status", "blocked")
+                        )
+                    )
                     + " / "
-                    + str(r.get("output_tokens", "—")),
+                    + fmt(r.get("input_tokens"))
+                    + " : "
+                    + fmt(r.get("output_tokens")),
                     fmt(r.get("request_seconds")),
                 ]
             )
@@ -461,36 +708,255 @@ def build(root, run, output):
         )
     md += [
         "",
+        "## Available contextual measures",
+        "",
+        (
+            "These use the existing scoring definitions. Unmatched reference "
+            "grounding is a reference-coverage result, not proof of factual "
+            "falsity. No complete C2 draft exists to score conditionally; its "
+            "acceptance-gated strict F1 is zero."
+        ),
+        "",
+        (
+            "| Condition / context | Node F1 | Essential temporal accuracy | "
+            "Reference grounding | Rare-pivotal recall | Complete rare support "
+            "path |"
+        ),
+        "|---|---|---|---|---|---|",
+    ]
+    for r in rows:
+        if "strict_f1" in r:
+            md += [
+                "| "
+                + r["condition"]
+                + " / "
+                + str(r["context"])
+                + " | "
+                + " | ".join(
+                    fmt(r.get(k))
+                    for k in (
+                        "node_f1",
+                        "essential_temporal_accuracy",
+                        "grounding_precision",
+                        "rare_pivotal_recall",
+                        "rare_support_path_survival",
+                    )
+                )
+                + " |"
+            ]
+    md += [
+        "",
         "## Evidence, contexts and actual graphs",
         "",
-        "The [interactive comparison](figures/preliminary_development_comparison.html) includes all supplied synthetic prose, both contexts, every available generated record, readable assertion bindings and complete qualifications. Truncated outputs show only complete recovered JSON members, explicitly not reconstructed/accepted graphs. Identical labels use fixed visual anchors; assertion junctions are display-only, not invented event semantics.",
+        (
+            "The [interactive "
+            "comparison](figures/preliminary_development_comparison.html) "
+            "includes all supplied synthetic prose, both contexts, every "
+            "available generated record, readable assertion bindings and "
+            "complete qualifications. Truncated outputs show only complete "
+            "recovered JSON members, explicitly not reconstructed/accepted "
+            "graphs. Identical labels use fixed visual anchors; assertion "
+            "junctions are display-only, not invented event semantics."
+        ),
         "",
-        "[Machine-readable measures](tables/preliminary_development_results.csv) · [Graph records](tables/preliminary_development_graphs.json)",
+        (
+            "[Machine-readable "
+            "measures](tables/preliminary_development_results.csv) · [Graph "
+            "records](tables/preliminary_development_graphs.json)"
+        ),
         "",
         "## Allocation and gates",
         "",
-        f"Historical allocation {accounting['historical_seconds']:.6f} s; this phase {accounting['phase_seconds']:.6f} s; cumulative {accounting['cumulative_seconds']:.6f} s. Open GPU/service journals: {accounting['open_allocations']}/{accounting['open_service_journals']}. The phase ceiling is 3,600 s. The global scheduled/hard limits remain 33,660/36,000 s; no complete-study admission is claimed.",
+        f"Historical allocation {accounting['historical_seconds']:.6f} s; "
+        f"this phase {accounting['phase_seconds']:.6f} s; "
+        f"cumulative {accounting['cumulative_seconds']:.6f} s. Open GPU/service journals: "
+        f"{accounting['open_allocations']}/{accounting['open_service_journals']}. "
+        "The phase ceiling is 3,600 s. The global scheduled/hard limits remain "
+        "33,660/36,000 s; no complete-study admission is claimed.",
         "",
-        "Remaining registered inventory is preserved in the restricted run manifest; it has not been removed or reset. A few development calls cannot establish production throughput. Held-out execution remains independently reviewed and gated.",
+        f"Service starts: {accounting['service_starts']}; transmitted generations: "
+        f"{accounting['transmitted_generations']}; reserved attempts: "
+        f"{accounting['reserved_attempts']}. Both authorized starts were used; unused "
+        "time does not authorize a third start. No targeted model repair was "
+        "transmitted. vLLM is stopped; the pod remains intact.",
+        "",
+        "Peak sampled GPU VRAM / process RAM / project occupancy (bytes): "
+        + " / ".join(
+            str(accounting["peak_sampled_resources"][k])
+            for k in ("gpu_vram_bytes", "process_ram_bytes", "project_storage_bytes")
+        )
+        + (
+            ". These are sampled peaks, not continuous maximum guarantees. "
+            "Terminal full storage checks passed."
+        ),
+        "",
+        (
+            "Remaining registered inventory is preserved in the restricted run "
+            "manifest; it has not been removed or reset. A few development calls "
+            "cannot establish production throughput. Held-out execution remains "
+            "independently reviewed and gated."
+        ),
         "",
         "## Interpretation and limitations",
         "",
-        "C0 rows reuse actual, unchanged, hash-verified CPU projections of this evidence; no authored graph is substituted for an LLM output. C0's complete extraction competence gate remains passed (104/122 precision, 104/114 recall, 5/5 fixture families, valid evidence references throughout); its separate aggregate contextual P=54/275, R=54/91, F1=0.295082 is unchanged. This report's two-context values are a subset, not a replacement gate.",
+        "C0 rows reuse actual, unchanged, hash-verified CPU projections; no authored "
+        "graph substitutes for an LLM output. Its existing extraction gate is "
+        f"passed={extraction_gate['passes']}: precision "
+        f"{extraction_gate['metric']['true_positive_count']}/"
+        f"{extraction_gate['metric']['predicted_count']}, recall "
+        f"{extraction_gate['metric']['true_positive_count']}/"
+        f"{extraction_gate['metric']['gold_count']}, "
+        f"{sum(extraction_gate['families'].values())}/{len(extraction_gate['families'])} "
+        "fixture families, evidence-reference validity "
+        f"{extraction_gate['valid_evidence_reference_rate']:.1%}. Its separate aggregate "
+        f"contextual P={contextual_gate['true_positive_count']}/"
+        f"{contextual_gate['predicted_count']}, R={contextual_gate['true_positive_count']}/"
+        f"{contextual_gate['gold_count']}, F1={contextual_gate['f1']:.6f} is unchanged. "
+        "These two-context values are a subset, not a replacement gate.",
         "",
-        "Scientific acceptance requires positive source support; unresolved matching/description coverage is not a pass. The conservative description recognizer only certifies direct source substrings and does not call unmatched paraphrases false. FixedSelect cannot run without an actual accepted C1 seal and intact packing. C2 runs independently of C1. Output-cap failures are capacity failures, not evidence of universal model incapability.",
+        (
+            "Scientific acceptance requires positive source support; unresolved "
+            "matching/description coverage is not a pass. The conservative "
+            "description recognizer only certifies direct source substrings and "
+            "does not call unmatched paraphrases false. FixedSelect cannot run "
+            "without an actual accepted C1 seal and intact packing. C2 runs "
+            "independently of C1. Output-cap failures are capacity failures, not "
+            "evidence of universal model incapability."
+        ),
         "",
     ]
     for r in rows:
         if r.get("failure"):
             md += [
-                f"- {r['condition']} context {r.get('context')} {'repair' if r.get('repair_parent') else 'base'}: {r['failure']}"
+                f"- {r['condition']} context {r.get('context')} "
+                f"{'repair' if r.get('repair_parent') else 'base'}: {r['failure']}"
             ]
     llm = [r for r in rows if r.get("request_hash")]
+    md += [
+        "",
+        f"Pinned model: {result['model']['repository']} at `{result['model']['revision']}`, "
+        f"{result['model']['context_limit']:,} total tokens; {result['model']['backend']}. "
+        "No model change or multi-call graph construction. Each repair replaces one "
+        "failed base; no semantic merging across outputs.",
+        "",
+        (
+            "The prepared C1 repair is model-query-blind, but it was not "
+            "transmitted. Its intended timing was after the initial C2 bases and "
+            "could not retrospectively satisfy the registered physical pre-query "
+            "barrier. No production adoption or complete acceptance is claimed."
+        ),
+    ]
+    if "registered_remaining_work" in result:
+        work = result["registered_remaining_work"]
+        md += [
+            "",
+            "## Remaining registered work",
+            "",
+            "Unvalidated legacy remaining-work proxy: "
+            f"{work['remaining_proxy_seconds']:.6f} s; all-in with preserved actual "
+            f"allocation: {work['all_in_proxy_seconds']:.6f} s. This is not a calibrated "
+            "production forecast. Failed completion speeds receive no credit. The "
+            "original nine-hour target was not met; the amended scheduled ceiling "
+            "remains unchanged.",
+            "",
+            (
+                "The fallback gate still needs its C1, two C2, FixedSelect and "
+                "conditional repair forms plus restart/resume validation. These "
+                "calls remain earmarked within reserve rows, not added twice. "
+                "Superseded historical 14B acceptance rows do not mean fallback "
+                "acceptance passed."
+            ),
+            "",
+            "| Remaining class | Count |",
+            "|---|---|",
+        ]
+        md += [
+            f"| {r['call_class']} | {r['remaining_count']} |"
+            for r in work["inventory"]
+            if not r["superseded_14b_row"]
+        ]
     if not any(r["scientific_accepted"] for r in llm):
         md += [
             "",
-            "No GPU output was scientifically accepted. This development configuration failed within the used allowance; no further diagnostic phase is automatically initiated.",
+            (
+                "No GPU output was scientifically accepted. This development "
+                "configuration failed within the used allowance. The semantic "
+                "repairs remain model-untested because of the controller error; "
+                "their failure or success cannot be inferred. No further diagnostic "
+                "phase is automatically initiated."
+            ),
         ]
+    md += [
+        "",
+        "## What changed and what was wrong",
+        "",
+        (
+            "The two actual C0 projections retain the same named nodes. Context "
+            "2 adds an office-holding assertion and a greeting to the context-1 "
+            "selection, without forming a separate continuing-office node. Its "
+            "lower contextual score is a projection/relevance result, not a "
+            "reversal of the extraction-competence gate."
+        ),
+        "",
+        (
+            "The received C2 prefixes differ: context 1 reports selection with "
+            "an excessive created-entity inventory; context 2 reports "
+            "contextual-type and relation operations with mixed created record "
+            "kinds. Neither completed its schema/entity declarations, so these "
+            "surface differences cannot establish correct contrastive ontology "
+            "construction."
+        ),
+        "",
+        (
+            "For a readable source example, evidence e1 directly narrates Fara "
+            "Cedar's membership in Cedar Circle at story step 1. Both C2 "
+            "prefixes nevertheless attach holder-level knowledge and intrinsic "
+            "point validity. Narration does not establish a participant's "
+            "knowledge, and observation time does not establish intrinsic onset "
+            "or duration. These are source-only findings on complete received "
+            "assertion records, not full canonical validation. Missing "
+            "endpoint/type declarations remain unresolved; the CPU does not fill "
+            "them from descriptions."
+        ),
+        "",
+        (
+            "| Received LLM prefix | Complete entity / event / assertion records "
+            "| Source-only confirmed defect categories | Construction claims |"
+        ),
+        "|---|---|---|---|",
+    ]
+    for r in rows:
+        if "partial_record_counts" in r:
+            counts = r["partial_record_counts"]
+            categories = sorted({d["category"] for d in r["partial_source_diagnostics"]})
+            claims = "; ".join(
+                d["operator"] + f" (claims {d['created_node_id_count']} created node IDs)"
+                for d in r["received_construction_claims"]
+            )
+            md.append(
+                "| "
+                + r["condition"]
+                + " / "
+                + str(r["context"] or "query-blind")
+                + " | "
+                + " / ".join(str(counts[k]) for k in ("entities", "events", "assertions"))
+                + " | "
+                + ", ".join(categories)
+                + " | "
+                + claims
+                + " |"
+            )
+    md += [
+        "",
+        (
+            "Counts describe complete JSON members received before truncation, "
+            "not complete graphs. A zero received-node count does not mean the "
+            "model authored an empty graph. C2's excessive creation claims and "
+            "repeated unsupported epistemic form show that output capacity is "
+            "not the only remaining issue. The prepared semantic feedback was "
+            "not model-tested."
+        ),
+    ]
     atomic_text(output / "PRELIMINARY_DEVELOPMENT_RESULTS.md", "\n".join(md) + "\n")
     labels = sorted({label for g in graphs for label in label_graph(g["graph"])[0].values()})
     anchors = {
@@ -501,13 +967,40 @@ def build(root, run, output):
         for i, label in enumerate(labels)
     }
     parts = [
-        '<!doctype html><html lang="en"><meta charset="utf-8"><title>Exploratory development comparison</title><style>body{font:17px system-ui;margin:24px;color:#172335}h1,h2{line-height:1.2}.graph{height:850px;border:1px solid #bbb;background:#fcfcff}table{border-collapse:collapse;width:100%;font-size:15px}td,th{border:1px solid #ccd;padding:8px;vertical-align:top;overflow-wrap:anywhere}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px}section{margin:35px 0}.warning{background:#fff0ce;padding:14px}</style><h1>Exploratory development comparison</h1><p class="warning">One preselected easy development world. Graphs show actual outputs, including failures; they are not expected answers or confirmatory evidence. Drag/zoom nodes; read assertion qualifications below each graph.</p><h2>Shared evidence</h2><ol>'
+        (
+            '<!doctype html><html lang="en"><meta '
+            'charset="utf-8"><title>Exploratory development '
+            "comparison</title><style>body{font:17px "
+            "system-ui;margin:24px;color:#172335}h1,h2{line-height:1.2}"
+            ".graph{height:850px;border:1px solid #bbb;background:#fcfcff}"
+            "table{border-collapse:collapse;width:100%;font-size:15px}"
+            "td,th{border:1px solid #ccd;padding:8px;vertical-align:top;overflow-wrap:anywhere}"
+            "pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px}"
+            "section{margin:35px 0}.warning{background:#fff0ce;padding:14px}</style>"
+            '<h1>Exploratory development comparison</h1><p class="warning">One preselected '
+            "easy development world. Graphs show actual outputs, including failures; "
+            "they are not expected answers or confirmatory evidence. Drag/zoom nodes; "
+            "read assertion qualifications below each graph.</p><h2>Shared evidence</h2><ol>"
+        )
     ]
     parts += [
         '<li id="e' + str(i) + '">' + html.escape(e.text) + "</li>"
         for i, e in enumerate(evidence, 1)
     ]
-    parts.append("</ol><h2>Contrasting contexts</h2>")
+    parts.append(
+        "</ol><nav>Jump to output: "
+        + " · ".join(
+            '<a href="#view'
+            + str(i)
+            + '">'
+            + html.escape(
+                g["row"]["condition"] + " / " + str(g["row"].get("context") or "query-blind")
+            )
+            + "</a>"
+            for i, g in enumerate(graphs)
+        )
+        + "</nav><h2>Contrasting contexts</h2>"
+    )
     for i, c in enumerate(contexts, 1):
         parts.append(
             "<h3>Context "
@@ -520,15 +1013,17 @@ def build(root, run, output):
     for i, g in enumerate(graphs):
         r = g["row"]
         graph = g["graph"]
-        _, _, assertions = label_graph(graph)
+        labels_here, _, assertions = label_graph(graph)
         title = (
             r["condition"]
             + " / "
-            + str(r.get("context") or "prequery")
+            + str(r.get("context") or "query-blind")
             + (" / repair" if r.get("repair_parent") else " / base")
         )
         parts.append(
-            "<section><h2>"
+            '<section id="view'
+            + str(i)
+            + '"><h2>'
             + html.escape(title)
             + "</h2><pre>"
             + html.escape(
@@ -548,9 +1043,19 @@ def build(root, run, output):
                     indent=2,
                 )
             )
-            + '</pre><div class="graph" id="g'
-            + str(i)
-            + '"></div><table><tr><th>Assertion / predicate</th><th>Bindings</th><th>Time / epistemic / commitment</th><th>Evidence / description</th></tr>'
+            + (
+                '</pre><div class="graph" id="g' + str(i) + '"></div>'
+                if labels_here
+                else (
+                    '</pre><p class="warning">No complete entity/event declarations were '
+                    "received. The assertion table retains unresolved IDs; labels are "
+                    "not inferred from prose.</p>"
+                )
+            )
+            + (
+                "<table><tr><th>Assertion / predicate</th><th>Bindings</th><th>Time "
+                "/ epistemic / commitment</th><th>Evidence / description</th></tr>"
+            )
         )
         for a in assertions:
             cells = [
@@ -567,15 +1072,22 @@ def build(root, run, output):
                 + "</tr>"
             )
         parts.append(
-            "</table><details><summary>All actual graph fields and construction decisions</summary><pre>"
+            (
+                "</table><details><summary>All actual graph fields and construction "
+                "decisions</summary><pre>"
+            )
             + html.escape(json.dumps(graph, indent=2))
             + "</pre></details></section>"
         )
-        js.append({"id": "g" + str(i), "elements": graph_elements(graph, anchors)})
+        if labels_here:
+            js.append({"id": "g" + str(i), "elements": graph_elements(graph, anchors)})
     parts.append(
         '<script src="../../ui/cytoscape.min.js"></script><script>const views='
         + json.dumps(js).replace("<", "\\u003c")
-        + ';for(const v of views){cytoscape({container:document.getElementById(v.id),elements:v.elements,layout:{name:"preset",padding:50},style:[{selector:"node",style:{label:"data(label)","text-wrap":"wrap","text-max-width":150,"font-size":18,width:35,height:35,"background-color":"#387cb0","text-valign":"bottom","text-margin-y":8}},{selector:"edge",style:{label:"data(label)","font-size":14,"text-rotation":"autorotate","curve-style":"bezier","target-arrow-shape":"triangle",width:2,"line-color":"#8b738f","target-arrow-color":"#8b738f","text-background-color":"#fff","text-background-opacity":.9}},{selector:".assertion",style:{shape:"diamond","background-color":"#ae7739"}}]});}</script></html>'
+        + (
+            ";for(const v of "
+            'views){cytoscape({container:document.getElementById(v.id),elements:v.elements,layout:{name:"preset",padding:50},style:[{selector:"node",style:{label:"data(label)","text-wrap":"wrap","text-max-width":150,"font-size":18,width:35,height:35,"background-color":"#387cb0","text-valign":"bottom","text-margin-y":8}},{selector:"edge",style:{label:"data(label)","font-size":14,"text-rotation":"autorotate","curve-style":"bezier","target-arrow-shape":"triangle",width:2,"line-color":"#8b738f","target-arrow-color":"#8b738f","text-background-color":"#fff","text-background-opacity":.9}},{selector:".assertion",style:{shape:"diamond","background-color":"#ae7739"}}]});}</script></html>'
+        )
     )
     atomic_text(output / "figures/preliminary_development_comparison.html", "\n".join(parts))
     manifest = {

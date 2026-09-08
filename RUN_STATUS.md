@@ -1,5 +1,54 @@
 # Run status
 
+Updated: 2026-09-08 UTC — exploratory development phase closed; results delivered.
+
+Report: `reports/PRELIMINARY_DEVELOPMENT_RESULTS.md`; comparison:
+`reports/figures/preliminary_development_comparison.html`; generated JSON/CSV and
+hash manifest: `reports/tables/preliminary_development_*`.
+
+Easy `dev-unit-01`, two frozen contrasting contexts, identical complete evidence.
+Actual C0 strict F1: .571429 / .095238. One query-blind C1 and two independent C2
+base generations all reached 4,096 output tokens (`length`), leaving incomplete
+JSON: **zero accepted GPU outputs**. FixedSelect blocked by absent accepted C1.
+Readable received records and failures are included, without invented declarations.
+
+The second start reserved a C1 repair but never transmitted it: the controller
+omitted the service's repair flag, then attempted bookkeeping for a nonexistent
+GPU event. The outer error is preserved; the inner diagnosis is CPU-reproduced,
+not an original server exception. The flag and pre-event error preservation are
+fixed, focused-tested and deployed. Two prepared C2 repairs also never ran. No
+repair success/failure is attributed to the model. Append-only reconciliation
+records the controller failure without fabricating a generation or changing history.
+
+**Two starts, three transmitted generations, four reserved attempts.** New actual
+allocation 858.564408 s (572.116016 + 286.448392); historical 6,716.108081 s;
+cumulative **7,574.672489 s**. Both start allowances are exhausted. No open GPU or
+service journal; vLLM stopped, pod active. Sampled VRAM/RAM/project occupancy peaks:
+22,793,945,088 / 7,109,718,016 / 16,912,713,216 bytes; full terminal storage passed.
+SQLite integrity/foreign keys pass; all 5,856 prior rows preserved unchanged.
+
+20 focused workflow/report/resume tests passed; 30 unchanged nested-adapter
+controls reused (50 distinct focused checks, not a full-suite rerun). HTML evidence,
+C0 graph and failed C2 assertion table inspected in a local headless browser.
+Execution checkpoints: `ffbd3f4` (bases), `411fd1d` (parent repair preparation),
+`9b0551e` (second start). Follow-up checkpoint includes final reporting and CPU fix.
+
+C0 full extraction gate stays passed: 104/122 precision, 104/114 recall, 5/5 fixture
+families, 100% valid citations. Separate aggregate contextual P=54/275, R=54/91,
+F1=.295082 unchanged. Unresolved exploratory description checks do not reverse
+the extraction gate. No primary metric, gold, threshold or human-review change.
+
+The uncalibrated remaining-work proxy is 40,162.013213 s; all-in 47,736.685702 s.
+No ordinary admission, full fallback acceptance, intact-C1 packing or production
+throughput claim. Global ceilings remain 33,660 scheduled / strictly before 36,000
+actual seconds. Remaining mandatory inventory is in the report; held-out work is
+review-gated. No further GPU start is authorized for this phase.
+
+CPU-only report reproduction (no inference):
+`python -m scripts.report_preliminary_development --run artifacts/restricted/development-demo-backup.xEJNBQ/nested-development-demonstration-20260908/run-20260908T152302638964 --output reports`
+
+## Earlier same-phase checkpoint (historical; both starts are now closed)
+
 Updated: 2026-09-08 UTC — three development bases completed; parent repairs prepared.
 
 Current amendment: `docs/PRELIMINARY_DEVELOPMENT_AMENDMENT.md`. Frozen selection:

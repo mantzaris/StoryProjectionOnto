@@ -76,7 +76,25 @@ silently lose their measured elapsed time in future records.
 
 Feedback v3 canonically orders message JSON keys; a CPU preflight rejected v2's
 key-order/hash drift before allocation. This changes no feedback meaning.
-The C1 repair remains strictly model-query-blind, but runs after the initial C2
-bases. It is a labeled exploratory repair, not retrospective satisfaction of the
+The C1 repair remains strictly model-query-blind, but was prepared after the initial C2
+bases. It would be a labeled exploratory repair, not retrospective satisfaction of the
 registered physical pre-query timing barrier. Any seal records its actual time;
 neither this repair nor the demonstration certifies registered C1 acceptance.
+
+### Closed outcome and controller correction
+
+Both starts are closed. Three base generations reached the output cap with
+incomplete JSON. No repair was transmitted: the second start's controller omitted
+the repair flag at the service boundary and then masked that pre-event rejection
+by registering a nonexistent GPU event. This causal diagnosis is reproduced on CPU;
+the lost inner live exception is not claimed as recovered evidence. The outer
+failure and every prior response remain immutable. A separate ledger failure
+annotation records the offline reconciliation, without adding inference time.
+
+The existing controller now sends the flag, persists exceptions before bookkeeping,
+and does not register a model call without an actual event. Focused controls use
+the real service-generation guard with simulated transport. This repair is deployed
+but not live-tested: the two-start cap is exhausted. Total phase allocation is
+858.564408 s; actual cumulative allocation 7,574.672489 s. The preliminary report
+includes all received graphs, failed bases and unexecuted/blocked comparisons.
+No new diagnostic phase or production adoption follows automatically.

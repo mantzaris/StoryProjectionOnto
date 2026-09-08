@@ -21,7 +21,12 @@ from .development_demo import (
     read,
     sources,
 )
-from .gpu_runtime import ResourceWatchdog, capture_gpu_hardware_identity, capture_tokenizer_manifest
+from .gpu_runtime import (
+    ResourceWatchdog,
+    RuntimeConfigurationError,
+    capture_gpu_hardware_identity,
+    capture_tokenizer_manifest,
+)
 from .manifest import write_json_atomic
 from .semantic_generation import ExecutionFacts
 from .store import (
@@ -98,7 +103,7 @@ def execute_workload(root, block, run, *, prepare_only=False):
 
     compiler = xgrammar.GrammarCompiler(xgrammar.TokenizerInfo.from_huggingface(tokenizer))
     packing = {}
-    for kind, (q, _, mapping, budgets) in variants.items():
+    for kind, (q, _, _mapping, _budgets) in variants.items():
         compiler.compile_json_schema(json.dumps(q.output_schema), any_whitespace=False)
         immutable(run / f"prepared-{kind}.json", q.wire_payload())
         immutable(run / f"packing-{kind}.json", q.packing.model_dump(mode="json"))
@@ -252,7 +257,9 @@ def execute_workload(root, block, run, *, prepare_only=False):
                 immutable(
                     run / f"{kind}-blocked.json",
                     {
-                        "reason": "No scientifically accepted sealed C1 ontology; no authored substitute"
+                        "reason": (
+                            "No scientifically accepted sealed C1 ontology; no authored substitute"
+                        )
                     },
                 )
                 continue
@@ -367,6 +374,7 @@ def execute_workload(root, block, run, *, prepare_only=False):
                     q,
                     event_id=attempt_id,
                     watchdog_seconds=cap,
+                    repair=parent is not None,
                     job_id=job.job_id,
                     attempt_id=attempt_id,
                     remaining_required_seconds=60,
@@ -439,13 +447,18 @@ def execute_workload(root, block, run, *, prepare_only=False):
                 if defects or not assessment["scientific_accepted"]:
                     failure = {
                         "stage": "scientific_or_structural_validation",
-                        "message": "Rejected or unresolved development output; see source and component checks",
+                        "message": (
+                            "Rejected or unresolved development output; see source and component "
+                            "checks"
+                        ),
                     }
             except Exception as exc:
                 if result is None:
                     generation_seconds = time.monotonic() - tic
                 failure = {
-                    "stage": "transport_or_decoding"
+                    "stage": "pre_generation_service_contract"
+                    if isinstance(exc, RuntimeConfigurationError) and result is None
+                    else "transport_or_decoding"
                     if result is None
                     else "canonical_or_assessment",
                     "message": str(exc),
@@ -454,6 +467,13 @@ def execute_workload(root, block, run, *, prepare_only=False):
                 if result is not None and draft is None:
                     defects.extend(exception_feedback(exc))
             metadata = diagnostic_metadata(run / "http", q.request_hash)
+            if failure and result is None and metadata.get("failure_stage"):
+                failure["stage"] = metadata["failure_stage"]
+            # Preserve the original error BEFORE any fallible bookkeeping.
+            # A pre-event service rejection is not a model call and must never
+            # fabricate a GPU event merely to satisfy the model-call table.
+            if failure:
+                immutable(attempt_root / "failure.json", failure)
             if result is not None:
                 response = artifact_store.put_bytes(
                     result.raw_response,
@@ -464,39 +484,39 @@ def execute_workload(root, block, run, *, prepare_only=False):
                 response = None
             events = ledger.gpu_events_with_prefix(attempt_id)
             seconds = sum(e.allocated_seconds for e in events)
-            ledger.record_model_call(
-                model_call_id=attempt_id,
-                job_id=job.job_id,
-                attempt_id=attempt_id,
-                gpu_event_id=attempt_id,
-                backend=ModelBackend.VLLM_GPU,
-                call_role=ModelCallRole.PILOT,
-                retry_class=RetryClass.STANDARD if parent else RetryClass.BASE,
-                model_manifest_hash=service.configuration.configuration_hash,
-                decoding_manifest_hash=q.decoding.content_hash,
-                request_hash=q.request_hash,
-                response_artifact_hash=response.content_hash if response else None,
-                construction_unit_hash=canonical_sha256(
-                    {"kind": kind, "snapshot": neutral["snapshot"]["content_hash"]}
-                ),
-                served_context_count=1,
-                prompt_tokens=result.prompt_tokens
-                if result
-                else metadata.get("usage", {}).get("prompt_tokens", 0),
-                completion_tokens=result.completion_tokens
-                if result
-                else metadata.get("usage", {}).get("completion_tokens", 0),
-                allocated_gpu_seconds=seconds,
-                successful=bool(events) and all(e.succeeded is True for e in events),
-            )
+            if events:
+                ledger.record_model_call(
+                    model_call_id=attempt_id,
+                    job_id=job.job_id,
+                    attempt_id=attempt_id,
+                    gpu_event_id=attempt_id,
+                    backend=ModelBackend.VLLM_GPU,
+                    call_role=ModelCallRole.PILOT,
+                    retry_class=RetryClass.STANDARD if parent else RetryClass.BASE,
+                    model_manifest_hash=service.configuration.configuration_hash,
+                    decoding_manifest_hash=q.decoding.content_hash,
+                    request_hash=q.request_hash,
+                    response_artifact_hash=response.content_hash if response else None,
+                    construction_unit_hash=canonical_sha256(
+                        {"kind": kind, "snapshot": neutral["snapshot"]["content_hash"]}
+                    ),
+                    served_context_count=1,
+                    prompt_tokens=result.prompt_tokens
+                    if result
+                    else metadata.get("usage", {}).get("prompt_tokens", 0),
+                    completion_tokens=result.completion_tokens
+                    if result
+                    else metadata.get("usage", {}).get("completion_tokens", 0),
+                    allocated_gpu_seconds=seconds,
+                    successful=bool(events) and all(e.succeeded is True for e in events),
+                )
             if failure:
                 ledger.record_failure(
                     attempt_id=attempt_id,
-                    failure_kind=FailureKind.INVALID_OUTPUT,
+                    failure_kind=FailureKind.INVALID_OUTPUT if events else FailureKind.SERVICE,
                     message=failure["message"],
                     details=failure,
                 )
-                immutable(attempt_root / "failure.json", failure)
             structure = assessment["structure"] if assessment else None
             retry_feedback = compact_feedback(defects, structure)
             immutable(attempt_root / "repair-feedback.json", retry_feedback)
@@ -558,7 +578,9 @@ def execute_workload(root, block, run, *, prepare_only=False):
                 {
                     "status": "blocked",
                     "queries": [1, 2],
-                    "reason": "No scientifically accepted sealed C1 ontology; no authored substitute",
+                    "reason": (
+                        "No scientifically accepted sealed C1 ontology; no authored substitute"
+                    ),
                 },
             )
     except Exception as exc:

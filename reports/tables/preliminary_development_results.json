@@ -1,0 +1,800 @@
+{
+  "accounting": {
+    "cumulative_seconds": 7574.672489,
+    "global_hard_seconds": 36000,
+    "global_scheduled_seconds": 33660,
+    "historical_seconds": 6716.108081,
+    "open_allocations": 0,
+    "open_service_journals": 0,
+    "peak_sampled_resources": {
+      "gpu_vram_bytes": 22793945088,
+      "process_ram_bytes": 7109718016,
+      "project_storage_bytes": 16912713216
+    },
+    "phase_cap_seconds": 3600,
+    "phase_seconds": 858.564408,
+    "reserved_attempts": 4,
+    "service_starts": 2,
+    "stop_reason": "workload_exception",
+    "transmitted_generations": 3
+  },
+  "contexts": [
+    {
+      "abstraction": "actor",
+      "budgets": {
+        "assertion_budget": 30,
+        "display_assertion_budget": 30,
+        "display_node_budget": 10,
+        "node_budget": 10,
+        "repair_attempt_budget": 1
+      },
+      "lens": "affiliation and state change",
+      "spoiler_horizon": {
+        "horizon_id": "hor_2d2d9dfb44aea01abb65",
+        "max_discourse_position": {
+          "passage_order": 24,
+          "sentence_order": 0,
+          "token_order": 0
+        },
+        "max_revelation_position": {
+          "label": null,
+          "revelation_order": 100
+        },
+        "withheld_after_horizon": true
+      },
+      "story_scope": {
+        "anchor_id": null,
+        "end": 9,
+        "kind": "interval",
+        "label": "story steps 3 through 9",
+        "partial_order": [],
+        "point": null,
+        "reason": null,
+        "relation": null,
+        "start": 3
+      },
+      "target": "the actors, offices, events, and consequences in Cedar Harbor Accord",
+      "viewpoint": {
+        "attitude_scope": null,
+        "holder_id": "mn_8759a403c0c3926cdc03"
+      },
+      "wording": "How do consequential affiliations and states change within the stated time?"
+    },
+    {
+      "abstraction": "collective_causal_chain",
+      "budgets": {
+        "assertion_budget": 30,
+        "display_assertion_budget": 30,
+        "display_node_budget": 10,
+        "node_budget": 10,
+        "repair_attempt_budget": 1
+      },
+      "lens": "identity and office continuity",
+      "spoiler_horizon": {
+        "horizon_id": "hor_2d2d9dfb44aea01abb65",
+        "max_discourse_position": {
+          "passage_order": 24,
+          "sentence_order": 0,
+          "token_order": 0
+        },
+        "max_revelation_position": {
+          "label": null,
+          "revelation_order": 100
+        },
+        "withheld_after_horizon": true
+      },
+      "story_scope": {
+        "anchor_id": null,
+        "end": null,
+        "kind": "point",
+        "label": "at story step 6",
+        "partial_order": [],
+        "point": 6,
+        "reason": null,
+        "relation": null,
+        "start": null
+      },
+      "target": "the actors, offices, events, and consequences in Cedar Harbor Accord",
+      "viewpoint": null,
+      "wording": "Which people and continuing offices must be distinguished or grouped?"
+    }
+  ],
+  "human_review_still_required": true,
+  "label": "EXPLORATORY DEVELOPMENT ONLY — one easy world, not held-out efficacy",
+  "model": {
+    "backend": "vLLM 0.10.2 / XGrammar, no fallback, whitespace restriction enabled",
+    "context_limit": 12288,
+    "repository": "Qwen/Qwen3-8B-AWQ",
+    "revision": "4da05a8edb55c6046cce958586c33b61da07bb79",
+    "thinking": false
+  },
+  "ordinary_admission": false,
+  "registered_remaining_work": {
+    "all_in_proxy_seconds": 47736.68570173815,
+    "failed_throughput_credited": false,
+    "fallback_gate_unpassed": {
+      "accounted_within_reserve_rows_not_added_again": true,
+      "c1": 1,
+      "c2": 2,
+      "conditional_short_repair_at_most": 1,
+      "fixed_select": 1,
+      "restart_resume_and_load_still_required": true
+    },
+    "inventory": [
+      {
+        "call_class": "gpu_session_start",
+        "remaining_count": 5,
+        "superseded_14b_row": false
+      },
+      {
+        "call_class": "acceptance_c1",
+        "remaining_count": 0,
+        "superseded_14b_row": true
+      },
+      {
+        "call_class": "acceptance_c2",
+        "remaining_count": 0,
+        "superseded_14b_row": true
+      },
+      {
+        "call_class": "acceptance_fixed_select",
+        "remaining_count": 0,
+        "superseded_14b_row": true
+      },
+      {
+        "call_class": "acceptance_repair",
+        "remaining_count": 0,
+        "superseded_14b_row": true
+      },
+      {
+        "call_class": "development_c1",
+        "remaining_count": 4,
+        "superseded_14b_row": false
+      },
+      {
+        "call_class": "development_c2",
+        "remaining_count": 12,
+        "superseded_14b_row": false
+      },
+      {
+        "call_class": "development_fixed_select",
+        "remaining_count": 4,
+        "superseded_14b_row": false
+      },
+      {
+        "call_class": "development_ablation",
+        "remaining_count": 3,
+        "superseded_14b_row": false
+      },
+      {
+        "call_class": "development_repair",
+        "remaining_count": 1,
+        "superseded_14b_row": false
+      },
+      {
+        "call_class": "test_c1",
+        "remaining_count": 24,
+        "superseded_14b_row": false
+      },
+      {
+        "call_class": "test_c2",
+        "remaining_count": 72,
+        "superseded_14b_row": false
+      },
+      {
+        "call_class": "test_fixed_select",
+        "remaining_count": 72,
+        "superseded_14b_row": false
+      },
+      {
+        "call_class": "paraphrase_c2",
+        "remaining_count": 12,
+        "superseded_14b_row": false
+      },
+      {
+        "call_class": "scripted_feedback_c2",
+        "remaining_count": 6,
+        "superseded_14b_row": false
+      },
+      {
+        "call_class": "researcher_trace_c2",
+        "remaining_count": 3,
+        "superseded_14b_row": false
+      },
+      {
+        "call_class": "ablation_no_context",
+        "remaining_count": 12,
+        "superseded_14b_row": false
+      },
+      {
+        "call_class": "ablation_no_temporal_epistemic",
+        "remaining_count": 8,
+        "superseded_14b_row": false
+      },
+      {
+        "call_class": "ablation_no_rare_guard",
+        "remaining_count": 8,
+        "superseded_14b_row": false
+      },
+      {
+        "call_class": "case_c1",
+        "remaining_count": 4,
+        "superseded_14b_row": false
+      },
+      {
+        "call_class": "case_c2",
+        "remaining_count": 8,
+        "superseded_14b_row": false
+      },
+      {
+        "call_class": "case_full_index_c2",
+        "remaining_count": 1,
+        "superseded_14b_row": false
+      },
+      {
+        "call_class": "reserve_long",
+        "remaining_count": 1,
+        "superseded_14b_row": false
+      },
+      {
+        "call_class": "reserve_standard",
+        "remaining_count": 8,
+        "superseded_14b_row": false
+      },
+      {
+        "call_class": "reserve_short",
+        "remaining_count": 4,
+        "superseded_14b_row": false
+      }
+    ],
+    "proxy_kind": "unmeasured_capacity_proxy_capped_at_unchanged_watchdogs",
+    "remaining_proxy_seconds": 40162.01321273815,
+    "valid_production_forecast_established": false
+  },
+  "rows": [
+    {
+      "attempt_id": "c0-attempt-ef2a20b4e74c07372e81",
+      "canonical_valid": true,
+      "citation_validity": 1.0,
+      "condition": "C0",
+      "context": 1,
+      "essential_temporal_accuracy": 0.6666666666666666,
+      "failure": "Exploratory source/description assessment includes unresolved matches; see HTML",
+      "finish_reason": null,
+      "grounding_precision": 0.5,
+      "input_tokens": 0,
+      "node_f1": 0.888888888888889,
+      "output_tokens": 0,
+      "rare_pivotal_recall": 1.0,
+      "rare_support_path_survival": 0.0,
+      "repair_parent": null,
+      "request_seconds": null,
+      "reused_actual_cpu_output": true,
+      "schema_valid": true,
+      "scientific_accepted": false,
+      "source_sha256": "2b491525d26b272b77c0c4047cffcff5cc011ba24518ce6227e70c9ca19c3aba",
+      "strict_f1": 0.5714285714285715,
+      "strict_precision": 0.5,
+      "strict_recall": 0.6666666666666666,
+      "structure_valid": true
+    },
+    {
+      "attempt_id": "c0-attempt-9857ed592d5f541f1aac",
+      "canonical_valid": true,
+      "citation_validity": 1.0,
+      "condition": "C0",
+      "context": 2,
+      "essential_temporal_accuracy": 0.14285714285714285,
+      "failure": "Exploratory source/description assessment includes unresolved matches; see HTML",
+      "finish_reason": null,
+      "grounding_precision": 0.07142857142857142,
+      "input_tokens": 0,
+      "node_f1": 0.47058823529411764,
+      "output_tokens": 0,
+      "rare_pivotal_recall": null,
+      "rare_support_path_survival": null,
+      "repair_parent": null,
+      "request_seconds": null,
+      "reused_actual_cpu_output": true,
+      "schema_valid": true,
+      "scientific_accepted": false,
+      "source_sha256": "f4761d415f3d3b2a1285055f036b52a3c40968b0e3a449ad1d8784d4cad7ed5b",
+      "strict_f1": 0.09523809523809523,
+      "strict_precision": 0.07142857142857142,
+      "strict_recall": 0.14285714285714285,
+      "structure_valid": true
+    },
+    {
+      "attempt_id": "nested-development-demonstration-20260908-attempt-01",
+      "canonical_valid": false,
+      "condition": "C1",
+      "confirmed_source_defects": [],
+      "context": null,
+      "failure": "vLLM response is not one guided JSON choice",
+      "failure_stage": "transport_or_decoding",
+      "finish_reason": "length",
+      "input_tokens": 7603,
+      "output_allowance": 4096,
+      "output_tokens": 4096,
+      "partial_record_counts": {
+        "assertions": 1,
+        "entities": 8,
+        "events": 0
+      },
+      "partial_source_diagnostics": [
+        {
+          "category": "unsupported_attribution",
+          "constraint": "Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.",
+          "generated_value": {
+            "attitude": "known",
+            "holder_id": "nE1"
+          },
+          "path": "/instance_graph/assertions/0/epistemic_scope"
+        }
+      ],
+      "received_construction_claims": [
+        {
+          "created_id_count": 1,
+          "created_node_id_count": 0,
+          "operator": "supported_description"
+        }
+      ],
+      "repair_parent": null,
+      "request_hash": "29e443017040011135e77a2085012e528fa20e02ea1c623b0a1488fc55bad806",
+      "request_seconds": 94.651674,
+      "request_time_source": "metered generation event; includes client/decoding",
+      "reused_actual_cpu_output": false,
+      "schema_valid": false,
+      "scientific_accepted": false,
+      "source_sha256": "7e80ac84e12a54447d1d8eec2ae8f0621081d161b84b185227d8454c094d91b9",
+      "structure_valid": false
+    },
+    {
+      "acceptance_gated_citation_validity": null,
+      "acceptance_gated_essential_temporal_accuracy": 0.0,
+      "acceptance_gated_grounding_precision": null,
+      "acceptance_gated_node_f1": 0.0,
+      "acceptance_gated_rare_pivotal_recall": 0.0,
+      "acceptance_gated_rare_support_path_survival": 0.0,
+      "acceptance_gated_strict_f1": 0.0,
+      "acceptance_gated_strict_precision": 0.0,
+      "acceptance_gated_strict_recall": 0.0,
+      "attempt_id": "nested-development-demonstration-20260908-attempt-02",
+      "canonical_valid": false,
+      "condition": "C2",
+      "confirmed_source_defects": [],
+      "context": 1,
+      "failure": "vLLM response is not one guided JSON choice",
+      "failure_stage": "transport_or_decoding",
+      "finish_reason": "length",
+      "input_tokens": 7839,
+      "output_allowance": 4096,
+      "output_tokens": 4096,
+      "partial_record_counts": {
+        "assertions": 9,
+        "entities": 0,
+        "events": 0
+      },
+      "partial_source_diagnostics": [
+        {
+          "category": "unsupported_attribution",
+          "constraint": "Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.",
+          "generated_value": {
+            "attitude": "known",
+            "holder_id": "nE2"
+          },
+          "path": "/instance_graph/assertions/0/epistemic_scope"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/0/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_attribution",
+          "constraint": "Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.",
+          "generated_value": {
+            "attitude": "known",
+            "holder_id": "nE3"
+          },
+          "path": "/instance_graph/assertions/1/epistemic_scope"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/1/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_attribution",
+          "constraint": "Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.",
+          "generated_value": {
+            "attitude": "known",
+            "holder_id": "nE5"
+          },
+          "path": "/instance_graph/assertions/2/epistemic_scope"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/2/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_attribution",
+          "constraint": "Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.",
+          "generated_value": {
+            "attitude": "known",
+            "holder_id": "nE7"
+          },
+          "path": "/instance_graph/assertions/3/epistemic_scope"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/3/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_attribution",
+          "constraint": "Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.",
+          "generated_value": {
+            "attitude": "known",
+            "holder_id": "nE9"
+          },
+          "path": "/instance_graph/assertions/4/epistemic_scope"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/4/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_attribution",
+          "constraint": "Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.",
+          "generated_value": {
+            "attitude": "known",
+            "holder_id": "nE11"
+          },
+          "path": "/instance_graph/assertions/5/epistemic_scope"
+        },
+        {
+          "category": "unsupported_attribution",
+          "constraint": "Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.",
+          "generated_value": {
+            "attitude": "known",
+            "holder_id": "nE13"
+          },
+          "path": "/instance_graph/assertions/6/epistemic_scope"
+        },
+        {
+          "category": "unsupported_attribution",
+          "constraint": "Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.",
+          "generated_value": {
+            "attitude": "known",
+            "holder_id": "nE15"
+          },
+          "path": "/instance_graph/assertions/7/epistemic_scope"
+        },
+        {
+          "category": "unsupported_attribution",
+          "constraint": "Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.",
+          "generated_value": {
+            "attitude": "known",
+            "holder_id": "nE17"
+          },
+          "path": "/instance_graph/assertions/8/epistemic_scope"
+        }
+      ],
+      "received_construction_claims": [
+        {
+          "created_id_count": 100,
+          "created_node_id_count": 100,
+          "operator": "selection"
+        }
+      ],
+      "repair_parent": null,
+      "request_hash": "2bbe29b2bf18f9467de62278b34a98c2213903ca47f4398bdb6702d2da6bca4f",
+      "request_seconds": 102.006076,
+      "request_time_source": "metered generation event; includes client/decoding",
+      "reused_actual_cpu_output": false,
+      "schema_valid": false,
+      "scientific_accepted": false,
+      "source_sha256": "7de764c2d1f2fe0d19454ea9d358d30292b631b1d12433731d6b949f4d90d91b",
+      "structure_valid": false
+    },
+    {
+      "acceptance_gated_citation_validity": null,
+      "acceptance_gated_essential_temporal_accuracy": 0.0,
+      "acceptance_gated_grounding_precision": null,
+      "acceptance_gated_node_f1": 0.0,
+      "acceptance_gated_rare_pivotal_recall": null,
+      "acceptance_gated_rare_support_path_survival": null,
+      "acceptance_gated_strict_f1": 0.0,
+      "acceptance_gated_strict_precision": 0.0,
+      "acceptance_gated_strict_recall": 0.0,
+      "attempt_id": "nested-development-demonstration-20260908-attempt-03",
+      "canonical_valid": false,
+      "condition": "C2",
+      "confirmed_source_defects": [],
+      "context": 2,
+      "failure": "vLLM response is not one guided JSON choice",
+      "failure_stage": "transport_or_decoding",
+      "finish_reason": "length",
+      "input_tokens": 7827,
+      "output_allowance": 4096,
+      "output_tokens": 4096,
+      "partial_record_counts": {
+        "assertions": 6,
+        "entities": 0,
+        "events": 0
+      },
+      "partial_source_diagnostics": [
+        {
+          "category": "unsupported_attribution",
+          "constraint": "Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.",
+          "generated_value": {
+            "attitude": "known",
+            "holder_id": "nE1"
+          },
+          "path": "/instance_graph/assertions/0/epistemic_scope"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/0/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_attribution",
+          "constraint": "Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.",
+          "generated_value": {
+            "attitude": "known",
+            "holder_id": "nE1"
+          },
+          "path": "/instance_graph/assertions/1/epistemic_scope"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/1/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_attribution",
+          "constraint": "Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.",
+          "generated_value": {
+            "attitude": "known",
+            "holder_id": "nE1"
+          },
+          "path": "/instance_graph/assertions/2/epistemic_scope"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/2/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_attribution",
+          "constraint": "Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.",
+          "generated_value": {
+            "attitude": "known",
+            "holder_id": "nE1"
+          },
+          "path": "/instance_graph/assertions/3/epistemic_scope"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/3/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_attribution",
+          "constraint": "Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.",
+          "generated_value": {
+            "attitude": "known",
+            "holder_id": "nE1"
+          },
+          "path": "/instance_graph/assertions/4/epistemic_scope"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/4/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_attribution",
+          "constraint": "Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.",
+          "generated_value": {
+            "attitude": "known",
+            "holder_id": "nE1"
+          },
+          "path": "/instance_graph/assertions/5/epistemic_scope"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/5/temporal_scope/validity_time"
+        }
+      ],
+      "received_construction_claims": [
+        {
+          "created_id_count": 125,
+          "created_node_id_count": 50,
+          "operator": "contextual_type"
+        },
+        {
+          "created_id_count": 25,
+          "created_node_id_count": 0,
+          "operator": "schema_relation"
+        }
+      ],
+      "repair_parent": null,
+      "request_hash": "ece8e825b1bc0e256c7c0c86706750ee219108b20198cb9ac7e41a44800c0bd0",
+      "request_seconds": 86.300878,
+      "request_time_source": "metered generation event; includes client/decoding",
+      "reused_actual_cpu_output": false,
+      "schema_valid": false,
+      "scientific_accepted": false,
+      "source_sha256": "3102fc4fe285157228b642d1281c2223e35bb3c6f095349a1c991291d2cd80f3",
+      "structure_valid": false
+    },
+    {
+      "attempt_id": "nested-development-demonstration-20260908-attempt-04",
+      "canonical_valid": null,
+      "condition": "C1",
+      "context": null,
+      "execution_status": "not_transmitted",
+      "failure": "Missing repair flag rejected the prepared call before a GPU event; subsequent bookkeeping masked the original exception. CPU-reproduced diagnosis; no new model response.",
+      "failure_stage": "pre_generation_controller",
+      "input_tokens": null,
+      "output_allowance": 4096,
+      "output_tokens": null,
+      "prepared_input_tokens": 7877,
+      "repair_parent": "nested-development-demonstration-20260908-attempt-01",
+      "request_hash": "ff2d7f04fde63b5d182c410cd1e544fd5950e07c469003baf9942fed2a196a5b",
+      "request_seconds": null,
+      "schema_valid": null,
+      "scientific_accepted": false,
+      "structure_valid": null
+    },
+    {
+      "attempt_id": null,
+      "condition": "C2",
+      "context": 1,
+      "execution_status": "not_attempted",
+      "failure": "Prepared repair not executed after the controller failure; no replacement output.",
+      "repair_parent": "nested-development-demonstration-20260908-attempt-02",
+      "scientific_accepted": false
+    },
+    {
+      "attempt_id": null,
+      "condition": "C2",
+      "context": 2,
+      "execution_status": "not_attempted",
+      "failure": "Prepared repair not executed after the controller failure; no replacement output.",
+      "repair_parent": "nested-development-demonstration-20260908-attempt-03",
+      "scientific_accepted": false
+    },
+    {
+      "attempt_id": null,
+      "condition": "A-FixedSelect",
+      "context": 1,
+      "failure": "No accepted sealed C1; not attempted",
+      "scientific_accepted": false
+    },
+    {
+      "attempt_id": null,
+      "condition": "A-FixedSelect",
+      "context": 2,
+      "failure": "No accepted sealed C1; not attempted",
+      "scientific_accepted": false
+    }
+  ],
+  "snapshot_hash": "070f9abcaefa270873527e3d21509f0f8b366596a7a8cae2f1239fefea34d515",
+  "unchanged_c0_gate": {
+    "contextual": {
+      "content_hash": "38ddfb6a08ecb417996340a14fd84e731b0771938dc3a50f1c946fd92b180845",
+      "f1": 0.2950819672131147,
+      "false_negative_count": 37,
+      "false_positive_count": 221,
+      "gold_count": 91,
+      "precision": 0.19636363636363635,
+      "precision_denominator": 275,
+      "predicted_count": 275,
+      "recall": 0.5934065934065934,
+      "recall_denominator": 91,
+      "schema_version": "1.0.0",
+      "status": "defined",
+      "true_positive_count": 54
+    },
+    "extraction": {
+      "eligibility_revision": "source-bound-direct-witness-v1",
+      "explicit_family_coverage": 1.0,
+      "families": {
+        "binary_relation": true,
+        "event_role": true,
+        "explicit_entity": true,
+        "story_time": true,
+        "validity_time": true
+      },
+      "metric": {
+        "content_hash": "1b4c3f0543d3b4e558125c40426e755502a146b04809e757c04022312425383d",
+        "f1": 0.8813559322033898,
+        "false_negative_count": 10,
+        "false_positive_count": 18,
+        "gold_count": 114,
+        "precision": 0.8524590163934426,
+        "precision_denominator": 122,
+        "predicted_count": 122,
+        "recall": 0.9122807017543859,
+        "recall_denominator": 114,
+        "schema_version": "1.0.0",
+        "status": "defined",
+        "true_positive_count": 104
+      },
+      "passes": true,
+      "scope_revision": "development-query-blind-direct-extraction-v1",
+      "scoring_does_not_modify_predictions": true,
+      "thresholds": {
+        "evidence": 1,
+        "family_coverage": 1,
+        "precision": 0.85,
+        "recall": 0.7
+      },
+      "valid_evidence_reference_rate": 1.0
+    },
+    "source_sha256": "63b7cb417ecdae4ceeead2744e5792d5bf17f1bb7c8dbad4cbb37e8ad2b680f9"
+  },
+  "unit": "dev-unit-01"
+}
