@@ -952,6 +952,12 @@ class GuidedJSONRequest:
     def __post_init__(self) -> None:
         if (
             (self.decoding.maximum_input_tokens, self.decoding.maximum_output_tokens)
+            == (8192, 4096)
+            and not self.request_id.startswith("development-demo-")
+        ):
+            raise RuntimeConfigurationError("8,192/4,096 is exploratory development only")
+        if (
+            (self.decoding.maximum_input_tokens, self.decoding.maximum_output_tokens)
             == (8704, 3584)
             and self.request_id != "representation-diagnostic-identifier-contract-retry-v4"
         ):

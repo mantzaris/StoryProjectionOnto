@@ -1,5 +1,30 @@
 # Run status
 
+Updated: 2026-09-08 UTC — authorized exploratory development phase prepared.
+
+Current amendment: `docs/PRELIMINARY_DEVELOPMENT_AMENDMENT.md`. Frozen selection:
+easy `dev-unit-01`, contexts 1/2, identical complete 25-record evidence. C1 is
+query-blind; both C2 calls are independent of C1; FixedSelect requires actual
+accepted/sealed C1 and intact packing. No held-out or ordinary study admission.
+
+Remote CPU preflight passed: effective XGrammar compilation and exact pinned
+tokenizer/template counts 7,603 / 7,839 / 7,827 plus 4,096 output each. Deployment
+source hash `2ff43a7cd2bcad25fabc721546a61e4eb0175dd149240600ca3693b42a435fd6`
+matches locally. 45 focused adapter/controller checks passed; report pipeline
+verification is being completed before launch. No new GPU allocation yet.
+
+Historical actual 6,716.108081 s is intact. New phase caps: 3,600 additional s,
+two starts, twelve attempts, one targeted repair per base; protected shutdown.
+Global 33,660 scheduled / strict-before-36,000 actual unchanged. Existing controller
+entry: `.venv/bin/python -m scripts.run_capacity_diagnostics --development-demo --execute`
+inside the existing persistent remote study session. Counters are cumulative,
+not reset on resume. Final report command: `python -m scripts.report_preliminary_development --run <restricted-terminal-run>`.
+
+C0 full extraction competence remains passed; contextual scores stay separate.
+Human review and registered production acceptance remain mandatory.
+
+## Previous CPU decision (historical; authorization superseded below this point)
+
 Updated: 2026-09-08 UTC — small-task series closed; CPU candidate and status repair
 
 Last live handoff checkpoint: **`64182de`**. No new service start, inference, model
