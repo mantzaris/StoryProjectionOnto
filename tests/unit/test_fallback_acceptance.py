@@ -4177,6 +4177,26 @@ def test_two_controller_fallback_runner_is_bounded_resumable_and_audited(
         monkeypatch.setattr(os, "getpid", lambda: 41002)
         result = second_runner.run()
 
+        if trigger_repair:
+            # A valid repair cannot turn its invalid parent's duration into a
+            # C1 throughput sample. Keep the repaired artifact, but fail closed
+            # on incomplete class timing; do not add a new inference slot.
+            assert result["micro_pilot_passed"] is False
+            assert result["timing_gate"]["base_sample_counts_exact"] is False
+            assert result["timing_gate"]["repair_sample_count"] == 1
+            assert result["timing_gate"]["validated_repair_count"] == 1
+            assert result["timing_gate"]["repair_sample_count_valid"] is True
+            assert "acceptance_c1" not in result["timing_gate"]["observed_call_classes"]
+            assert live["running"] is False
+            state = json.loads((tmp_path / "fallback.checkpoint.json").read_text())
+            specs = fallback_pilot_calls(
+                FallbackModelPolicy.load(ROOT / "configs/study/fallback_model.json")
+            )
+            _, _, timings = second_runner._resume_completed(state=state, call=specs[0])
+            assert [t.call_class for t in timings] == ["acceptance_repair"]
+            assert verify_ledger(tmp_path / "ledger.sqlite3", tmp_path / "blobs").valid
+            return
+
         assert result["micro_pilot_passed"] is True
         assert result["phase1_gate_passed"] is True
         assert result["gate_passed"] is True
@@ -5469,13 +5489,17 @@ def test_interrupted_result_commit_preserves_accepted_validation(
     assert verification.valid, verification.issues
 
 
+@pytest.mark.parametrize("failure_stage", ["transport", "validation"])
 def test_failed_diagnostic_repair_retains_accounting_but_not_latency_proxy(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    failure_stage: str,
 ) -> None:
     configuration = _fallback_launch_configuration(tmp_path)
     live: dict[str, object] = {}
     outputs = _fallback_outputs(trigger_repair=True)
+    if failure_stage == "validation":
+        outputs["fallback-c1-01-repair-01"] = outputs["fallback-c1-01"]
     with Ledger(tmp_path / "ledger.sqlite3") as ledger:
         first_service = FakeFallbackService(configuration, ledger, outputs, live)
         first_runner = _runner(tmp_path=tmp_path, ledger=ledger, service=first_service)
@@ -5489,7 +5513,8 @@ def test_failed_diagnostic_repair_retains_accounting_but_not_latency_proxy(
             original_generate(*args, **kwargs)
             raise RuntimeError("synthetic repair transport failure")
 
-        monkeypatch.setattr(second_service, "generate", failed_generate)
+        if failure_stage == "transport":
+            monkeypatch.setattr(second_service, "generate", failed_generate)
         second_runner = _runner(
             tmp_path=tmp_path,
             ledger=ledger,
@@ -5502,7 +5527,11 @@ def test_failed_diagnostic_repair_retains_accounting_but_not_latency_proxy(
         assert result["repair_attempt_count"] == 1
         assert len(result["reserve_consumption"]) == 2
         assert result["timing_gate"]["repair_sample_count"] == 0
-        assert result["timing_gate"]["completed_repair_transport_count"] == 0
+        assert result["timing_gate"]["completed_repair_transport_count"] == int(
+            failure_stage == "validation"
+        )
+        assert result["timing_gate"]["validated_repair_count"] == 0
+        assert "acceptance_c1" not in result["timing_gate"]["observed_call_classes"]
         assert result["timing_gate"]["repair_sample_count_valid"] is True
         assert sum(event.event_kind is GpuEventKind.REPAIR for event in ledger.gpu_events()) == 1
         assert live["running"] is False

@@ -910,8 +910,11 @@ def test_compiler_reconciles_registered_inventory_and_service_overhead(tmp_path:
     inference = next(row for row in failures if row["call_id"] == "acceptance_c1-001")
     service = next(row for row in failures if row["call_id"] == "service-one")
     assert inference["outcome"] == "success"
+    assert inference["outcome_scope"] == "execution_and_recorded_failure_not_scientific_acceptance"
+    assert inference["scientific_status"] == "unresolved"
     assert inference["allocated_gpu_seconds"] == "1.000000"
     assert service["outcome"] == "success"
+    assert service["scientific_status"] == "not_applicable"
     assert service["allocated_gpu_seconds"] == "4.000000"
     resources = _read_csv(compiled.resource_table_path)
     assert tuple(resources[0]) == RESOURCE_ACCOUNTING_COLUMNS

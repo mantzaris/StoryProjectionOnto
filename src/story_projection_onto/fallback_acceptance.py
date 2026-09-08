@@ -8766,12 +8766,10 @@ class FallbackAcceptanceRunner:
             # successful call with a rejected validation record.
             expected_success=True,
         )
-        timings = [
-            TimingObservation(
-                call_class=call.forecast_call_class,
-                allocated_seconds=base_model_call.allocated_gpu_microseconds / 1_000_000,
-            )
-        ]
+        # Execution success alone is not a usable successful-output latency.
+        # An invalid parent remains fully allocated, but never supplies timing
+        # for the production class merely because a later repair succeeds.
+        timings: list[TimingObservation] = []
         result: dict[str, object]
         if repaired:
             if accepted.get("invalid_base_artifact_hash") != base_model_call.response_artifact_hash:
@@ -8894,6 +8892,12 @@ class FallbackAcceptanceRunner:
                 audit,
                 generation.parsed_object,
                 root=self.root,
+            )
+            timings.append(
+                TimingObservation(
+                    call_class=call.forecast_call_class,
+                    allocated_seconds=base_model_call.allocated_gpu_microseconds / 1_000_000,
+                )
             )
             result = {
                 "call_id": call.call_id,
@@ -9838,13 +9842,6 @@ class FallbackAcceptanceRunner:
                 if event is None:
                     raise RuntimeError("fallback model call completed without a GPU event")
                 allocated = event.allocated_seconds
-                if self.bounded_recovery_authorization is None:
-                    timing_observations.append(
-                        TimingObservation(
-                            call_class=call.forecast_call_class,
-                            allocated_seconds=allocated,
-                        )
-                    )
                 artifact = self.artifacts.put_bytes(
                     generated.raw_response,
                     media_type="application/json",
@@ -9973,7 +9970,7 @@ class FallbackAcceptanceRunner:
                         validator_manifest_hash=execution_hash,
                     )
                     results.append(repair_public_result)
-                    if repair_transport_succeeded:
+                    if repair_transport_succeeded and repaired_audit is not None:
                         timing_observations.append(
                             TimingObservation(
                                 call_class="acceptance_repair",
@@ -9992,6 +9989,12 @@ class FallbackAcceptanceRunner:
                         "diagnostics": [dict(item) for item in diagnostics],
                     }
                 else:
+                    timing_observations.append(
+                        TimingObservation(
+                            call_class=call.forecast_call_class,
+                            allocated_seconds=allocated,
+                        )
+                    )
                     self.ledger.record_model_call(**common_call, successful=True)
                     terminal_at = datetime.now(UTC)
                     self._advance_one(
@@ -10031,12 +10034,6 @@ class FallbackAcceptanceRunner:
                     )
                 completed.append(call.call_id)
                 if self.bounded_recovery_authorization is not None:
-                    timing_observations.append(
-                        TimingObservation(
-                            call_class=call.forecast_call_class,
-                            allocated_seconds=allocated,
-                        )
-                    )
                     self._valid_recovery_timings = list(timing_observations)
                 successful_audits.append((call, audit))
                 state["active_call_id"] = None
@@ -10724,8 +10721,22 @@ class FallbackAcceptanceRunner:
         completed_repair_transport_count = sum(
             1
             for result in results
-            if str(result.get("call_id", "")).endswith("-repair-01")
+            if (
+                str(result.get("call_id", "")).endswith("-repair-01")
+                or result.get("accepted_via_repair") is True
+            )
             and isinstance(result.get("response_artifact_hash"), str)
+        )
+        validated_repair_count = sum(
+            1
+            for result in results
+            if (
+                str(result.get("call_id", "")).endswith("-repair-01")
+                or result.get("accepted_via_repair") is True
+            )
+            and result.get("status")
+            in {AcceptanceStatus.COMPLETED.value, AcceptanceStatus.RESUMED.value}
+            and isinstance(result.get("mechanical_audit"), Mapping)
         )
         observed_repair_sample_count = (
             0
@@ -10741,9 +10752,10 @@ class FallbackAcceptanceRunner:
             ),
             "repair_sample_count": observed_repair_sample_count,
             "completed_repair_transport_count": completed_repair_transport_count,
+            "validated_repair_count": validated_repair_count,
+            "invalid_output_latency_eligible": False,
             "repair_sample_count_valid": (
-                repair_attempt_count <= 1
-                and observed_repair_sample_count == completed_repair_transport_count
+                repair_attempt_count <= 1 and observed_repair_sample_count == validated_repair_count
             ),
             "service_start_sample_count": len(service_starts),
             "service_start_sample_count_exact": len(service_starts) == 1,

@@ -1,5 +1,43 @@
 # Run status
 
+Updated: 2026-09-08 UTC — small-task series closed; CPU candidate and status repair
+
+Last live handoff checkpoint: **`64182de`**. No new service start, inference, model
+download, primary-metric/gold/C0 change or PDF. The current pinned configuration
+remains **not scientifically accepted** on both latest complete below-cap repairs.
+Decision and compact failure-mechanism table:
+`docs/SMALL_DIAGNOSTIC_CLOSURE_AND_INTERFACE_DECISION.md`.
+
+Completed CPU candidate: explicit nested proposition content with lossless lifting,
+model-chosen content identity and unchanged typed-ID/scientific validation paths.
+Exact restricted request/schema/round trip:
+`artifacts/restricted/nested-semantic-candidate-cpu-v1/`.
+Packing: **6,102 + 6,144 = 12,246 / 12,288**; only 42 input tokens of slack.
+No production adoption, live grammar/model validation or throughput claim.
+**43 focused tests passed**; six affected timing/report tests were rerun after
+the final reporting adjustment and passed. Candidate regeneration is byte/hash
+consistent. New decision/prompt/status text passes the public-text scan; the
+pre-existing historical RUN_STATUS body is not certified as a public bundle.
+
+Nine historical status mismatches now have a hash-bound **derived clarification**:
+execution complete, scientific failure, ineligible for accepted results/production
+timing. Original rows and strict verifier flags remain. Future diagnostic writes
+separate execution from validation; final accounting labels those scopes.
+Invalid fallback base/repair durations remain allocated but cannot enter successful-
+output timing, including on resume. No added inference slot or budget amendment.
+
+Actual allocation stays **6,716.108081 s**; ceilings **33,660 / before 36,000 s**.
+Last verified remote state remains vLLM stopped, pod active; no new remote allocation.
+C0 extraction gate passed; separate contextual F1 .295082 unchanged. Human review
+and ordinary acceptance/admission gates remain. Recommendation: close this pinned
+configuration as unsuccessful and obtain a specific method/model feasibility
+amendment before further GPU work, not another repeated small-task startup.
+
+CPU-only reproduction: `/tmp/spo-refresh-venv/bin/python -m scripts.prepare_nested_semantic_candidate`.
+Focused verification: `/tmp/spo-refresh-venv/bin/python -m pytest -q tests/unit/test_nested_semantic_candidate.py tests/unit/test_execution_science_status.py`.
+
+## Latest live session (historical; closed)
+
 Updated: 2026-09-08 UTC — two prepared v4 repair calls completed; vLLM stopped
 
 Execution checkpoint: **`12ead20`**. Session `small-parent-linked-repairs-20260908`

@@ -68,6 +68,60 @@ _TERMINAL_ALLOCATION_STATES = frozenset({"closed", "recovered"})
 _TERMINAL_SERVICE_STATES = frozenset({"closed", "recovered"})
 
 
+def derive_call_status(
+    call: Mapping[str, object],
+    event: Mapping[str, object] | None,
+    failures: Iterable[Mapping[str, object]],
+    validations: Iterable[Mapping[str, object]],
+    *,
+    diagnostic_only: bool,
+) -> dict[str, object]:
+    """Read-only status clarification; never changes historical ledger rows.
+
+    Execution and validated science are separate. Missing semantic assessment is
+    unresolved, not acceptance. Eligibility here is a necessary gate only: actual
+    acceptance/metrics runners must still verify protocol and artifact lineage.
+    Failed outputs remain eligible for the registered ITT *failure* denominator.
+    """
+    failure_rows = [dict(r) for r in failures if r["attempt_id"] == call["attempt_id"]]
+    validation_rows = [
+        dict(r)
+        for r in validations
+        if r["attempt_id"] == call["attempt_id"]
+        and r["input_artifact_hash"] == call["response_artifact_hash"]
+    ]
+    completed = event is not None and event["succeeded"] == 1
+    rejected = bool(failure_rows) or any(
+        r["validation_status"] in {"rejected", "invalid"} for r in validation_rows
+    )
+    assessed = any(
+        r["validation_status"] == "accepted"
+        and r["semantic_assessment_scope"] == "posthoc_scorer_or_reviewer"
+        and r["evidence_support_status"] == "supported"
+        and r["temporal_status"] in {"valid", "underdetermined", "not_applicable"}
+        and r["commitment_status"] in {"valid", "not_applicable"}
+        for r in validation_rows
+    )
+    scientific = "rejected" if rejected else "accepted" if assessed and completed else "unresolved"
+    eligible = scientific == "accepted" and not diagnostic_only
+    return {
+        "revision": "execution-versus-science-derived-v1",
+        "model_call_id": call["model_call_id"],
+        "historical_model_call_successful": call["successful"],
+        "execution_completed": completed,
+        "scientific_status": scientific,
+        "historical_status_semantics_mismatch": event is not None
+        and event["succeeded"] != call["successful"],
+        "failure_ids": [r["failure_id"] for r in failure_rows],
+        "validation_ids": [r["validation_id"] for r in validation_rows],
+        "diagnostic_only": diagnostic_only,
+        "scientific_acceptance_eligible": eligible,
+        "production_timing_eligible": eligible,
+        "accepted_study_result_eligible": eligible,
+        "not_a_complete_protocol_acceptance_certificate": True,
+    }
+
+
 @dataclass(frozen=True, slots=True)
 class LedgerVerificationIssue:
     """One independently detected integrity failure."""

@@ -1618,7 +1618,10 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
                 if result is None
                 else result.completion_tokens,
                 allocated_gpu_seconds=seconds,
-                successful=failure is None,
+                # This column has the same execution meaning as gpu_events.
+                # Scientific acceptance remains explicit in immutable outcome
+                # and failure records; never infer it from HTTP completion.
+                successful=bool(events) and all(e.succeeded is True for e in events),
             )
             if failure:
                 ledger.record_failure(

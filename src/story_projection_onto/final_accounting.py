@@ -62,7 +62,11 @@ from story_projection_onto.experiment import (
     SESSION_START_CLASS,
     GPUCallInventory,
 )
-from story_projection_onto.ledger_verify import LedgerVerificationReport, verify_ledger
+from story_projection_onto.ledger_verify import (
+    LedgerVerificationReport,
+    derive_call_status,
+    verify_ledger,
+)
 from story_projection_onto.store import Ledger
 
 FINAL_ACCOUNTING_SCHEMA_VERSION = "1.0.0"
@@ -72,6 +76,8 @@ FAILURE_ACCOUNTING_COLUMNS = (
     "call_id",
     "condition",
     "outcome",
+    "outcome_scope",
+    "scientific_status",
     "attempt_class",
     "repair_parent_call_id",
     "allocated_gpu_seconds",
@@ -1342,6 +1348,7 @@ def _compile_failure_rows(
     claimed_events: set[tuple[str, str]] = set()
     claimed_sessions: set[tuple[str, str]] = set()
     direct_outcomes: dict[str, str] = {}
+    scientific_statuses: dict[str, str] = {}
     repair_parent_slots: dict[str, str] = {}
     allocation_by_slot: dict[str, int] = {}
     failure_by_slot: dict[str, str] = {}
@@ -1352,6 +1359,7 @@ def _compile_failure_rows(
 
     for slot in recipe.call_slots:
         if not slot.executed:
+            scientific_statuses[slot.slot_id] = "not_assessed"
             direct_outcomes[slot.slot_id] = (
                 "not_used" if slot.call_class.startswith("reserve_") else "incomplete"
             )
@@ -1432,18 +1440,33 @@ def _compile_failure_rows(
         failure = failures.get(slot.attempt_id)
         failure_kind = None if failure is None else str(failure["failure_kind"])
         event_failed = any(events[event_id]["succeeded"] == 0 for event_id in slot.gpu_event_ids)
-        if call is not None and bool(call["successful"]):
-            if failure is not None or event_failed:
+        if failure is not None:
+            # A transport-complete request may still have an invalid output.
+            # The failure takes precedence; do not rewrite either source row.
+            outcome = _failure_outcome(failure_kind)
+        elif call is not None and bool(call["successful"]):
+            if event_failed:
                 raise FinalAccountingError(
                     "successful model call has contradictory failure evidence"
                 )
             outcome = "success"
-        elif failure is not None:
-            outcome = _failure_outcome(failure_kind)
         elif call is not None or event_failed:
             raise FinalAccountingError("unsuccessful call lacks an immutable failure record")
         else:
             outcome = "incomplete"
+        scientific_statuses[slot.slot_id] = (
+            str(
+                derive_call_status(
+                    call,
+                    events.get(call["gpu_event_id"]),
+                    snapshot.rows["failures"],
+                    snapshot.rows["validations"],
+                    diagnostic_only=False,
+                )["scientific_status"]
+            )
+            if call is not None
+            else "not_assessed"
+        )
         direct_outcomes[slot.slot_id] = outcome
         allocation_by_slot[slot.slot_id] = micros
         failure_by_slot[slot.slot_id] = failure_kind or ""
@@ -1608,6 +1631,8 @@ def _compile_failure_rows(
                 "call_id": slot.call_id,
                 "condition": slot.condition,
                 "outcome": direct_outcomes[slot.slot_id],
+                "outcome_scope": "execution_and_recorded_failure_not_scientific_acceptance",
+                "scientific_status": scientific_statuses[slot.slot_id],
                 "attempt_class": attempt_class_by_slot[slot.slot_id],
                 "repair_parent_call_id": parent_call,
                 "allocated_gpu_seconds": _seconds(allocation_by_slot[slot.slot_id]),
@@ -1623,6 +1648,8 @@ def _compile_failure_rows(
                 "call_id": slot.call_id,
                 "condition": "gpu_service",
                 "outcome": service_outcomes[slot.slot_id],
+                "outcome_scope": "service_execution_only",
+                "scientific_status": "not_applicable",
                 "attempt_class": "service",
                 "repair_parent_call_id": "",
                 "allocated_gpu_seconds": _seconds(allocation_by_slot[slot.slot_id]),
