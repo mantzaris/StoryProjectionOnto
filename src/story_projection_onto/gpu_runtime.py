@@ -950,6 +950,14 @@ class GuidedJSONRequest:
     unconstrained_diagnostic: bool = False
 
     def __post_init__(self) -> None:
+        if (
+            (self.decoding.maximum_input_tokens, self.decoding.maximum_output_tokens)
+            == (8704, 3584)
+            and self.request_id != "representation-diagnostic-identifier-contract-retry-v4"
+        ):
+            raise RuntimeConfigurationError(
+                "8,704/3,584 is a small diagnostic retry candidate only"
+            )
         if type(self.stream_response) is not bool:
             raise RuntimeConfigurationError("stream_response must be an explicit boolean")
         if type(self.unconstrained_diagnostic) is not bool or (

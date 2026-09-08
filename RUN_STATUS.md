@@ -1,5 +1,54 @@
 # Run status
 
+Updated: 2026-09-08 UTC — actual failure-to-retry CPU repair complete; no GPU start
+
+Previous terminal checkpoint: **`fba1829`**. Current diagnostic candidate and
+decisions: `docs/SMALL_RETRY_PATH_CPU_REPAIR.md`. The two retained failures now
+produce complete, parent-linked repair requests through the shared controller
+reconstruction/formatting path, with full restricted audits, all offending paths,
+unchanged evidence and lossless previous-response JSON. No CPU semantic filling.
+
+Candidate v4 explicitly encodes canonical epistemic/commitment branches, names
+required content declarations for all attitudes, and states the pinned decoder's
+single-space formatting. Dynamic reference equality/existence still require
+post-generation validation. The prior v3 CPU candidate and failed grammar controls
+remain preserved. Small checker v4 corrects only supported artifact compatibility
+and distinguishes unsupported precision/attribution, contradictions and unresolved
+matching; the language recognizer and registered primary metrics/gold are unchanged.
+
+Exact requests/feedback/schema/token accounting:
+`artifacts/restricted/small-retry-path-cpu-v4/` (`semantic-first/` and
+`semantic-second/REQUEST_AND_FEEDBACK.md`). Template-inclusive inputs
+**8,049 / 8,461**, each reserving **3,584** output: **11,633 / 12,045** of **12,288**.
+The explicit 8,704/3,584 pair is diagnostic-only, not ordinary-protocol adoption.
+Authored four-node/three-assertion capacity controls require **1,967 / 2,596** tokens
+with decoder-compatible spacing; not model results or reliability estimates.
+
+**134 CPU tests passed:** 111 focused + 23 disjoint transport/decoding checks.
+Both pinned schemas compile on CPU; positive standard-spaced strings pass,
+invalid commitment and repeated-whitespace controls fail. Simulated transport
+exercises two failed baselines followed by a prepared repair, plus explicit
+time/call/unsafe/unavailable-repair stops. Real original calls remain failed.
+
+**GPU added: 0 s. Preserved actual allocation: 6,321.388643 s.** No model service,
+inference, remote source deployment or PDF this turn. Remote decoder checks hid
+CUDA and loaded only the tokenizer. Last live terminal state remains vLLM stopped,
+pod active. Complete-run proxy **46,483.401856 s** still exceeds scheduled
+**33,660 s**; strict actual stop before **36,000 s** unchanged.
+
+Next proposed decision (not authorized): one **860-second** diagnostic-only start
+for the two prepared repair requests, no blind base retry/full study. Global max
+would be **7,181.388643 s** including shutdown. Complete fallback acceptance,
+production adoption, ordinary admission and independent human review remain gates.
+C0 extraction remains passed: P **104/122**, R **104/114**, **5/5** families, **100%**
+valid evidence. Contextual P **54/275**, R **54/91**, F1 **.295082** unchanged;
+historical/matcher-only failures preserved.
+
+Safe CPU resume/check:
+`/tmp/spo-refresh-venv/bin/python -m pytest -q tests/unit/test_small_retry_path.py tests/unit/test_capacity_diagnostic_controller.py`.
+
+## Previous live diagnostic — preserved terminal state
+
 Updated: 2026-09-08 UTC — reconciled two-example diagnostic finished; vLLM stopped
 
 Frozen rule checkpoint **`cbfb77a`**; deployed/tested live source **`4b36a4f`**.

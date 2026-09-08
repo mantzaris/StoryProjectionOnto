@@ -15,7 +15,7 @@ from story_projection_onto.scorer_only.acceptance_grounding import (
     _MENTION_CONCEPTS,
 )
 
-REVISION = "small-source-bound-semantics-v3"
+REVISION = "small-source-bound-semantics-v4-artifact-compatibility"
 SUPPORTED, REJECTED, UNRESOLVED = "supported", "rejected", "unresolved"
 
 # Source-bound alternatives, authored before new model responses. No hidden clock.
@@ -26,11 +26,15 @@ WITNESSES = {
     "remaining": ("ev-03", {"agent": "courier_lio", "location": "north_gate"}),
 }
 CONCEPT_TYPES = {
-    "courier_lio": "person",
-    "mechanic_ash": "person",
-    "north_gate": "place",
-    "seal": "entity",
-    "river_pump": "entity",
+    "courier_lio": {"entity", "person"},
+    "mechanic_ash": {"entity", "person"},
+    "north_gate": {"entity", "place"},
+    # UpperOntology supplies primitive terms, NOT an arbitrary subtype DAG.
+    # These source-bound manufactured objects admit artifact as well as the
+    # previously permitted entity parent. This does not make every entity an
+    # artifact, or bypass independent predicate/role/domain/range checks.
+    "seal": {"entity", "artifact"},
+    "river_pump": {"entity", "artifact"},
 }
 NAMES = {
     "courier_lio": r"(?:courier )?lio",
@@ -59,8 +63,18 @@ def combined(statuses) -> str:
     return SUPPORTED if values and all(v == SUPPORTED for v in values) else UNRESOLVED
 
 
-def observation(status: str, reason: str, **details) -> dict:
-    return {"status": status, "reason": reason, **details}
+def observation(status: str, reason: str, *, assessment_kind=None, **details) -> dict:
+    return {
+        "status": status,
+        "assessment_kind": assessment_kind
+        or {
+            SUPPORTED: "positive_support",
+            REJECTED: "constraint_violation",
+            UNRESOLVED: "unresolved_matching",
+        }[status],
+        "reason": reason,
+        **details,
+    }
 
 
 def role_meaning(name: str) -> str | None:
@@ -180,7 +194,10 @@ def text_support(text: str, cited: set[str], *, focus: str | None = None) -> dic
 def time_support(value, *, axis: str, cited: set[str]) -> dict:
     if value.kind.value in {"point", "interval"}:
         return observation(
-            REJECTED, "no supplied coordinate or intrinsic-duration witness", axis=axis
+            REJECTED,
+            "no supplied coordinate or intrinsic-duration witness",
+            axis=axis,
+            assessment_kind="unsupported_precision",
         )
     if value.kind.value == "unknown":
         label = normalized(value.label or "")
@@ -242,9 +259,13 @@ def audit_small_semantics(draft, fixture) -> dict:
         if concept is None:
             check = observation(UNRESOLVED, "no unique source-bound node identity")
         elif (is_event and parent != "event") or (
-            not is_event and parent not in {"entity", CONCEPT_TYPES[concept]}
+            not is_event and parent not in CONCEPT_TYPES[concept]
         ):
-            check = observation(REJECTED, "node's upper type conflicts with its anchored identity")
+            check = observation(
+                REJECTED,
+                "node's upper type conflicts with its anchored identity",
+                assessment_kind="identity_type_contradiction",
+            )
         else:
             check = observation(
                 SUPPORTED, "source-bound identity and compatible upper type", concept=concept
@@ -332,6 +353,7 @@ def audit_small_semantics(draft, fixture) -> dict:
                 endpoint = observation(
                     REJECTED,
                     "wrong role binding, endpoint kind, or contradictory predicate definition",
+                    assessment_kind="binding_or_definition_contradiction",
                     bindings=bindings,
                 )
             elif witness_evidence not in a.evidence_ids or set(a.evidence_ids) != {
@@ -394,6 +416,7 @@ def audit_small_semantics(draft, fixture) -> dict:
             "epistemic": observation(
                 SUPPORTED if attribution_ok else REJECTED,
                 "these supplied clauses are direct narrative assertions, not holder reports",
+                assessment_kind="positive_support" if attribution_ok else "unsupported_attribution",
             ),
             "description_text": text_support(a.why_matters, set(a.why_matters_evidence_ids)),
         }

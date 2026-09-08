@@ -485,18 +485,134 @@ def next_diagnostic(*, completed, accepted_c1):
     return "small" if completed == 0 else None
 
 
-def prepare_structural_semantic_retry(request, failure, tokenizer, *, contract_diagnostics=()):
+def prepare_identifier_retry(request, previous_response, tokenizer, *, preparation):
+    """Actual failed semantic JSON -> fact-free feedback -> whole packed retry.
+
+    Full original JSON is included losslessly, never repaired on CPU. Fixed
+    diagnostic-only 8,704/3,584 reallocation is a candidate, NOT study adoption.
+    """
+    from story_projection_onto.contracts import canonical_json
+    from story_projection_onto.gpu_runtime import ChatMessage
+    from story_projection_onto.representation_diagnostic import _repack
+    from story_projection_onto.semantic_generation import (
+        EPISTEMIC_REPAIR_INSTRUCTION,
+        REPAIR_CONTRACT_REVISION,
+        repair_epistemic_schema,
+    )
+    from story_projection_onto.semantic_identifiers import identifier_audit, identifier_diagnostics
+
+    sections = json.loads(request.messages[1].content)
+    supplied = [
+        obj.get("candidate_id", obj.get("clue_id"))
+        for e in sections["evidence_snapshot"]
+        for name in (
+            "mention_candidates",
+            "event_candidates",
+            "relation_phrase_candidates",
+            "temporal_clues",
+        )
+        for obj in e.get(name, [])
+    ]
+    audit = identifier_audit(previous_response, supplied)
+    diagnostics = identifier_diagnostics(audit)
+    if not diagnostics:
+        preparation.update(stop_reason="no_identifier_defect")
+        return None
+    # No arbitrary exception text, scorer explanation or model prose can become
+    # authoritative repair instructions. Group paths, not the missing content.
+    constraints = {
+        "undeclared_reference": "Reference must resolve to exactly one declared record "
+        "of the field's required type.",
+        "ambiguous_reference": "Choose unambiguous declarations and references yourself; "
+        "runtime cannot choose an interpretation.",
+        "duplicate_declaration": "Every record needs an unambiguous identifier; "
+        "runtime cannot merge or discard records.",
+        "scope_commitment_conflict": "A nonnull epistemic scope cannot be world_committed "
+        "on the same assertion.",
+    }
+    bad_commitments = [
+        f"/instance_graph/assertions/{i}/narrative_commitment"
+        for i, a in enumerate(previous_response["instance_graph"]["assertions"])
+        if a["epistemic_scope"] is not None and a["narrative_commitment"] == "world_committed"
+    ]
+    if bad_commitments:
+        diagnostics.append(
+            {
+                "category": "scope_commitment_conflict",
+                "paths": bad_commitments,
+                "referenced_id": None,
+                "constraint": "scope_commitment_conflict",
+            }
+        )
+    feedback = {
+        "revision": REPAIR_CONTRACT_REVISION,
+        "constraints": {k: constraints[k] for k in sorted({d["constraint"] for d in diagnostics})},
+        "diagnostics": diagnostics,
+    }
+    preparation.update(
+        feedback=feedback,
+        full_identifier_audit=audit,
+        previous_semantic_hash=canonical_sha256(previous_response),
+        parent_request_hash=request.request_hash,
+        reserved_output_tokens=3584,
+        truncation_applied=False,
+    )
+    messages = (
+        ChatMessage(
+            role="system", content=request.messages[0].content + "\n" + EPISTEMIC_REPAIR_INSTRUCTION
+        ),
+        *request.messages[1:],
+        ChatMessage(role="assistant", content=canonical_json(previous_response)),
+        ChatMessage(role="user", content=canonical_json(feedback)),
+    )
+    try:
+        repaired = _repack(
+            request,
+            messages,
+            repair_epistemic_schema(request.output_schema),
+            tokenizer,
+            label="identifier-contract-retry-v4",
+            reserved_output_tokens=3584,
+        )
+    except ValueError as exc:
+        preparation.update(stop_reason="repair_packing_failed", packing_error=str(exc))
+        return None
+    preparation.update(
+        stop_reason=None,
+        request_hash=repaired.request_hash,
+        input_tokens=repaired.rendered_input_token_count,
+        total_reserved_tokens=repaired.rendered_input_token_count + 3584,
+    )
+    return repaired
+
+
+def prepare_structural_semantic_retry(
+    request,
+    failure,
+    tokenizer,
+    *,
+    contract_diagnostics=(),
+    previous_response=None,
+    preparation=None,
+):
     """One diagnostic clarification of observed syntax/cross-field errors only.
 
     Never feed the scorer's expected facts back to the model. Full evidence is
-    unchanged. An overlarge error or packing failure ends this repair branch.
+    unchanged. Raw exception text is never sufficient model-facing feedback.
     """
+    preparation = {} if preparation is None else preparation
+    preparation.update(stop_reason="no_actionable_contract_diagnostic")
     if failure["stage"] not in {
         "canonical_schema_validation",
         "schema_or_structural_validation",
         "scientific_capability_validation",
     }:
+        preparation.update(stop_reason="failure_stage_not_repairable")
         return None
+    if previous_response is not None and failure["stage"] == "canonical_schema_validation":
+        return prepare_identifier_retry(
+            request, previous_response, tokenizer, preparation=preparation
+        )
     # Scientific rejection alone is not an automatic shutdown rule. A model's
     # observable cross-field/operation violations can justify ONE clarification;
     # the scorer's expected facts and latent clocks can never enter that request.
@@ -540,7 +656,7 @@ def prepare_structural_semantic_retry(request, failure, tokenizer, *, contract_d
     else:
         if failure["stage"] == "scientific_capability_validation":
             return None  # Scientific text is not contract-only repair feedback.
-        message = failure["message"]
+        return None  # Full exceptions may contain arbitrary/scorer material.
     if (
         "semantic grounding audit" in message
         or "small diagnostic reconciliation" in message
@@ -555,14 +671,17 @@ def prepare_structural_semantic_retry(request, failure, tokenizer, *, contract_d
         "Address this observed violation without inventing missing semantics.\n" + message
     )
     try:
-        return _repack(
+        repaired = _repack(
             request,
             (ChatMessage(role="system", content=system), *request.messages[1:]),
             request.output_schema,
             tokenizer,
             label="semantic-structural-repair",
         )
-    except ValueError:
+        preparation.update(stop_reason=None, request_hash=repaired.request_hash)
+        return repaired
+    except ValueError as exc:
+        preparation.update(stop_reason="repair_packing_failed", packing_error=str(exc))
         return None
 
 
@@ -578,6 +697,105 @@ def next_small_semantic_step(kind, pending_repair):
     if kind == "semantic-second" and pending_repair is not None:
         return pending_repair
     return None, None
+
+
+def semantic_failure_record(exc, stage):
+    """Restricted exception evidence; the formatter consumes typed defects only."""
+    record = {
+        "stage": stage,
+        "exception_type": type(exc).__name__,
+        "exception_chain": traceback.format_exc(),
+        "message": str(exc),
+    }
+    if hasattr(exc, "audit"):
+        record["full_identifier_audit"] = exc.audit
+        record["identifier_diagnostics"] = exc.diagnostics
+    return record
+
+
+def reconstruct_small_response(parsed, fixture, execution, *, record_audit):
+    """Shared live/CPU-replay canonical boundary; never fills missing semantics."""
+    from story_projection_onto.semantic_identifiers import identifier_audit, reconstruct_typed
+
+    supplied = [
+        obj.candidate_id
+        for e in fixture.evidence
+        for field in ("mention_candidates", "event_candidates", "relation_phrase_candidates")
+        for obj in getattr(e, field)
+    ] + [c.clue_id for e in fixture.evidence for c in e.temporal_clues]
+    record_audit(identifier_audit(parsed, supplied))
+    return reconstruct_typed(
+        parsed,
+        evidence=fixture.evidence,
+        upper=fixture.upper_ontology,
+        execution=execution,
+        small=True,
+    )
+
+
+def advance_small_semantic(
+    *,
+    kind,
+    attempt_id,
+    completed,
+    pending_repair,
+    request,
+    failure,
+    previous_response,
+    tokenizer,
+    contract_diagnostics,
+    healthy,
+    now_monotonic,
+    whole_deadline,
+    preparation,
+):
+    """Existing controller's bounded next-step branch, also exercised on CPU.
+
+    No service, clock or authorization is created here. Whole deadline already
+    excludes the guard; protect 60 shutdown + 210 generation/validation seconds.
+    Both baselines precede a single targeted repair. A validation failure alone
+    is never a transport-health signal.
+    """
+    if not healthy:
+        return {"next": None, "stop_reason": "unsafe_service_state", "pending": pending_repair}
+    if completed >= 3:
+        return {"next": None, "stop_reason": "call_limit_reached", "pending": pending_repair}
+    remaining = whole_deadline - now_monotonic
+    if remaining < 270:
+        return {
+            "next": None,
+            "stop_reason": "insufficient_time_with_shutdown_reserve",
+            "pending": pending_repair,
+        }
+    new_request = None
+    if failure and not kind.endswith("-repair") and pending_repair is None:
+        if remaining < 300:
+            preparation.update(stop_reason="insufficient_time_for_repair_preparation")
+        else:
+            new_request = prepare_structural_semantic_retry(
+                request,
+                failure,
+                tokenizer,
+                previous_response=previous_response,
+                contract_diagnostics=contract_diagnostics,
+                preparation=preparation,
+            )
+            if new_request is not None:
+                pending_repair = (kind + "-repair", attempt_id)
+    next_kind, parent = next_small_semantic_step(kind, pending_repair)
+    return {
+        "next": next_kind,
+        "parent": parent,
+        "pending": pending_repair,
+        "prepared_request": new_request,
+        "stop_reason": None
+        if next_kind
+        else (
+            preparation.get("stop_reason", "genuinely_unavailable_repair")
+            if failure
+            else "diagnostic_examples_complete"
+        ),
+    }
 
 
 def controller(root, block, run, *, prepare_only=False, comparison=False, semantic=False):
@@ -903,6 +1121,7 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
     semantic_next = "semantic-first"
     semantic_retry_parent = None
     pending_semantic_repair = None
+    stop_reason = None
     try:
         cap = stage("startup", STARTUP_SECONDS)
         service.start(
@@ -932,6 +1151,7 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
                 else next_diagnostic(completed=len(outcomes), accepted_c1=accepted_c1 is not None)
             )
             if kind is None:
+                stop_reason = stop_reason or "diagnostic_examples_complete"
                 break
             if count_reservations(block, "attempt") >= (
                 policy_mode.ATTEMPTS if comparison else MAX_ATTEMPTS
@@ -940,6 +1160,7 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
                     json.dumps({"diagnostic_limit_reached": True, "not_complete_acceptance": True}),
                     flush=True,
                 )
+                stop_reason = "call_limit_reached"
                 break
             index = -1 if comparison else {"c1": 0, "c2": 1, "fixed": 3, "small": -1}[kind]
             call = (
@@ -1110,30 +1331,10 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
                     from story_projection_onto.semantic_generation import (
                         ExecutionFacts,
                     )
-                    from story_projection_onto.semantic_identifiers import (
-                        identifier_audit,
-                        reconstruct_typed,
-                    )
 
                     generation_schema_valid = False
                     Draft202012Validator(request.output_schema).validate(result.parsed_object)
                     generation_schema_valid = True
-                    supplied_ids = [
-                        obj.candidate_id
-                        for e in semantic_fixtures[kind].evidence
-                        for field in (
-                            "mention_candidates",
-                            "event_candidates",
-                            "relation_phrase_candidates",
-                        )
-                        for obj in getattr(e, field)
-                    ] + [
-                        c.clue_id
-                        for e in semantic_fixtures[kind].evidence
-                        for c in e.temporal_clues
-                    ]
-                    reference_audit = identifier_audit(result.parsed_object, supplied_ids)
-                    immutable(attempt_root / "identifier-audit.json", reference_audit)
                     execution = ExecutionFacts(
                         result.request_hash,
                         result.response_sha256,
@@ -1142,12 +1343,13 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
                         result.prompt_tokens,
                         result.completion_tokens,
                     )
-                    adapted = reconstruct_typed(
+                    adapted = reconstruct_small_response(
                         result.parsed_object,
-                        evidence=semantic_fixtures[kind].evidence,
-                        upper=semantic_fixtures[kind].upper_ontology,
-                        execution=execution,
-                        small=True,
+                        semantic_fixtures[kind],
+                        execution,
+                        record_audit=lambda audit, attempt_root=attempt_root: immutable(
+                            attempt_root / "identifier-audit.json", audit
+                        ),
                     )
                     immutable(
                         attempt_root / "canonical.json", adapted.draft.model_dump(mode="json")
@@ -1219,12 +1421,7 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
                 if result is None:
                     generation_seconds = time.monotonic() - tic
                 stage("validation_and_failure_drain", validation_seconds)
-                failure = {
-                    "stage": failure_stage,
-                    "exception_type": type(exc).__name__,
-                    "exception_chain": traceback.format_exc(),
-                    "message": str(exc),
-                }
+                failure = semantic_failure_record(exc, failure_stage)
                 immutable(attempt_root / "failure.json", failure)
             transport_metadata = diagnostic_metadata(run / "http", request.request_hash)
             # Every raw response is already fsynced by the HTTP journal before
@@ -1315,37 +1512,51 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
             if failure and transport_metadata.get("failure_stage") in {"transport", "http"}:
                 # A failed transport may leave an in-flight generation. Do not
                 # overlap it or keep using an unhealthy service.
+                stop_reason = "unsafe_service_state"
                 break
             if semantic:
-                if failure and failure["stage"] == "client":
-                    break  # Unknown completion/cancellation: do not overlap requests.
-                if (
-                    failure
-                    and semantic_retry_parent is None
-                    and pending_semantic_repair is None
-                    and attempts + 1 < 3
-                ):
+                preparation = {}
+                if failure and pending_semantic_repair is None:
                     stage("bounded_structural_repair_preparation", 30)
-                    repaired = prepare_structural_semantic_retry(
-                        request,
-                        failure,
-                        tokenizer,
-                        contract_diagnostics=()
-                        if component_checks is None
-                        else component_checks["repairable_contract_diagnostics"],
-                    )
-                    if repaired is not None:
-                        repair_kind = kind + "-repair"
-                        variants[repair_kind] = repaired
-                        semantic_fixtures[repair_kind] = semantic_fixtures[kind]
-                        pending_semantic_repair = (repair_kind, attempt_id)
-                        compiler.compile_json_schema(
-                            json.dumps(repaired.output_schema), any_whitespace=False
-                        )
-                        immutable(run / f"prepared-{repair_kind}.json", repaired.wire_payload())
-                semantic_next, semantic_retry_parent = next_small_semantic_step(
-                    kind, pending_semantic_repair
+                transition = advance_small_semantic(
+                    kind=kind,
+                    attempt_id=attempt_id,
+                    completed=attempts + 1,
+                    pending_repair=pending_semantic_repair,
+                    request=request,
+                    failure=failure,
+                    previous_response=None if result is None else result.parsed_object,
+                    tokenizer=tokenizer,
+                    contract_diagnostics=()
+                    if component_checks is None
+                    else component_checks["repairable_contract_diagnostics"],
+                    healthy=not (failure and failure["stage"] == "client"),
+                    now_monotonic=time.monotonic(),
+                    whole_deadline=state["whole_deadline_monotonic"],
+                    preparation=preparation,
                 )
+                immutable(attempt_root / "repair-preparation.json", preparation)
+                repaired = transition.get("prepared_request")
+                if repaired is not None:
+                    repair_kind = transition["pending"][0]
+                    variants[repair_kind] = repaired
+                    semantic_fixtures[repair_kind] = semantic_fixtures[kind]
+                    compiler.compile_json_schema(
+                        json.dumps(repaired.output_schema), any_whitespace=False
+                    )
+                    immutable(run / f"prepared-{repair_kind}.json", repaired.wire_payload())
+                pending_semantic_repair = transition["pending"]
+                semantic_next = transition["next"]
+                semantic_retry_parent = transition.get("parent")
+                stop_reason = transition["stop_reason"]
+                immutable(
+                    attempt_root / "next-step.json",
+                    {k: v for k, v in transition.items() if k != "prepared_request"},
+                )
+    except Exception as exc:
+        stop_reason = "deadline_exhausted" if isinstance(exc, TimeoutError) else "controller_error"
+        immutable(run / "controller-failure.json", semantic_failure_record(exc, stop_reason))
+        raise
     finally:
         state.update(
             stage="shutdown",
@@ -1360,6 +1571,7 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
             run / "terminal.json",
             {
                 "outcomes": outcomes,
+                "stop_reason": stop_reason,
                 "ended_at": now(),
                 "actual_allocated_seconds": service.meter.actual_allocated_gpu_seconds,
                 "additional_block_seconds": service.meter.actual_allocated_gpu_seconds

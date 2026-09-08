@@ -97,6 +97,45 @@ SUPPLIED_FIELDS = {
 }
 
 
+class IdentifierResolutionError(ValueError):
+    """All evidence stays on the exception; only typed defects enter feedback."""
+
+    def __init__(self, audit: Mapping[str, Any]):
+        from story_projection_onto.contracts import canonical_json
+
+        self.audit = audit
+        self.diagnostics = identifier_diagnostics(audit)
+        super().__init__(
+            "identifier normalization would require a semantic choice: "
+            + canonical_json(self.diagnostics)
+        )
+
+
+def identifier_diagnostics(audit: Mapping[str, Any]) -> list[dict]:
+    """Group repeated defects, preserving EVERY affected JSON-pointer path.
+
+    No labels, definitions, evidence text, scorer facts or suggested referents.
+    The full declaration/reference audit remains separately available.
+    """
+    groups: dict[tuple, set[str]] = {}
+    for ref in audit["references"]:
+        if ref["resolution"] not in {"unknown", "ambiguous"}:
+            continue
+        code = "undeclared_reference" if ref["resolution"] == "unknown" else "ambiguous_reference"
+        key = (code, ref["id"])
+        groups.setdefault(key, set()).add(ref["path"])
+    for collision in audit["collisions"]:
+        if collision["same_namespace"]:
+            key = ("duplicate_declaration", collision["id"])
+            groups.setdefault(key, set()).update(
+                r["path"] + "/" + r["field"] for r in collision["records"]
+            )
+    return [
+        {"category": code, "referenced_id": ref, "paths": sorted(paths), "constraint": code}
+        for (code, ref), paths in sorted(groups.items())
+    ]
+
+
 def identifier_audit(generated: Mapping[str, Any], supplied_ids: Sequence[str] = ()) -> dict:
     """Return ALL declarations/references, not just the first collision."""
     declarations = []
@@ -177,7 +216,7 @@ def normalize_identifiers(generated: Mapping[str, Any], supplied_ids: Sequence[s
     """
     audit = identifier_audit(generated, supplied_ids)
     if not audit["normalizable"]:
-        raise ValueError("identifier normalization would require a semantic choice", audit)
+        raise IdentifierResolutionError(audit)
     value = copy.deepcopy(generated)
     canonical_ids = {
         d["path"]: "nC" + canonical_sha256((audit["source_hash"], d["kind"], d["id"]))[:40]
@@ -278,7 +317,7 @@ def typed_identifier_schema(schema: Mapping[str, Any]) -> dict:
 
 
 def reconstruct_typed(generated, *, evidence, upper, execution, small=False):
-    """Proposed, opt-in diagnostic revision; never called by a live controller.
+    """Opt-in small-diagnostic adapter; never ordinary/held-out construction.
 
     Bind the source response, administrative translation and canonical adapter
     separately. All original scientific fields remain in the generated payload.

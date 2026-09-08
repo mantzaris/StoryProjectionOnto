@@ -57,7 +57,21 @@ def admit(actual, starts, attempts, *, starting=False, generating=False, seconds
     }
 
 
-def _repack(base, messages, schema, tokenizer, *, label, unconstrained=False):
+def _repack(
+    base,
+    messages,
+    schema,
+    tokenizer,
+    *,
+    label,
+    unconstrained=False,
+    reserved_output_tokens=6144,
+):
+    # A diagnostic repair may explicitly reallocate the SAME 12,288-token
+    # context. Callers must record its policy; there is no adaptive truncation.
+    if not 1 <= reserved_output_tokens < 12288:
+        raise ValueError("invalid diagnostic output reservation")
+    maximum_input_tokens = 12288 - reserved_output_tokens
     count = len(
         tokenizer.apply_chat_template(
             [asdict(m) for m in messages],
@@ -69,8 +83,8 @@ def _repack(base, messages, schema, tokenizer, *, label, unconstrained=False):
     decoding = DecodingManifest.model_validate(
         base.decoding.model_dump(exclude={"content_hash"})
         | {
-            "maximum_input_tokens": 6144,
-            "maximum_output_tokens": 6144,
+            "maximum_input_tokens": maximum_input_tokens,
+            "maximum_output_tokens": reserved_output_tokens,
             "output_schema_hash": canonical_sha256(schema),
         }
     )
@@ -78,8 +92,8 @@ def _repack(base, messages, schema, tokenizer, *, label, unconstrained=False):
         condition=base.condition,
         tokenizer_revision=decoding.tokenizer_revision,
         maximum_model_tokens=12288,
-        maximum_input_tokens=6144,
-        reserved_output_tokens=6144,
+        maximum_input_tokens=maximum_input_tokens,
+        reserved_output_tokens=reserved_output_tokens,
         sections=(
             *tuple(
                 PackingSection(

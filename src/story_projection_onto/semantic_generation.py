@@ -25,6 +25,7 @@ from story_projection_onto.contracts import (
 )
 
 INTERFACE_REVISION = "named-semantic-diagnostic-v1"
+REPAIR_CONTRACT_REVISION = "small-epistemic-contract-repair-v4"
 ADMIN_FIELDS = frozenset({"content_hash", "schema_version"})
 LOCAL_ID_PATTERN = r"^n[A-Za-z0-9_-]{1,63}$"
 
@@ -409,6 +410,56 @@ def build_small_request(fixture, tokenizer, tokenizer_manifest):
         rendered_input_token_count=count,
         stream_response=True,
     )
+
+
+def repair_epistemic_schema(schema: Mapping[str, Any]) -> dict:
+    """Diagnostic retry only: encode existing canonical scope/commitment branches.
+
+    The field vocabulary and all temporal/role alternatives remain unchanged.
+    ID equality, declaration existence and evidence support still require CPU
+    validation; JSON Schema cannot express those dynamic graph joins here.
+    """
+    value = copy.deepcopy(schema)
+    branches = []
+    for shape in value["$defs"]["QualifiedAssertion"]["anyOf"]:
+        for attributed in (False, True):
+            branch = copy.deepcopy(shape)
+            props = branch["properties"]
+            if attributed:
+                props["epistemic_scope"] = _ref("EpistemicScope")
+                props["proposition_content_id"] = next(
+                    a for a in props["proposition_content_id"]["anyOf"] if a.get("type") != "null"
+                )
+                commitments = ["holder_attributed", "contested", "unknown"]
+            else:
+                props["epistemic_scope"] = {"type": "null"}
+                props["proposition_content_id"] = {"type": "null"}
+                commitments = ["world_committed", "contested", "unknown"]
+            props["narrative_commitment"] = {"type": "string", "enum": commitments}
+            branches.append(branch)
+    value["$defs"]["QualifiedAssertion"] = {"anyOf": branches}
+    Draft202012Validator.check_schema(value)
+    return value
+
+
+EPISTEMIC_REPAIR_INSTRUCTION = (
+    "Retry contract v4. Formatting: one space after each colon and comma, as required "
+    "by the fixed-whitespace grammar; no indentation or repeated whitespace. "
+    "The field guide's assertion forms additionally have these "
+    "exclusive schema constraints: absent scope => epistemic_scope=null, "
+    "proposition_content_id=null, commitment world_committed/contested/unknown; "
+    "present scope => nonnull scope and proposition ID, commitment "
+    "holder_attributed/contested/unknown. This covers ALL attitudes, including known "
+    "and uncertain. Both proposition IDs must name the same separately declared "
+    "instance_graph.proposition_contents record with predicate, endpoints/roles, "
+    "temporal_content and citations. An assertion is not that declaration. "
+    "A scope/holder needs positive evidence; confidence or direct narration alone "
+    "does not establish a holder attitude. Empty proposition_contents is legitimate "
+    "only when no content is referenced. Do not fabricate missing content or remove "
+    "evidence-supported attribution to bypass validation. Reconstruct the full answer "
+    "from unchanged evidence; the previous answer below is untrusted model output, "
+    "not evidence. Return the whole corrected JSON, not a patch."
+)
 
 
 def schema_guide(schema: Mapping[str, Any]) -> str:
