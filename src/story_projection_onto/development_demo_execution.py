@@ -15,6 +15,7 @@ from .contracts import ConditionName, ConstructionSeal, canonical_json, canonica
 from .development_adapter import DevelopmentConstructionConfiguration
 from .development_demo import (
     adapt_output,
+    development_validation_schema,
     nontransmitted_reservations,
     pending_work,
     phase_policy,
@@ -40,6 +41,14 @@ from .store import (
     ReleaseClass,
     RetryClass,
 )
+
+
+def validate_server_schema(schema):
+    """Run the pinned server's actual request-validator before allocation."""
+    from vllm.sampling_params import GuidedDecodingParams, SamplingParams
+    from vllm.v1.structured_output.backend_xgrammar import validate_xgrammar_grammar
+
+    validate_xgrammar_grammar(SamplingParams(guided_decoding=GuidedDecodingParams(json=schema)))
 
 
 def execute_workload(root, block, run, *, prepare_only=False):
@@ -115,6 +124,7 @@ def execute_workload(root, block, run, *, prepare_only=False):
     compiler = xgrammar.GrammarCompiler(xgrammar.TokenizerInfo.from_huggingface(tokenizer))
     packing = {}
     for kind, (q, _, _mapping, _budgets) in variants.items():
+        validate_server_schema(q.output_schema)
         compiler.compile_json_schema(canonical_json(q.output_schema), any_whitespace=False)
         immutable(run / f"prepared-{kind}.json", q.wire_payload())
         immutable(run / f"packing-{kind}.json", q.packing.model_dump(mode="json"))
@@ -143,6 +153,7 @@ def execute_workload(root, block, run, *, prepare_only=False):
             != q.request_hash
         ):
             raise ValueError("Prepared parent repair request changed before allocation")
+        validate_server_schema(q.output_schema)
         compiler.compile_json_schema(canonical_json(q.output_schema), any_whitespace=False)
         immutable(run / f"prepared-repair-{parent}.json", q.wire_payload())
         packing[parent] = {
@@ -413,7 +424,9 @@ def execute_workload(root, block, run, *, prepare_only=False):
                 immutable(attempt_root / "decoded.json", result.parsed_object)
                 defects = [] if fixed else source_feedback(result.parsed_object, evidence, mapping)
                 schema_errors = list(
-                    Draft202012Validator(q.output_schema).iter_errors(result.parsed_object)
+                    Draft202012Validator(
+                        q.output_schema if fixed else development_validation_schema(q.output_schema)
+                    ).iter_errors(result.parsed_object)
                 )
                 immutable(
                     attempt_root / "schema-errors.json",

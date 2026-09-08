@@ -91,6 +91,33 @@ def budget_schema(schema, budgets):
     return schema
 
 
+def backend_generation_schema(schema):
+    """Remove vLLM-unsupported uniqueness only; retain it in post-validation."""
+    if isinstance(schema, dict):
+        return {k: backend_generation_schema(v) for k, v in schema.items() if k != "uniqueItems"}
+    if isinstance(schema, list):
+        return [backend_generation_schema(v) for v in schema]
+    return schema
+
+
+def development_validation_schema(schema):
+    """Restore the unchanged reference-list uniqueness contract after decoding."""
+    value = copy.deepcopy(schema)
+
+    def visit(node, key=""):
+        if isinstance(node, dict):
+            if node.get("type") == "array" and key.endswith("_ids"):
+                node["uniqueItems"] = True
+            for k, v in node.items():
+                visit(v, k)
+        elif isinstance(node, list):
+            for item in node:
+                visit(item, key)
+
+    visit(value)
+    return value
+
+
 def read(path):
     return json.loads(Path(path).read_bytes())
 
@@ -422,6 +449,8 @@ def prepare_request(root, kind, tokenizer, manifest, *, previous=None, feedback=
             schema=True,
         )
     )
+    guide = vocabulary_guide(schema)
+    schema = backend_generation_schema(schema)
     protocol = read(root / CONFIG)
     instruction = (root / protocol["instruction_path"]).read_text()
     intro = (
@@ -451,7 +480,7 @@ def prepare_request(root, kind, tokenizer, manifest, *, previous=None, feedback=
     messages = [
         ChatMessage(
             role="system",
-            content=intro + "\n" + instruction + "\n" + vocabulary_guide(schema),
+            content=intro + "\n" + instruction + "\n" + guide,
         ),
         ChatMessage(
             role="user", content=json.dumps(body, ensure_ascii=False, separators=(",", ":"))

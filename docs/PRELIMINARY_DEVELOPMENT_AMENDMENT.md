@@ -142,3 +142,26 @@ repairs independently. FixedSelect is conditional on an actual accepted sealed C
 and intact packing; its unchanged selection-only allocation is 10,240/2,048.
 No full-study admission, production adoption, model change, held-out execution,
 checker weakening, gold change or extra inference slot is authorized.
+
+### Server-compatibility correction, v5
+
+Start 3 transmitted C1 repair 05 once, then shut down after a streaming server
+error. HTTP was 200, but vLLM rejected unsupported JSON-schema features before
+generation: `uniqueItems` passed standalone XGrammar compilation but fails the
+actual vLLM request validator. That preflight coverage gap is an implementation
+failure, not evidence about model semantics. Allocation: 197.182472 s; cumulative
+7,771.854961 s, phase-used 1,055.746880 s, remaining 2,544.253120 s. Journals closed.
+C1 will not repeat: its one permitted repair was transmitted, even without tokens.
+
+V5 removes only `uniqueItems` from the decoder schema and restores the identical
+constraint in post-validation. The model-facing instructions, evidence, feedback,
+all budgets and 7,168/5,120 allocation remain unchanged. Preflight now invokes
+the installed vLLM request validator as well as grammar compilation. Old schemas
+and requests remain immutable. The fourth and final authorized start is the
+diagnosed service-integration recovery for the two still-untransmitted C2 repairs;
+no new C1, fifth start or FixedSelect without accepted C1 is authorized.
+
+The persisted, canonically serialized authored capacity artifact measures 3,839
+compact / 4,872 single-space tokens; the preceding 3,858/4,876 figures were measured
+before persistence with different JSON numeric/key spellings. Neither is a model
+result or a maximum-budget guarantee. Both fit the same 5,120 allowance.

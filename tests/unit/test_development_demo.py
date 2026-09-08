@@ -300,6 +300,7 @@ def test_controller_scientific_failure_does_not_block_c2_or_shutdown(
     monkeypatch.setattr(controller, "setup", lambda *_: (ledger, sampler, service))
     monkeypatch.setattr(controller, "source_binding", lambda *_: {"cpu": "control"})
     monkeypatch.setattr(workload, "capture_tokenizer_manifest", lambda *a, **k: m)
+    monkeypatch.setattr(workload, "validate_server_schema", Draft202012Validator.check_schema)
     from dataclasses import dataclass
 
     @dataclass
@@ -469,8 +470,14 @@ def test_persisted_feedback_key_order_does_not_change_wire_request(pinned):
 
 def test_existing_budgets_bound_generation_without_new_type_ceiling(pinned):
     import copy
+    import json
 
-    from story_projection_onto.development_demo import budget_schema, field_guide
+    from story_projection_onto.development_demo import (
+        backend_generation_schema,
+        budget_schema,
+        development_validation_schema,
+        field_guide,
+    )
     from story_projection_onto.nested_semantic_candidate import candidate_schema
 
     _, _, neutral = sources(ROOT)
@@ -480,6 +487,8 @@ def test_existing_budgets_bound_generation_without_new_type_ceiling(pinned):
     )
     b = cfg.projection_budgets_by_unit["dev-unit-01"]
     s = budget_schema(candidate_schema(evidence, cfg.upper_ontology), b)
+    assert "uniqueItems" not in json.dumps(backend_generation_schema(s))
+    assert development_validation_schema(backend_generation_schema(s)) == s
     for count, branch in enumerate(s["$defs"]["InstanceGraph"]["anyOf"]):
         graph = branch["properties"]
         assert graph["entities"]["maxItems"] == graph["entities"]["minItems"] == count

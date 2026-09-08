@@ -1,6 +1,21 @@
 # Run status
 
-Updated: 2026-09-08 UTC — continuation prepared for the three pending semantic repairs.
+Updated: 2026-09-08 UTC — final recovery start prepared for the two pending C2 repairs.
+
+Start 3 is closed: C1 repair 05 reached the server, which returned HTTP 200 with
+a streaming schema-rejection error before generation (`uniqueItems` unsupported).
+No C1 repeat is permitted. Actual cumulative 7,771.854961 s; phase-used 1,055.746880,
+remaining 2,544.253120; three starts/five reservations, no open journals.
+V5 preserves the v4 prompt and constraints; uniqueness moves from unsupported
+decoder syntax to identical post-validation. Actual installed vLLM validator and
+XGrammar/exact packing preflight pass before allocation. Frozen C2 repair inputs
+7,142 / 7,130 plus 5,120 output. C1 remains failed; FixedSelect remains conditional.
+Focused real service-guard and restored-budget controls pass. C0 unchanged.
+
+Next: existing persistent controller command below, for the fourth/final start;
+only the two remaining C2 parent repairs, no new C1 or repeated bases.
+
+## Earlier continuation preparation (historical)
 
 User extended the **same phase** to four total starts; 3,600 additional seconds
 and 12 reservations unchanged. Verified ledger: 7,574.672489 cumulative,
