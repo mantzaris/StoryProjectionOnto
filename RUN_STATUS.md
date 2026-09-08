@@ -1,5 +1,24 @@
 # Run status
 
+Updated: 2026-09-08 UTC — authorized small-rule reconciliation prepared
+
+Frozen diagnostic-only rules and explicit new one-start/three-call envelope:
+`docs/SMALL_PILOT_RULES_V3.md`. **88 focused tests pass** before deployment;
+positive binary/event-role controls agree and the original failed response remains
+failed under separately versioned CPU re-evaluation. Registered metrics/gold and
+C0's complete passed extraction gate are unchanged.
+
+GPU baseline remains **6,025.436171 s**, matching the pod ledger hash exactly.
+Authorized additional maximum **1,100 s**, global session maximum **7,125.436171 s**.
+Both frozen development requests precede one optional evidence-supported repair;
+checker rules cannot change during the session. No ordinary study inference.
+Remote service was verified stopped and RTX 4090 idle before deployment.
+Current operation: freeze source, verify/deploy, then execute the existing
+guardian/controller in the persistent study session. Results will supersede this
+prelaunch entry; prior records below are preserved.
+
+## Previous CPU-only checkpoint
+
 Updated: 2026-09-08 UTC — semantic diagnosis/justified CPU repairs complete
 
 Previous verified checkpoint: **`5d9a0a2`**. Current CPU source and test hashes:

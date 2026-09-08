@@ -18,6 +18,49 @@ from story_projection_onto.scorer_only.acceptance_grounding import (
 from story_projection_onto.validate import validate_draft_structure
 
 
+def reconciled_component_audit(draft, fixture, oracle_evidence):
+    """Opt-in v3 diagnostic only. Retain legacy observations, not their clock gate."""
+    from story_projection_onto.scorer_only.small_semantic_rules import audit_small_semantics
+
+    legacy = component_audit(draft, fixture, oracle_evidence)
+    corrected = audit_small_semantics(draft, fixture)
+    structure_ok = (
+        legacy["structural_valid"]
+        and legacy["reference_integrity"]
+        and legacy["required_nonempty_structure"]
+        and legacy["event_connectivity"]
+    )
+    repairable = list(legacy["repairable_contract_diagnostics"])
+    for assertion_id, checks in corrected["assertion_checks"].items():
+        if checks["endpoints_roles"]["status"] == "rejected":
+            repairable.append(
+                {
+                    "code": "predicate_role_mismatch",
+                    "path": f"instance_graph.assertions.{assertion_id}.predicate_id",
+                }
+            )
+        if any(
+            checks[axis]["reason"] == "no supplied coordinate or intrinsic-duration witness"
+            for axis in ("story_time", "intrinsic_validity")
+        ):
+            repairable.append(
+                {
+                    "code": "unsupported_temporal_precision",
+                    "path": f"instance_graph.assertions.{assertion_id}.temporal_scope",
+                }
+            )
+    return {
+        **legacy,
+        "revision": corrected["revision"],
+        "legacy_observation_all_checks_pass": legacy["all_checks_pass"],
+        "reconciled_science": corrected,
+        "overall_status": corrected["overall_status"] if structure_ok else "rejected",
+        "all_checks_pass": structure_ok and corrected["all_supported"],
+        "repairable_contract_diagnostics": repairable,
+        "scope": "authorized small-pilot rule reconciliation only; no study metric/gold change",
+    }
+
+
 def component_audit(draft, fixture, oracle_evidence):
     structural = validate_draft_structure(
         draft=draft,

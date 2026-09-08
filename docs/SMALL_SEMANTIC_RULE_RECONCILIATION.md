@@ -1,5 +1,10 @@
 # Small semantic diagnosis and CPU repair — 2026-09-08
 
+Historical CPU-only decision record. The user subsequently approved the narrow
+diagnostic reconciliation and one bounded session. Current frozen rules and
+authorization: `SMALL_PILOT_RULES_V3.md`. The original proposal below is preserved;
+its statement that authorization is pending no longer describes the new session.
+
 No GPU start, inference, model/codec/ID redesign, gold edit or new acceptance.
 Historical allocation remains **6,025.436171 seconds**. Original typed response,
 canonical graph, ledger, validator records and prior manual review are immutable.

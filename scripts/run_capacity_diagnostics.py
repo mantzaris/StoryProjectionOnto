@@ -77,12 +77,12 @@ BLOCK_ID = "output-capacity-recovery-v1"
 EXCEPTION_DRAIN_SECONDS = 5
 SMALL_REQUEST_HASH = "cde6c6b6eedefab00aa46b7a01833998ca0b291ad8ff1daf55e574ad23681e7a"
 SEMANTIC_SESSION = {
-    "block_id": "small-typed-semantic-validation-20260908",
-    "historical_actual_seconds": 5755.222442,
+    "block_id": "small-reconciled-semantic-validation-20260908",
+    "historical_actual_seconds": 6025.436171,
     "maximum_new_starts": 1,
     "maximum_new_attempts": 3,
     "maximum_additional_seconds": 1100,
-    "global_maximum_seconds": 6855.222442,
+    "global_maximum_seconds": 7125.436171,
     "startup_seconds": 360,
     "live_checks_seconds": 15,
     "generation_seconds": 180,
@@ -390,7 +390,9 @@ def validate_small_diagnostic(result, fixture, oracle_evidence):
     return _validate_small_canonical_draft(draft, result, fixture, oracle_evidence)
 
 
-def validate_named_semantic_diagnostic(result, fixture, oracle_evidence, execution, *, typed=False):
+def validate_named_semantic_diagnostic(
+    result, fixture, oracle_evidence, execution, *, typed=False, reconciled=False
+):
     """Diagnostic adapter entry point only; no scheduler/counter/GPU route activated.
 
     Retain the identical scientific checks, after runtime metadata reconstruction.
@@ -417,7 +419,31 @@ def validate_named_semantic_diagnostic(result, fixture, oracle_evidence, executi
             small=True,
         ),
     )
-    verdict = _validate_small_canonical_draft(adapted.draft, result, fixture, oracle_evidence)
+    if reconciled:
+        from story_projection_onto.scorer_only.small_diagnostic_checks import (
+            reconciled_component_audit,
+        )
+
+        checks = reconciled_component_audit(adapted.draft, fixture, oracle_evidence)
+
+        def require_supported():
+            if not checks["all_checks_pass"]:
+                raise ValueError(
+                    "small diagnostic reconciliation: "
+                    + checks["overall_status"]
+                    + "; see restricted component checks"
+                )
+
+        result.diagnostic_journal.validate("scientific_validation", require_supported)
+        verdict = {
+            "small_diagnostic_only": True,
+            "schema_valid": True,
+            "structural_valid": checks["structural_valid"],
+            "scientific_valid": True,
+            "grounding": checks["reconciled_science"],
+        }
+    else:
+        verdict = _validate_small_canonical_draft(adapted.draft, result, fixture, oracle_evidence)
     return {
         **verdict,
         "adapter_provenance": adapted.provenance,
@@ -479,6 +505,11 @@ def prepare_structural_semantic_retry(request, failure, tokenizer, *, contract_d
         "not description/selection alone. No particular reification is required.",
         "event_type_incompatible": "Event records require event-compatible contextual types "
         "under the supplied upper vocabulary. Correct that inconsistency without inventing facts.",
+        "predicate_role_mismatch": "Reconcile predicate direction, defined participant roles "
+        "and bound referent kinds. Do not guess missing endpoints or change the evidence.",
+        "unsupported_temporal_precision": "Numeric story/validity bounds need explicit source "
+        "coordinates and duration support. Observation is not intrinsic onset. "
+        "Use explicit uncertainty when precision is unsupported.",
     }
     if contract_diagnostics:
         import re
@@ -488,11 +519,19 @@ def prepare_structural_semantic_retry(request, failure, tokenizer, *, contract_d
             if set(diagnostic) != {"code", "path"} or diagnostic["code"] not in rules:
                 return None
             path = diagnostic["path"]
-            if not isinstance(path, str) or not re.fullmatch(
-                r"decisions|instance_graph\.events\.[A-Za-z0-9_-]+\.contextual_type_id", path
-            ):
-                return None
-            if (diagnostic["code"] == "substantive_decision_missing") != (path == "decisions"):
+            paths = {
+                "substantive_decision_missing": r"decisions",
+                "event_type_incompatible": (
+                    r"instance_graph\.events\.[A-Za-z0-9_-]+\.contextual_type_id"
+                ),
+                "predicate_role_mismatch": (
+                    r"instance_graph\.assertions\.[A-Za-z0-9_-]+\.predicate_id"
+                ),
+                "unsupported_temporal_precision": (
+                    r"instance_graph\.assertions\.[A-Za-z0-9_-]+\.temporal_scope"
+                ),
+            }
+            if not isinstance(path, str) or not re.fullmatch(paths[diagnostic["code"]], path):
                 return None
             messages.append(path + ": " + rules[diagnostic["code"]])
         # One explicit discriminating repair, not an accumulating hint list.
@@ -695,7 +734,18 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
         actual_allocated_seconds=service.meter.actual_allocated_gpu_seconds,
         additional_diagnostic_allowance=policy_mode.ALLOWANCE if comparison else BLOCK_SECONDS,
     )
-    immutable(run / "small-success-criteria.json", SMALL_SUCCESS_CRITERIA)
+    criteria = dict(SMALL_SUCCESS_CRITERIA)
+    if semantic:
+        from story_projection_onto.scorer_only.small_semantic_rules import REVISION
+
+        criteria.update(
+            science="Frozen source-bound small diagnostic rules; every required component "
+            "must be positively supported. Rejected and unresolved are not acceptance.",
+            diagnostic_rule_revision=REVISION,
+            registered_primary_metrics_unchanged=True,
+            examples="Both previously frozen development passages, then at most one repair.",
+        )
+    immutable(run / "small-success-criteria.json", criteria)
     # Authored development fixture, never supplied to the model. This measures
     # representation capacity only, not a valid answer to the small snapshot.
     from story_projection_onto.output_wire import RecordTupleCodec, translate_references
@@ -1100,10 +1150,10 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
                     )
                     immutable(attempt_root / "adapter-provenance.json", adapted.provenance)
                     from story_projection_onto.scorer_only.small_diagnostic_checks import (
-                        component_audit,
+                        reconciled_component_audit,
                     )
 
-                    component_checks = component_audit(
+                    component_checks = reconciled_component_audit(
                         adapted.draft, semantic_fixtures[kind], small_oracle
                     )
                     immutable(attempt_root / "component-checks.json", component_checks)
@@ -1113,7 +1163,12 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
                 failure_stage = "schema_or_structural_validation"
                 validation = (
                     validate_named_semantic_diagnostic(
-                        result, semantic_fixtures[kind], small_oracle, execution, typed=True
+                        result,
+                        semantic_fixtures[kind],
+                        small_oracle,
+                        execution,
+                        typed=True,
+                        reconciled=True,
                     )
                     if semantic
                     else validate_small_diagnostic(result, small_fixture, small_oracle)
