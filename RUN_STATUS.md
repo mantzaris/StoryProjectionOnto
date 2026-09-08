@@ -1,5 +1,29 @@
 # Run status
 
+Updated: 2026-09-08 UTC — authorized two parent-linked repairs prepared; not yet launched
+
+Previous verified commit: `375974d`. The existing controller is bound to exactly
+the two v4 requests in `artifacts/restricted/small-retry-path-cpu-v4/`, with
+8,049 / 8,461 input tokens and 3,584 reserved output tokens each. 39 focused CPU
+tests pass. Original responses, checker, evidence and all historical accounting
+are unchanged. Remote ledger hash matches the previous terminal backup; no
+vLLM/controller or GPU compute processes are running.
+
+Authorized new session: `small-parent-linked-repairs-20260908`, one start,
+two parent-linked repair calls, at most 860 allocated seconds including shutdown.
+Baseline 6,321.388643; maximum 7,181.388643 actual seconds. Stage limits:
+360 startup, 15 live checks, 180 generation + 30 validation per call,
+60 protected shutdown, 5 guard. No adaptive changes, third call or study execution.
+Diagnostic-only forecast exception; global 33,660/36,000 ceilings unchanged.
+
+Exact remote execution command after deployed-source and CPU-preparation checks:
+`.venv/bin/python scripts/run_capacity_diagnostics.py --semantic --execute`
+inside persistent `storyprojection-study` tmux, with a timestamped log and the
+tested local commit in `STORYPROJECTION_LOCAL_COMMIT`. Do not rerun an exhausted
+start. Stop service after the two diagnostics; independent review remains required.
+
+## Previous CPU checkpoint (historical, superseded authorization status)
+
 Updated: 2026-09-08 UTC — actual failure-to-retry CPU repair complete; no GPU start
 
 Previous terminal checkpoint: **`fba1829`**. Current diagnostic candidate and

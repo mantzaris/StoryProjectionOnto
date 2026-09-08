@@ -156,7 +156,7 @@ a three-proposition attribution stress variant uses 2,596. Zero-space counts
 These are capacity fixtures, not model results or reliability/p95 evidence. Future
 requests must be measured again; 243-token input headroom is not robust slack.
 
-## Next decision
+## CPU verification and original proposal
 
 Verification: **111 focused tests passed** (19.99 s), plus **23 disjoint
 transport/decoding tests** (0.65 s), **134 total**. The shared controller response
@@ -175,6 +175,29 @@ two calls each 180 s + 30 s validation, protected shutdown 60 s, guard 5 s: **86
 All preparation precedes allocation. This would cap cumulative actual consumption
 at **7,181.388643 s** from the preserved **6,321.388643 s** baseline. It requires
 explicit authorization and the diagnostic-only forecast exception; none is assumed.
+
+## Authorized two-repair execution, 2026-09-08
+
+The user subsequently approved exactly these two v4 requests and their diagnostic
+8,704/3,584 allocation. The existing controller/guardian now bind the separate
+`small-parent-linked-repairs-20260908` session: one start, two calls, 860 seconds
+including shutdown, baseline 6,321.388643 and global maximum 7,181.388643 seconds.
+The old authorization subsection, requests, failures and ledger remain intact.
+There is no adaptive third call. A completed schema/canonical/scientific failure
+does not suppress the second prepared request. Unsafe transport or insufficient
+time explicitly stops further calls and preserves shutdown.
+
+Preallocation verification reconstructs both exact requests from their actual
+parents and compares every transmitted message, effective schema, rendered chat,
+tokenizer identity, packing and decoding record against the prepared package.
+Both attempts reuse their respective parent jobs with `AttemptKind.REPAIR`; no
+historical reserve slot is relabeled. Requests and checker remain frozen. The
+complete-run forecast exception applies only to this session, not study admission.
+
+39 focused CPU tests pass, including exact pinned-tokenizer request reproduction,
+parent-linked ledger writes, both-call ordering despite ordinary validation
+failure, third-call rejection, deadline protection and existing guardian cleanup.
+These are controller checks, not new model outcomes.
 
 Run both if safe and time remains. Stop on transport/cancellation uncertainty,
 resource/deadline exhaustion or completion; no identical blind retries or semantic

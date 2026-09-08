@@ -29,25 +29,26 @@ def test_stage_caps_preserve_whole_deadline_and_shutdown():
 
 def test_semantic_session_limits_are_new_and_preserve_every_historical_second():
     s = driver.SEMANTIC_SESSION
-    assert s["historical_actual_seconds"] == 6025.436171
-    assert s["global_maximum_seconds"] == s["historical_actual_seconds"] + 1100
-    assert driver.semantic_session_admit(6025.436171, 0, 0, starting=True, seconds=1035)
+    assert s["historical_actual_seconds"] == 6321.388643
+    assert s["global_maximum_seconds"] == s["historical_actual_seconds"] + 860
+    assert driver.semantic_session_admit(6321.388643, 0, 0, starting=True, seconds=795)
+    assert 360 + 15 + 2 * (180 + 30) + 60 + 5 == 860
     for args in (
-        dict(actual=6025.436170, starts=0, attempts=0, seconds=0),
-        dict(actual=6025.436171, starts=1, attempts=0, starting=True, seconds=0),
-        dict(actual=6025.436171, starts=1, attempts=3, generating=True, seconds=0),
-        dict(actual=7100, starts=1, attempts=2, generating=True, seconds=4),
+        dict(actual=6321.388642, starts=0, attempts=0, seconds=0),
+        dict(actual=6321.388643, starts=1, attempts=0, starting=True, seconds=0),
+        dict(actual=6321.388643, starts=1, attempts=2, generating=True, seconds=0),
+        dict(actual=7117, starts=1, attempts=1, generating=True, seconds=0),
     ):
         with pytest.raises(ValueError):
             driver.semantic_session_admit(**args)
     limit, whole = driver.stage_deadline(
-        started=100, now_monotonic=1000, prior_block_seconds=0, stage_seconds=180, semantic=True
+        started=100, now_monotonic=800, prior_block_seconds=0, stage_seconds=180, semantic=True
     )
-    assert whole == 1195 and limit == 1135
-    assert driver.generation_watchdog(limit - 1000, 180) == 130
+    assert whole == 955 and limit == 895
+    assert driver.generation_watchdog(limit - 800, 180) == 90
     assert (
         driver.read(ROOT / "configs/study/output_capacity_recovery.json")[
-            "semantic_interface_validation"
+            "parent_linked_small_repairs"
         ]
         == s
     )

@@ -77,12 +77,12 @@ BLOCK_ID = "output-capacity-recovery-v1"
 EXCEPTION_DRAIN_SECONDS = 5
 SMALL_REQUEST_HASH = "cde6c6b6eedefab00aa46b7a01833998ca0b291ad8ff1daf55e574ad23681e7a"
 SEMANTIC_SESSION = {
-    "block_id": "small-reconciled-semantic-validation-20260908",
-    "historical_actual_seconds": 6025.436171,
+    "block_id": "small-parent-linked-repairs-20260908",
+    "historical_actual_seconds": 6321.388643,
     "maximum_new_starts": 1,
-    "maximum_new_attempts": 3,
-    "maximum_additional_seconds": 1100,
-    "global_maximum_seconds": 7125.436171,
+    "maximum_new_attempts": 2,
+    "maximum_additional_seconds": 860,
+    "global_maximum_seconds": 7181.388643,
     "startup_seconds": 360,
     "live_checks_seconds": 15,
     "generation_seconds": 180,
@@ -90,7 +90,16 @@ SEMANTIC_SESSION = {
     "shutdown_seconds": 60,
     "guard_seconds": 5,
     "second_evidence_id": "ev-03",
+    "prepared_package": "artifacts/restricted/small-retry-path-cpu-v4",
+    "diagnostic_input_output_tokens": [8704, 3584],
+    "adaptive_changes_authorized": False,
     "ordinary_execution_authorized": False,
+}
+PARENT_BLOCK = "small-reconciled-semantic-validation-20260908"
+PARENT_RUN = "run-20260908T043820389279"
+FROZEN_REPAIRS = {
+    "semantic-first": ("6adb7b7c03eaedbab037ebefca17a2194a8c07a9e00fb7936d3df355881008eb", 8049),
+    "semantic-second": ("0a5f3418498ac60baa491e443d31ecabb86735dc1c79a4a267897a8c464aad78", 8461),
 }
 
 
@@ -102,7 +111,10 @@ def semantic_session_admit(actual, starts, attempts, *, starting=False, generati
         actual < settings["historical_actual_seconds"] or seconds < 0
     ):
         raise ValueError("invalid semantic-session allocation")
-    if starts + int(starting) > 1 or attempts + int(generating) > 3:
+    if (
+        starts + int(starting) > settings["maximum_new_starts"]
+        or attempts + int(generating) > settings["maximum_new_attempts"]
+    ):
         raise ValueError("semantic-session start/attempt limit")
     end = actual + seconds + settings["shutdown_seconds"]
     if end > settings["global_maximum_seconds"] - 5 or end > 33660 or end >= 36000:
@@ -124,9 +136,9 @@ def diagnostic_policy(semantic):
     return SimpleNamespace(
         BASELINE=SEMANTIC_SESSION["historical_actual_seconds"],
         BLOCK_ID=SEMANTIC_SESSION["block_id"],
-        ALLOWANCE=1100,
+        ALLOWANCE=SEMANTIC_SESSION["maximum_additional_seconds"],
         STARTS=1,
-        ATTEMPTS=3,
+        ATTEMPTS=SEMANTIC_SESSION["maximum_new_attempts"],
         GENERATION=180,
         admit=semantic_session_admit,
     )
@@ -169,6 +181,102 @@ def source_binding(root):
         | {root / "scripts/run_capacity_diagnostics.py"}
     )
     return {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest() for p in paths}
+
+
+def prepared_repair_binding(root):
+    package = root / SEMANTIC_SESSION["prepared_package"]
+    return {
+        str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest()
+        for p in sorted(package.glob("**/*.json"))
+        if p.parent.name in FROZEN_REPAIRS or p.name == "CPU_REPLAY.json"
+    }
+
+
+def verify_prepared_repairs(root, bases, tokenizer, tokenizer_manifest, *, parent_root=None):
+    """Rebuild the frozen CPU artifacts exactly, before any service allocation."""
+    package = root / SEMANTIC_SESSION["prepared_package"]
+    parent_root = parent_root or root / "artifacts/restricted" / PARENT_BLOCK / PARENT_RUN
+    replay = read(package / "CPU_REPLAY.json")
+    if canonical_sha256(tokenizer_manifest.public_manifest()) != canonical_sha256(
+        replay["tokenizer_manifest"]
+    ):
+        raise ValueError("prepared repair tokenizer/template identity changed")
+    variants, parents, receipts = {}, {}, {}
+    for number, (kind, (digest, count)) in enumerate(FROZEN_REPAIRS.items(), 1):
+        row = replay["rows"][number - 1]
+        parent = f"{PARENT_BLOCK}-diagnostic-{number}"
+        previous = read(parent_root / parent / "decoded.json")
+        outcome = read(parent_root / parent / "outcome.json")
+        if (
+            bases[kind].request_hash != row["original_request_hash"]
+            or outcome["request_hash"] != bases[kind].request_hash
+            or outcome["accepted"]
+            or canonical_sha256(previous) != row["original_response_hash"]
+            or outcome["response"]["parsed_object_sha256"] != row["original_response_hash"]
+        ):
+            raise ValueError("prepared repair parent response/request identity changed")
+        preparation = {}
+        request = prepare_identifier_retry(
+            bases[kind], previous, tokenizer, preparation=preparation
+        )
+        if request is None:
+            raise ValueError("frozen repair no longer packs")
+        expected = package / kind
+        wire = request.wire_payload()
+        rendered = tokenizer.apply_chat_template(
+            wire["messages"], tokenize=False, add_generation_prompt=True, enable_thinking=False
+        )
+        tokens = len(
+            tokenizer.apply_chat_template(
+                wire["messages"], tokenize=True, add_generation_prompt=True, enable_thinking=False
+            )
+        )
+        comparisons = {
+            "request.json": wire,
+            "generation.schema.json": request.output_schema,
+            "packing.json": request.packing.model_dump(mode="json"),
+            "decoding.json": request.decoding.model_dump(mode="json"),
+            "feedback.json": preparation["feedback"],
+            "rendered-chat.json": {"text": rendered, "tokens": tokens},
+        }
+        if any(value != read(expected / name) for name, value in comparisons.items()):
+            raise ValueError("serialized repair differs from frozen CPU artifact")
+        if (
+            request.request_hash != digest
+            or tokens != count
+            or request.rendered_input_token_count != count
+            or request.decoding.maximum_output_tokens != 3584
+            or tokens + 3584 > 12288
+            or request.packing.truncation_applied
+        ):
+            raise ValueError("frozen repair hash/token/context invariant failed")
+        variants[kind], parents[kind] = request, parent
+        receipts[kind] = {
+            "request_hash": digest,
+            "parent_attempt_id": parent,
+            "parent_response_hash": row["original_response_hash"],
+            "input_tokens": tokens,
+            "output_allowance": 3584,
+            "total_tokens": tokens + 3584,
+            "every_transmitted_message_verified": True,
+        }
+    return variants, parents, receipts
+
+
+def next_prepared_repair(*, completed, healthy, remaining_seconds):
+    """No adaptive changes; validation failure does not suppress the second call."""
+    if not healthy:
+        return None, "unsafe_service_state"
+    if completed >= 2:
+        return None, "two_prepared_repairs_complete"
+    required = (
+        SEMANTIC_SESSION["generation_seconds"]
+        + SEMANTIC_SESSION["validation_seconds"]
+        + SEMANTIC_SESSION["shutdown_seconds"]
+    )
+    if remaining_seconds < required:
+        return None, "insufficient_time_with_shutdown_reserve"
+    return tuple(FROZEN_REPAIRS)[completed], None
 
 
 def stage_deadline(
@@ -822,6 +930,7 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
     if (
         binding["source"] != source_binding(root)
         or binding["configuration"] != service.configuration.configuration_hash
+        or (semantic and binding["prepared_repairs"] != prepared_repair_binding(root))
     ):
         raise ValueError("deployed source/configuration differs between controller and guardian")
     policy = FallbackModelPolicy.load(root / "configs/study/fallback_model.json")
@@ -840,6 +949,7 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
     if first.request_hash != SMALL_REQUEST_HASH:
         raise ValueError("small diagnostic request changed from the authorized exact request")
     semantic_fixtures = {}
+    semantic_parents = {}
     if semantic:
         from story_projection_onto.semantic_generation import build_clarified_small_request
 
@@ -880,6 +990,17 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
             raise ValueError("semantic request differs from the CPU-frozen general instruction")
         for label, fixture in semantic_fixtures.items():
             immutable(run / f"fixture-{label}.json", fixture.model_dump(mode="json"))
+        variants, semantic_parents, receipts = verify_prepared_repairs(
+            root, variants, tokenizer, tokenizer_manifest
+        )
+        for kind, parent in semantic_parents.items():
+            prior_attempt = ledger.attempt_lineage(parent)[-1]
+            if (
+                prior_attempt.input_hash != frozen[kind]
+                or prior_attempt.seed != small_call.seed_block
+            ):
+                raise ValueError("parent ledger request/seed identity differs")
+        immutable(run / "frozen-repair-verification.json", receipts)
     else:
         variants = (
             comparison_policy.prepare_comparison(small, small_fixture, tokenizer)
@@ -965,7 +1086,7 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
             "must be positively supported. Rejected and unresolved are not acceptance.",
             diagnostic_rule_revision=REVISION,
             registered_primary_metrics_unchanged=True,
-            examples="Both previously frozen development passages, then at most one repair.",
+            examples="Exactly two prepared parent-linked v4 repairs; no adaptive changes.",
         )
     immutable(run / "small-success-criteria.json", criteria)
     # Authored development fixture, never supplied to the model. This measures
@@ -1118,9 +1239,7 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
     artifact_store = ArtifactStore(BlobStore(root / "artifacts/blobs/phase1_acceptance"), ledger)
     accepted_c1 = None
     accepted_c1_seal = None
-    semantic_next = "semantic-first"
     semantic_retry_parent = None
-    pending_semantic_repair = None
     stop_reason = None
     try:
         cap = stage("startup", STARTUP_SECONDS)
@@ -1143,6 +1262,13 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
         )
         sampler.sample(sample_id=run.name + "-ready", root_pid=service.pid)
         while True:
+            if semantic:
+                semantic_next, stop_reason = next_prepared_repair(
+                    completed=len(outcomes),
+                    healthy=True,
+                    remaining_seconds=state["whole_deadline_monotonic"] - time.monotonic(),
+                )
+                semantic_retry_parent = semantic_parents.get(semantic_next)
             kind = (
                 semantic_next
                 if semantic
@@ -1265,20 +1391,24 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
                     "repair_parent": semantic_retry_parent,
                 },
             )
-            job = ledger.create_or_resume_job(
-                (
-                    {
-                        "block": block.name,
-                        "semantic_task_hash": semantic_fixtures[kind].content_hash,
-                    }
-                    if semantic
-                    else {
-                        "block": block.name,
-                        "attempt": attempt_id,
-                        "request_hash": request.request_hash,
-                    }
-                ),
-                release_class=ReleaseClass.RESTRICTED,
+            job = (
+                ledger.get_job(ledger.attempt_lineage(semantic_retry_parent)[-1].job_id)
+                if semantic
+                else ledger.create_or_resume_job(
+                    (
+                        {
+                            "block": block.name,
+                            "semantic_task_hash": semantic_fixtures[kind].content_hash,
+                        }
+                        if semantic
+                        else {
+                            "block": block.name,
+                            "attempt": attempt_id,
+                            "request_hash": request.request_hash,
+                        }
+                    ),
+                    release_class=ReleaseClass.RESTRICTED,
+                )
             )
             ledger.record_attempt(
                 attempt_id=attempt_id,
@@ -1472,7 +1602,7 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
                 gpu_event_id=attempt_id,
                 backend=ModelBackend.VLLM_GPU,
                 call_role=ModelCallRole.PILOT,
-                retry_class=RetryClass.BASE,
+                retry_class=RetryClass.STANDARD if semantic_retry_parent else RetryClass.BASE,
                 model_manifest_hash=service.configuration.configuration_hash,
                 decoding_manifest_hash=request.decoding.content_hash,
                 request_hash=request.request_hash,
@@ -1509,50 +1639,36 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
                 ),
                 flush=True,
             )
-            if failure and transport_metadata.get("failure_stage") in {"transport", "http"}:
+            if failure and (
+                transport_metadata.get("failure_stage") in {"transport", "http"}
+                or (
+                    failure["stage"] == "client"
+                    and not (
+                        transport_metadata.get("response_complete")
+                        and transport_metadata.get("stream_done")
+                    )
+                )
+            ):
                 # A failed transport may leave an in-flight generation. Do not
                 # overlap it or keep using an unhealthy service.
                 stop_reason = "unsafe_service_state"
                 break
             if semantic:
-                preparation = {}
-                if failure and pending_semantic_repair is None:
-                    stage("bounded_structural_repair_preparation", 30)
-                transition = advance_small_semantic(
-                    kind=kind,
-                    attempt_id=attempt_id,
-                    completed=attempts + 1,
-                    pending_repair=pending_semantic_repair,
-                    request=request,
-                    failure=failure,
-                    previous_response=None if result is None else result.parsed_object,
-                    tokenizer=tokenizer,
-                    contract_diagnostics=()
-                    if component_checks is None
-                    else component_checks["repairable_contract_diagnostics"],
-                    healthy=not (failure and failure["stage"] == "client"),
-                    now_monotonic=time.monotonic(),
-                    whole_deadline=state["whole_deadline_monotonic"],
-                    preparation=preparation,
+                next_kind, stop_reason = next_prepared_repair(
+                    completed=len(outcomes),
+                    healthy=True,
+                    remaining_seconds=state["whole_deadline_monotonic"] - time.monotonic(),
                 )
-                immutable(attempt_root / "repair-preparation.json", preparation)
-                repaired = transition.get("prepared_request")
-                if repaired is not None:
-                    repair_kind = transition["pending"][0]
-                    variants[repair_kind] = repaired
-                    semantic_fixtures[repair_kind] = semantic_fixtures[kind]
-                    compiler.compile_json_schema(
-                        json.dumps(repaired.output_schema), any_whitespace=False
-                    )
-                    immutable(run / f"prepared-{repair_kind}.json", repaired.wire_payload())
-                pending_semantic_repair = transition["pending"]
-                semantic_next = transition["next"]
-                semantic_retry_parent = transition.get("parent")
-                stop_reason = transition["stop_reason"]
                 immutable(
                     attempt_root / "next-step.json",
-                    {k: v for k, v in transition.items() if k != "prepared_request"},
+                    {
+                        "next": next_kind,
+                        "stop_reason": stop_reason,
+                        "adaptive_changes_authorized": False,
+                    },
                 )
+                if next_kind is None:
+                    break
     except Exception as exc:
         stop_reason = "deadline_exhausted" if isinstance(exc, TimeoutError) else "controller_error"
         immutable(run / "controller-failure.json", semantic_failure_record(exc, stop_reason))
@@ -1646,7 +1762,7 @@ def guardian(root, *, prepare_only=False, comparison=False, semantic=False):
             # Separate explicit new allowance. Prior block remains immutable and
             # actual global ledger must include its terminal consumption.
             current = authorization[
-                "semantic_interface_validation" if semantic else "representation_comparison"
+                "parent_linked_small_repairs" if semantic else "representation_comparison"
             ]
             expected_comparison = (
                 SEMANTIC_SESSION
@@ -1671,6 +1787,7 @@ def guardian(root, *, prepare_only=False, comparison=False, semantic=False):
             "guardian_pid": os.getpid(),
             "created_at": now(),
             "local_commit": os.environ.get("STORYPROJECTION_LOCAL_COMMIT", "CPU-check-only"),
+            "prepared_repairs": prepared_repair_binding(root) if semantic else None,
         }
         immutable(run / "binding.json", binding)
         command = [sys.executable, __file__, "--controller", str(run)]
