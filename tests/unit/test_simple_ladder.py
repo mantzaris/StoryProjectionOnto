@@ -214,3 +214,33 @@ def test_actual_workload_service_guard_and_stream_transport(
     rows = render(run, tmp_path / "reports")
     assert len(rows) == len(seen)
     assert (tmp_path / "reports/figures/simple_synthetic_comparison.html").exists()
+
+
+def test_actual_ladder_scores_and_report_consistency(tmp_path):
+    import csv
+    import hashlib
+
+    from scripts.report_simple_ladder import render
+
+    run = Path("artifacts/restricted/simple-ladder-backup.GwP5td/run-20260908T222604858308")
+    if not run.exists():
+        pytest.skip("restricted real outputs unavailable")
+    terminal = json.loads((run / "terminal.json").read_text())
+    expected = [1, 1, 1, 1, 1, 0, 0, 0.5]
+    for outcome, f1 in zip(terminal["outcomes"], expected, strict=True):
+        k = outcome["case_id"]
+        assert evaluate(k, outcome["parsed"]) == outcome["evaluation"]
+        assert outcome["evaluation"]["full"]["f1"] == f1
+        packing = json.loads((run / "packing.json").read_text())[k]
+        assert outcome["response"]["prompt_tokens"] == packing["input_tokens"]
+        assert outcome["response"]["completion_tokens"] < packing["reserved_output_tokens"]
+    rows = render(run, tmp_path)
+    saved = list(csv.DictReader((tmp_path / "tables/simple_synthetic_results.csv").open()))
+    for row, record in zip(rows, saved, strict=True):
+        for key, value in row.items():
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                assert float(record[key]) == value
+    manifest = json.loads((tmp_path / "tables/simple_synthetic_manifest.json").read_text())
+    for path, digest in manifest.items():
+        assert hashlib.sha256((tmp_path / path).read_bytes()).hexdigest() == digest
+    assert terminal["open_allocations"] == terminal["open_service_journals"] == 0

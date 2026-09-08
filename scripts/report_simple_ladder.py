@@ -6,6 +6,7 @@ import hashlib
 import html
 import json
 import math
+import textwrap
 from pathlib import Path
 
 from story_projection_onto.manifest import write_json_atomic
@@ -50,7 +51,12 @@ def graph(facts):
         x, y = xy[f["subject"]]
         a, b = xy[f["object"]]
         distance = max(1, math.hypot(a - x, b - y))
-        ex, ey = a - (a - x) * 35 / distance, b - (b - y) * 35 / distance
+        boundary = min(
+            95 / abs(a - x) if a != x else math.inf, 27 / abs(b - y) if b != y else math.inf
+        )
+        # End outside the rectangular node so the arrowhead is not painted over.
+        ex = a - (a - x) * boundary - (a - x) * 5 / distance
+        ey = b - (b - y) * boundary - (b - y) * 5 / distance
         out.append(
             f'<path d="M{x},{y} L{ex},{ey}" stroke="#64748b" fill="none" marker-end="url(#arrow)"/>'
         )
@@ -60,9 +66,13 @@ def graph(facts):
         )
     for name, (x, y) in xy.items():
         out.append(
-            f'<rect x="{x - 83}" y="{y - 18}" width="166" height="36" rx="8" fill="#e0f2fe" stroke="#0369a1"/>'
+            f'<rect x="{x - 95}" y="{y - 27}" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/>'
         )
-        out.append(f'<text x="{x}" y="{y + 5}" text-anchor="middle">{html.escape(name)}</text>')
+        lines = textwrap.wrap(name, 24) or [name]
+        for i, line in enumerate(lines):
+            out.append(
+                f'<text x="{x}" y="{y + 5 + (i - (len(lines) - 1) / 2) * 17}" text-anchor="middle">{html.escape(line)}</text>'
+            )
     return "".join(out) + "</svg>"
 
 
@@ -76,6 +86,18 @@ def render(run, output):
         read("terminal.json"),
     )
     outcomes = terminal["outcomes"]
+    tokenizer = (
+        read("rendered-1.json").get("tokenizer_manifest", {})
+        if (run / "rendered-1.json").exists()
+        else {}
+    )
+    first_request = read("request-1.json")
+    notes_path = run / "manual-diagnostic-notes.json"
+    notes = read(notes_path.name) if notes_path.exists() else {"cases": {}}
+    for k, note in notes["cases"].items():
+        actual = next(o for o in outcomes if o["case_id"] == k)
+        if note["response_sha256"] != actual["response"]["response_sha256"]:
+            raise ValueError("manual diagnosis is bound to a different response")
     rows = []
     sections = []
     md = [
@@ -83,11 +105,15 @@ def render(run, output):
         "",
         "Exploratory pedagogical development diagnostics—not registered C0/C1/C2 results, canonical ontologies, or held-out evidence.",
         "",
+        f"Model: `{tokenizer.get('repository', first_request['model'])}@{tokenizer.get('revision', 'see run manifest')}`. "
+        f"Nonthinking; seed {first_request['seed']}; temperature {first_request['temperature']}; "
+        f"top-p {first_request['top_p']}; top-k {first_request['top_k']}; no guided schema.",
+        "",
         "All eight requests, conservative matching rules, reference alternatives and the conditional plain-language control were frozen before inference. No guided JSON schema, expected answer, ontology contract or model repair was transmitted. Identical endpoint strings alone define graph nodes.",
         "",
         "Direct-fact progression requires combined precision and recall ≥80%. Later levels use the same exploratory P/R criterion on complete qualified facts. Every emitted fact remains in the denominator; duplicate, malformed and unresolved facts are not silently removed. Matching permits case/whitespace normalization and the frozen relation synonyms only. An unmatched wording is not automatically a false statement.",
         "",
-        "| Case | Level | Complete | Correct / extracted / reference | Precision | Recall | F1 | Input / output tokens | Seconds |",
+        "| Case | Level | Finish | Correct / extracted / reference | Precision | Recall | F1 | Input / output tokens | Seconds |",
         "|---|---|---|---|---|---|---|---|---|",
     ]
     for o in outcomes:
@@ -135,11 +161,19 @@ def render(run, output):
             f"<p><strong>Question:</strong> {html.escape(case['question'])}</p>"
             f"<details><summary>Reference answers (frozen alternatives, not model output)</summary><pre>{html.escape(reference_text)}</pre></details>"
             f"<h3>Actual model output</h3><pre>{html.escape(o['raw_text'])}</pre>{graph(predicted)}"
-            f"<h3>Scoring, qualifications and unresolved checks</h3><pre>{html.escape(dump(ev or o.get('failure')))}</pre>"
+            f"<h3>Measured result</h3><p>Precision {metric('precision')}; recall {metric('recall')}; F1 {metric('f1')}.</p>"
+            f"<details><summary>Correct, incorrect/unmatched, missing facts and qualification checks</summary><pre>{html.escape(dump(ev or o.get('failure')))}</pre></details>"
             f"<p>Tokens {row['input_tokens']} / {row['output_tokens']}; output cap {row['output_allowance']}; "
             f"{row['request_seconds']:.3f} seconds; finish {html.escape(str(row['finish_reason']))}; "
             f"normalization: {html.escape(o['normalization'])}.</p></section>"
         )
+        if k in notes["cases"]:
+            sections[-1] = sections[-1].replace(
+                "</section>",
+                "<h3>Manual diagnostic explanation (not rescoring)</h3><p>"
+                + html.escape(notes["cases"][k]["finding"])
+                + "</p></section>",
+            )
     executed = {o["case_id"] for o in outcomes}
     levels = [
         ("direct extraction", ["1", "2"]),
@@ -173,11 +207,26 @@ def render(run, output):
         "",
         conclusion,
         "",
+        f"Parseable JSON fact lists: {sum(o['parsed'] is not None for o in outcomes)}/{len(outcomes)}. "
+        "The scores require the supplied evidence IDs; “underlying” drops temporal/epistemic qualifications but still checks citations. "
+        "The manual notes below distinguish contract failures from factual errors without changing the frozen scores.",
+        "",
         f"Not executed: {', '.join(k for k in cases if k not in executed) or 'none'}. Stop reason: `{terminal['stop_reason']}`.",
         "",
         f"New allocated GPU time: **{terminal['new_allocated_seconds']:.6f} s**. Cumulative: **{terminal['actual_allocated_seconds']:.6f} s**. "
         f"Open allocation/service journals: {terminal['open_allocations']}/{terminal['open_service_journals']}. "
         "Startup, idle time, monitoring, generation and shutdown are included; request times are not total allocation.",
+        "",
+        "Sampled peaks (bytes): "
+        + ", ".join(
+            f"{label} {max((s[field] for s in terminal.get('resource_samples', [])), default=0)}"
+            for label, field in (
+                ("VRAM", "gpu_vram_bytes"),
+                ("process RAM", "process_ram_bytes"),
+                ("project storage", "project_storage_bytes"),
+            )
+        )
+        + ".",
         "",
         "## Evidence and actual answers",
         "",
@@ -191,27 +240,36 @@ def render(run, output):
             "",
             c["question"],
             "",
-            "Actual model output:",
-            "",
-            "```json" if k != "control" else "```text",
-            o["raw_text"],
-            "```",
+            "Actual extracted relationships (verbatim JSON is in the HTML):",
             "",
         ]
+        if o["parsed"]:
+            for f in o["parsed"]["facts"]:
+                if isinstance(f, dict):
+                    qualifications = {
+                        a: b for a, b in f.items() if a not in ("subject", "relation", "object")
+                    }
+                    md.append(
+                        f"- {f.get('subject')} → **{f.get('relation')}** → {f.get('object')}; `{json.dumps(qualifications)}`"
+                    )
+                else:
+                    md.append(f"- Malformed record: `{json.dumps(f)}`")
+        else:
+            md += ["```text", o["raw_text"], "```"]
+        md.append("")
         if o.get("evaluation"):
             e = o["evaluation"]
             md += [
                 f"Complete facts: {e['full']['true_positive']}/{e['full']['reference_count']}; "
                 f"underlying relationships: {e['underlying']['true_positive']}/{e['underlying']['reference_count']}.",
                 "",
-                "Incorrect or unmatched: " + json.dumps(e["errors"], ensure_ascii=False),
-                "",
-                "Unresolved: " + json.dumps(e["unresolved"], ensure_ascii=False),
-                "",
-                "Missing reference relationships: "
-                + json.dumps(e["full"]["missing"], ensure_ascii=False),
+                f"Unmatched predictions: {len(e['full']['incorrect_or_unmatched'])}; "
+                f"missing complete reference facts: {len(e['full']['missing'])}; "
+                f"automatically unresolved: {len(e['unresolved'])}. Full fact-level lists are in the HTML/JSON.",
                 "",
             ]
+        if k in notes["cases"]:
+            md += ["Manual diagnosis (not rescoring): " + notes["cases"][k]["finding"], ""]
     baseline = read("toy-baseline.json")
     md += [
         "## Toy template baseline",
@@ -244,12 +302,19 @@ def render(run, output):
     write_json_atomic(
         {
             "scope": "exploratory diagnostics only",
+            "model": {
+                "repository": tokenizer.get("repository"),
+                "revision": tokenizer.get("revision"),
+                "seed": first_request["seed"],
+                "template_sha256": tokenizer.get("chat_template_sha256"),
+            },
             "rows": rows,
             "cases": cases,
             "references": refs,
             "outcomes": outcomes,
             "conclusion": conclusion,
             "toy_baseline": baseline,
+            "manual_diagnostic_notes": notes,
             "accounting": {k: v for k, v in terminal.items() if k != "outcomes"},
         },
         paths[1],

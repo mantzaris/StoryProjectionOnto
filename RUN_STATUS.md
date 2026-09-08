@@ -1,5 +1,48 @@
 # Run status
 
+Updated: 2026-09-08 UTC — minimal synthetic ladder completed; vLLM stopped.
+
+Branch `implementation/query-dependent-temporal-ontology`; verified pushed
+baseline `26ae147`, frozen execution checkpoints `f514aeb` and `5e0113c`.
+This is a separate pedagogical diagnostic, not registered C1/C2 or canonical
+ontology acceptance. Eight unconstrained JSON requests all completed below cap.
+Frozen P/R/F1: cases 1–5 = 1.000; case 6 = 0; case 7 = 0; case 8 = .500.
+Basic direct extraction passes the exploratory .8 progression gate. Highest
+supported level here is explicit temporal intervals. First failure is the
+requested belief representation: the text distinguishes belief/reality but omits
+the requested fields and uses unmatched article-bearing endpoints. Office case 7
+has numeric citations instead of supplied sentence IDs; case 8 omits holder
+intervals. Its underlying citation-grounded relationships score 1.000. Neither
+low score should be read as universal factual incapacity. No scorer was relaxed.
+
+One new start / eight calls consumed **157.347855 s**; cumulative actual
+**9,898.847944 s**. Same-phase use **3,182.739863 / 3,600 s**; numerical remainder
+**417.260137 s**. Historical totals are now nine development starts and twenty-five
+reservations. This ladder's one-start/eight-request authority is exhausted; no
+new session or return to the full interface is initiated. Global 33,660 / strict
+<36,000 ceilings and all prior allocation remain. GPU processes absent; journals
+0/0 open; pod intact. Sampled ladder VRAM/RAM/project-storage peaks are
+22,569,549,824 / 7,202,799,616 / 17,175,356,928 bytes.
+
+18 focused ladder tests (including actual-output scoring/report consistency) and
+24 existing HTTP-diagnostic tests pass. Installed vLLM request validation and
+exact local/remote tokenizer counts pass. All 429 recovered artifact hashes
+match, every pre-ladder ledger row is unchanged, and SQLite integrity/foreign-key
+checks pass. Representative HTML graph labels and directional arrows were
+browser-inspected. All original benchmark and preliminary reports remain intact.
+
+Results: `reports/SIMPLE_SYNTHETIC_RESULTS.md`; `reports/tables/simple_synthetic_results.json`
+and `.csv`; `reports/figures/simple_synthetic_comparison.html`.
+CPU-only reproduction (no inference):
+`python -m scripts.report_simple_ladder --run artifacts/restricted/simple-ladder-backup.GwP5td/run-20260908T222604858308 --output reports`
+
+C0's full extraction competence gate remains passed; its separate contextual
+scores are unchanged. The remaining registered-work proxy is still unvalidated;
+no production p95 or complete-study admission is claimed. Human review is still
+mandatory before held-out execution. No new PDF was generated.
+
+## Previous bounded C2 continuation (historical)
+
 Updated: 2026-09-08 UTC — bounded C2 continuation finished; service stopped.
 
 Branch `implementation/query-dependent-temporal-ontology`; pushed baseline

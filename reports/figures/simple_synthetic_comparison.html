@@ -1,0 +1,1215 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Simple synthetic ladder</title><style>body{font:16px system-ui;max-width:1000px;margin:30px auto;padding:0 20px;color:#172033}section{border-top:2px solid #cbd5e1;padding:25px 0}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f1f5f9;padding:15px}svg{width:100%;font:14px system-ui}.edge{paint-order:stroke;stroke:white;stroke-width:4px;stroke-linejoin:round}</style><h1>Simple synthetic capability ladder</h1><p>Exploratory development only. All executed outputs shown; reference answers are not model outputs.</p><p>Highest tested level meeting the declared exploratory criterion: explicit temporal intervals. First observed scored error: case 6. This does not establish model reliability, production ontology capacity, construction efficacy or p95 runtime.</p><section id="case-1"><h2>Case 1: direct</h2><pre>S1: Mira carries a lantern.
+S2: Tomas owns the lantern.
+S3: Mira is in the courtyard.</pre><p><strong>Question:</strong> Extract every explicitly stated relationship and no inferred relationships.</p><details><summary>Reference answers (frozen alternatives, not model output)</summary><pre>[
+  [
+    {
+      &quot;evidence_id&quot;: &quot;S1&quot;,
+      &quot;object&quot;: &quot;lantern&quot;,
+      &quot;relation&quot;: &quot;carries&quot;,
+      &quot;subject&quot;: &quot;Mira&quot;
+    },
+    {
+      &quot;evidence_id&quot;: &quot;S2&quot;,
+      &quot;object&quot;: &quot;lantern&quot;,
+      &quot;relation&quot;: &quot;owns&quot;,
+      &quot;subject&quot;: &quot;Tomas&quot;
+    },
+    {
+      &quot;evidence_id&quot;: &quot;S3&quot;,
+      &quot;object&quot;: &quot;courtyard&quot;,
+      &quot;relation&quot;: &quot;located_in&quot;,
+      &quot;subject&quot;: &quot;Mira&quot;
+    }
+  ]
+]</pre></details><h3>Actual model output</h3><pre>{&quot;facts&quot;: [{&quot;subject&quot;: &quot;Mira&quot;, &quot;relation&quot;: &quot;carries&quot;, &quot;object&quot;: &quot;lantern&quot;, &quot;evidence_id&quot;: &quot;S1&quot;}, {&quot;subject&quot;: &quot;Tomas&quot;, &quot;relation&quot;: &quot;owns&quot;, &quot;object&quot;: &quot;lantern&quot;, &quot;evidence_id&quot;: &quot;S2&quot;}, {&quot;subject&quot;: &quot;Mira&quot;, &quot;relation&quot;: &quot;is in&quot;, &quot;object&quot;: &quot;courtyard&quot;, &quot;evidence_id&quot;: &quot;S3&quot;}]}</pre><svg viewBox="0 0 860 420" role="img" aria-label="Actual generated relationships"><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#64748b"/></marker></defs><path d="M730.0,200.0 L488.4721359549996,320.7639320225002" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="580.0" y="269.0" text-anchor="middle" class="edge">1. carries</text><path d="M130.0,200.00000000000003 L371.5278640450004,320.7639320225002" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="280.0" y="256.0" text-anchor="middle" class="edge">2. owns</text><path d="M730.0,200.0 L488.47213595499954,79.23606797749979" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="580.0" y="119.0" text-anchor="middle" class="edge">3. is in</text><rect x="635.0" y="173.0" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="730.0" y="205.0" text-anchor="middle">Mira</text><rect x="335.0" y="323.0" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="430.0" y="355.0" text-anchor="middle">lantern</text><rect x="35.0" y="173.00000000000003" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="130.0" y="205.00000000000003" text-anchor="middle">Tomas</text><rect x="334.99999999999994" y="23.0" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="429.99999999999994" y="55.0" text-anchor="middle">courtyard</text></svg><h3>Measured result</h3><p>Precision 1.000; recall 1.000; F1 1.000.</p><details><summary>Correct, incorrect/unmatched, missing facts and qualification checks</summary><pre>{
+  &quot;diagnostic_level_supported&quot;: true,
+  &quot;errors&quot;: [],
+  &quot;full&quot;: {
+    &quot;correct&quot;: [
+      {
+        &quot;evidence_id&quot;: &quot;S1&quot;,
+        &quot;object&quot;: &quot;lantern&quot;,
+        &quot;relation&quot;: &quot;carries&quot;,
+        &quot;subject&quot;: &quot;Mira&quot;
+      },
+      {
+        &quot;evidence_id&quot;: &quot;S2&quot;,
+        &quot;object&quot;: &quot;lantern&quot;,
+        &quot;relation&quot;: &quot;owns&quot;,
+        &quot;subject&quot;: &quot;Tomas&quot;
+      },
+      {
+        &quot;evidence_id&quot;: &quot;S3&quot;,
+        &quot;object&quot;: &quot;courtyard&quot;,
+        &quot;relation&quot;: &quot;is in&quot;,
+        &quot;subject&quot;: &quot;Mira&quot;
+      }
+    ],
+    &quot;f1&quot;: 1.0,
+    &quot;incorrect_or_unmatched&quot;: [],
+    &quot;missing&quot;: [],
+    &quot;precision&quot;: 1.0,
+    &quot;predicted&quot;: 3,
+    &quot;recall&quot;: 1.0,
+    &quot;reference_count&quot;: 3,
+    &quot;true_positive&quot;: 3
+  },
+  &quot;matched_alternative&quot;: 0,
+  &quot;qualification_correct_given_matched_relationship&quot;: 1.0,
+  &quot;rule_version&quot;: &quot;simple-ladder-v1&quot;,
+  &quot;underlying&quot;: {
+    &quot;correct&quot;: [
+      {
+        &quot;evidence_id&quot;: &quot;S1&quot;,
+        &quot;object&quot;: &quot;lantern&quot;,
+        &quot;relation&quot;: &quot;carries&quot;,
+        &quot;subject&quot;: &quot;Mira&quot;
+      },
+      {
+        &quot;evidence_id&quot;: &quot;S2&quot;,
+        &quot;object&quot;: &quot;lantern&quot;,
+        &quot;relation&quot;: &quot;owns&quot;,
+        &quot;subject&quot;: &quot;Tomas&quot;
+      },
+      {
+        &quot;evidence_id&quot;: &quot;S3&quot;,
+        &quot;object&quot;: &quot;courtyard&quot;,
+        &quot;relation&quot;: &quot;is in&quot;,
+        &quot;subject&quot;: &quot;Mira&quot;
+      }
+    ],
+    &quot;f1&quot;: 1.0,
+    &quot;incorrect_or_unmatched&quot;: [],
+    &quot;missing&quot;: [],
+    &quot;precision&quot;: 1.0,
+    &quot;predicted&quot;: 3,
+    &quot;recall&quot;: 1.0,
+    &quot;reference_count&quot;: 3,
+    &quot;true_positive&quot;: 3
+  },
+  &quot;unresolved&quot;: []
+}</pre></details><p>Tokens 108 / 94; output cap 384; 2.745 seconds; finish stop; normalization: none.</p></section><section id="case-2"><h2>Case 2: direct</h2><pre>S1: Nadia carries a compass.
+S2: Oren owns the compass.
+S3: Oren is in the harbor.</pre><p><strong>Question:</strong> Extract every explicitly stated relationship and no inferred relationships.</p><details><summary>Reference answers (frozen alternatives, not model output)</summary><pre>[
+  [
+    {
+      &quot;evidence_id&quot;: &quot;S1&quot;,
+      &quot;object&quot;: &quot;compass&quot;,
+      &quot;relation&quot;: &quot;carries&quot;,
+      &quot;subject&quot;: &quot;Nadia&quot;
+    },
+    {
+      &quot;evidence_id&quot;: &quot;S2&quot;,
+      &quot;object&quot;: &quot;compass&quot;,
+      &quot;relation&quot;: &quot;owns&quot;,
+      &quot;subject&quot;: &quot;Oren&quot;
+    },
+    {
+      &quot;evidence_id&quot;: &quot;S3&quot;,
+      &quot;object&quot;: &quot;harbor&quot;,
+      &quot;relation&quot;: &quot;located_in&quot;,
+      &quot;subject&quot;: &quot;Oren&quot;
+    }
+  ]
+]</pre></details><h3>Actual model output</h3><pre>{&quot;facts&quot;: [{&quot;subject&quot;: &quot;Nadia&quot;, &quot;relation&quot;: &quot;carries&quot;, &quot;object&quot;: &quot;compass&quot;, &quot;evidence_id&quot;: &quot;S1&quot;}, {&quot;subject&quot;: &quot;Oren&quot;, &quot;relation&quot;: &quot;owns&quot;, &quot;object&quot;: &quot;compass&quot;, &quot;evidence_id&quot;: &quot;S2&quot;}, {&quot;subject&quot;: &quot;Oren&quot;, &quot;relation&quot;: &quot;is in&quot;, &quot;object&quot;: &quot;harbor&quot;, &quot;evidence_id&quot;: &quot;S3&quot;}]}</pre><svg viewBox="0 0 860 420" role="img" aria-label="Actual generated relationships"><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#64748b"/></marker></defs><path d="M730.0,200.0 L488.4721359549996,320.7639320225002" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="580.0" y="269.0" text-anchor="middle" class="edge">1. carries</text><path d="M130.0,200.00000000000003 L371.5278640450004,320.7639320225002" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="280.0" y="256.0" text-anchor="middle" class="edge">2. owns</text><path d="M130.0,200.00000000000003 L371.52786404500034,79.23606797749979" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="280.0" y="119.00000000000001" text-anchor="middle" class="edge">3. is in</text><rect x="635.0" y="173.0" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="730.0" y="205.0" text-anchor="middle">Nadia</text><rect x="335.0" y="323.0" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="430.0" y="355.0" text-anchor="middle">compass</text><rect x="35.0" y="173.00000000000003" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="130.0" y="205.00000000000003" text-anchor="middle">Oren</text><rect x="334.99999999999994" y="23.0" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="429.99999999999994" y="55.0" text-anchor="middle">harbor</text></svg><h3>Measured result</h3><p>Precision 1.000; recall 1.000; F1 1.000.</p><details><summary>Correct, incorrect/unmatched, missing facts and qualification checks</summary><pre>{
+  &quot;diagnostic_level_supported&quot;: true,
+  &quot;errors&quot;: [],
+  &quot;full&quot;: {
+    &quot;correct&quot;: [
+      {
+        &quot;evidence_id&quot;: &quot;S1&quot;,
+        &quot;object&quot;: &quot;compass&quot;,
+        &quot;relation&quot;: &quot;carries&quot;,
+        &quot;subject&quot;: &quot;Nadia&quot;
+      },
+      {
+        &quot;evidence_id&quot;: &quot;S2&quot;,
+        &quot;object&quot;: &quot;compass&quot;,
+        &quot;relation&quot;: &quot;owns&quot;,
+        &quot;subject&quot;: &quot;Oren&quot;
+      },
+      {
+        &quot;evidence_id&quot;: &quot;S3&quot;,
+        &quot;object&quot;: &quot;harbor&quot;,
+        &quot;relation&quot;: &quot;is in&quot;,
+        &quot;subject&quot;: &quot;Oren&quot;
+      }
+    ],
+    &quot;f1&quot;: 1.0,
+    &quot;incorrect_or_unmatched&quot;: [],
+    &quot;missing&quot;: [],
+    &quot;precision&quot;: 1.0,
+    &quot;predicted&quot;: 3,
+    &quot;recall&quot;: 1.0,
+    &quot;reference_count&quot;: 3,
+    &quot;true_positive&quot;: 3
+  },
+  &quot;matched_alternative&quot;: 0,
+  &quot;qualification_correct_given_matched_relationship&quot;: 1.0,
+  &quot;rule_version&quot;: &quot;simple-ladder-v1&quot;,
+  &quot;underlying&quot;: {
+    &quot;correct&quot;: [
+      {
+        &quot;evidence_id&quot;: &quot;S1&quot;,
+        &quot;object&quot;: &quot;compass&quot;,
+        &quot;relation&quot;: &quot;carries&quot;,
+        &quot;subject&quot;: &quot;Nadia&quot;
+      },
+      {
+        &quot;evidence_id&quot;: &quot;S2&quot;,
+        &quot;object&quot;: &quot;compass&quot;,
+        &quot;relation&quot;: &quot;owns&quot;,
+        &quot;subject&quot;: &quot;Oren&quot;
+      },
+      {
+        &quot;evidence_id&quot;: &quot;S3&quot;,
+        &quot;object&quot;: &quot;harbor&quot;,
+        &quot;relation&quot;: &quot;is in&quot;,
+        &quot;subject&quot;: &quot;Oren&quot;
+      }
+    ],
+    &quot;f1&quot;: 1.0,
+    &quot;incorrect_or_unmatched&quot;: [],
+    &quot;missing&quot;: [],
+    &quot;precision&quot;: 1.0,
+    &quot;predicted&quot;: 3,
+    &quot;recall&quot;: 1.0,
+    &quot;reference_count&quot;: 3,
+    &quot;true_positive&quot;: 3
+  },
+  &quot;unresolved&quot;: []
+}</pre></details><p>Tokens 109 / 92; output cap 384; 1.915 seconds; finish stop; normalization: none.</p></section><section id="case-3"><h2>Case 3: selection</h2><pre>S1: Ivo owns a key.
+S2: Leda owns a telescope.
+S3: Ivo is in the observatory.
+S4: Leda is in the garden.</pre><p><strong>Question:</strong> Who owns what? Return all and only ownership relationships.</p><details><summary>Reference answers (frozen alternatives, not model output)</summary><pre>[
+  [
+    {
+      &quot;evidence_id&quot;: &quot;S1&quot;,
+      &quot;object&quot;: &quot;key&quot;,
+      &quot;relation&quot;: &quot;owns&quot;,
+      &quot;subject&quot;: &quot;Ivo&quot;
+    },
+    {
+      &quot;evidence_id&quot;: &quot;S2&quot;,
+      &quot;object&quot;: &quot;telescope&quot;,
+      &quot;relation&quot;: &quot;owns&quot;,
+      &quot;subject&quot;: &quot;Leda&quot;
+    }
+  ]
+]</pre></details><h3>Actual model output</h3><pre>{&quot;facts&quot;: [{&quot;subject&quot;: &quot;Ivo&quot;, &quot;relation&quot;: &quot;owns&quot;, &quot;object&quot;: &quot;key&quot;, &quot;evidence_id&quot;: &quot;S1&quot;}, {&quot;subject&quot;: &quot;Leda&quot;, &quot;relation&quot;: &quot;owns&quot;, &quot;object&quot;: &quot;telescope&quot;, &quot;evidence_id&quot;: &quot;S2&quot;}]}</pre><svg viewBox="0 0 860 420" role="img" aria-label="Actual generated relationships"><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#64748b"/></marker></defs><path d="M730.0,200.0 L488.4721359549996,320.7639320225002" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="580.0" y="269.0" text-anchor="middle" class="edge">1. owns</text><path d="M130.0,200.00000000000003 L371.52786404500034,79.23606797749979" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="280.0" y="106.00000000000001" text-anchor="middle" class="edge">2. owns</text><rect x="635.0" y="173.0" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="730.0" y="205.0" text-anchor="middle">Ivo</text><rect x="335.0" y="323.0" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="430.0" y="355.0" text-anchor="middle">key</text><rect x="35.0" y="173.00000000000003" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="130.0" y="205.00000000000003" text-anchor="middle">Leda</text><rect x="334.99999999999994" y="23.0" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="429.99999999999994" y="55.0" text-anchor="middle">telescope</text></svg><h3>Measured result</h3><p>Precision 1.000; recall 1.000; F1 1.000.</p><details><summary>Correct, incorrect/unmatched, missing facts and qualification checks</summary><pre>{
+  &quot;diagnostic_level_supported&quot;: true,
+  &quot;errors&quot;: [],
+  &quot;full&quot;: {
+    &quot;correct&quot;: [
+      {
+        &quot;evidence_id&quot;: &quot;S1&quot;,
+        &quot;object&quot;: &quot;key&quot;,
+        &quot;relation&quot;: &quot;owns&quot;,
+        &quot;subject&quot;: &quot;Ivo&quot;
+      },
+      {
+        &quot;evidence_id&quot;: &quot;S2&quot;,
+        &quot;object&quot;: &quot;telescope&quot;,
+        &quot;relation&quot;: &quot;owns&quot;,
+        &quot;subject&quot;: &quot;Leda&quot;
+      }
+    ],
+    &quot;f1&quot;: 1.0,
+    &quot;incorrect_or_unmatched&quot;: [],
+    &quot;missing&quot;: [],
+    &quot;precision&quot;: 1.0,
+    &quot;predicted&quot;: 2,
+    &quot;recall&quot;: 1.0,
+    &quot;reference_count&quot;: 2,
+    &quot;true_positive&quot;: 2
+  },
+  &quot;matched_alternative&quot;: 0,
+  &quot;qualification_correct_given_matched_relationship&quot;: 1.0,
+  &quot;rule_version&quot;: &quot;simple-ladder-v1&quot;,
+  &quot;underlying&quot;: {
+    &quot;correct&quot;: [
+      {
+        &quot;evidence_id&quot;: &quot;S1&quot;,
+        &quot;object&quot;: &quot;key&quot;,
+        &quot;relation&quot;: &quot;owns&quot;,
+        &quot;subject&quot;: &quot;Ivo&quot;
+      },
+      {
+        &quot;evidence_id&quot;: &quot;S2&quot;,
+        &quot;object&quot;: &quot;telescope&quot;,
+        &quot;relation&quot;: &quot;owns&quot;,
+        &quot;subject&quot;: &quot;Leda&quot;
+      }
+    ],
+    &quot;f1&quot;: 1.0,
+    &quot;incorrect_or_unmatched&quot;: [],
+    &quot;missing&quot;: [],
+    &quot;precision&quot;: 1.0,
+    &quot;predicted&quot;: 2,
+    &quot;recall&quot;: 1.0,
+    &quot;reference_count&quot;: 2,
+    &quot;true_positive&quot;: 2
+  },
+  &quot;unresolved&quot;: []
+}</pre></details><p>Tokens 121 / 62; output cap 384; 1.814 seconds; finish stop; normalization: none.</p></section><section id="case-4"><h2>Case 4: selection</h2><pre>S1: Ivo owns a key.
+S2: Leda owns a telescope.
+S3: Ivo is in the observatory.
+S4: Leda is in the garden.</pre><p><strong>Question:</strong> Where are the people? Return all and only location relationships.</p><details><summary>Reference answers (frozen alternatives, not model output)</summary><pre>[
+  [
+    {
+      &quot;evidence_id&quot;: &quot;S3&quot;,
+      &quot;object&quot;: &quot;observatory&quot;,
+      &quot;relation&quot;: &quot;located_in&quot;,
+      &quot;subject&quot;: &quot;Ivo&quot;
+    },
+    {
+      &quot;evidence_id&quot;: &quot;S4&quot;,
+      &quot;object&quot;: &quot;garden&quot;,
+      &quot;relation&quot;: &quot;located_in&quot;,
+      &quot;subject&quot;: &quot;Leda&quot;
+    }
+  ]
+]</pre></details><h3>Actual model output</h3><pre>{&quot;facts&quot;: [{&quot;subject&quot;: &quot;Ivo&quot;, &quot;relation&quot;: &quot;in&quot;, &quot;object&quot;: &quot;observatory&quot;, &quot;evidence_id&quot;: &quot;S3&quot;}, {&quot;subject&quot;: &quot;Leda&quot;, &quot;relation&quot;: &quot;in&quot;, &quot;object&quot;: &quot;garden&quot;, &quot;evidence_id&quot;: &quot;S4&quot;}]}</pre><svg viewBox="0 0 860 420" role="img" aria-label="Actual generated relationships"><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#64748b"/></marker></defs><path d="M730.0,200.0 L488.4721359549996,320.7639320225002" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="580.0" y="269.0" text-anchor="middle" class="edge">1. in</text><path d="M130.0,200.00000000000003 L371.52786404500034,79.23606797749979" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="280.0" y="106.00000000000001" text-anchor="middle" class="edge">2. in</text><rect x="635.0" y="173.0" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="730.0" y="205.0" text-anchor="middle">Ivo</text><rect x="335.0" y="323.0" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="430.0" y="355.0" text-anchor="middle">observatory</text><rect x="35.0" y="173.00000000000003" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="130.0" y="205.00000000000003" text-anchor="middle">Leda</text><rect x="334.99999999999994" y="23.0" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="429.99999999999994" y="55.0" text-anchor="middle">garden</text></svg><h3>Measured result</h3><p>Precision 1.000; recall 1.000; F1 1.000.</p><details><summary>Correct, incorrect/unmatched, missing facts and qualification checks</summary><pre>{
+  &quot;diagnostic_level_supported&quot;: true,
+  &quot;errors&quot;: [],
+  &quot;full&quot;: {
+    &quot;correct&quot;: [
+      {
+        &quot;evidence_id&quot;: &quot;S3&quot;,
+        &quot;object&quot;: &quot;observatory&quot;,
+        &quot;relation&quot;: &quot;in&quot;,
+        &quot;subject&quot;: &quot;Ivo&quot;
+      },
+      {
+        &quot;evidence_id&quot;: &quot;S4&quot;,
+        &quot;object&quot;: &quot;garden&quot;,
+        &quot;relation&quot;: &quot;in&quot;,
+        &quot;subject&quot;: &quot;Leda&quot;
+      }
+    ],
+    &quot;f1&quot;: 1.0,
+    &quot;incorrect_or_unmatched&quot;: [],
+    &quot;missing&quot;: [],
+    &quot;precision&quot;: 1.0,
+    &quot;predicted&quot;: 2,
+    &quot;recall&quot;: 1.0,
+    &quot;reference_count&quot;: 2,
+    &quot;true_positive&quot;: 2
+  },
+  &quot;matched_alternative&quot;: 0,
+  &quot;qualification_correct_given_matched_relationship&quot;: 1.0,
+  &quot;rule_version&quot;: &quot;simple-ladder-v1&quot;,
+  &quot;underlying&quot;: {
+    &quot;correct&quot;: [
+      {
+        &quot;evidence_id&quot;: &quot;S3&quot;,
+        &quot;object&quot;: &quot;observatory&quot;,
+        &quot;relation&quot;: &quot;in&quot;,
+        &quot;subject&quot;: &quot;Ivo&quot;
+      },
+      {
+        &quot;evidence_id&quot;: &quot;S4&quot;,
+        &quot;object&quot;: &quot;garden&quot;,
+        &quot;relation&quot;: &quot;in&quot;,
+        &quot;subject&quot;: &quot;Leda&quot;
+      }
+    ],
+    &quot;f1&quot;: 1.0,
+    &quot;incorrect_or_unmatched&quot;: [],
+    &quot;missing&quot;: [],
+    &quot;precision&quot;: 1.0,
+    &quot;predicted&quot;: 2,
+    &quot;recall&quot;: 1.0,
+    &quot;reference_count&quot;: 2,
+    &quot;true_positive&quot;: 2
+  },
+  &quot;unresolved&quot;: []
+}</pre></details><p>Tokens 122 / 63; output cap 384; 1.699 seconds; finish stop; normalization: none.</p></section><section id="case-5"><h2>Case 5: temporal</h2><pre>S1: Ada is in the atrium from day 0 up to but not including day 2.
+S2: Ada is in the library from day 2 up to but not including day 5.</pre><p><strong>Question:</strong> State both location relationships with their explicitly given intervals.</p><details><summary>Reference answers (frozen alternatives, not model output)</summary><pre>[
+  [
+    {
+      &quot;evidence_id&quot;: &quot;S1&quot;,
+      &quot;object&quot;: &quot;atrium&quot;,
+      &quot;relation&quot;: &quot;located_in&quot;,
+      &quot;subject&quot;: &quot;Ada&quot;,
+      &quot;valid_from&quot;: 0,
+      &quot;valid_until&quot;: 2
+    },
+    {
+      &quot;evidence_id&quot;: &quot;S2&quot;,
+      &quot;object&quot;: &quot;library&quot;,
+      &quot;relation&quot;: &quot;located_in&quot;,
+      &quot;subject&quot;: &quot;Ada&quot;,
+      &quot;valid_from&quot;: 2,
+      &quot;valid_until&quot;: 5
+    }
+  ]
+]</pre></details><h3>Actual model output</h3><pre>{&quot;facts&quot;: [{&quot;subject&quot;: &quot;Ada&quot;, &quot;relation&quot;: &quot;in&quot;, &quot;object&quot;: &quot;atrium&quot;, &quot;evidence_id&quot;: &quot;S1&quot;, &quot;valid_from&quot;: 0, &quot;valid_until&quot;: 2}, {&quot;subject&quot;: &quot;Ada&quot;, &quot;relation&quot;: &quot;in&quot;, &quot;object&quot;: &quot;library&quot;, &quot;evidence_id&quot;: &quot;S2&quot;, &quot;valid_from&quot;: 2, &quot;valid_until&quot;: 5}]}</pre><svg viewBox="0 0 860 420" role="img" aria-label="Actual generated relationships"><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#64748b"/></marker></defs><path d="M730.0,200.0 L378.33458822287207,301.5170600771027" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="505.0" y="258.9519052838329" text-anchor="middle" class="edge">1. in</text><path d="M730.0,200.0 L378.33458822287196,98.48293992289733" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="504.99999999999994" y="116.04809471616713" text-anchor="middle" class="edge">2. in</text><rect x="635.0" y="173.0" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="730.0" y="205.0" text-anchor="middle">Ada</text><rect x="185.00000000000006" y="302.9038105676658" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="280.00000000000006" y="334.9038105676658" text-anchor="middle">atrium</text><rect x="184.9999999999999" y="43.096189432334256" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="279.9999999999999" y="75.09618943233426" text-anchor="middle">library</text></svg><h3>Measured result</h3><p>Precision 1.000; recall 1.000; F1 1.000.</p><details><summary>Correct, incorrect/unmatched, missing facts and qualification checks</summary><pre>{
+  &quot;diagnostic_level_supported&quot;: true,
+  &quot;errors&quot;: [],
+  &quot;full&quot;: {
+    &quot;correct&quot;: [
+      {
+        &quot;evidence_id&quot;: &quot;S1&quot;,
+        &quot;object&quot;: &quot;atrium&quot;,
+        &quot;relation&quot;: &quot;in&quot;,
+        &quot;subject&quot;: &quot;Ada&quot;,
+        &quot;valid_from&quot;: 0,
+        &quot;valid_until&quot;: 2
+      },
+      {
+        &quot;evidence_id&quot;: &quot;S2&quot;,
+        &quot;object&quot;: &quot;library&quot;,
+        &quot;relation&quot;: &quot;in&quot;,
+        &quot;subject&quot;: &quot;Ada&quot;,
+        &quot;valid_from&quot;: 2,
+        &quot;valid_until&quot;: 5
+      }
+    ],
+    &quot;f1&quot;: 1.0,
+    &quot;incorrect_or_unmatched&quot;: [],
+    &quot;missing&quot;: [],
+    &quot;precision&quot;: 1.0,
+    &quot;predicted&quot;: 2,
+    &quot;recall&quot;: 1.0,
+    &quot;reference_count&quot;: 2,
+    &quot;true_positive&quot;: 2
+  },
+  &quot;matched_alternative&quot;: 0,
+  &quot;qualification_correct_given_matched_relationship&quot;: 1.0,
+  &quot;rule_version&quot;: &quot;simple-ladder-v1&quot;,
+  &quot;underlying&quot;: {
+    &quot;correct&quot;: [
+      {
+        &quot;evidence_id&quot;: &quot;S1&quot;,
+        &quot;object&quot;: &quot;atrium&quot;,
+        &quot;relation&quot;: &quot;in&quot;,
+        &quot;subject&quot;: &quot;Ada&quot;,
+        &quot;valid_from&quot;: 0,
+        &quot;valid_until&quot;: 2
+      },
+      {
+        &quot;evidence_id&quot;: &quot;S2&quot;,
+        &quot;object&quot;: &quot;library&quot;,
+        &quot;relation&quot;: &quot;in&quot;,
+        &quot;subject&quot;: &quot;Ada&quot;,
+        &quot;valid_from&quot;: 2,
+        &quot;valid_until&quot;: 5
+      }
+    ],
+    &quot;f1&quot;: 1.0,
+    &quot;incorrect_or_unmatched&quot;: [],
+    &quot;missing&quot;: [],
+    &quot;precision&quot;: 1.0,
+    &quot;predicted&quot;: 2,
+    &quot;recall&quot;: 1.0,
+    &quot;reference_count&quot;: 2,
+    &quot;true_positive&quot;: 2
+  },
+  &quot;unresolved&quot;: []
+}</pre></details><p>Tokens 164 / 88; output cap 512; 2.164 seconds; finish stop; normalization: none.</p></section><section id="case-6"><h2>Case 6: epistemic</h2><pre>S1: Rina believes that the coin is in the drawer.
+S2: In reality, the coin is in the chest.</pre><p><strong>Question:</strong> State the believed location and the narrated real location, keeping belief separate from reality.</p><details><summary>Reference answers (frozen alternatives, not model output)</summary><pre>[
+  [
+    {
+      &quot;attitude&quot;: &quot;believes&quot;,
+      &quot;evidence_id&quot;: &quot;S1&quot;,
+      &quot;holder&quot;: &quot;Rina&quot;,
+      &quot;object&quot;: &quot;drawer&quot;,
+      &quot;relation&quot;: &quot;located_in&quot;,
+      &quot;subject&quot;: &quot;coin&quot;
+    },
+    {
+      &quot;evidence_id&quot;: &quot;S2&quot;,
+      &quot;object&quot;: &quot;chest&quot;,
+      &quot;relation&quot;: &quot;located_in&quot;,
+      &quot;subject&quot;: &quot;coin&quot;
+    }
+  ]
+]</pre></details><h3>Actual model output</h3><pre>{&quot;facts&quot;: [{&quot;subject&quot;: &quot;Rina&quot;, &quot;relation&quot;: &quot;believes&quot;, &quot;object&quot;: &quot;the coin is in the drawer&quot;, &quot;evidence_id&quot;: &quot;S1&quot;}, {&quot;subject&quot;: &quot;the coin&quot;, &quot;relation&quot;: &quot;is in&quot;, &quot;object&quot;: &quot;the chest&quot;, &quot;evidence_id&quot;: &quot;S2&quot;}]}</pre><svg viewBox="0 0 860 420" role="img" aria-label="Actual generated relationships"><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#64748b"/></marker></defs><path d="M730.0,200.0 L488.4721359549996,320.7639320225002" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="580.0" y="269.0" text-anchor="middle" class="edge">1. believes</text><path d="M130.0,200.00000000000003 L371.52786404500034,79.23606797749979" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="280.0" y="106.00000000000001" text-anchor="middle" class="edge">2. is in</text><rect x="635.0" y="173.0" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="730.0" y="205.0" text-anchor="middle">Rina</text><rect x="335.0" y="323.0" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="430.0" y="346.5" text-anchor="middle">the coin is in the</text><text x="430.0" y="363.5" text-anchor="middle">drawer</text><rect x="35.0" y="173.00000000000003" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="130.0" y="205.00000000000003" text-anchor="middle">the coin</text><rect x="334.99999999999994" y="23.0" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="429.99999999999994" y="55.0" text-anchor="middle">the chest</text></svg><h3>Measured result</h3><p>Precision 0.000; recall 0.000; F1 0.000.</p><details><summary>Correct, incorrect/unmatched, missing facts and qualification checks</summary><pre>{
+  &quot;diagnostic_level_supported&quot;: false,
+  &quot;errors&quot;: [
+    {
+      &quot;category&quot;: &quot;wrong_or_unmatched_binding_or_citation&quot;,
+      &quot;fact&quot;: {
+        &quot;evidence_id&quot;: &quot;S2&quot;,
+        &quot;object&quot;: &quot;the chest&quot;,
+        &quot;relation&quot;: &quot;is in&quot;,
+        &quot;subject&quot;: &quot;the coin&quot;
+      }
+    }
+  ],
+  &quot;full&quot;: {
+    &quot;correct&quot;: [],
+    &quot;f1&quot;: 0.0,
+    &quot;incorrect_or_unmatched&quot;: [
+      {
+        &quot;evidence_id&quot;: &quot;S1&quot;,
+        &quot;object&quot;: &quot;the coin is in the drawer&quot;,
+        &quot;relation&quot;: &quot;believes&quot;,
+        &quot;subject&quot;: &quot;Rina&quot;
+      },
+      {
+        &quot;evidence_id&quot;: &quot;S2&quot;,
+        &quot;object&quot;: &quot;the chest&quot;,
+        &quot;relation&quot;: &quot;is in&quot;,
+        &quot;subject&quot;: &quot;the coin&quot;
+      }
+    ],
+    &quot;missing&quot;: [
+      {
+        &quot;attitude&quot;: &quot;believes&quot;,
+        &quot;evidence_id&quot;: &quot;S1&quot;,
+        &quot;holder&quot;: &quot;Rina&quot;,
+        &quot;object&quot;: &quot;drawer&quot;,
+        &quot;relation&quot;: &quot;located_in&quot;,
+        &quot;subject&quot;: &quot;coin&quot;
+      },
+      {
+        &quot;evidence_id&quot;: &quot;S2&quot;,
+        &quot;object&quot;: &quot;chest&quot;,
+        &quot;relation&quot;: &quot;located_in&quot;,
+        &quot;subject&quot;: &quot;coin&quot;
+      }
+    ],
+    &quot;precision&quot;: 0.0,
+    &quot;predicted&quot;: 2,
+    &quot;recall&quot;: 0.0,
+    &quot;reference_count&quot;: 2,
+    &quot;true_positive&quot;: 0
+  },
+  &quot;matched_alternative&quot;: 0,
+  &quot;qualification_correct_given_matched_relationship&quot;: null,
+  &quot;rule_version&quot;: &quot;simple-ladder-v1&quot;,
+  &quot;underlying&quot;: {
+    &quot;correct&quot;: [],
+    &quot;f1&quot;: 0.0,
+    &quot;incorrect_or_unmatched&quot;: [
+      {
+        &quot;evidence_id&quot;: &quot;S1&quot;,
+        &quot;object&quot;: &quot;the coin is in the drawer&quot;,
+        &quot;relation&quot;: &quot;believes&quot;,
+        &quot;subject&quot;: &quot;Rina&quot;
+      },
+      {
+        &quot;evidence_id&quot;: &quot;S2&quot;,
+        &quot;object&quot;: &quot;the chest&quot;,
+        &quot;relation&quot;: &quot;is in&quot;,
+        &quot;subject&quot;: &quot;the coin&quot;
+      }
+    ],
+    &quot;missing&quot;: [
+      {
+        &quot;attitude&quot;: &quot;believes&quot;,
+        &quot;evidence_id&quot;: &quot;S1&quot;,
+        &quot;holder&quot;: &quot;Rina&quot;,
+        &quot;object&quot;: &quot;drawer&quot;,
+        &quot;relation&quot;: &quot;located_in&quot;,
+        &quot;subject&quot;: &quot;coin&quot;
+      },
+      {
+        &quot;evidence_id&quot;: &quot;S2&quot;,
+        &quot;object&quot;: &quot;chest&quot;,
+        &quot;relation&quot;: &quot;located_in&quot;,
+        &quot;subject&quot;: &quot;coin&quot;
+      }
+    ],
+    &quot;precision&quot;: 0.0,
+    &quot;predicted&quot;: 2,
+    &quot;recall&quot;: 0.0,
+    &quot;reference_count&quot;: 2,
+    &quot;true_positive&quot;: 0
+  },
+  &quot;unresolved&quot;: [
+    {
+      &quot;category&quot;: &quot;unresolved_relation_wording&quot;,
+      &quot;fact&quot;: {
+        &quot;evidence_id&quot;: &quot;S1&quot;,
+        &quot;object&quot;: &quot;the coin is in the drawer&quot;,
+        &quot;relation&quot;: &quot;believes&quot;,
+        &quot;subject&quot;: &quot;Rina&quot;
+      }
+    }
+  ]
+}</pre></details><p>Tokens 152 / 69; output cap 512; 1.906 seconds; finish stop; normalization: none.</p><h3>Manual diagnostic explanation (not rescoring)</h3><p>The output conveys the supplied distinction between Rina&#x27;s belief and narrated reality, but not in the requested qualified-fact representation. It writes Rina --believes--&gt; &#x27;the coin is in the drawer&#x27;, omitting holder and attitude fields and leaving the believed location inside a text object. The narrated location has the right meaning, but &#x27;the coin&#x27; and &#x27;the chest&#x27; violate the requested article-free endpoint convention and do not match the frozen names. The zero exact-match score is not evidence that the model reversed reality and belief or invented these facts. The scorer&#x27;s unresolved relation-wording category does not fully describe this observable representation failure; no score was changed. Qualification accuracy conditional on a matched relationship is unavailable here, not zero proof of factual understanding.</p></section><section id="case-7"><h2>Case 7: ontology_contrast</h2><pre>S1: Ada holds the office of Harbor Warden from day 0 up to but not including day 3.
+S2: Bram holds the office of Harbor Warden from day 3 up to but not including day 6.
+S3: The office of Harbor Warden is responsible for inspecting boats.
+S4: The office of Harbor Warden is responsible for maintaining beacons.</pre><p><strong>Question:</strong> Person-centered question: who held the office when, and what responsibilities did each person have through it?</p><details><summary>Reference answers (frozen alternatives, not model output)</summary><pre>[
+  [
+    {
+      &quot;evidence_id&quot;: &quot;S1&quot;,
+      &quot;object&quot;: &quot;Harbor Warden&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;subject&quot;: &quot;Ada&quot;,
+      &quot;valid_from&quot;: 0,
+      &quot;valid_until&quot;: 3
+    },
+    {
+      &quot;evidence_id&quot;: &quot;S2&quot;,
+      &quot;object&quot;: &quot;Harbor Warden&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;subject&quot;: &quot;Bram&quot;,
+      &quot;valid_from&quot;: 3,
+      &quot;valid_until&quot;: 6
+    },
+    {
+      &quot;evidence_id&quot;: &quot;S3&quot;,
+      &quot;object&quot;: &quot;inspecting boats&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Harbor Warden&quot;
+    },
+    {
+      &quot;evidence_id&quot;: &quot;S4&quot;,
+      &quot;object&quot;: &quot;maintaining beacons&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Harbor Warden&quot;
+    }
+  ],
+  [
+    {
+      &quot;evidence_id&quot;: &quot;S1&quot;,
+      &quot;object&quot;: &quot;Harbor Warden&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;subject&quot;: &quot;Ada&quot;,
+      &quot;valid_from&quot;: 0,
+      &quot;valid_until&quot;: 3
+    },
+    {
+      &quot;evidence_id&quot;: &quot;S2&quot;,
+      &quot;object&quot;: &quot;Harbor Warden&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;subject&quot;: &quot;Bram&quot;,
+      &quot;valid_from&quot;: 3,
+      &quot;valid_until&quot;: 6
+    },
+    {
+      &quot;evidence_id&quot;: [
+        &quot;S1&quot;,
+        &quot;S3&quot;
+      ],
+      &quot;object&quot;: &quot;inspecting boats&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Ada&quot;,
+      &quot;valid_from&quot;: 0,
+      &quot;valid_until&quot;: 3
+    },
+    {
+      &quot;evidence_id&quot;: [
+        &quot;S1&quot;,
+        &quot;S4&quot;
+      ],
+      &quot;object&quot;: &quot;maintaining beacons&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Ada&quot;,
+      &quot;valid_from&quot;: 0,
+      &quot;valid_until&quot;: 3
+    },
+    {
+      &quot;evidence_id&quot;: [
+        &quot;S2&quot;,
+        &quot;S3&quot;
+      ],
+      &quot;object&quot;: &quot;inspecting boats&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Bram&quot;,
+      &quot;valid_from&quot;: 3,
+      &quot;valid_until&quot;: 6
+    },
+    {
+      &quot;evidence_id&quot;: [
+        &quot;S2&quot;,
+        &quot;S4&quot;
+      ],
+      &quot;object&quot;: &quot;maintaining beacons&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Bram&quot;,
+      &quot;valid_from&quot;: 3,
+      &quot;valid_until&quot;: 6
+    }
+  ],
+  [
+    {
+      &quot;evidence_id&quot;: &quot;S1&quot;,
+      &quot;object&quot;: &quot;Harbor Warden&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;subject&quot;: &quot;Ada&quot;,
+      &quot;valid_from&quot;: 0,
+      &quot;valid_until&quot;: 3
+    },
+    {
+      &quot;evidence_id&quot;: &quot;S2&quot;,
+      &quot;object&quot;: &quot;Harbor Warden&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;subject&quot;: &quot;Bram&quot;,
+      &quot;valid_from&quot;: 3,
+      &quot;valid_until&quot;: 6
+    },
+    {
+      &quot;evidence_id&quot;: &quot;S3&quot;,
+      &quot;object&quot;: &quot;inspecting boats&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Harbor Warden&quot;
+    },
+    {
+      &quot;evidence_id&quot;: &quot;S4&quot;,
+      &quot;object&quot;: &quot;maintaining beacons&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Harbor Warden&quot;
+    },
+    {
+      &quot;evidence_id&quot;: [
+        &quot;S1&quot;,
+        &quot;S3&quot;
+      ],
+      &quot;object&quot;: &quot;inspecting boats&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Ada&quot;,
+      &quot;valid_from&quot;: 0,
+      &quot;valid_until&quot;: 3
+    },
+    {
+      &quot;evidence_id&quot;: [
+        &quot;S1&quot;,
+        &quot;S4&quot;
+      ],
+      &quot;object&quot;: &quot;maintaining beacons&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Ada&quot;,
+      &quot;valid_from&quot;: 0,
+      &quot;valid_until&quot;: 3
+    },
+    {
+      &quot;evidence_id&quot;: [
+        &quot;S2&quot;,
+        &quot;S3&quot;
+      ],
+      &quot;object&quot;: &quot;inspecting boats&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Bram&quot;,
+      &quot;valid_from&quot;: 3,
+      &quot;valid_until&quot;: 6
+    },
+    {
+      &quot;evidence_id&quot;: [
+        &quot;S2&quot;,
+        &quot;S4&quot;
+      ],
+      &quot;object&quot;: &quot;maintaining beacons&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Bram&quot;,
+      &quot;valid_from&quot;: 3,
+      &quot;valid_until&quot;: 6
+    }
+  ]
+]</pre></details><h3>Actual model output</h3><pre>{
+  &quot;facts&quot;: [
+    {
+      &quot;subject&quot;: &quot;Ada&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;object&quot;: &quot;Harbor Warden&quot;,
+      &quot;evidence_id&quot;: [1],
+      &quot;valid_from&quot;: 0,
+      &quot;valid_until&quot;: 3
+    },
+    {
+      &quot;subject&quot;: &quot;Bram&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;object&quot;: &quot;Harbor Warden&quot;,
+      &quot;evidence_id&quot;: [2],
+      &quot;valid_from&quot;: 3,
+      &quot;valid_until&quot;: 6
+    },
+    {
+      &quot;subject&quot;: &quot;Harbor Warden&quot;,
+      &quot;relation&quot;: &quot;has_responsibility&quot;,
+      &quot;object&quot;: &quot;inspecting boats&quot;,
+      &quot;evidence_id&quot;: [3]
+    },
+    {
+      &quot;subject&quot;: &quot;Harbor Warden&quot;,
+      &quot;relation&quot;: &quot;has_responsibility&quot;,
+      &quot;object&quot;: &quot;maintaining beacons&quot;,
+      &quot;evidence_id&quot;: [4]
+    }
+  ]
+}</pre><svg viewBox="0 0 860 420" role="img" aria-label="Actual generated relationships"><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#64748b"/></marker></defs><path d="M730.0,200.0 L566.0572753640337,312.823901090864" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="626.352549156242" y="265.3292387221365" text-anchor="middle" class="edge">1. holds_office</text><path d="M187.2949016875158,288.167787843871 L422.76980327035227,326.4230045902553" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="355.0" y="296.413132644072" text-anchor="middle" class="edge">2. holds_office</text><path d="M522.7050983124842,342.658477444273 L230.6470787390652,141.66678850953807" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="355.0" y="221.24534480020102" text-anchor="middle" class="edge">3. has_responsibility</text><path d="M522.7050983124842,342.658477444273 L522.7050983124842,89.34152255572695" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="522.7050983124842" y="180.99999999999997" text-anchor="middle" class="edge">4. has_responsibility</text><rect x="635.0" y="173.0" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="730.0" y="205.0" text-anchor="middle">Ada</text><rect x="427.7050983124842" y="315.658477444273" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="522.7050983124842" y="347.658477444273" text-anchor="middle">Harbor Warden</text><rect x="92.29490168751579" y="261.167787843871" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="187.2949016875158" y="293.167787843871" text-anchor="middle">Bram</text><rect x="92.29490168751573" y="84.83221215612905" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="187.29490168751573" y="116.83221215612905" text-anchor="middle">inspecting boats</text><rect x="427.7050983124842" y="30.341522555726954" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="522.7050983124842" y="62.341522555726954" text-anchor="middle">maintaining beacons</text></svg><h3>Measured result</h3><p>Precision 0.000; recall 0.000; F1 0.000.</p><details><summary>Correct, incorrect/unmatched, missing facts and qualification checks</summary><pre>{
+  &quot;diagnostic_level_supported&quot;: false,
+  &quot;errors&quot;: [
+    {
+      &quot;category&quot;: &quot;malformed_or_contract_violation&quot;,
+      &quot;fact&quot;: {
+        &quot;evidence_id&quot;: [
+          1
+        ],
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Ada&quot;,
+        &quot;valid_from&quot;: 0,
+        &quot;valid_until&quot;: 3
+      }
+    },
+    {
+      &quot;category&quot;: &quot;malformed_or_contract_violation&quot;,
+      &quot;fact&quot;: {
+        &quot;evidence_id&quot;: [
+          2
+        ],
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Bram&quot;,
+        &quot;valid_from&quot;: 3,
+        &quot;valid_until&quot;: 6
+      }
+    },
+    {
+      &quot;category&quot;: &quot;malformed_or_contract_violation&quot;,
+      &quot;fact&quot;: {
+        &quot;evidence_id&quot;: [
+          3
+        ],
+        &quot;object&quot;: &quot;inspecting boats&quot;,
+        &quot;relation&quot;: &quot;has_responsibility&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden&quot;
+      }
+    },
+    {
+      &quot;category&quot;: &quot;malformed_or_contract_violation&quot;,
+      &quot;fact&quot;: {
+        &quot;evidence_id&quot;: [
+          4
+        ],
+        &quot;object&quot;: &quot;maintaining beacons&quot;,
+        &quot;relation&quot;: &quot;has_responsibility&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden&quot;
+      }
+    }
+  ],
+  &quot;full&quot;: {
+    &quot;correct&quot;: [],
+    &quot;f1&quot;: 0.0,
+    &quot;incorrect_or_unmatched&quot;: [
+      {
+        &quot;evidence_id&quot;: [
+          1
+        ],
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Ada&quot;,
+        &quot;valid_from&quot;: 0,
+        &quot;valid_until&quot;: 3
+      },
+      {
+        &quot;evidence_id&quot;: [
+          2
+        ],
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Bram&quot;,
+        &quot;valid_from&quot;: 3,
+        &quot;valid_until&quot;: 6
+      },
+      {
+        &quot;evidence_id&quot;: [
+          3
+        ],
+        &quot;object&quot;: &quot;inspecting boats&quot;,
+        &quot;relation&quot;: &quot;has_responsibility&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden&quot;
+      },
+      {
+        &quot;evidence_id&quot;: [
+          4
+        ],
+        &quot;object&quot;: &quot;maintaining beacons&quot;,
+        &quot;relation&quot;: &quot;has_responsibility&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden&quot;
+      }
+    ],
+    &quot;missing&quot;: [
+      {
+        &quot;evidence_id&quot;: &quot;S1&quot;,
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Ada&quot;,
+        &quot;valid_from&quot;: 0,
+        &quot;valid_until&quot;: 3
+      },
+      {
+        &quot;evidence_id&quot;: &quot;S2&quot;,
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Bram&quot;,
+        &quot;valid_from&quot;: 3,
+        &quot;valid_until&quot;: 6
+      },
+      {
+        &quot;evidence_id&quot;: &quot;S3&quot;,
+        &quot;object&quot;: &quot;inspecting boats&quot;,
+        &quot;relation&quot;: &quot;responsible_for&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden&quot;
+      },
+      {
+        &quot;evidence_id&quot;: &quot;S4&quot;,
+        &quot;object&quot;: &quot;maintaining beacons&quot;,
+        &quot;relation&quot;: &quot;responsible_for&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden&quot;
+      }
+    ],
+    &quot;precision&quot;: 0.0,
+    &quot;predicted&quot;: 4,
+    &quot;recall&quot;: 0.0,
+    &quot;reference_count&quot;: 4,
+    &quot;true_positive&quot;: 0
+  },
+  &quot;matched_alternative&quot;: 0,
+  &quot;qualification_correct_given_matched_relationship&quot;: null,
+  &quot;rule_version&quot;: &quot;simple-ladder-v1&quot;,
+  &quot;underlying&quot;: {
+    &quot;correct&quot;: [],
+    &quot;f1&quot;: 0.0,
+    &quot;incorrect_or_unmatched&quot;: [
+      {
+        &quot;evidence_id&quot;: [
+          1
+        ],
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Ada&quot;,
+        &quot;valid_from&quot;: 0,
+        &quot;valid_until&quot;: 3
+      },
+      {
+        &quot;evidence_id&quot;: [
+          2
+        ],
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Bram&quot;,
+        &quot;valid_from&quot;: 3,
+        &quot;valid_until&quot;: 6
+      },
+      {
+        &quot;evidence_id&quot;: [
+          3
+        ],
+        &quot;object&quot;: &quot;inspecting boats&quot;,
+        &quot;relation&quot;: &quot;has_responsibility&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden&quot;
+      },
+      {
+        &quot;evidence_id&quot;: [
+          4
+        ],
+        &quot;object&quot;: &quot;maintaining beacons&quot;,
+        &quot;relation&quot;: &quot;has_responsibility&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden&quot;
+      }
+    ],
+    &quot;missing&quot;: [
+      {
+        &quot;evidence_id&quot;: &quot;S1&quot;,
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Ada&quot;,
+        &quot;valid_from&quot;: 0,
+        &quot;valid_until&quot;: 3
+      },
+      {
+        &quot;evidence_id&quot;: &quot;S2&quot;,
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Bram&quot;,
+        &quot;valid_from&quot;: 3,
+        &quot;valid_until&quot;: 6
+      },
+      {
+        &quot;evidence_id&quot;: &quot;S3&quot;,
+        &quot;object&quot;: &quot;inspecting boats&quot;,
+        &quot;relation&quot;: &quot;responsible_for&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden&quot;
+      },
+      {
+        &quot;evidence_id&quot;: &quot;S4&quot;,
+        &quot;object&quot;: &quot;maintaining beacons&quot;,
+        &quot;relation&quot;: &quot;responsible_for&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden&quot;
+      }
+    ],
+    &quot;precision&quot;: 0.0,
+    &quot;predicted&quot;: 4,
+    &quot;recall&quot;: 0.0,
+    &quot;reference_count&quot;: 4,
+    &quot;true_positive&quot;: 0
+  },
+  &quot;unresolved&quot;: []
+}</pre></details><p>Tokens 283 / 204; output cap 1024; 4.203 seconds; finish stop; normalization: none.</p><h3>Manual diagnostic explanation (not rescoring)</h3><p>The generated office-mediated factual bindings and stated holder intervals agree with the supplied passage. Every citation is a numeric singleton such as [1], whereas the evidence IDs are strings such as S1. The frozen evaluator deliberately does not invent this reference translation; all facts remain unmatched under the citation-inclusive score. This is a reference-format failure, not demonstrated falsity of the depicted office relationships.</p></section><section id="case-8"><h2>Case 8: ontology_contrast</h2><pre>S1: Ada holds the office of Harbor Warden from day 0 up to but not including day 3.
+S2: Bram holds the office of Harbor Warden from day 3 up to but not including day 6.
+S3: The office of Harbor Warden is responsible for inspecting boats.
+S4: The office of Harbor Warden is responsible for maintaining beacons.</pre><p><strong>Question:</strong> Office-continuity question: represent the continuing office, its responsibilities, and the successive holders with their intervals.</p><details><summary>Reference answers (frozen alternatives, not model output)</summary><pre>[
+  [
+    {
+      &quot;evidence_id&quot;: &quot;S1&quot;,
+      &quot;object&quot;: &quot;Harbor Warden&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;subject&quot;: &quot;Ada&quot;,
+      &quot;valid_from&quot;: 0,
+      &quot;valid_until&quot;: 3
+    },
+    {
+      &quot;evidence_id&quot;: &quot;S2&quot;,
+      &quot;object&quot;: &quot;Harbor Warden&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;subject&quot;: &quot;Bram&quot;,
+      &quot;valid_from&quot;: 3,
+      &quot;valid_until&quot;: 6
+    },
+    {
+      &quot;evidence_id&quot;: &quot;S3&quot;,
+      &quot;object&quot;: &quot;inspecting boats&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Harbor Warden&quot;
+    },
+    {
+      &quot;evidence_id&quot;: &quot;S4&quot;,
+      &quot;object&quot;: &quot;maintaining beacons&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Harbor Warden&quot;
+    }
+  ],
+  [
+    {
+      &quot;evidence_id&quot;: &quot;S1&quot;,
+      &quot;object&quot;: &quot;Harbor Warden&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;subject&quot;: &quot;Ada&quot;,
+      &quot;valid_from&quot;: 0,
+      &quot;valid_until&quot;: 3
+    },
+    {
+      &quot;evidence_id&quot;: &quot;S2&quot;,
+      &quot;object&quot;: &quot;Harbor Warden&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;subject&quot;: &quot;Bram&quot;,
+      &quot;valid_from&quot;: 3,
+      &quot;valid_until&quot;: 6
+    },
+    {
+      &quot;evidence_id&quot;: &quot;S3&quot;,
+      &quot;object&quot;: &quot;inspecting boats&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Harbor Warden&quot;
+    },
+    {
+      &quot;evidence_id&quot;: &quot;S4&quot;,
+      &quot;object&quot;: &quot;maintaining beacons&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Harbor Warden&quot;
+    },
+    {
+      &quot;evidence_id&quot;: [
+        &quot;S1&quot;,
+        &quot;S3&quot;
+      ],
+      &quot;object&quot;: &quot;inspecting boats&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Ada&quot;,
+      &quot;valid_from&quot;: 0,
+      &quot;valid_until&quot;: 3
+    },
+    {
+      &quot;evidence_id&quot;: [
+        &quot;S1&quot;,
+        &quot;S4&quot;
+      ],
+      &quot;object&quot;: &quot;maintaining beacons&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Ada&quot;,
+      &quot;valid_from&quot;: 0,
+      &quot;valid_until&quot;: 3
+    },
+    {
+      &quot;evidence_id&quot;: [
+        &quot;S2&quot;,
+        &quot;S3&quot;
+      ],
+      &quot;object&quot;: &quot;inspecting boats&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Bram&quot;,
+      &quot;valid_from&quot;: 3,
+      &quot;valid_until&quot;: 6
+    },
+    {
+      &quot;evidence_id&quot;: [
+        &quot;S2&quot;,
+        &quot;S4&quot;
+      ],
+      &quot;object&quot;: &quot;maintaining beacons&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Bram&quot;,
+      &quot;valid_from&quot;: 3,
+      &quot;valid_until&quot;: 6
+    }
+  ]
+]</pre></details><h3>Actual model output</h3><pre>{
+  &quot;facts&quot;: [
+    {
+      &quot;subject&quot;: &quot;Harbor Warden&quot;,
+      &quot;relation&quot;: &quot;has_responsibility&quot;,
+      &quot;object&quot;: &quot;inspecting boats&quot;,
+      &quot;evidence_id&quot;: [&quot;S3&quot;]
+    },
+    {
+      &quot;subject&quot;: &quot;Harbor Warden&quot;,
+      &quot;relation&quot;: &quot;has_responsibility&quot;,
+      &quot;object&quot;: &quot;maintaining beacons&quot;,
+      &quot;evidence_id&quot;: [&quot;S4&quot;]
+    },
+    {
+      &quot;subject&quot;: &quot;Ada&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;object&quot;: &quot;Harbor Warden&quot;,
+      &quot;evidence_id&quot;: [&quot;S1&quot;]
+    },
+    {
+      &quot;subject&quot;: &quot;Bram&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;object&quot;: &quot;Harbor Warden&quot;,
+      &quot;evidence_id&quot;: [&quot;S2&quot;]
+    }
+  ]
+}</pre><svg viewBox="0 0 860 420" role="img" aria-label="Actual generated relationships"><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#64748b"/></marker></defs><path d="M730.0,200.0 L566.0572753640337,312.823901090864" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="626.352549156242" y="265.3292387221365" text-anchor="middle" class="edge">1. has_responsibility</text><path d="M730.0,200.0 L287.23019672964773,271.9323149898533" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="458.6474508437579" y="225.0838939219355" text-anchor="middle" class="edge">2. has_responsibility</text><path d="M187.29490168751573,111.83221215612905 L630.064704957868,183.7645271459823" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="458.64745084375784" y="149.91610607806453" text-anchor="middle" class="edge">3. holds_office</text><path d="M522.7050983124842,57.341522555726954 L686.6478229484505,170.165423646591" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="626.352549156242" y="109.67076127786348" text-anchor="middle" class="edge">4. holds_office</text><rect x="635.0" y="173.0" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="730.0" y="205.0" text-anchor="middle">Harbor Warden</text><rect x="427.7050983124842" y="315.658477444273" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="522.7050983124842" y="347.658477444273" text-anchor="middle">inspecting boats</text><rect x="92.29490168751579" y="261.167787843871" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="187.2949016875158" y="293.167787843871" text-anchor="middle">maintaining beacons</text><rect x="92.29490168751573" y="84.83221215612905" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="187.29490168751573" y="116.83221215612905" text-anchor="middle">Ada</text><rect x="427.7050983124842" y="30.341522555726954" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="522.7050983124842" y="62.341522555726954" text-anchor="middle">Bram</text></svg><h3>Measured result</h3><p>Precision 0.500; recall 0.500; F1 0.500.</p><details><summary>Correct, incorrect/unmatched, missing facts and qualification checks</summary><pre>{
+  &quot;diagnostic_level_supported&quot;: false,
+  &quot;errors&quot;: [
+    {
+      &quot;category&quot;: &quot;wrong_qualification_or_duplicate&quot;,
+      &quot;fact&quot;: {
+        &quot;evidence_id&quot;: [
+          &quot;S1&quot;
+        ],
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Ada&quot;
+      }
+    },
+    {
+      &quot;category&quot;: &quot;wrong_qualification_or_duplicate&quot;,
+      &quot;fact&quot;: {
+        &quot;evidence_id&quot;: [
+          &quot;S2&quot;
+        ],
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Bram&quot;
+      }
+    }
+  ],
+  &quot;full&quot;: {
+    &quot;correct&quot;: [
+      {
+        &quot;evidence_id&quot;: [
+          &quot;S3&quot;
+        ],
+        &quot;object&quot;: &quot;inspecting boats&quot;,
+        &quot;relation&quot;: &quot;has_responsibility&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden&quot;
+      },
+      {
+        &quot;evidence_id&quot;: [
+          &quot;S4&quot;
+        ],
+        &quot;object&quot;: &quot;maintaining beacons&quot;,
+        &quot;relation&quot;: &quot;has_responsibility&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden&quot;
+      }
+    ],
+    &quot;f1&quot;: 0.5,
+    &quot;incorrect_or_unmatched&quot;: [
+      {
+        &quot;evidence_id&quot;: [
+          &quot;S1&quot;
+        ],
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Ada&quot;
+      },
+      {
+        &quot;evidence_id&quot;: [
+          &quot;S2&quot;
+        ],
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Bram&quot;
+      }
+    ],
+    &quot;missing&quot;: [
+      {
+        &quot;evidence_id&quot;: &quot;S1&quot;,
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Ada&quot;,
+        &quot;valid_from&quot;: 0,
+        &quot;valid_until&quot;: 3
+      },
+      {
+        &quot;evidence_id&quot;: &quot;S2&quot;,
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Bram&quot;,
+        &quot;valid_from&quot;: 3,
+        &quot;valid_until&quot;: 6
+      }
+    ],
+    &quot;precision&quot;: 0.5,
+    &quot;predicted&quot;: 4,
+    &quot;recall&quot;: 0.5,
+    &quot;reference_count&quot;: 4,
+    &quot;true_positive&quot;: 2
+  },
+  &quot;matched_alternative&quot;: 0,
+  &quot;qualification_correct_given_matched_relationship&quot;: 0.5,
+  &quot;rule_version&quot;: &quot;simple-ladder-v1&quot;,
+  &quot;underlying&quot;: {
+    &quot;correct&quot;: [
+      {
+        &quot;evidence_id&quot;: [
+          &quot;S3&quot;
+        ],
+        &quot;object&quot;: &quot;inspecting boats&quot;,
+        &quot;relation&quot;: &quot;has_responsibility&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden&quot;
+      },
+      {
+        &quot;evidence_id&quot;: [
+          &quot;S4&quot;
+        ],
+        &quot;object&quot;: &quot;maintaining beacons&quot;,
+        &quot;relation&quot;: &quot;has_responsibility&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden&quot;
+      },
+      {
+        &quot;evidence_id&quot;: [
+          &quot;S1&quot;
+        ],
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Ada&quot;
+      },
+      {
+        &quot;evidence_id&quot;: [
+          &quot;S2&quot;
+        ],
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Bram&quot;
+      }
+    ],
+    &quot;f1&quot;: 1.0,
+    &quot;incorrect_or_unmatched&quot;: [],
+    &quot;missing&quot;: [],
+    &quot;precision&quot;: 1.0,
+    &quot;predicted&quot;: 4,
+    &quot;recall&quot;: 1.0,
+    &quot;reference_count&quot;: 4,
+    &quot;true_positive&quot;: 4
+  },
+  &quot;unresolved&quot;: []
+}</pre></details><p>Tokens 285 / 176; output cap 1024; 3.588 seconds; finish stop; normalization: none.</p><h3>Manual diagnostic explanation (not rescoring)</h3><p>The office responsibilities, holder bindings and citations are correct under the frozen matcher. Both holder intervals are omitted despite explicit evidence and the question requesting them. Thus the underlying relationship score passes while complete qualified-fact scoring loses the holder assertions. These are omissions of supported precision, not invented bounds. The office topology is the same office-mediated organization as the person-centered answer; this pair does not demonstrate a change of ontology organization.</p></section></html>
