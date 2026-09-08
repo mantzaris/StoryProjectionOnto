@@ -1,21 +1,59 @@
 # Run status
 
-Updated: 2026-09-08 UTC — authorized small-rule reconciliation prepared
+Updated: 2026-09-08 UTC — reconciled two-example diagnostic finished; vLLM stopped
 
-Frozen diagnostic-only rules and explicit new one-start/three-call envelope:
-`docs/SMALL_PILOT_RULES_V3.md`. **88 focused tests pass** before deployment;
-positive binary/event-role controls agree and the original failed response remains
-failed under separately versioned CPU re-evaluation. Registered metrics/gold and
-C0's complete passed extraction gate are unchanged.
+Frozen rule checkpoint **`cbfb77a`**; deployed/tested live source **`4b36a4f`**.
+Diagnostic-only rules: `docs/SMALL_PILOT_RULES_V3.md`.
+**88 focused tests passed locally**; remote 85 passed / 3 local-artifact skips.
+The subsequent controller boundary check passed 41 local / 40 remote tests
+(one local-artifact skip); these suites overlap. Original failed model output
+remains immutable and failed under its separately versioned CPU replay.
 
-GPU baseline remains **6,025.436171 s**, matching the pod ledger hash exactly.
-Authorized additional maximum **1,100 s**, global session maximum **7,125.436171 s**.
-Both frozen development requests precede one optional evidence-supported repair;
-checker rules cannot change during the session. No ordinary study inference.
-Remote service was verified stopped and RTX 4090 idle before deployment.
-Current operation: freeze source, verify/deploy, then execute the existing
-guardian/controller in the persistent study session. Results will supersede this
-prelaunch entry; prior records below are preserved.
+**One start, two frozen small calls, zero repair calls.** Both HTTP 200 / complete
+SSE / finish `stop` / generation-schema pass. Input/output tokens: **5,740/2,324**
+and **5,992/2,539**; request times **54.612932 / 63.674449 s**. Both fail canonical
+reconstruction on undeclared proposition references; the reconciled scientific
+checker was not reached. **Zero canonical/scientifically accepted outputs.**
+Manual inspection separately identifies unsupported temporal/epistemic claims,
+inconsistent endpoints, and second-example type/node-budget errors. Actual prose
+support is distinguished from defective graph-support mappings.
+
+Both baseline calls ran despite the first failure. The existing repair formatter
+declined the oversized canonical error dumps; this prevented a targeted third
+call, not exhausted authority, unsafe service state or absence of a possible fix.
+Next CPU work: compact field-level reference feedback and documented checker
+type-compatibility correction, separately versioned before future use. No new
+startup, full-size inference or production adoption is authorized by unused time.
+
+**295.952472 s new + 6,025.436171 s preserved = 6,321.388643 s actual allocation.**
+The new session stayed within its 1,100 s / 7,125.436171 s global authorization.
+Remaining mandatory-work proxy **40,162.013213 s**; all-in **46,483.401856 s**,
+above scheduled **33,660 s**. Strict actual stop before **36,000 s** unchanged.
+No successful-production throughput, p95 or complete-run feasibility established.
+Sampled peak VRAM / process RAM / storage: **22,793,945,088 / 7,172,423,680 /
+16,795,292,672 bytes**. Service/tmux stopped, no GPU compute processes and no open
+allocation/service journals at terminal verification; pod remains active.
+
+Outcome: `docs/RECONCILED_SMALL_SESSION_OUTCOME.md`.
+Restricted backup: `artifacts/restricted/reconciled-session-backup.gZFFyU/`.
+All **721 transferred files** hash-match; ledger integrity passes, **4,504 previous
+rows** preserved and **579 new rows** reconciled. Previous local ledger untouched.
+Readable actual graphs are in its nested diagnostic block's
+`EVIDENCE_AND_GENERATED_GRAPHS.md`; manual diagnosis and terminal verification
+are at the backup root. Remote project remains the existing project directory;
+run relative path:
+`artifacts/restricted/small-reconciled-semantic-validation-20260908/run-20260908T043820389279`.
+
+**C0 full extraction gate remains passed:** P **104/122**, R **104/114**, **5/5**
+families, **100%** valid evidence references. Matcher-only/historical failures
+preserved. Contextual P **54/275**, R **54/91**, F1 **.295082** remain separate
+and unchanged. No C0 denominator, threshold, gold or primary metric changes.
+Full fallback acceptance, production-interface adoption, ordinary admission and
+independent human review remain gates. No full-size packing milestone entered
+because neither small example passed. No new PDF.
+
+Safe CPU verification/resume (no GPU allocation):
+`/tmp/spo-refresh-venv/bin/python -m pytest -q tests/unit/test_small_semantic_reconciliation.py tests/unit/test_capacity_diagnostic_controller.py tests/unit/test_typed_small_live_path.py`.
 
 ## Previous CPU-only checkpoint
 
