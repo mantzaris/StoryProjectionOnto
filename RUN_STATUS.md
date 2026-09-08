@@ -1,19 +1,48 @@
 # Run status
 
-Updated: 2026-09-08 UTC — final recovery start prepared for the two pending C2 repairs.
+Updated: 2026-09-08 UTC — authorized exploratory continuation completed and stopped.
 
-Start 3 is closed: C1 repair 05 reached the server, which returned HTTP 200 with
-a streaming schema-rejection error before generation (`uniqueItems` unsupported).
-No C1 repeat is permitted. Actual cumulative 7,771.854961 s; phase-used 1,055.746880,
-remaining 2,544.253120; three starts/five reservations, no open journals.
-V5 preserves the v4 prompt and constraints; uniqueness moves from unsupported
-decoder syntax to identical post-validation. Actual installed vLLM validator and
-XGrammar/exact packing preflight pass before allocation. Frozen C2 repair inputs
-7,142 / 7,130 plus 5,120 output. C1 remains failed; FixedSelect remains conditional.
-Focused real service-guard and restored-budget controls pass. C0 unchanged.
+Report: `reports/PRELIMINARY_DEVELOPMENT_RESULTS.md`; CSV/JSON/manifest under
+`reports/tables/`; HTML: `reports/figures/preliminary_development_comparison.html`.
+Execution checkpoints: `fc56a07` (capacity/resume), `d635ebe` (server compatibility).
 
-Next: existing persistent controller command below, for the fourth/final start;
-only the two remaining C2 parent repairs, no new C1 or repeated bases.
+All three parent repairs were transmitted once. C1 repair 05 received HTTP 200
+with a streaming schema rejection before generation (`uniqueItems` unsupported).
+The final start used the actual vLLM validator; uniqueness stayed in identical
+post-validation. C2 repairs 06/07 both returned HTTP-complete but truncated JSON,
+`length`, 5,120 output tokens each; inputs 7,142/7,130; request time 141.035266 /
+112.372858 s. Zero canonical or scientifically accepted GPU outputs. FixedSelect
+blocked by absent accepted C1. No repeated bases or further repairs.
+
+Received C2 repair assertions retract holder attribution but retain unsupported
+intrinsic point validity. Both claim 25 nodes against ceiling 10 through mixed-kind
+creation reporting, which remains a post-check rather than an encoded grammar
+count. Repetition remains in context 2. No node/predicate declarations arrived;
+endpoint meanings and description mapping are unresolved, not CPU-reconstructed.
+
+**Four starts / seven reservations / six HTTP requests / five generated responses.**
+All historical failures and untransmitted reservation 04 preserved. Phase baseline
+6,716.108081 s; phase used 1,484.317083 s; cumulative **8,200.425164 s**. Starts 3/4
+used 197.182472 / 428.570203 s. 2,115.682917 s remains numerically, but starts and
+one-repair-per-base authority are exhausted. No new GPU start is authorized.
+vLLM stopped; GPU and service journals 0/0 open; pod intact.
+
+23 focused workflow/capacity/report tests pass; 30 unaffected nested controls
+reused. All 1,807 recovered file hashes match remote; all 7,547 prior ledger rows
+unchanged. SQLite integrity/foreign keys pass. CSV/JSON/manifest consistency and
+public-content scans pass; representative HTML graphs and repair tables inspected.
+Sampled VRAM/RAM/project-storage peaks: 22,793,945,088 / 7,124,774,912 /
+16,960,844,288 bytes. Original restricted backups remain alongside the new copy.
+
+C0 complete extraction gate remains passed: 104/122 P, 104/114 R, 5/5 families,
+100% valid citations. Separate contextual P=54/275, R=54/91, F1=.295082 unchanged.
+Remaining mandatory-work proxy 40,162.013213 s; all-in 48,362.438377 s, not a
+calibrated production forecast. No failed-output throughput credit. Global ceilings
+33,660 / strictly before 36,000 s and human-review gate unchanged.
+
+CPU-only report reproduction (no inference):
+`python -m scripts.report_preliminary_development --run artifacts/restricted/development-continuation-backup.rk6SNQ/nested-development-demonstration-20260908/run-20260908T170919981342 --output reports`
+Further live work requires a new explicit decision; no diagnostic phase initiated.
 
 ## Earlier continuation preparation (historical)
 

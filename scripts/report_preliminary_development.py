@@ -223,6 +223,26 @@ def label_graph(graph):
     return labels, predicates, rows
 
 
+def public_assessment(assessment):
+    """Generated IDs/check findings only; no reference answers or scorer targets."""
+    if not assessment:
+        return {
+            "assessment_available": False,
+            "reason": "formal assessment unavailable; see canonical status and failure stage",
+        }
+    return {
+        "assessment_available": True,
+        "structural_diagnostics": [
+            {k: d[k] for k in ("code", "path", "message") if k in d}
+            for d in assessment["structure"].get("diagnostics", [])
+        ],
+        "grounding_supported_assertion_ids": assessment["grounding_supported_assertion_ids"],
+        "grounding_unresolved_assertion_ids": assessment["grounding_unresolved_assertion_ids"],
+        "description_assessments": assessment["description_assessments"],
+        "unresolved_is_not_false_or_accepted": True,
+    }
+
+
 def graph_elements(graph, anchors):
     labels, predicates, _ = label_graph(graph)
     g = graph.get("instance_graph", {})
@@ -329,7 +349,13 @@ def build(root, run, output):
             **metric_values(assessment),
         }
         rows.append(row)
-        graphs.append({"row": row, "graph": safe_graph(d.model_dump(mode="json"))})
+        graphs.append(
+            {
+                "row": row,
+                "graph": safe_graph(d.model_dump(mode="json")),
+                "assessment": public_assessment(assessment),
+            }
+        )
         restricted.append({"attempt_id": row["attempt_id"], "assessment": assessment})
     for path in sorted(
         set(run.glob("*/outcome.json")) | set(run.parent.glob("run-*/*/outcome.json"))
@@ -341,8 +367,10 @@ def build(root, run, output):
         transport = o.get("transport_metadata", {})
         usage = transport.get("usage", {})
         ordinal = None if o["kind"] == "c1" else int(o["kind"][-1])
-        schema_valid = (folder / "schema-errors.json").exists() and not read(
-            folder / "schema-errors.json"
+        schema_valid = (
+            not read(folder / "schema-errors.json")
+            if (folder / "schema-errors.json").exists()
+            else None
         )
         row = {
             "condition": o["condition"],
@@ -352,14 +380,15 @@ def build(root, run, output):
             "request_hash": o["request_hash"],
             "reused_actual_cpu_output": False,
             "schema_valid": schema_valid,
-            "canonical_valid": o["canonical_valid"],
-            "structure_valid": bool(
-                assessment and assessment["structure"]["validation_status"] == "accepted"
+            "canonical_valid": o["canonical_valid"] if (folder / "decoded.json").exists() else None,
+            "structure_valid": (
+                assessment["structure"]["validation_status"] == "accepted" if assessment else None
             ),
             "scientific_accepted": o["scientific_accepted"],
             "repair_parent": o["repair_parent"],
             "finish_reason": response.get("finish_reason", transport.get("finish_reason")),
             "input_tokens": response.get("prompt_tokens", usage.get("prompt_tokens")),
+            "prepared_input_tokens": read(folder / "packing.json")["input_token_count"],
             "output_tokens": response.get("completion_tokens", usage.get("completion_tokens")),
             "output_allowance": read(folder / "request.json")["max_tokens"],
             "request_seconds": o["generation_seconds"]
@@ -371,6 +400,17 @@ def build(root, run, output):
             "failure_stage": (o.get("failure") or {}).get("stage"),
             "failure": (o.get("failure") or {}).get("message", ""),
             "confirmed_source_defects": o.get("source_defects", []),
+            "transport_complete": transport.get("response_complete"),
+            "http_status": transport.get("status_code", transport.get("http_status")),
+            "request_transmitted": bool(
+                list((folder.parent / "http").glob(o["request_hash"][:16] + "-*/events.jsonl"))
+            ),
+            "json_complete": (folder / "decoded.json").exists(),
+            "assessment": public_assessment(assessment),
+            "development_request_revision": o.get(
+                "development_request_revision", "historical-base"
+            ),
+            "replaces_nontransmitted_reservation": o.get("replaces_nontransmitted_reservation"),
             **metric_values(assessment),
         }
         # Detailed exception chains stay restricted; concise public failure label.
@@ -385,13 +425,51 @@ def build(root, run, output):
             graph = read(folder / "decoded.json")
         else:
             graph = complete_record_fragments(streamed_content(folder.parent, o["request_hash"]))
-        if graph.get("partial_records_only"):
+        if row["json_complete"]:
+            instance = graph["instance_graph"]
+            budget = (
+                cfg.preconstruction_budgets
+                if o["kind"] == "c1"
+                else cfg.projection_budgets_by_unit[unit["unit_id"]]
+            )
+            row["nodes_received"] = len(instance["entities"]) + len(instance["events"])
+            row["assertions_received"] = len(instance["assertions"])
+            row["generation_object_budget_valid"] = (
+                row["nodes_received"] <= budget.node_budget
+                and row["assertions_received"] <= budget.assertion_budget
+            )
+        row["confirmed_semantic_categories"] = sorted(
+            {
+                d["category"]
+                for d in o.get("source_defects", [])
+                if d["category"] in {"unsupported_attribution", "unsupported_intrinsic_precision"}
+            }
+        )
+        if assessment:
+            row["grounding_unresolved_count"] = len(
+                assessment["grounding_unresolved_assertion_ids"]
+            )
+            row["description_unresolved_count"] = sum(
+                x["status"] == "unresolved" for x in assessment["description_assessments"]
+            )
+        if graph.get("partial_records_only") and row.get("output_tokens"):
             from story_projection_onto.development_demo import aliases
             from story_projection_onto.scorer_only.development_demo_assessment import (
                 source_feedback,
             )
 
             row["partial_source_diagnostics"] = source_feedback(graph, evidence, aliases(evidence))
+            row["confirmed_semantic_categories"] = sorted(
+                {
+                    d["category"]
+                    for d in row["partial_source_diagnostics"]
+                    if d["category"]
+                    in {"unsupported_attribution", "unsupported_intrinsic_precision"}
+                }
+            )
+            row["semantic_diagnosis_scope"] = (
+                "Offline source-only checks of complete received members; not formal acceptance"
+            )
             row["partial_record_counts"] = {k: len(v) for k, v in graph["instance_graph"].items()}
             row["received_construction_claims"] = [
                 {
@@ -404,11 +482,42 @@ def build(root, run, output):
                 }
                 for d in graph["decisions"]
             ]
-        graphs.append({"row": row, "graph": safe_graph(graph)})
+            received = graph["instance_graph"]["assertions"]
+            signatures = {}
+            for a in received:
+                signature = json.dumps(
+                    {k: v for k, v in a.items() if k != "assertion_id"}, sort_keys=True
+                )
+                signatures.setdefault(signature, []).append(a["assertion_id"])
+            row["offline_prefix_observations"] = {
+                "attributed_assertions": sum(
+                    a.get("epistemic_scope") is not None for a in received
+                ),
+                "unique_claimed_nodes": len(
+                    {
+                        x
+                        for d in graph["decisions"]
+                        for x in d["created_object_ids"]
+                        if isinstance(x, str) and x.startswith(("nE", "nV"))
+                    }
+                ),
+                "node_budget": (
+                    cfg.preconstruction_budgets.node_budget
+                    if o["kind"] == "c1"
+                    else cfg.projection_budgets_by_unit[unit["unit_id"]].node_budget
+                ),
+                "identical_assertion_groups_except_id": [
+                    ids for ids in signatures.values() if len(ids) > 1
+                ],
+                "not_canonical_or_scientific_acceptance": True,
+            }
+        graphs.append(
+            {"row": row, "graph": safe_graph(graph), "assessment": public_assessment(assessment)}
+        )
         restricted.append({"attempt_id": row["attempt_id"], "assessment": assessment})
     # Reconcile a reserved request which failed before a model-call event. Do
     # not manufacture an outcome/response or overwrite the original terminal.
-    for request_path in run.glob("*/request.json"):
+    for request_path in sorted(run.parent.glob("run-*/*/request.json")):
         folder = request_path.parent
         if (folder / "outcome.json").exists():
             continue
@@ -423,7 +532,12 @@ def build(root, run, output):
         if reservation is None:
             continue
         packing = read(folder / "packing.json")
-        outer = read(run / "controller-failure.json")
+        # This is the previously diagnosed reservation, not a generic inference
+        # that absent output proves non-transmission for an arbitrary failure.
+        if folder.name != "nested-development-demonstration-20260908-attempt-04":
+            raise ValueError("unreconciled reserved request requires explicit assessment")
+        incident_run = folder.parent
+        outer = read(incident_run / "controller-failure.json")
         reconciliation = {
             "attempt_id": folder.name,
             "kind": reservation["kind"],
@@ -443,7 +557,9 @@ def build(root, run, output):
             ),
             "status": "reserved repair; not transmitted; separately reconciled, not a model output",
         }
-        write_json_atomic(reconciliation, run / "offline-pre-generation-reconciliation.json")
+        write_json_atomic(
+            reconciliation, incident_run / "offline-pre-generation-reconciliation.json"
+        )
         rows.append(
             {
                 "condition": "C1" if reservation["kind"] == "c1" else "C2",
@@ -513,6 +629,9 @@ def build(root, run, output):
         if r.get("context") and r.get("attempt_id") and r["condition"] != "C0":
             values = {} if r["scientific_accepted"] else invalid_scores[r["context"]]
             r.update({"acceptance_gated_" + k: v for k, v in values.items()})
+    transmitted_repairs = [
+        r for r in rows if r.get("repair_parent") and r.get("request_transmitted")
+    ]
     samples = terminal.get("resource_samples", [])
     for prior_terminal in run.parent.glob("run-*/terminal.json"):
         if prior_terminal != run / "terminal.json":
@@ -522,8 +641,12 @@ def build(root, run, output):
         "phase_seconds": round(terminal["actual_allocated_seconds"] - 6716.108081, 6),
         "cumulative_seconds": terminal["actual_allocated_seconds"],
         "phase_cap_seconds": 3600,
+        "phase_maximum_starts": read(root / "configs/study/preliminary_development_demo.json")[
+            "maximum_service_starts"
+        ],
         "service_starts": len(list(run.parent.glob("start-*.json"))),
         "reserved_attempts": len(list(run.parent.glob("attempt-*.json"))),
+        "transmitted_http_requests": sum(bool(r.get("request_transmitted")) for r in rows),
         "transmitted_generations": sum(
             (r.get("output_tokens") or 0) > 0 for r in rows if r["condition"] != "C0"
         ),
@@ -537,6 +660,23 @@ def build(root, run, output):
             for k in ("process_ram_bytes", "gpu_vram_bytes", "project_storage_bytes")
         },
     }
+    previous_actual = accounting["historical_seconds"]
+    allocation_sessions = []
+    for p in sorted(run.parent.glob("run-*/terminal.json")):
+        record = read(p)
+        actual = record.get("actual_allocated_seconds")
+        if actual is None or actual <= previous_actual:
+            continue
+        allocation_sessions.append(
+            {
+                "run_id": p.parent.name,
+                "allocated_seconds": round(actual - previous_actual, 6),
+                "cumulative_seconds": actual,
+                "stop_reason": record.get("stop_reason"),
+            }
+        )
+        previous_actual = actual
+    accounting["allocation_sessions"] = allocation_sessions
     result = {
         "label": "EXPLORATORY DEVELOPMENT ONLY — one easy world, not held-out efficacy",
         "unit": unit["unit_id"],
@@ -564,6 +704,17 @@ def build(root, run, output):
         "context_limit": 12288,
         "thinking": False,
         "backend": "vLLM 0.10.2 / XGrammar, no fallback, whitespace restriction enabled",
+    }
+    protocol = read(root / "configs/study/preliminary_development_demo.json")
+    result["development_protocol"] = {
+        k: protocol[k]
+        for k in (
+            "base_input_output_tokens",
+            "repair_input_output_tokens",
+            "instruction_path",
+            "repair_policy_revision",
+            "repair_previous_response_policy",
+        )
     }
     inventory_path = run / "remaining-registered-inventory.json"
     if inventory_path.exists():
@@ -627,10 +778,19 @@ def build(root, run, output):
         "acceptance_gated_strict_f1",
         "finish_reason",
         "input_tokens",
+        "prepared_input_tokens",
         "output_tokens",
         "output_allowance",
         "request_seconds",
         "failure",
+        "transport_complete",
+        "http_status",
+        "request_transmitted",
+        "json_complete",
+        "failure_stage",
+        "generation_object_budget_valid",
+        "grounding_unresolved_count",
+        "description_unresolved_count",
     ]
     f = io.StringIO()
     w = csv.DictWriter(f, fieldnames=columns, extrasaction="ignore", lineterminator="\n")
@@ -713,8 +873,9 @@ def build(root, run, output):
         (
             "These use the existing scoring definitions. Unmatched reference "
             "grounding is a reference-coverage result, not proof of factual "
-            "falsity. No complete C2 draft exists to score conditionally; its "
-            "acceptance-gated strict F1 is zero."
+            "falsity. Conditional draft scores are available only when canonical "
+            "reconstruction completes; failed LLM attempts also retain separate "
+            "acceptance-gated scores."
         ),
         "",
         (
@@ -774,11 +935,13 @@ def build(root, run, output):
         "The phase ceiling is 3,600 s. The global scheduled/hard limits remain "
         "33,660/36,000 s; no complete-study admission is claimed.",
         "",
-        f"Service starts: {accounting['service_starts']}; transmitted generations: "
+        f"Service starts: {accounting['service_starts']}; transmitted HTTP requests: "
+        f"{accounting['transmitted_http_requests']}; responses with generation tokens: "
         f"{accounting['transmitted_generations']}; reserved attempts: "
-        f"{accounting['reserved_attempts']}. Both authorized starts were used; unused "
-        "time does not authorize a third start. No targeted model repair was "
-        "transmitted. vLLM is stopped; the pod remains intact.",
+        f"{accounting['reserved_attempts']}. The continuation allows at most "
+        f"{accounting['phase_maximum_starts']} total starts within the same phase. "
+        f"Transmitted parent repairs: {len(transmitted_repairs)}. "
+        "vLLM is stopped; the pod remains intact. No further phase is initiated.",
         "",
         "Peak sampled GPU VRAM / process RAM / project occupancy (bytes): "
         + " / ".join(
@@ -825,12 +988,49 @@ def build(root, run, output):
         ),
         "",
     ]
+    if transmitted_repairs:
+        cap_in, cap_out = protocol["repair_input_output_tokens"]
+        md += [
+            "",
+            "### Continuation capacity and execution correction",
+            "",
+            f"The same C1/C2 development allocation is {cap_in:,} input / {cap_out:,} "
+            f"output within {result['model']['context_limit']:,} total tokens. The named "
+            "nested representation and lossless adapter are unchanged. Full evidence and "
+            "essential source-grounded feedback are retained; prior responses remain "
+            "complete in restricted lineage rather than being duplicated in model input.",
+            "",
+            "Existing graph and single-kind creation budgets were added to the grammar. "
+            "The first transmitted C1 repair encountered a server-integration failure: "
+            "vLLM returned HTTP 200 with a streaming rejection of `uniqueItems`, despite "
+            "passing standalone XGrammar compilation. No generation occurred. This "
+            "preflight coverage gap is an implementation error, not a model-semantic "
+            "failure. C1 was not repeated. The final service start used the actual vLLM "
+            "validator before allocation and removed only that unsupported decoder keyword; "
+            "identical post-validation uniqueness constraints remained. Both C2 repairs "
+            "were then transmitted on one service, independently of C1, with no blind "
+            "base repetition or further repair. Authored capacity fits did not predict "
+            "successful complete generation.",
+        ]
     for r in rows:
         if r.get("failure"):
             md += [
                 f"- {r['condition']} context {r.get('context')} "
                 f"{'repair' if r.get('repair_parent') else 'base'}: {r['failure']}"
             ]
+    if allocation_sessions:
+        md += [
+            "",
+            "### Allocated service intervals",
+            "",
+            "| Start | Allocated seconds | Cumulative seconds | Stop reason |",
+            "|---|---:|---:|---|",
+        ]
+        for i, interval in enumerate(allocation_sessions, 1):
+            md.append(
+                f"| {i} | {interval['allocated_seconds']:.6f} | "
+                f"{interval['cumulative_seconds']:.6f} | {interval['stop_reason']} |"
+            )
     llm = [r for r in rows if r.get("request_hash")]
     md += [
         "",
@@ -840,10 +1040,10 @@ def build(root, run, output):
         "failed base; no semantic merging across outputs.",
         "",
         (
-            "The prepared C1 repair is model-query-blind, but it was not "
-            "transmitted. Its intended timing was after the initial C2 bases and "
-            "could not retrospectively satisfy the registered physical pre-query "
-            "barrier. No production adoption or complete acceptance is claimed."
+            "C1 repair requests remain model-query-blind. A late repair/seal cannot "
+            "retrospectively satisfy the registered physical pre-query barrier. "
+            "The old untransmitted reservation remains separately reported. No "
+            "production adoption or complete acceptance is claimed."
         ),
     ]
     if "registered_remaining_work" in result:
@@ -880,10 +1080,10 @@ def build(root, run, output):
             "",
             (
                 "No GPU output was scientifically accepted. This development "
-                "configuration failed within the used allowance. The semantic "
-                "repairs remain model-untested because of the controller error; "
-                "their failure or success cannot be inferred. No further diagnostic "
-                "phase is automatically initiated."
+                "configuration failed within the used allowance. Structural "
+                "completion, confirmed semantic errors and unresolved assessments "
+                "are distinguished below. No further diagnostic phase is "
+                "automatically initiated."
             ),
         ]
     md += [
@@ -899,7 +1099,7 @@ def build(root, run, output):
         ),
         "",
         (
-            "The received C2 prefixes differ: context 1 reports selection with "
+            "The original base C2 prefixes differ: context 1 reports selection with "
             "an excessive created-entity inventory; context 2 reports "
             "contextual-type and relation operations with mixed created record "
             "kinds. Neither completed its schema/entity declarations, so these "
@@ -909,8 +1109,8 @@ def build(root, run, output):
         "",
         (
             "For a readable source example, evidence e1 directly narrates Fara "
-            "Cedar's membership in Cedar Circle at story step 1. Both C2 "
-            "prefixes nevertheless attach holder-level knowledge and intrinsic "
+            "Cedar's membership in Cedar Circle at story step 1. Both original C2 "
+            "base prefixes nevertheless attach holder-level knowledge and intrinsic "
             "point validity. Narration does not establish a participant's "
             "knowledge, and observation time does not establish intrinsic onset "
             "or duration. These are source-only findings on complete received "
@@ -938,6 +1138,7 @@ def build(root, run, output):
                 + r["condition"]
                 + " / "
                 + str(r["context"] or "query-blind")
+                + (" / repair" if r.get("repair_parent") else " / base")
                 + " | "
                 + " / ".join(str(counts[k]) for k in ("entities", "events", "assertions"))
                 + " | "
@@ -953,10 +1154,152 @@ def build(root, run, output):
             "not complete graphs. A zero received-node count does not mean the "
             "model authored an empty graph. C2's excessive creation claims and "
             "repeated unsupported epistemic form show that output capacity is "
-            "not the only remaining issue. The prepared semantic feedback was "
-            "not model-tested."
+            "not the only remaining issue. These historical prefixes remain "
+            "failed regardless of the separately reported repairs."
         ),
     ]
+    if transmitted_repairs:
+        md += [
+            "",
+            "## Parent repairs: completion versus scientific assessment",
+            "",
+            "No checker was weakened. Unmatched paraphrases are unresolved, not false. "
+            "A generated repair is a replacement model output, not a CPU-completed prefix. "
+            "Server rejection before generation is an integration failure, "
+            "not a model verdict. "
+            "The HTML shows every assertion, cited source passage and unresolved check.",
+            "",
+            "| Condition / context | HTTP / JSON complete | Object budget | "
+            "Confirmed source-semantic categories | Grounding / description unresolved | "
+            "Scientific accepted |",
+            "|---|---|---|---|---|---|",
+        ]
+        for r in transmitted_repairs:
+            md.append(
+                "| "
+                + " | ".join(
+                    [
+                        r["condition"] + " / " + str(r["context"] or "query-blind"),
+                        str(r.get("transport_complete")) + " / " + str(r.get("json_complete")),
+                        fmt(r.get("generation_object_budget_valid")),
+                        ", ".join(r.get("confirmed_semantic_categories", []))
+                        or "none established by source-only checks",
+                        fmt(r.get("grounding_unresolved_count"))
+                        + " / "
+                        + fmt(r.get("description_unresolved_count")),
+                        str(r["scientific_accepted"]),
+                    ]
+                )
+                + " |"
+            )
+        md += [
+            "",
+            "### Before/after received structure",
+            "",
+            "Counts for truncated bases describe complete received members only. "
+            "Different counts are not themselves evidence of semantic improvement.",
+            "",
+            "| Condition / context | Base received nodes / assertions | "
+            "Repair received nodes / assertions | Repair failure stage |",
+            "|---|---|---|---|",
+        ]
+        for r in transmitted_repairs:
+            base = next(b for b in rows if b.get("attempt_id") == r["repair_parent"])
+            counts = base.get("partial_record_counts", {})
+            nodes = counts.get("entities", 0) + counts.get("events", 0)
+            after = r.get("partial_record_counts", {})
+            before_assertions = counts.get("assertions", base.get("assertions_received", "—"))
+            after_nodes = r.get("nodes_received", after.get("entities", 0) + after.get("events", 0))
+            md.append(
+                "| "
+                + " | ".join(
+                    [
+                        r["condition"] + " / " + str(r["context"] or "query-blind"),
+                        f"{nodes} / {before_assertions}",
+                        f"{after_nodes} / "
+                        f"{r.get('assertions_received', after.get('assertions', '—'))}",
+                        r.get("failure_stage") or "none",
+                    ]
+                )
+                + " |"
+            )
+    received_repairs = [
+        g
+        for g in graphs
+        if g["row"].get("repair_parent") and g["row"].get("offline_prefix_observations")
+    ]
+    if received_repairs:
+        md += [
+            "",
+            "### Observable semantic changes in the repairs",
+            "",
+            "Offline prefix inspection only. Counts cover received records, not complete "
+            "ontologies or an estimate of repair effectiveness.",
+            "",
+            "| Context | Attributed records, base → repair | Claimed unique nodes / ceiling | "
+            "Identical assertion groups except ID |",
+            "|---|---|---|---|",
+        ]
+        for g in received_repairs:
+            r = g["row"]
+            obs = r["offline_prefix_observations"]
+            base = next(b for b in rows if b.get("attempt_id") == r["repair_parent"])
+            md.append(
+                f"| {r['context']} | "
+                f"{base['offline_prefix_observations']['attributed_assertions']} → "
+                f"{obs['attributed_assertions']} | {obs['unique_claimed_nodes']} / "
+                f"{obs['node_budget']} | "
+                f"{json.dumps(obs['identical_assertion_groups_except_id'])} |"
+            )
+        md += [
+            "",
+            "The observed unsupported holder-attribution form was removed from the "
+            "received repair assertions. Intrinsic point validity remains unsupported for "
+            "observation-only evidence. Both repairs use `include_exclude` to claim more "
+            "distinct nodes than the unchanged ceiling permits. The frozen grammar bounds "
+            "actual graph objects and single-kind constructive operators, but mixed-kind "
+            "creation lists remain cross-field post-checks. This unencoded path allowed "
+            "excessive claims and repeated administrative content; the capacity repair did "
+            "not eliminate that expansion. No final graph was available for formal checking.",
+            "",
+            "Readable example selection: first received assertion citing the first "
+            "supplied evidence record, in each repaired context (not selected for favorable "
+            "performance). The HTML contains every other received assertion.",
+            "",
+            "Supplied evidence: " + evidence[0].text,
+            "",
+        ]
+        for g in received_repairs:
+            a = next(
+                (
+                    a
+                    for a in g["graph"]["instance_graph"]["assertions"]
+                    if "e1" in a["evidence_ids"]
+                ),
+                None,
+            )
+            if a is not None:
+                md += [
+                    f"Context {g['row']['context']}, `{a['assertion_id']}`: "
+                    f"`{a['content'].get('subject_id')} → {a['content']['predicate_id']} → "
+                    f"{a['content'].get('object_id')}`. Generated explanation: " + a["why_matters"],
+                    "",
+                    "Generated temporal fields: `"
+                    + json.dumps(a["content"]["temporal_content"], separators=(",", ":"))
+                    + "`. Epistemic scope: `"
+                    + json.dumps(a["epistemic_scope"])
+                    + "`.",
+                    "",
+                ]
+        md += [
+            "No entity or predicate declarations were received in either repair. "
+            "Consequently endpoint meanings, role/type compatibility, description mapping "
+            "and substantive construction correctness remain unresolved. The context-2 "
+            "first assertion uses the same ID at both endpoints despite a description "
+            "naming a person and a collective; it cannot be repaired by assigning labels "
+            "from prose. Unmatched descriptions are not automatically false, but neither "
+            "are they positively grounded by absence of a known contradiction."
+        ]
     atomic_text(output / "PRELIMINARY_DEVELOPMENT_RESULTS.md", "\n".join(md) + "\n")
     labels = sorted({label for g in graphs for label in label_graph(g["graph"])[0].values()})
     anchors = {
@@ -973,7 +1316,9 @@ def build(root, run, output):
             "comparison</title><style>body{font:17px "
             "system-ui;margin:24px;color:#172335}h1,h2{line-height:1.2}"
             ".graph{height:850px;border:1px solid #bbb;background:#fcfcff}"
-            "table{border-collapse:collapse;width:100%;font-size:15px}"
+            "table{border-collapse:collapse;width:100%;font-size:15px;table-layout:fixed}"
+            "th:nth-child(1){width:15%}th:nth-child(2){width:17%}"
+            "th:nth-child(3){width:28%}th:nth-child(4){width:40%}"
             "td,th{border:1px solid #ccd;padding:8px;vertical-align:top;overflow-wrap:anywhere}"
             "pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px}"
             "section{margin:35px 0}.warning{background:#fff0ce;padding:14px}</style>"
@@ -994,7 +1339,10 @@ def build(root, run, output):
             + str(i)
             + '">'
             + html.escape(
-                g["row"]["condition"] + " / " + str(g["row"].get("context") or "query-blind")
+                g["row"]["condition"]
+                + " / "
+                + str(g["row"].get("context") or "query-blind")
+                + (" / repair" if g["row"].get("repair_parent") else " / base")
             )
             + "</a>"
             for i, g in enumerate(graphs)
@@ -1010,6 +1358,11 @@ def build(root, run, output):
             + "</pre>"
         )
     js = []
+    from story_projection_onto.development_demo import aliases
+
+    source_aliases = aliases(evidence)
+    source_text = {e.evidence_id: e.text for e in evidence}
+    source_text.update({source_aliases[e.evidence_id]: e.text for e in evidence})
     for i, g in enumerate(graphs):
         r = g["row"]
         graph = g["graph"]
@@ -1047,24 +1400,57 @@ def build(root, run, output):
                 '</pre><div class="graph" id="g' + str(i) + '"></div>'
                 if labels_here
                 else (
-                    '</pre><p class="warning">No complete entity/event declarations were '
-                    "received. The assertion table retains unresolved IDs; labels are "
-                    "not inferred from prose.</p>"
+                    '</pre><p class="warning">'
+                    + (
+                        "Generation was truncated before entity/event declarations. "
+                        "Only complete received assertion members appear below; null checks "
+                        "were not reached. Labels are not inferred from prose."
+                        if r.get("output_tokens")
+                        else "No generated graph is available. The server rejected this request "
+                        "before generation; this is not a model-authored empty graph."
+                    )
+                    + "</p>"
                 )
             )
             + (
                 "<table><tr><th>Assertion / predicate</th><th>Bindings</th><th>Time "
-                "/ epistemic / commitment</th><th>Evidence / description</th></tr>"
+                "/ epistemic / commitment</th><th>Evidence / description / assessment</th></tr>"
             )
         )
         for a in assertions:
+            assessment = g.get("assessment", {})
+            checks = {
+                "grounding": "supported"
+                if a["id"] in assessment.get("grounding_supported_assertion_ids", [])
+                else "unresolved"
+                if a["id"] in assessment.get("grounding_unresolved_assertion_ids", [])
+                else "not formally assessed",
+                "description": next(
+                    (
+                        d
+                        for d in assessment.get("description_assessments", [])
+                        if d["id"] == a["id"]
+                    ),
+                    "not formally assessed",
+                ),
+            }
             cells = [
                 a["id"] + " / " + str(a["predicate"]),
                 a["bindings"],
                 json.dumps(
                     {k: a[k] for k in ("time", "epistemic", "commitment", "direction")}, indent=2
                 ),
-                json.dumps({k: a[k] for k in ("evidence", "why_matters")}, indent=2),
+                json.dumps(
+                    {
+                        **{k: a[k] for k in ("evidence", "why_matters")},
+                        "cited_source_text": {
+                            e: source_text.get(e, "unresolved citation")
+                            for e in a["evidence"] or []
+                        },
+                        "assessment": checks,
+                    },
+                    indent=2,
+                ),
             ]
             parts.append(
                 "<tr>"
@@ -1072,10 +1458,21 @@ def build(root, run, output):
                 + "</tr>"
             )
         parts.append(
-            (
-                "</table><details><summary>All actual graph fields and construction "
-                "decisions</summary><pre>"
+            "</table><details><summary>Structural and source-assessment diagnostics</summary><pre>"
+            + html.escape(
+                json.dumps(
+                    {
+                        "formal": g.get("assessment"),
+                        "source_only": r.get("confirmed_source_defects", []),
+                        "offline_partial_record_source_checks": r.get("partial_source_diagnostics"),
+                    },
+                    indent=2,
+                )
             )
+            + "</pre></details>"
+        )
+        parts.append(
+            ("<details><summary>All actual graph fields and construction decisions</summary><pre>")
             + html.escape(json.dumps(graph, indent=2))
             + "</pre></details></section>"
         )

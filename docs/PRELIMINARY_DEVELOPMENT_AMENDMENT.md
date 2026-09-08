@@ -165,3 +165,24 @@ The persisted, canonically serialized authored capacity artifact measures 3,839
 compact / 4,872 single-space tokens; the preceding 3,858/4,876 figures were measured
 before persistence with different JSON numeric/key spellings. Neither is a model
 result or a maximum-budget guarantee. Both fit the same 5,120 allowance.
+
+### Continuation closed: actual outcome
+
+The two C2 repairs both ran on start 4, independently of C1. Template-inclusive
+inputs matched the frozen 7,142/7,130 tokens. Both produced exactly 5,120 tokens,
+`length`, and incomplete JSON (141.035266 / 112.372858 request seconds). No
+canonical or scientific acceptance. The observed repair prefixes no longer
+attribute holder knowledge, but retain unsupported intrinsic point validity.
+Both claim 25 nodes via `include_exclude`, beyond the unchanged 10-node ceiling;
+that mixed-kind reporting path was not grammar-count-bounded and remains an
+unchanged cross-field post-check. Repeated reports/assertions also consume capacity.
+No missing declarations were supplied by CPU. Actual prefixes and parent rows are
+in the preliminary report/HTML. This is a failed development configuration within
+the authorized phase, not evidence of universal model incapability.
+
+Start 4 allocated 428.570203 s. Total phase 1,484.317083 s; preserved global actual
+8,200.425164 s. Four starts, seven reservations (including untransmitted 04), six
+HTTP requests, five generation responses. All three parents received one transmitted
+repair; C1's server rejection is not a model-generation result. FixedSelect remains
+blocked, no seal was fabricated, no new phase follows. vLLM stopped and all journals
+closed. Numerical time remaining is not authority for a fifth start or second repair.

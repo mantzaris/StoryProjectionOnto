@@ -1,6 +1,32 @@
 {
   "accounting": {
-    "cumulative_seconds": 7574.672489,
+    "allocation_sessions": [
+      {
+        "allocated_seconds": 572.116016,
+        "cumulative_seconds": 7288.224097,
+        "run_id": "run-20260908T145123964696",
+        "stop_reason": "completed"
+      },
+      {
+        "allocated_seconds": 286.448392,
+        "cumulative_seconds": 7574.672489,
+        "run_id": "run-20260908T152302638964",
+        "stop_reason": "workload_exception"
+      },
+      {
+        "allocated_seconds": 197.182472,
+        "cumulative_seconds": 7771.854961,
+        "run_id": "run-20260908T164825920612",
+        "stop_reason": "unsafe_or_unresolved_transport"
+      },
+      {
+        "allocated_seconds": 428.570203,
+        "cumulative_seconds": 8200.425164,
+        "run_id": "run-20260908T170919981342",
+        "stop_reason": "completed"
+      }
+    ],
+    "cumulative_seconds": 8200.425164,
     "global_hard_seconds": 36000,
     "global_scheduled_seconds": 33660,
     "historical_seconds": 6716.108081,
@@ -8,15 +34,17 @@
     "open_service_journals": 0,
     "peak_sampled_resources": {
       "gpu_vram_bytes": 22793945088,
-      "process_ram_bytes": 7109718016,
-      "project_storage_bytes": 16912713216
+      "process_ram_bytes": 7124774912,
+      "project_storage_bytes": 16960844288
     },
     "phase_cap_seconds": 3600,
-    "phase_seconds": 858.564408,
-    "reserved_attempts": 4,
-    "service_starts": 2,
-    "stop_reason": "workload_exception",
-    "transmitted_generations": 3
+    "phase_maximum_starts": 4,
+    "phase_seconds": 1484.317083,
+    "reserved_attempts": 7,
+    "service_starts": 4,
+    "stop_reason": "completed",
+    "transmitted_generations": 5,
+    "transmitted_http_requests": 6
   },
   "contexts": [
     {
@@ -99,6 +127,19 @@
       "wording": "Which people and continuing offices must be distinguished or grouped?"
     }
   ],
+  "development_protocol": {
+    "base_input_output_tokens": [
+      7168,
+      5120
+    ],
+    "instruction_path": "prompts/diagnostics/development_nested_v2.md",
+    "repair_input_output_tokens": [
+      7168,
+      5120
+    ],
+    "repair_policy_revision": "v5-server-compatible: unchanged v4 semantic contract, instructions and tokens; uniqueItems retained in post-validation because vLLM rejects it in guided_json",
+    "repair_previous_response_policy": "Retained completely in restricted lineage; model receives unchanged evidence and compact semantic defects, not a duplicated previous graph."
+  },
   "human_review_still_required": true,
   "label": "EXPLORATORY DEVELOPMENT ONLY — one easy world, not held-out efficacy",
   "model": {
@@ -110,7 +151,7 @@
   },
   "ordinary_admission": false,
   "registered_remaining_work": {
-    "all_in_proxy_seconds": 47736.68570173815,
+    "all_in_proxy_seconds": 48362.43837673815,
     "failed_throughput_credited": false,
     "fallback_gate_unpassed": {
       "accounted_within_reserve_rows_not_added_again": true,
@@ -305,15 +346,32 @@
       "structure_valid": true
     },
     {
+      "assessment": {
+        "assessment_available": false,
+        "reason": "formal assessment unavailable; see canonical status and failure stage"
+      },
       "attempt_id": "nested-development-demonstration-20260908-attempt-01",
-      "canonical_valid": false,
+      "canonical_valid": null,
       "condition": "C1",
+      "confirmed_semantic_categories": [
+        "unsupported_attribution"
+      ],
       "confirmed_source_defects": [],
       "context": null,
+      "development_request_revision": "historical-base",
       "failure": "vLLM response is not one guided JSON choice",
       "failure_stage": "transport_or_decoding",
       "finish_reason": "length",
+      "http_status": 200,
       "input_tokens": 7603,
+      "json_complete": false,
+      "offline_prefix_observations": {
+        "attributed_assertions": 1,
+        "identical_assertion_groups_except_id": [],
+        "node_budget": 30,
+        "not_canonical_or_scientific_acceptance": true,
+        "unique_claimed_nodes": 0
+      },
       "output_allowance": 4096,
       "output_tokens": 4096,
       "partial_record_counts": {
@@ -332,6 +390,7 @@
           "path": "/instance_graph/assertions/0/epistemic_scope"
         }
       ],
+      "prepared_input_tokens": 7603,
       "received_construction_claims": [
         {
           "created_id_count": 1,
@@ -340,14 +399,18 @@
         }
       ],
       "repair_parent": null,
+      "replaces_nontransmitted_reservation": null,
       "request_hash": "29e443017040011135e77a2085012e528fa20e02ea1c623b0a1488fc55bad806",
       "request_seconds": 94.651674,
       "request_time_source": "metered generation event; includes client/decoding",
+      "request_transmitted": true,
       "reused_actual_cpu_output": false,
-      "schema_valid": false,
+      "schema_valid": null,
       "scientific_accepted": false,
+      "semantic_diagnosis_scope": "Offline source-only checks of complete received members; not formal acceptance",
       "source_sha256": "7e80ac84e12a54447d1d8eec2ae8f0621081d161b84b185227d8454c094d91b9",
-      "structure_valid": false
+      "structure_valid": null,
+      "transport_complete": true
     },
     {
       "acceptance_gated_citation_validity": null,
@@ -359,15 +422,33 @@
       "acceptance_gated_strict_f1": 0.0,
       "acceptance_gated_strict_precision": 0.0,
       "acceptance_gated_strict_recall": 0.0,
+      "assessment": {
+        "assessment_available": false,
+        "reason": "formal assessment unavailable; see canonical status and failure stage"
+      },
       "attempt_id": "nested-development-demonstration-20260908-attempt-02",
-      "canonical_valid": false,
+      "canonical_valid": null,
       "condition": "C2",
+      "confirmed_semantic_categories": [
+        "unsupported_attribution",
+        "unsupported_intrinsic_precision"
+      ],
       "confirmed_source_defects": [],
       "context": 1,
+      "development_request_revision": "historical-base",
       "failure": "vLLM response is not one guided JSON choice",
       "failure_stage": "transport_or_decoding",
       "finish_reason": "length",
+      "http_status": 200,
       "input_tokens": 7839,
+      "json_complete": false,
+      "offline_prefix_observations": {
+        "attributed_assertions": 9,
+        "identical_assertion_groups_except_id": [],
+        "node_budget": 10,
+        "not_canonical_or_scientific_acceptance": true,
+        "unique_claimed_nodes": 100
+      },
       "output_allowance": 4096,
       "output_tokens": 4096,
       "partial_record_counts": {
@@ -508,6 +589,7 @@
           "path": "/instance_graph/assertions/8/epistemic_scope"
         }
       ],
+      "prepared_input_tokens": 7839,
       "received_construction_claims": [
         {
           "created_id_count": 100,
@@ -516,14 +598,18 @@
         }
       ],
       "repair_parent": null,
+      "replaces_nontransmitted_reservation": null,
       "request_hash": "2bbe29b2bf18f9467de62278b34a98c2213903ca47f4398bdb6702d2da6bca4f",
       "request_seconds": 102.006076,
       "request_time_source": "metered generation event; includes client/decoding",
+      "request_transmitted": true,
       "reused_actual_cpu_output": false,
-      "schema_valid": false,
+      "schema_valid": null,
       "scientific_accepted": false,
+      "semantic_diagnosis_scope": "Offline source-only checks of complete received members; not formal acceptance",
       "source_sha256": "7de764c2d1f2fe0d19454ea9d358d30292b631b1d12433731d6b949f4d90d91b",
-      "structure_valid": false
+      "structure_valid": null,
+      "transport_complete": true
     },
     {
       "acceptance_gated_citation_validity": null,
@@ -535,15 +621,33 @@
       "acceptance_gated_strict_f1": 0.0,
       "acceptance_gated_strict_precision": 0.0,
       "acceptance_gated_strict_recall": 0.0,
+      "assessment": {
+        "assessment_available": false,
+        "reason": "formal assessment unavailable; see canonical status and failure stage"
+      },
       "attempt_id": "nested-development-demonstration-20260908-attempt-03",
-      "canonical_valid": false,
+      "canonical_valid": null,
       "condition": "C2",
+      "confirmed_semantic_categories": [
+        "unsupported_attribution",
+        "unsupported_intrinsic_precision"
+      ],
       "confirmed_source_defects": [],
       "context": 2,
+      "development_request_revision": "historical-base",
       "failure": "vLLM response is not one guided JSON choice",
       "failure_stage": "transport_or_decoding",
       "finish_reason": "length",
+      "http_status": 200,
       "input_tokens": 7827,
+      "json_complete": false,
+      "offline_prefix_observations": {
+        "attributed_assertions": 6,
+        "identical_assertion_groups_except_id": [],
+        "node_budget": 10,
+        "not_canonical_or_scientific_acceptance": true,
+        "unique_claimed_nodes": 50
+      },
       "output_allowance": 4096,
       "output_tokens": 4096,
       "partial_record_counts": {
@@ -667,6 +771,7 @@
           "path": "/instance_graph/assertions/5/temporal_scope/validity_time"
         }
       ],
+      "prepared_input_tokens": 7827,
       "received_construction_claims": [
         {
           "created_id_count": 125,
@@ -680,14 +785,376 @@
         }
       ],
       "repair_parent": null,
+      "replaces_nontransmitted_reservation": null,
       "request_hash": "ece8e825b1bc0e256c7c0c86706750ee219108b20198cb9ac7e41a44800c0bd0",
       "request_seconds": 86.300878,
       "request_time_source": "metered generation event; includes client/decoding",
+      "request_transmitted": true,
       "reused_actual_cpu_output": false,
-      "schema_valid": false,
+      "schema_valid": null,
       "scientific_accepted": false,
+      "semantic_diagnosis_scope": "Offline source-only checks of complete received members; not formal acceptance",
       "source_sha256": "3102fc4fe285157228b642d1281c2223e35bb3c6f095349a1c991291d2cd80f3",
-      "structure_valid": false
+      "structure_valid": null,
+      "transport_complete": true
+    },
+    {
+      "assessment": {
+        "assessment_available": false,
+        "reason": "formal assessment unavailable; see canonical status and failure stage"
+      },
+      "attempt_id": "nested-development-demonstration-20260908-attempt-05",
+      "canonical_valid": null,
+      "condition": "C1",
+      "confirmed_semantic_categories": [],
+      "confirmed_source_defects": [],
+      "context": null,
+      "development_request_revision": "v4-continuation-capacity: same nested representation, bounded generation schema, concise complete guide; freeze measured allocations before repair",
+      "failure": "server emitted a streaming error event",
+      "failure_stage": "decoding",
+      "finish_reason": null,
+      "http_status": 200,
+      "input_tokens": null,
+      "json_complete": false,
+      "output_allowance": 5120,
+      "output_tokens": null,
+      "prepared_input_tokens": 6895,
+      "repair_parent": "nested-development-demonstration-20260908-attempt-01",
+      "replaces_nontransmitted_reservation": "nested-development-demonstration-20260908-attempt-04",
+      "request_hash": "29b23891e59004d684f5b3956b1dc842be6d7d2df2cc223ac942989962e2927a",
+      "request_seconds": 1.2170287277549505,
+      "request_time_source": "client wall clock",
+      "request_transmitted": true,
+      "reused_actual_cpu_output": false,
+      "schema_valid": null,
+      "scientific_accepted": false,
+      "source_sha256": "1812776bab8817a1161d1afbd3fb6a6305a1f6491835c39cfdffae7b094fd807",
+      "structure_valid": null,
+      "transport_complete": null
+    },
+    {
+      "acceptance_gated_citation_validity": null,
+      "acceptance_gated_essential_temporal_accuracy": 0.0,
+      "acceptance_gated_grounding_precision": null,
+      "acceptance_gated_node_f1": 0.0,
+      "acceptance_gated_rare_pivotal_recall": 0.0,
+      "acceptance_gated_rare_support_path_survival": 0.0,
+      "acceptance_gated_strict_f1": 0.0,
+      "acceptance_gated_strict_precision": 0.0,
+      "acceptance_gated_strict_recall": 0.0,
+      "assessment": {
+        "assessment_available": false,
+        "reason": "formal assessment unavailable; see canonical status and failure stage"
+      },
+      "attempt_id": "nested-development-demonstration-20260908-attempt-06",
+      "canonical_valid": null,
+      "condition": "C2",
+      "confirmed_semantic_categories": [
+        "unsupported_intrinsic_precision"
+      ],
+      "confirmed_source_defects": [],
+      "context": 1,
+      "development_request_revision": "v5-server-compatible: unchanged v4 semantic contract, instructions and tokens; uniqueItems retained in post-validation because vLLM rejects it in guided_json",
+      "failure": "vLLM response is not one guided JSON choice",
+      "failure_stage": "decoding",
+      "finish_reason": "length",
+      "http_status": 200,
+      "input_tokens": 7142,
+      "json_complete": false,
+      "offline_prefix_observations": {
+        "attributed_assertions": 0,
+        "identical_assertion_groups_except_id": [],
+        "node_budget": 10,
+        "not_canonical_or_scientific_acceptance": true,
+        "unique_claimed_nodes": 25
+      },
+      "output_allowance": 5120,
+      "output_tokens": 5120,
+      "partial_record_counts": {
+        "assertions": 12,
+        "entities": 0,
+        "events": 0
+      },
+      "partial_source_diagnostics": [
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/0/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/1/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/2/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/3/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/4/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 5",
+            "point": 5
+          },
+          "path": "/instance_graph/assertions/10/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 5",
+            "point": 5
+          },
+          "path": "/instance_graph/assertions/11/temporal_scope/validity_time"
+        }
+      ],
+      "prepared_input_tokens": 7142,
+      "received_construction_claims": [
+        {
+          "created_id_count": 25,
+          "created_node_id_count": 25,
+          "operator": "include_exclude"
+        },
+        {
+          "created_id_count": 25,
+          "created_node_id_count": 0,
+          "operator": "include_exclude"
+        },
+        {
+          "created_id_count": 25,
+          "created_node_id_count": 0,
+          "operator": "include_exclude"
+        },
+        {
+          "created_id_count": 25,
+          "created_node_id_count": 0,
+          "operator": "include_exclude"
+        },
+        {
+          "created_id_count": 1,
+          "created_node_id_count": 0,
+          "operator": "schema_relation"
+        }
+      ],
+      "repair_parent": "nested-development-demonstration-20260908-attempt-02",
+      "replaces_nontransmitted_reservation": null,
+      "request_hash": "ca4d47b07d6f7c08a727f066554f1076794d9626468ec94358504f06bd6ff5cf",
+      "request_seconds": 141.03526557423174,
+      "request_time_source": "client wall clock",
+      "request_transmitted": true,
+      "reused_actual_cpu_output": false,
+      "schema_valid": null,
+      "scientific_accepted": false,
+      "semantic_diagnosis_scope": "Offline source-only checks of complete received members; not formal acceptance",
+      "source_sha256": "003f9d18c7d4220d8ff3f2213ad3421a3d0fe01e34e26d847175cbc9c0935a63",
+      "structure_valid": null,
+      "transport_complete": true
+    },
+    {
+      "acceptance_gated_citation_validity": null,
+      "acceptance_gated_essential_temporal_accuracy": 0.0,
+      "acceptance_gated_grounding_precision": null,
+      "acceptance_gated_node_f1": 0.0,
+      "acceptance_gated_rare_pivotal_recall": null,
+      "acceptance_gated_rare_support_path_survival": null,
+      "acceptance_gated_strict_f1": 0.0,
+      "acceptance_gated_strict_precision": 0.0,
+      "acceptance_gated_strict_recall": 0.0,
+      "assessment": {
+        "assessment_available": false,
+        "reason": "formal assessment unavailable; see canonical status and failure stage"
+      },
+      "attempt_id": "nested-development-demonstration-20260908-attempt-07",
+      "canonical_valid": null,
+      "condition": "C2",
+      "confirmed_semantic_categories": [
+        "unsupported_intrinsic_precision"
+      ],
+      "confirmed_source_defects": [],
+      "context": 2,
+      "development_request_revision": "v5-server-compatible: unchanged v4 semantic contract, instructions and tokens; uniqueItems retained in post-validation because vLLM rejects it in guided_json",
+      "failure": "vLLM response is not one guided JSON choice",
+      "failure_stage": "decoding",
+      "finish_reason": "length",
+      "http_status": 200,
+      "input_tokens": 7130,
+      "json_complete": false,
+      "offline_prefix_observations": {
+        "attributed_assertions": 0,
+        "identical_assertion_groups_except_id": [],
+        "node_budget": 10,
+        "not_canonical_or_scientific_acceptance": true,
+        "unique_claimed_nodes": 25
+      },
+      "output_allowance": 5120,
+      "output_tokens": 5120,
+      "partial_record_counts": {
+        "assertions": 6,
+        "entities": 0,
+        "events": 0
+      },
+      "partial_source_diagnostics": [
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/0/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/1/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/2/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/3/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/4/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/5/temporal_scope/validity_time"
+        }
+      ],
+      "prepared_input_tokens": 7130,
+      "received_construction_claims": [
+        {
+          "created_id_count": 25,
+          "created_node_id_count": 25,
+          "operator": "include_exclude"
+        },
+        {
+          "created_id_count": 53,
+          "created_node_id_count": 0,
+          "operator": "include_exclude"
+        },
+        {
+          "created_id_count": 53,
+          "created_node_id_count": 0,
+          "operator": "include_exclude"
+        },
+        {
+          "created_id_count": 30,
+          "created_node_id_count": 0,
+          "operator": "include_exclude"
+        },
+        {
+          "created_id_count": 1,
+          "created_node_id_count": 0,
+          "operator": "schema_relation"
+        },
+        {
+          "created_id_count": 53,
+          "created_node_id_count": 0,
+          "operator": "include_exclude"
+        },
+        {
+          "created_id_count": 53,
+          "created_node_id_count": 0,
+          "operator": "include_exclude"
+        },
+        {
+          "created_id_count": 30,
+          "created_node_id_count": 0,
+          "operator": "include_exclude"
+        },
+        {
+          "created_id_count": 1,
+          "created_node_id_count": 0,
+          "operator": "schema_relation"
+        }
+      ],
+      "repair_parent": "nested-development-demonstration-20260908-attempt-03",
+      "replaces_nontransmitted_reservation": null,
+      "request_hash": "72a6b8e39de213bc0a1e08ef7dafb5b210b7e4963deff284ba11152c64f2b945",
+      "request_seconds": 112.372858366929,
+      "request_time_source": "client wall clock",
+      "request_transmitted": true,
+      "reused_actual_cpu_output": false,
+      "schema_valid": null,
+      "scientific_accepted": false,
+      "semantic_diagnosis_scope": "Offline source-only checks of complete received members; not formal acceptance",
+      "source_sha256": "766389780d8b1ff5bd70323191ff28053fabf43eea7f200b0e5a319d0c38c012",
+      "structure_valid": null,
+      "transport_complete": true
     },
     {
       "attempt_id": "nested-development-demonstration-20260908-attempt-04",
@@ -707,24 +1174,6 @@
       "schema_valid": null,
       "scientific_accepted": false,
       "structure_valid": null
-    },
-    {
-      "attempt_id": null,
-      "condition": "C2",
-      "context": 1,
-      "execution_status": "not_attempted",
-      "failure": "Prepared repair not executed after the controller failure; no replacement output.",
-      "repair_parent": "nested-development-demonstration-20260908-attempt-02",
-      "scientific_accepted": false
-    },
-    {
-      "attempt_id": null,
-      "condition": "C2",
-      "context": 2,
-      "execution_status": "not_attempted",
-      "failure": "Prepared repair not executed after the controller failure; no replacement output.",
-      "repair_parent": "nested-development-demonstration-20260908-attempt-03",
-      "scientific_accepted": false
     },
     {
       "attempt_id": null,

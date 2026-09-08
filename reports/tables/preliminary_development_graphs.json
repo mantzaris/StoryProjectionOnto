@@ -1,5 +1,88 @@
 [
   {
+    "assessment": {
+      "assessment_available": true,
+      "description_assessments": [
+        {
+          "check": "source-substring positive coverage only; paraphrase outside coverage is not false",
+          "id": "c0-assertion-d1233995827ab65f61c8",
+          "status": "unresolved"
+        },
+        {
+          "check": "source-substring positive coverage only; paraphrase outside coverage is not false",
+          "id": "c0-assertion-802e11e7a9a31037933f",
+          "status": "unresolved"
+        },
+        {
+          "check": "source-substring positive coverage only; paraphrase outside coverage is not false",
+          "id": "c0-assertion-d5c54eacc9d9160e6198",
+          "status": "unresolved"
+        },
+        {
+          "check": "source-substring positive coverage only; paraphrase outside coverage is not false",
+          "id": "c0-assertion-eedbc9eda72a00b11654",
+          "status": "unresolved"
+        },
+        {
+          "check": "source-substring positive coverage only; paraphrase outside coverage is not false",
+          "id": "c0-assertion-de6598e9d3947bda677a",
+          "status": "unresolved"
+        },
+        {
+          "check": "source-substring positive coverage only; paraphrase outside coverage is not false",
+          "id": "c0-assertion-44b0115bb0f6e9bc5d54",
+          "status": "unresolved"
+        },
+        {
+          "check": "source-substring positive coverage only; paraphrase outside coverage is not false",
+          "id": "c0-assertion-362a9ebdb4c88f3bbd33",
+          "status": "unresolved"
+        },
+        {
+          "check": "source-substring positive coverage only; paraphrase outside coverage is not false",
+          "id": "c0-assertion-6ef392d7d835e1f7bc97",
+          "status": "unresolved"
+        },
+        {
+          "check": "source-substring positive coverage only; paraphrase outside coverage is not false",
+          "id": "c0-assertion-8a26dcb922f745f08e15",
+          "status": "unresolved"
+        },
+        {
+          "check": "source-substring positive coverage only; paraphrase outside coverage is not false",
+          "id": "c0-assertion-ff9fa664ef6b0c5827d9",
+          "status": "unresolved"
+        },
+        {
+          "check": "source-substring positive coverage only; paraphrase outside coverage is not false",
+          "id": "c0-assertion-05feee885a07cea4e27c",
+          "status": "unresolved"
+        },
+        {
+          "check": "source-substring positive coverage only; paraphrase outside coverage is not false",
+          "id": "c0-assertion-941e952e4dc2b9f72da9",
+          "status": "unresolved"
+        }
+      ],
+      "grounding_supported_assertion_ids": [
+        "c0-assertion-44b0115bb0f6e9bc5d54",
+        "c0-assertion-6ef392d7d835e1f7bc97",
+        "c0-assertion-802e11e7a9a31037933f",
+        "c0-assertion-8a26dcb922f745f08e15",
+        "c0-assertion-941e952e4dc2b9f72da9",
+        "c0-assertion-d1233995827ab65f61c8",
+        "c0-assertion-d5c54eacc9d9160e6198",
+        "c0-assertion-de6598e9d3947bda677a",
+        "c0-assertion-eedbc9eda72a00b11654",
+        "c0-assertion-ff9fa664ef6b0c5827d9"
+      ],
+      "grounding_unresolved_assertion_ids": [
+        "c0-assertion-05feee885a07cea4e27c",
+        "c0-assertion-362a9ebdb4c88f3bbd33"
+      ],
+      "structural_diagnostics": [],
+      "unresolved_is_not_false_or_accepted": true
+    },
     "graph": {
       "contextual_interpretation": "Previously executed, hash-verified C0 development projection",
       "decisions": [
@@ -1563,6 +1646,101 @@
     }
   },
   {
+    "assessment": {
+      "assessment_available": true,
+      "description_assessments": [
+        {
+          "check": "source-substring positive coverage only; paraphrase outside coverage is not false",
+          "id": "c0-assertion-d1233995827ab65f61c8",
+          "status": "unresolved"
+        },
+        {
+          "check": "source-substring positive coverage only; paraphrase outside coverage is not false",
+          "id": "c0-assertion-802e11e7a9a31037933f",
+          "status": "unresolved"
+        },
+        {
+          "check": "source-substring positive coverage only; paraphrase outside coverage is not false",
+          "id": "c0-assertion-d5c54eacc9d9160e6198",
+          "status": "unresolved"
+        },
+        {
+          "check": "source-substring positive coverage only; paraphrase outside coverage is not false",
+          "id": "c0-assertion-eedbc9eda72a00b11654",
+          "status": "unresolved"
+        },
+        {
+          "check": "source-substring positive coverage only; paraphrase outside coverage is not false",
+          "id": "c0-assertion-de6598e9d3947bda677a",
+          "status": "unresolved"
+        },
+        {
+          "check": "source-substring positive coverage only; paraphrase outside coverage is not false",
+          "id": "c0-assertion-44b0115bb0f6e9bc5d54",
+          "status": "unresolved"
+        },
+        {
+          "check": "source-substring positive coverage only; paraphrase outside coverage is not false",
+          "id": "c0-assertion-362a9ebdb4c88f3bbd33",
+          "status": "unresolved"
+        },
+        {
+          "check": "source-substring positive coverage only; paraphrase outside coverage is not false",
+          "id": "c0-assertion-6ef392d7d835e1f7bc97",
+          "status": "unresolved"
+        },
+        {
+          "check": "source-substring positive coverage only; paraphrase outside coverage is not false",
+          "id": "c0-assertion-8a26dcb922f745f08e15",
+          "status": "unresolved"
+        },
+        {
+          "check": "source-substring positive coverage only; paraphrase outside coverage is not false",
+          "id": "c0-assertion-9b0f48488f5b381ab9ff",
+          "status": "unresolved"
+        },
+        {
+          "check": "source-substring positive coverage only; paraphrase outside coverage is not false",
+          "id": "c0-assertion-ff9fa664ef6b0c5827d9",
+          "status": "unresolved"
+        },
+        {
+          "check": "source-substring positive coverage only; paraphrase outside coverage is not false",
+          "id": "c0-assertion-05feee885a07cea4e27c",
+          "status": "unresolved"
+        },
+        {
+          "check": "source-substring positive coverage only; paraphrase outside coverage is not false",
+          "id": "c0-assertion-473fa05d7adab39ac6e9",
+          "status": "unresolved"
+        },
+        {
+          "check": "source-substring positive coverage only; paraphrase outside coverage is not false",
+          "id": "c0-assertion-941e952e4dc2b9f72da9",
+          "status": "unresolved"
+        }
+      ],
+      "grounding_supported_assertion_ids": [
+        "c0-assertion-44b0115bb0f6e9bc5d54",
+        "c0-assertion-473fa05d7adab39ac6e9",
+        "c0-assertion-6ef392d7d835e1f7bc97",
+        "c0-assertion-802e11e7a9a31037933f",
+        "c0-assertion-8a26dcb922f745f08e15",
+        "c0-assertion-941e952e4dc2b9f72da9",
+        "c0-assertion-9b0f48488f5b381ab9ff",
+        "c0-assertion-d1233995827ab65f61c8",
+        "c0-assertion-d5c54eacc9d9160e6198",
+        "c0-assertion-de6598e9d3947bda677a",
+        "c0-assertion-eedbc9eda72a00b11654",
+        "c0-assertion-ff9fa664ef6b0c5827d9"
+      ],
+      "grounding_unresolved_assertion_ids": [
+        "c0-assertion-05feee885a07cea4e27c",
+        "c0-assertion-362a9ebdb4c88f3bbd33"
+      ],
+      "structural_diagnostics": [],
+      "unresolved_is_not_false_or_accepted": true
+    },
     "graph": {
       "contextual_interpretation": "Previously executed, hash-verified C0 development projection",
       "decisions": [
@@ -3256,6 +3434,10 @@
     }
   },
   {
+    "assessment": {
+      "assessment_available": false,
+      "reason": "formal assessment unavailable; see canonical status and failure stage"
+    },
     "graph": {
       "contextual_interpretation": "A narrative involving multiple characters and events in a story, with detailed temporal and relational information.",
       "decisions": [
@@ -4053,15 +4235,32 @@
       "partial_records_only": true
     },
     "row": {
+      "assessment": {
+        "assessment_available": false,
+        "reason": "formal assessment unavailable; see canonical status and failure stage"
+      },
       "attempt_id": "nested-development-demonstration-20260908-attempt-01",
-      "canonical_valid": false,
+      "canonical_valid": null,
       "condition": "C1",
+      "confirmed_semantic_categories": [
+        "unsupported_attribution"
+      ],
       "confirmed_source_defects": [],
       "context": null,
+      "development_request_revision": "historical-base",
       "failure": "vLLM response is not one guided JSON choice",
       "failure_stage": "transport_or_decoding",
       "finish_reason": "length",
+      "http_status": 200,
       "input_tokens": 7603,
+      "json_complete": false,
+      "offline_prefix_observations": {
+        "attributed_assertions": 1,
+        "identical_assertion_groups_except_id": [],
+        "node_budget": 30,
+        "not_canonical_or_scientific_acceptance": true,
+        "unique_claimed_nodes": 0
+      },
       "output_allowance": 4096,
       "output_tokens": 4096,
       "partial_record_counts": {
@@ -4080,6 +4279,7 @@
           "path": "/instance_graph/assertions/0/epistemic_scope"
         }
       ],
+      "prepared_input_tokens": 7603,
       "received_construction_claims": [
         {
           "created_id_count": 1,
@@ -4088,17 +4288,25 @@
         }
       ],
       "repair_parent": null,
+      "replaces_nontransmitted_reservation": null,
       "request_hash": "29e443017040011135e77a2085012e528fa20e02ea1c623b0a1488fc55bad806",
       "request_seconds": 94.651674,
       "request_time_source": "metered generation event; includes client/decoding",
+      "request_transmitted": true,
       "reused_actual_cpu_output": false,
-      "schema_valid": false,
+      "schema_valid": null,
       "scientific_accepted": false,
+      "semantic_diagnosis_scope": "Offline source-only checks of complete received members; not formal acceptance",
       "source_sha256": "7e80ac84e12a54447d1d8eec2ae8f0621081d161b84b185227d8454c094d91b9",
-      "structure_valid": false
+      "structure_valid": null,
+      "transport_complete": true
     }
   },
   {
+    "assessment": {
+      "assessment_available": false,
+      "reason": "formal assessment unavailable; see canonical status and failure stage"
+    },
     "graph": {
       "contextual_interpretation": "The narrative explores the affiliations and state changes of characters in Cedar Harbor Accord, focusing on their roles and interactions across story steps. Key entities include individuals like Fara Cedar, Evin Cedar, Doran Cedar, Cyra Cedar, and Galen Cedar, along with collectives such as Cedar Circle, Cedar Guild, and events like Cedar Turn 1 and Cedar Confrontation. The story emphasizes their roles, transitions, and consequences over time.",
       "decisions": [
@@ -4855,15 +5063,33 @@
       "acceptance_gated_strict_f1": 0.0,
       "acceptance_gated_strict_precision": 0.0,
       "acceptance_gated_strict_recall": 0.0,
+      "assessment": {
+        "assessment_available": false,
+        "reason": "formal assessment unavailable; see canonical status and failure stage"
+      },
       "attempt_id": "nested-development-demonstration-20260908-attempt-02",
-      "canonical_valid": false,
+      "canonical_valid": null,
       "condition": "C2",
+      "confirmed_semantic_categories": [
+        "unsupported_attribution",
+        "unsupported_intrinsic_precision"
+      ],
       "confirmed_source_defects": [],
       "context": 1,
+      "development_request_revision": "historical-base",
       "failure": "vLLM response is not one guided JSON choice",
       "failure_stage": "transport_or_decoding",
       "finish_reason": "length",
+      "http_status": 200,
       "input_tokens": 7839,
+      "json_complete": false,
+      "offline_prefix_observations": {
+        "attributed_assertions": 9,
+        "identical_assertion_groups_except_id": [],
+        "node_budget": 10,
+        "not_canonical_or_scientific_acceptance": true,
+        "unique_claimed_nodes": 100
+      },
       "output_allowance": 4096,
       "output_tokens": 4096,
       "partial_record_counts": {
@@ -5004,6 +5230,7 @@
           "path": "/instance_graph/assertions/8/epistemic_scope"
         }
       ],
+      "prepared_input_tokens": 7839,
       "received_construction_claims": [
         {
           "created_id_count": 100,
@@ -5012,17 +5239,25 @@
         }
       ],
       "repair_parent": null,
+      "replaces_nontransmitted_reservation": null,
       "request_hash": "2bbe29b2bf18f9467de62278b34a98c2213903ca47f4398bdb6702d2da6bca4f",
       "request_seconds": 102.006076,
       "request_time_source": "metered generation event; includes client/decoding",
+      "request_transmitted": true,
       "reused_actual_cpu_output": false,
-      "schema_valid": false,
+      "schema_valid": null,
       "scientific_accepted": false,
+      "semantic_diagnosis_scope": "Offline source-only checks of complete received members; not formal acceptance",
       "source_sha256": "7de764c2d1f2fe0d19454ea9d358d30292b631b1d12433731d6b949f4d90d91b",
-      "structure_valid": false
+      "structure_valid": null,
+      "transport_complete": true
     }
   },
   {
+    "assessment": {
+      "assessment_available": false,
+      "reason": "formal assessment unavailable; see canonical status and failure stage"
+    },
     "graph": {
       "contextual_interpretation": "The narrative explores the relationships and roles of individuals and groups within the Cedar Harbor Accord, focusing on their continuity, actions, and consequences across different story steps. The main goal is to distinguish and group actors, their offices, and events, while tracking their interactions and outcomes.",
       "decisions": [
@@ -5793,15 +6028,33 @@
       "acceptance_gated_strict_f1": 0.0,
       "acceptance_gated_strict_precision": 0.0,
       "acceptance_gated_strict_recall": 0.0,
+      "assessment": {
+        "assessment_available": false,
+        "reason": "formal assessment unavailable; see canonical status and failure stage"
+      },
       "attempt_id": "nested-development-demonstration-20260908-attempt-03",
-      "canonical_valid": false,
+      "canonical_valid": null,
       "condition": "C2",
+      "confirmed_semantic_categories": [
+        "unsupported_attribution",
+        "unsupported_intrinsic_precision"
+      ],
       "confirmed_source_defects": [],
       "context": 2,
+      "development_request_revision": "historical-base",
       "failure": "vLLM response is not one guided JSON choice",
       "failure_stage": "transport_or_decoding",
       "finish_reason": "length",
+      "http_status": 200,
       "input_tokens": 7827,
+      "json_complete": false,
+      "offline_prefix_observations": {
+        "attributed_assertions": 6,
+        "identical_assertion_groups_except_id": [],
+        "node_budget": 10,
+        "not_canonical_or_scientific_acceptance": true,
+        "unique_claimed_nodes": 50
+      },
       "output_allowance": 4096,
       "output_tokens": 4096,
       "partial_record_counts": {
@@ -5925,6 +6178,7 @@
           "path": "/instance_graph/assertions/5/temporal_scope/validity_time"
         }
       ],
+      "prepared_input_tokens": 7827,
       "received_construction_claims": [
         {
           "created_id_count": 125,
@@ -5938,14 +6192,2297 @@
         }
       ],
       "repair_parent": null,
+      "replaces_nontransmitted_reservation": null,
       "request_hash": "ece8e825b1bc0e256c7c0c86706750ee219108b20198cb9ac7e41a44800c0bd0",
       "request_seconds": 86.300878,
       "request_time_source": "metered generation event; includes client/decoding",
+      "request_transmitted": true,
       "reused_actual_cpu_output": false,
-      "schema_valid": false,
+      "schema_valid": null,
       "scientific_accepted": false,
+      "semantic_diagnosis_scope": "Offline source-only checks of complete received members; not formal acceptance",
       "source_sha256": "3102fc4fe285157228b642d1281c2223e35bb3c6f095349a1c991291d2cd80f3",
-      "structure_valid": false
+      "structure_valid": null,
+      "transport_complete": true
+    }
+  },
+  {
+    "assessment": {
+      "assessment_available": false,
+      "reason": "formal assessment unavailable; see canonical status and failure stage"
+    },
+    "graph": {
+      "decisions": [],
+      "instance_graph": {
+        "assertions": [],
+        "entities": [],
+        "events": []
+      },
+      "local_schema": {
+        "contextual_types": [],
+        "predicates": []
+      },
+      "partial_records_only": true
+    },
+    "row": {
+      "assessment": {
+        "assessment_available": false,
+        "reason": "formal assessment unavailable; see canonical status and failure stage"
+      },
+      "attempt_id": "nested-development-demonstration-20260908-attempt-05",
+      "canonical_valid": null,
+      "condition": "C1",
+      "confirmed_semantic_categories": [],
+      "confirmed_source_defects": [],
+      "context": null,
+      "development_request_revision": "v4-continuation-capacity: same nested representation, bounded generation schema, concise complete guide; freeze measured allocations before repair",
+      "failure": "server emitted a streaming error event",
+      "failure_stage": "decoding",
+      "finish_reason": null,
+      "http_status": 200,
+      "input_tokens": null,
+      "json_complete": false,
+      "output_allowance": 5120,
+      "output_tokens": null,
+      "prepared_input_tokens": 6895,
+      "repair_parent": "nested-development-demonstration-20260908-attempt-01",
+      "replaces_nontransmitted_reservation": "nested-development-demonstration-20260908-attempt-04",
+      "request_hash": "29b23891e59004d684f5b3956b1dc842be6d7d2df2cc223ac942989962e2927a",
+      "request_seconds": 1.2170287277549505,
+      "request_time_source": "client wall clock",
+      "request_transmitted": true,
+      "reused_actual_cpu_output": false,
+      "schema_valid": null,
+      "scientific_accepted": false,
+      "source_sha256": "1812776bab8817a1161d1afbd3fb6a6305a1f6491835c39cfdffae7b094fd807",
+      "structure_valid": null,
+      "transport_complete": null
+    }
+  },
+  {
+    "assessment": {
+      "assessment_available": false,
+      "reason": "formal assessment unavailable; see canonical status and failure stage"
+    },
+    "graph": {
+      "contextual_interpretation": "The narrative explores the affiliations and state changes of characters in Cedar Harbor Accord, focusing on their roles, events, and consequences within a defined time frame. The analysis centers on actors, offices, and events, with an emphasis on how their relationships and statuses evolve through the story steps.",
+      "decisions": [
+        {
+          "created_object_ids": [
+            "nE1",
+            "nE2",
+            "nE3",
+            "nE4",
+            "nE5",
+            "nE6",
+            "nE7",
+            "nE8",
+            "nE9",
+            "nE10",
+            "nE11",
+            "nE12",
+            "nE13",
+            "nE14",
+            "nE15",
+            "nE16",
+            "nE17",
+            "nE18",
+            "nE19",
+            "nE20",
+            "nE21",
+            "nE22",
+            "nE23",
+            "nE24",
+            "nE25"
+          ],
+          "decision_id": "nD1",
+          "evidence_ids": [
+            "e1",
+            "e2",
+            "e3",
+            "e4",
+            "e5",
+            "e6",
+            "e7",
+            "e8",
+            "e9",
+            "e10",
+            "e11",
+            "e12",
+            "e13",
+            "e14",
+            "e15",
+            "e16",
+            "e17",
+            "e18",
+            "e19",
+            "e20",
+            "e21",
+            "e22",
+            "e23",
+            "e24",
+            "e25"
+          ],
+          "input_object_ids": [],
+          "operator": "include_exclude",
+          "rationale": "Include all entities identified as characters, collectives, places, and events from the evidence.",
+          "removed_object_ids": []
+        },
+        {
+          "created_object_ids": [
+            "nT1",
+            "nT2",
+            "nT3",
+            "nT4",
+            "nT5",
+            "nT6",
+            "nT7",
+            "nT8",
+            "nT9",
+            "nT10",
+            "nT11",
+            "nT12",
+            "nT13",
+            "nT14",
+            "nT15",
+            "nT16",
+            "nT17",
+            "nT18",
+            "nT19",
+            "nT20",
+            "nT21",
+            "nT22",
+            "nT23",
+            "nT24",
+            "nT25"
+          ],
+          "decision_id": "nD2",
+          "evidence_ids": [
+            "e1",
+            "e2",
+            "e3",
+            "e4",
+            "e5",
+            "e6",
+            "e7",
+            "e8",
+            "e9",
+            "e10",
+            "e11",
+            "e12",
+            "e13",
+            "e14",
+            "e15",
+            "e16",
+            "e17",
+            "e18",
+            "e19",
+            "e20",
+            "e21",
+            "e22",
+            "e23",
+            "e24",
+            "e25"
+          ],
+          "input_object_ids": [],
+          "operator": "include_exclude",
+          "rationale": "Include all temporal clues and relations from the evidence to establish the timeline and sequence of events.",
+          "removed_object_ids": []
+        },
+        {
+          "created_object_ids": [
+            "nR1",
+            "nR2",
+            "nR3",
+            "nR4",
+            "nR5",
+            "nR6",
+            "nR7",
+            "nR8",
+            "nR9",
+            "nR10",
+            "nR11",
+            "nR12",
+            "nR13",
+            "nR14",
+            "nR15",
+            "nR16",
+            "nR17",
+            "nR18",
+            "nR19",
+            "nR20",
+            "nR21",
+            "nR22",
+            "nR23",
+            "nR24",
+            "nR25"
+          ],
+          "decision_id": "nD3",
+          "evidence_ids": [
+            "e1",
+            "e2",
+            "e3",
+            "e4",
+            "e5",
+            "e6",
+            "e7",
+            "e8",
+            "e9",
+            "e10",
+            "e11",
+            "e12",
+            "e13",
+            "e14",
+            "e15",
+            "e16",
+            "e17",
+            "e18",
+            "e19",
+            "e20",
+            "e21",
+            "e22",
+            "e23",
+            "e24",
+            "e25"
+          ],
+          "input_object_ids": [],
+          "operator": "include_exclude",
+          "rationale": "Include all relations and predicates from the evidence to establish the relationships between entities.",
+          "removed_object_ids": []
+        },
+        {
+          "created_object_ids": [
+            "nA1",
+            "nA2",
+            "nA3",
+            "nA4",
+            "nA5",
+            "nA6",
+            "nA7",
+            "nA8",
+            "nA9",
+            "nA10",
+            "nA11",
+            "nA12",
+            "nA13",
+            "nA14",
+            "nA15",
+            "nA16",
+            "nA17",
+            "nA18",
+            "nA19",
+            "nA20",
+            "nA21",
+            "nA22",
+            "nA23",
+            "nA24",
+            "nA25"
+          ],
+          "decision_id": "nD4",
+          "evidence_ids": [
+            "e1",
+            "e2",
+            "e3",
+            "e4",
+            "e5",
+            "e6",
+            "e7",
+            "e8",
+            "e9",
+            "e10",
+            "e11",
+            "e12",
+            "e13",
+            "e14",
+            "e15",
+            "e16",
+            "e17",
+            "e18",
+            "e19",
+            "e20",
+            "e21",
+            "e22",
+            "e23",
+            "e24",
+            "e25"
+          ],
+          "input_object_ids": [],
+          "operator": "include_exclude",
+          "rationale": "Include all assertions from the evidence to establish the relationships and events.",
+          "removed_object_ids": []
+        },
+        {
+          "created_object_ids": [
+            "nS1"
+          ],
+          "decision_id": "nD5",
+          "evidence_ids": [
+            "e1",
+            "e2",
+            "e3",
+            "e4",
+            "e5",
+            "e6",
+            "e7",
+            "e8",
+            "e9",
+            "e10",
+            "e11",
+            "e12",
+            "e13",
+            "e14",
+            "e15",
+            "e16",
+            "e17",
+            "e18",
+            "e19",
+            "e20",
+            "e21",
+            "e22",
+            "e23",
+            "e24",
+            "e25"
+          ],
+          "input_object_ids": [],
+          "operator": "schema_relation",
+          "rationale": "Define the schema to organize the entities, relations, and events identified in the evidence.",
+          "removed_object_ids": []
+        }
+      ],
+      "instance_graph": {
+        "assertions": [
+          {
+            "assertion_id": "nA1",
+            "confidence": 0.96,
+            "content": {
+              "evidence_ids": [
+                "e1"
+              ],
+              "form": "binary",
+              "object_id": "nE1",
+              "predicate_id": "nR1",
+              "subject_id": "nE2",
+              "temporal_content": {
+                "discourse_position": {
+                  "passage_order": 0,
+                  "sentence_order": 0,
+                  "token_order": 0
+                },
+                "revelation_position": {
+                  "label": null,
+                  "revelation_order": 4
+                },
+                "story_time": {
+                  "kind": "point",
+                  "label": "story step 1",
+                  "point": 1
+                },
+                "validity_time": {
+                  "kind": "point",
+                  "label": "story step 1",
+                  "point": 1
+                }
+              }
+            },
+            "content_identity": null,
+            "contextual_relevance": 0.96,
+            "direction": "forward",
+            "epistemic_scope": null,
+            "evidence_ids": [
+              "e1"
+            ],
+            "narrative_commitment": "world_committed",
+            "provenance": [
+              {
+                "confidence": 1.0,
+                "evidence_id": "e1"
+              }
+            ],
+            "temporal_scope": "content",
+            "why_matters": "Establishes the affiliation of Fara Cedar with Cedar Circle at story step 1.",
+            "why_matters_evidence_ids": [
+              "e1"
+            ]
+          },
+          {
+            "assertion_id": "nA2",
+            "confidence": 0.96,
+            "content": {
+              "evidence_ids": [
+                "e2"
+              ],
+              "form": "binary",
+              "object_id": "nE3",
+              "predicate_id": "nR2",
+              "subject_id": "nE4",
+              "temporal_content": {
+                "discourse_position": {
+                  "passage_order": 1,
+                  "sentence_order": 0,
+                  "token_order": 0
+                },
+                "revelation_position": {
+                  "label": null,
+                  "revelation_order": 3
+                },
+                "story_time": {
+                  "kind": "point",
+                  "label": "story step 1",
+                  "point": 1
+                },
+                "validity_time": {
+                  "kind": "point",
+                  "label": "story step 1",
+                  "point": 1
+                }
+              }
+            },
+            "content_identity": null,
+            "contextual_relevance": 0.96,
+            "direction": "forward",
+            "epistemic_scope": null,
+            "evidence_ids": [
+              "e2"
+            ],
+            "narrative_commitment": "world_committed",
+            "provenance": [
+              {
+                "confidence": 1.0,
+                "evidence_id": "e2"
+              }
+            ],
+            "temporal_scope": "content",
+            "why_matters": "Establishes the affiliation of Evin Cedar with Cedar Guild at story step 1.",
+            "why_matters_evidence_ids": [
+              "e2"
+            ]
+          },
+          {
+            "assertion_id": "nA3",
+            "confidence": 0.96,
+            "content": {
+              "evidence_ids": [
+                "e3"
+              ],
+              "form": "binary",
+              "object_id": "nE5",
+              "predicate_id": "nR3",
+              "subject_id": "nE6",
+              "temporal_content": {
+                "discourse_position": {
+                  "passage_order": 2,
+                  "sentence_order": 0,
+                  "token_order": 0
+                },
+                "revelation_position": {
+                  "label": null,
+                  "revelation_order": 2
+                },
+                "story_time": {
+                  "kind": "point",
+                  "label": "story step 1",
+                  "point": 1
+                },
+                "validity_time": {
+                  "kind": "point",
+                  "label": "story step 1",
+                  "point": 1
+                }
+              }
+            },
+            "content_identity": null,
+            "contextual_relevance": 0.96,
+            "direction": "forward",
+            "epistemic_scope": null,
+            "evidence_ids": [
+              "e3"
+            ],
+            "narrative_commitment": "world_committed",
+            "provenance": [
+              {
+                "confidence": 1.0,
+                "evidence_id": "e3"
+              }
+            ],
+            "temporal_scope": "content",
+            "why_matters": "Establishes the affiliation of Doran Cedar with Cedar Circle at story step 1.",
+            "why_matters_evidence_ids": [
+              "e3"
+            ]
+          },
+          {
+            "assertion_id": "nA4",
+            "confidence": 0.96,
+            "content": {
+              "evidence_ids": [
+                "e4"
+              ],
+              "form": "binary",
+              "object_id": "nE7",
+              "predicate_id": "nR4",
+              "subject_id": "nE8",
+              "temporal_content": {
+                "discourse_position": {
+                  "passage_order": 3,
+                  "sentence_order": 0,
+                  "token_order": 0
+                },
+                "revelation_position": {
+                  "label": null,
+                  "revelation_order": 1
+                },
+                "story_time": {
+                  "kind": "point",
+                  "label": "story step 1",
+                  "point": 1
+                },
+                "validity_time": {
+                  "kind": "point",
+                  "label": "story step 1",
+                  "point": 1
+                }
+              }
+            },
+            "content_identity": null,
+            "contextual_relevance": 0.96,
+            "direction": "forward",
+            "epistemic_scope": null,
+            "evidence_ids": [
+              "e4"
+            ],
+            "narrative_commitment": "world_committed",
+            "provenance": [
+              {
+                "confidence": 1.0,
+                "evidence_id": "e4"
+              }
+            ],
+            "temporal_scope": "content",
+            "why_matters": "Establishes the affiliation of Cyra Cedar with Cedar Guild at story step 1.",
+            "why_matters_evidence_ids": [
+              "e4"
+            ]
+          },
+          {
+            "assertion_id": "nA5",
+            "confidence": 0.96,
+            "content": {
+              "evidence_ids": [
+                "e5"
+              ],
+              "form": "binary",
+              "object_id": "nE9",
+              "predicate_id": "nR5",
+              "subject_id": "nE10",
+              "temporal_content": {
+                "discourse_position": {
+                  "passage_order": 4,
+                  "sentence_order": 0,
+                  "token_order": 0
+                },
+                "revelation_position": {
+                  "label": null,
+                  "revelation_order": 5
+                },
+                "story_time": {
+                  "kind": "point",
+                  "label": "story step 1",
+                  "point": 1
+                },
+                "validity_time": {
+                  "kind": "point",
+                  "label": "story step 1",
+                  "point": 1
+                }
+              }
+            },
+            "content_identity": null,
+            "contextual_relevance": 0.96,
+            "direction": "forward",
+            "epistemic_scope": null,
+            "evidence_ids": [
+              "e5"
+            ],
+            "narrative_commitment": "world_committed",
+            "provenance": [
+              {
+                "confidence": 1.0,
+                "evidence_id": "e5"
+              }
+            ],
+            "temporal_scope": "content",
+            "why_matters": "Establishes the affiliation of Galen Cedar with Cedar Guild at story step 1.",
+            "why_matters_evidence_ids": [
+              "e5"
+            ]
+          },
+          {
+            "assertion_id": "nA6",
+            "confidence": 0.96,
+            "content": {
+              "evidence_ids": [
+                "e6"
+              ],
+              "form": "binary",
+              "object_id": "nE11",
+              "predicate_id": "nR6",
+              "subject_id": "nE12",
+              "temporal_content": {
+                "discourse_position": {
+                  "passage_order": 5,
+                  "sentence_order": 0,
+                  "token_order": 0
+                },
+                "revelation_position": {
+                  "label": null,
+                  "revelation_order": 20
+                },
+                "story_time": {
+                  "kind": "point",
+                  "label": "story step 1",
+                  "point": 1
+                },
+                "validity_time": {
+                  "kind": "point",
+                  "label": "story step 1",
+                  "point": 1
+                }
+              }
+            },
+            "content_identity": null,
+            "contextual_relevance": 0.96,
+            "direction": "forward",
+            "epistemic_scope": null,
+            "evidence_ids": [
+              "e6"
+            ],
+            "narrative_commitment": "world_committed",
+            "provenance": [
+              {
+                "confidence": 1.0,
+                "evidence_id": "e6"
+              }
+            ],
+            "temporal_scope": "content",
+            "why_matters": "Establishes that Cyra Cedar served as Cedar Warden for Cedar Guild at story step 1.",
+            "why_matters_evidence_ids": [
+              "e6"
+            ]
+          },
+          {
+            "assertion_id": "nA7",
+            "confidence": 0.96,
+            "content": {
+              "evidence_ids": [
+                "e7"
+              ],
+              "form": "binary",
+              "object_id": "nE13",
+              "predicate_id": "nR7",
+              "subject_id": "nE14",
+              "temporal_content": {
+                "discourse_position": {
+                  "passage_order": 6,
+                  "sentence_order": 0,
+                  "token_order": 0
+                },
+                "revelation_position": {
+                  "label": null,
+                  "revelation_order": 35
+                },
+                "story_time": {
+                  "kind": "point",
+                  "label": "story step 3",
+                  "point": 3
+                },
+                "validity_time": {
+                  "kind": "point",
+                  "label": "story step 3",
+                  "point": 3
+                }
+              }
+            },
+            "content_identity": null,
+            "contextual_relevance": 0.96,
+            "direction": "forward",
+            "epistemic_scope": null,
+            "evidence_ids": [
+              "e7"
+            ],
+            "narrative_commitment": "world_committed",
+            "provenance": [
+              {
+                "confidence": 1.0,
+                "evidence_id": "e7"
+              }
+            ],
+            "temporal_scope": "content",
+            "why_matters": "Establishes that Doran Cedar acts at Cedar Quay at story step 3.",
+            "why_matters_evidence_ids": [
+              "e7"
+            ]
+          },
+          {
+            "assertion_id": "nA8",
+            "confidence": 0.96,
+            "content": {
+              "evidence_ids": [
+                "e8"
+              ],
+              "form": "binary",
+              "object_id": "nE15",
+              "predicate_id": "nR8",
+              "subject_id": "nE16",
+              "temporal_content": {
+                "discourse_position": {
+                  "passage_order": 7,
+                  "sentence_order": 0,
+                  "token_order": 0
+                },
+                "revelation_position": {
+                  "label": null,
+                  "revelation_order": 33
+                },
+                "story_time": {
+                  "kind": "point",
+                  "label": "story step 3",
+                  "point": 3
+                },
+                "validity_time": {
+                  "kind": "point",
+                  "label": "story step 3",
+                  "point": 3
+                }
+              }
+            },
+            "content_identity": null,
+            "contextual_relevance": 0.96,
+            "direction": "forward",
+            "epistemic_scope": null,
+            "evidence_ids": [
+              "e8"
+            ],
+            "narrative_commitment": "world_committed",
+            "provenance": [
+              {
+                "confidence": 1.0,
+                "evidence_id": "e8"
+              }
+            ],
+            "temporal_scope": "content",
+            "why_matters": "Establishes that Doran Cedar participates in Cedar Turn 1 at story step 3.",
+            "why_matters_evidence_ids": [
+              "e8"
+            ]
+          },
+          {
+            "assertion_id": "nA9",
+            "confidence": 0.96,
+            "content": {
+              "evidence_ids": [
+                "e9"
+              ],
+              "form": "binary",
+              "object_id": "nE17",
+              "predicate_id": "nR9",
+              "subject_id": "nE18",
+              "temporal_content": {
+                "discourse_position": {
+                  "passage_order": 8,
+                  "sentence_order": 0,
+                  "token_order": 0
+                },
+                "revelation_position": {
+                  "label": null,
+                  "revelation_order": 34
+                },
+                "story_time": {
+                  "kind": "point",
+                  "label": "story step 3",
+                  "point": 3
+                },
+                "validity_time": {
+                  "kind": "point",
+                  "label": "story step 3",
+                  "point": 3
+                }
+              }
+            },
+            "content_identity": null,
+            "contextual_relevance": 0.96,
+            "direction": "forward",
+            "epistemic_scope": null,
+            "evidence_ids": [
+              "e9"
+            ],
+            "narrative_commitment": "world_committed",
+            "provenance": [
+              {
+                "confidence": 1.0,
+                "evidence_id": "e9"
+              }
+            ],
+            "temporal_scope": "content",
+            "why_matters": "Establishes that Fara Cedar participates in Cedar Turn 1 at story step 3.",
+            "why_matters_evidence_ids": [
+              "e9"
+            ]
+          },
+          {
+            "assertion_id": "nA10",
+            "confidence": 0.96,
+            "content": {
+              "evidence_ids": [
+                "e10"
+              ],
+              "form": "binary",
+              "object_id": "nE19",
+              "predicate_id": "nR10",
+              "subject_id": "nE20",
+              "temporal_content": {
+                "discourse_position": {
+                  "passage_order": 9,
+                  "sentence_order": 0,
+                  "token_order": 0
+                },
+                "revelation_position": {
+                  "label": null,
+                  "revelation_order": 45
+                },
+                "story_time": {
+                  "kind": "point",
+                  "label": "story step 4",
+                  "point": 4
+                },
+                "validity_time": {
+                  "kind": "point",
+                  "label": "story step 4",
+                  "point": 4
+                }
+              }
+            },
+            "content_identity": null,
+            "contextual_relevance": 0.96,
+            "direction": "forward",
+            "epistemic_scope": null,
+            "evidence_ids": [
+              "e10"
+            ],
+            "narrative_commitment": "world_committed",
+            "provenance": [
+              {
+                "confidence": 1.0,
+                "evidence_id": "e10"
+              }
+            ],
+            "temporal_scope": "content",
+            "why_matters": "Establishes that Galen Cedar reveals route to Cedar Confrontation at story step 4.",
+            "why_matters_evidence_ids": [
+              "e10"
+            ]
+          },
+          {
+            "assertion_id": "nA11",
+            "confidence": 0.96,
+            "content": {
+              "evidence_ids": [
+                "e11"
+              ],
+              "form": "binary",
+              "object_id": "nE21",
+              "predicate_id": "nR11",
+              "subject_id": "nE22",
+              "temporal_content": {
+                "discourse_position": {
+                  "passage_order": 10,
+                  "sentence_order": 0,
+                  "token_order": 0
+                },
+                "revelation_position": {
+                  "label": null,
+                  "revelation_order": 22
+                },
+                "story_time": {
+                  "kind": "point",
+                  "label": "story step 5",
+                  "point": 5
+                },
+                "validity_time": {
+                  "kind": "point",
+                  "label": "story step 5",
+                  "point": 5
+                }
+              }
+            },
+            "content_identity": null,
+            "contextual_relevance": 0.96,
+            "direction": "forward",
+            "epistemic_scope": null,
+            "evidence_ids": [
+              "e11"
+            ],
+            "narrative_commitment": "world_committed",
+            "provenance": [
+              {
+                "confidence": 1.0,
+                "evidence_id": "e11"
+              }
+            ],
+            "temporal_scope": "content",
+            "why_matters": "Establishes that Doran Cedar succeeds Cyra Cedar at story step 5.",
+            "why_matters_evidence_ids": [
+              "e11"
+            ]
+          },
+          {
+            "assertion_id": "nA12",
+            "confidence": 0.96,
+            "content": {
+              "evidence_ids": [
+                "e12"
+              ],
+              "form": "binary",
+              "object_id": "nE23",
+              "predicate_id": "nR12",
+              "subject_id": "nE24",
+              "temporal_content": {
+                "discourse_position": {
+                  "passage_order": 11,
+                  "sentence_order": 0,
+                  "token_order": 0
+                },
+                "revelation_position": {
+                  "label": null,
+                  "revelation_order": 50
+                },
+                "story_time": {
+                  "kind": "point",
+                  "label": "story step 5",
+                  "point": 5
+                },
+                "validity_time": {
+                  "kind": "point",
+                  "label": "story step 5",
+                  "point": 5
+                }
+              }
+            },
+            "content_identity": null,
+            "contextual_relevance": 0.96,
+            "direction": "forward",
+            "epistemic_scope": null,
+            "evidence_ids": [
+              "e12"
+            ],
+            "narrative_commitment": "world_committed",
+            "provenance": [
+              {
+                "confidence": 1.0,
+                "evidence_id": "e12"
+              }
+            ],
+            "temporal_scope": "content",
+            "why_matters": "Establishes that Cyra Cedar coordinates with Evin Cedar at story step 5.",
+            "why_matters_evidence_ids": [
+              "e12"
+            ]
+          }
+        ],
+        "entities": [],
+        "events": []
+      },
+      "local_schema": {
+        "contextual_types": [],
+        "predicates": []
+      },
+      "partial_records_only": true
+    },
+    "row": {
+      "acceptance_gated_citation_validity": null,
+      "acceptance_gated_essential_temporal_accuracy": 0.0,
+      "acceptance_gated_grounding_precision": null,
+      "acceptance_gated_node_f1": 0.0,
+      "acceptance_gated_rare_pivotal_recall": 0.0,
+      "acceptance_gated_rare_support_path_survival": 0.0,
+      "acceptance_gated_strict_f1": 0.0,
+      "acceptance_gated_strict_precision": 0.0,
+      "acceptance_gated_strict_recall": 0.0,
+      "assessment": {
+        "assessment_available": false,
+        "reason": "formal assessment unavailable; see canonical status and failure stage"
+      },
+      "attempt_id": "nested-development-demonstration-20260908-attempt-06",
+      "canonical_valid": null,
+      "condition": "C2",
+      "confirmed_semantic_categories": [
+        "unsupported_intrinsic_precision"
+      ],
+      "confirmed_source_defects": [],
+      "context": 1,
+      "development_request_revision": "v5-server-compatible: unchanged v4 semantic contract, instructions and tokens; uniqueItems retained in post-validation because vLLM rejects it in guided_json",
+      "failure": "vLLM response is not one guided JSON choice",
+      "failure_stage": "decoding",
+      "finish_reason": "length",
+      "http_status": 200,
+      "input_tokens": 7142,
+      "json_complete": false,
+      "offline_prefix_observations": {
+        "attributed_assertions": 0,
+        "identical_assertion_groups_except_id": [],
+        "node_budget": 10,
+        "not_canonical_or_scientific_acceptance": true,
+        "unique_claimed_nodes": 25
+      },
+      "output_allowance": 5120,
+      "output_tokens": 5120,
+      "partial_record_counts": {
+        "assertions": 12,
+        "entities": 0,
+        "events": 0
+      },
+      "partial_source_diagnostics": [
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/0/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/1/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/2/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/3/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/4/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 5",
+            "point": 5
+          },
+          "path": "/instance_graph/assertions/10/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 5",
+            "point": 5
+          },
+          "path": "/instance_graph/assertions/11/temporal_scope/validity_time"
+        }
+      ],
+      "prepared_input_tokens": 7142,
+      "received_construction_claims": [
+        {
+          "created_id_count": 25,
+          "created_node_id_count": 25,
+          "operator": "include_exclude"
+        },
+        {
+          "created_id_count": 25,
+          "created_node_id_count": 0,
+          "operator": "include_exclude"
+        },
+        {
+          "created_id_count": 25,
+          "created_node_id_count": 0,
+          "operator": "include_exclude"
+        },
+        {
+          "created_id_count": 25,
+          "created_node_id_count": 0,
+          "operator": "include_exclude"
+        },
+        {
+          "created_id_count": 1,
+          "created_node_id_count": 0,
+          "operator": "schema_relation"
+        }
+      ],
+      "repair_parent": "nested-development-demonstration-20260908-attempt-02",
+      "replaces_nontransmitted_reservation": null,
+      "request_hash": "ca4d47b07d6f7c08a727f066554f1076794d9626468ec94358504f06bd6ff5cf",
+      "request_seconds": 141.03526557423174,
+      "request_time_source": "client wall clock",
+      "request_transmitted": true,
+      "reused_actual_cpu_output": false,
+      "schema_valid": null,
+      "scientific_accepted": false,
+      "semantic_diagnosis_scope": "Offline source-only checks of complete received members; not formal acceptance",
+      "source_sha256": "003f9d18c7d4220d8ff3f2213ad3421a3d0fe01e34e26d847175cbc9c0935a63",
+      "structure_valid": null,
+      "transport_complete": true
+    }
+  },
+  {
+    "assessment": {
+      "assessment_available": false,
+      "reason": "formal assessment unavailable; see canonical status and failure stage"
+    },
+    "graph": {
+      "contextual_interpretation": "A narrative about the Cedar Harbor Accord, focusing on the actors, their roles, and events within a structured timeline. The ontology captures the relationships between individuals, collectives, places, and events, emphasizing continuity and causality across story steps.",
+      "decisions": [
+        {
+          "created_object_ids": [
+            "nE1",
+            "nE2",
+            "nE3",
+            "nE4",
+            "nE5",
+            "nE6",
+            "nE7",
+            "nE8",
+            "nE9",
+            "nE10",
+            "nE11",
+            "nE12",
+            "nE13",
+            "nE14",
+            "nE15",
+            "nE16",
+            "nE17",
+            "nE18",
+            "nE19",
+            "nE20",
+            "nE21",
+            "nE22",
+            "nE23",
+            "nE24",
+            "nE25"
+          ],
+          "decision_id": "nD1",
+          "evidence_ids": [
+            "e1",
+            "e2",
+            "e3",
+            "e4",
+            "e5",
+            "e6",
+            "e7",
+            "e8",
+            "e9",
+            "e10",
+            "e11",
+            "e12",
+            "e13",
+            "e14",
+            "e15",
+            "e16",
+            "e17",
+            "e18",
+            "e19",
+            "e20",
+            "e21",
+            "e22",
+            "e23",
+            "e24",
+            "e25"
+          ],
+          "input_object_ids": [],
+          "operator": "include_exclude",
+          "rationale": "Including all entities and events identified in the evidence as they are directly supported by the narrative.",
+          "removed_object_ids": []
+        },
+        {
+          "created_object_ids": [
+            "nT1",
+            "nT2",
+            "nT3",
+            "nT4",
+            "nT5",
+            "nT6",
+            "nT7",
+            "nT8",
+            "nT9",
+            "nT10",
+            "nT11",
+            "nT12",
+            "nT13",
+            "nT14",
+            "nT15",
+            "nT16",
+            "nT17",
+            "nT18",
+            "nT19",
+            "nT20",
+            "nT21",
+            "nT22",
+            "nT23",
+            "nT24",
+            "nT25",
+            "nT26",
+            "nT27",
+            "nT28",
+            "nT29",
+            "nT30",
+            "nT31",
+            "nT32",
+            "nT33",
+            "nT34",
+            "nT35",
+            "nT36",
+            "nT37",
+            "nT38",
+            "nT39",
+            "nT40",
+            "nT41",
+            "nT42",
+            "nT43",
+            "nT44",
+            "nT45",
+            "nT46",
+            "nT47",
+            "nT48",
+            "nT49",
+            "nT50",
+            "nT51",
+            "nT52",
+            "nT53"
+          ],
+          "decision_id": "nD2",
+          "evidence_ids": [
+            "e1",
+            "e2",
+            "e3",
+            "e4",
+            "e5",
+            "e6",
+            "e7",
+            "e8",
+            "e9",
+            "e10",
+            "e11",
+            "e12",
+            "e13",
+            "e14",
+            "e15",
+            "e16",
+            "e17",
+            "e18",
+            "e19",
+            "e20",
+            "e21",
+            "e22",
+            "e23",
+            "e24",
+            "e25"
+          ],
+          "input_object_ids": [],
+          "operator": "include_exclude",
+          "rationale": "Including all temporal and relational events as they are explicitly mentioned in the narrative.",
+          "removed_object_ids": []
+        },
+        {
+          "created_object_ids": [
+            "nR1",
+            "nR2",
+            "nR3",
+            "nR4",
+            "nR5",
+            "nR6",
+            "nR7",
+            "nR8",
+            "nR9",
+            "nR10",
+            "nR11",
+            "nR12",
+            "nR13",
+            "nR14",
+            "nR15",
+            "nR16",
+            "nR17",
+            "nR18",
+            "nR19",
+            "nR20",
+            "nR21",
+            "nR22",
+            "nR23",
+            "nR24",
+            "nR25",
+            "nR26",
+            "nR27",
+            "nR28",
+            "nR29",
+            "nR30",
+            "nR31",
+            "nR32",
+            "nR33",
+            "nR34",
+            "nR35",
+            "nR36",
+            "nR37",
+            "nR38",
+            "nR39",
+            "nR40",
+            "nR41",
+            "nR42",
+            "nR43",
+            "nR44",
+            "nR45",
+            "nR46",
+            "nR47",
+            "nR48",
+            "nR49",
+            "nR50",
+            "nR51",
+            "nR52",
+            "nR53"
+          ],
+          "decision_id": "nD3",
+          "evidence_ids": [
+            "e1",
+            "e2",
+            "e3",
+            "e4",
+            "e5",
+            "e6",
+            "e7",
+            "e8",
+            "e9",
+            "e10",
+            "e11",
+            "e12",
+            "e13",
+            "e14",
+            "e15",
+            "e16",
+            "e17",
+            "e18",
+            "e19",
+            "e20",
+            "e21",
+            "e22",
+            "e23",
+            "e24",
+            "e25"
+          ],
+          "input_object_ids": [],
+          "operator": "include_exclude",
+          "rationale": "Including all relations as they are explicitly mentioned in the narrative.",
+          "removed_object_ids": []
+        },
+        {
+          "created_object_ids": [
+            "nA1",
+            "nA2",
+            "nA3",
+            "nA4",
+            "nA5",
+            "nA6",
+            "nA7",
+            "nA8",
+            "nA9",
+            "nA10",
+            "nA11",
+            "nA12",
+            "nA13",
+            "nA14",
+            "nA15",
+            "nA16",
+            "nA17",
+            "nA18",
+            "nA19",
+            "nA20",
+            "nA21",
+            "nA22",
+            "nA23",
+            "nA24",
+            "nA25",
+            "nA26",
+            "nA27",
+            "nA28",
+            "nA29",
+            "nA30"
+          ],
+          "decision_id": "nD4",
+          "evidence_ids": [
+            "e1",
+            "e2",
+            "e3",
+            "e4",
+            "e5",
+            "e6",
+            "e7",
+            "e8",
+            "e9",
+            "e10",
+            "e11",
+            "e12",
+            "e13",
+            "e14",
+            "e15",
+            "e16",
+            "e17",
+            "e18",
+            "e19",
+            "e20",
+            "e21",
+            "e22",
+            "e23",
+            "e24",
+            "e25"
+          ],
+          "input_object_ids": [],
+          "operator": "include_exclude",
+          "rationale": "Including all assertions as they are directly supported by the narrative.",
+          "removed_object_ids": []
+        },
+        {
+          "created_object_ids": [
+            "nS1"
+          ],
+          "decision_id": "nD5",
+          "evidence_ids": [
+            "e1",
+            "e2",
+            "e3",
+            "e4",
+            "e5",
+            "e6",
+            "e7",
+            "e8",
+            "e9",
+            "e10",
+            "e11",
+            "e12",
+            "e13",
+            "e14",
+            "e15",
+            "e16",
+            "e17",
+            "e18",
+            "e19",
+            "e20",
+            "e21",
+            "e22",
+            "e23",
+            "e24",
+            "e25"
+          ],
+          "input_object_ids": [],
+          "operator": "schema_relation",
+          "rationale": "Creating a schema to organize the narrative elements and their relationships.",
+          "removed_object_ids": []
+        },
+        {
+          "created_object_ids": [
+            "nT1",
+            "nT2",
+            "nT3",
+            "nT4",
+            "nT5",
+            "nT6",
+            "nT7",
+            "nT8",
+            "nT9",
+            "nT10",
+            "nT11",
+            "nT12",
+            "nT13",
+            "nT14",
+            "nT15",
+            "nT16",
+            "nT17",
+            "nT18",
+            "nT19",
+            "nT20",
+            "nT21",
+            "nT22",
+            "nT23",
+            "nT24",
+            "nT25",
+            "nT26",
+            "nT27",
+            "nT28",
+            "nT29",
+            "nT30",
+            "nT31",
+            "nT32",
+            "nT33",
+            "nT34",
+            "nT35",
+            "nT36",
+            "nT37",
+            "nT38",
+            "nT39",
+            "nT40",
+            "nT41",
+            "nT42",
+            "nT43",
+            "nT44",
+            "nT45",
+            "nT46",
+            "nT47",
+            "nT48",
+            "nT49",
+            "nT50",
+            "nT51",
+            "nT52",
+            "nT53"
+          ],
+          "decision_id": "nD6",
+          "evidence_ids": [
+            "e1",
+            "e2",
+            "e3",
+            "e4",
+            "e5",
+            "e6",
+            "e7",
+            "e8",
+            "e9",
+            "e10",
+            "e11",
+            "e12",
+            "e13",
+            "e14",
+            "e15",
+            "e16",
+            "e17",
+            "e18",
+            "e19",
+            "e20",
+            "e21",
+            "e22",
+            "e23",
+            "e24",
+            "e25"
+          ],
+          "input_object_ids": [],
+          "operator": "include_exclude",
+          "rationale": "Including all temporal events as they are explicitly mentioned in the narrative.",
+          "removed_object_ids": []
+        },
+        {
+          "created_object_ids": [
+            "nR1",
+            "nR2",
+            "nR3",
+            "nR4",
+            "nR5",
+            "nR6",
+            "nR7",
+            "nR8",
+            "nR9",
+            "nR10",
+            "nR11",
+            "nR12",
+            "nR13",
+            "nR14",
+            "nR15",
+            "nR16",
+            "nR17",
+            "nR18",
+            "nR19",
+            "nR20",
+            "nR21",
+            "nR22",
+            "nR23",
+            "nR24",
+            "nR25",
+            "nR26",
+            "nR27",
+            "nR28",
+            "nR29",
+            "nR30",
+            "nR31",
+            "nR32",
+            "nR33",
+            "nR34",
+            "nR35",
+            "nR36",
+            "nR37",
+            "nR38",
+            "nR39",
+            "nR40",
+            "nR41",
+            "nR42",
+            "nR43",
+            "nR44",
+            "nR45",
+            "nR46",
+            "nR47",
+            "nR48",
+            "nR49",
+            "nR50",
+            "nR51",
+            "nR52",
+            "nR53"
+          ],
+          "decision_id": "nD7",
+          "evidence_ids": [
+            "e1",
+            "e2",
+            "e3",
+            "e4",
+            "e5",
+            "e6",
+            "e7",
+            "e8",
+            "e9",
+            "e10",
+            "e11",
+            "e12",
+            "e13",
+            "e14",
+            "e15",
+            "e16",
+            "e17",
+            "e18",
+            "e19",
+            "e20",
+            "e21",
+            "e22",
+            "e23",
+            "e24",
+            "e25"
+          ],
+          "input_object_ids": [],
+          "operator": "include_exclude",
+          "rationale": "Including all relations as they are explicitly mentioned in the narrative.",
+          "removed_object_ids": []
+        },
+        {
+          "created_object_ids": [
+            "nA1",
+            "nA2",
+            "nA3",
+            "nA4",
+            "nA5",
+            "nA6",
+            "nA7",
+            "nA8",
+            "nA9",
+            "nA10",
+            "nA11",
+            "nA12",
+            "nA13",
+            "nA14",
+            "nA15",
+            "nA16",
+            "nA17",
+            "nA18",
+            "nA19",
+            "nA20",
+            "nA21",
+            "nA22",
+            "nA23",
+            "nA24",
+            "nA25",
+            "nA26",
+            "nA27",
+            "nA28",
+            "nA29",
+            "nA30"
+          ],
+          "decision_id": "nD8",
+          "evidence_ids": [
+            "e1",
+            "e2",
+            "e3",
+            "e4",
+            "e5",
+            "e6",
+            "e7",
+            "e8",
+            "e9",
+            "e10",
+            "e11",
+            "e12",
+            "e13",
+            "e14",
+            "e15",
+            "e16",
+            "e17",
+            "e18",
+            "e19",
+            "e20",
+            "e21",
+            "e22",
+            "e23",
+            "e24",
+            "e25"
+          ],
+          "input_object_ids": [],
+          "operator": "include_exclude",
+          "rationale": "Including all assertions as they are directly supported by the narrative.",
+          "removed_object_ids": []
+        },
+        {
+          "created_object_ids": [
+            "nS1"
+          ],
+          "decision_id": "nD9",
+          "evidence_ids": [
+            "e1",
+            "e2",
+            "e3",
+            "e4",
+            "e5",
+            "e6",
+            "e7",
+            "e8",
+            "e9",
+            "e10",
+            "e11",
+            "e12",
+            "e13",
+            "e14",
+            "e15",
+            "e16",
+            "e17",
+            "e18",
+            "e19",
+            "e20",
+            "e21",
+            "e22",
+            "e23",
+            "e24",
+            "e25"
+          ],
+          "input_object_ids": [],
+          "operator": "schema_relation",
+          "rationale": "Creating a schema to organize the narrative elements and their relationships.",
+          "removed_object_ids": []
+        }
+      ],
+      "instance_graph": {
+        "assertions": [
+          {
+            "assertion_id": "nA1",
+            "confidence": 1.0,
+            "content": {
+              "evidence_ids": [
+                "e1"
+              ],
+              "form": "binary",
+              "object_id": "nE1",
+              "predicate_id": "nR1",
+              "subject_id": "nE1",
+              "temporal_content": {
+                "discourse_position": {
+                  "passage_order": 0,
+                  "sentence_order": 0,
+                  "token_order": 0
+                },
+                "revelation_position": {
+                  "label": null,
+                  "revelation_order": 0
+                },
+                "story_time": {
+                  "kind": "point",
+                  "label": "story step 1",
+                  "point": 1
+                },
+                "validity_time": {
+                  "kind": "point",
+                  "label": "story step 1",
+                  "point": 1
+                }
+              }
+            },
+            "content_identity": null,
+            "contextual_relevance": 1.0,
+            "direction": "forward",
+            "epistemic_scope": null,
+            "evidence_ids": [
+              "e1"
+            ],
+            "narrative_commitment": "world_committed",
+            "provenance": [
+              {
+                "confidence": 1.0,
+                "evidence_id": "e1"
+              }
+            ],
+            "temporal_scope": "content",
+            "why_matters": "Fara Cedar is a member of the Cedar Circle at story step 1.",
+            "why_matters_evidence_ids": [
+              "e1"
+            ]
+          },
+          {
+            "assertion_id": "nA2",
+            "confidence": 1.0,
+            "content": {
+              "evidence_ids": [
+                "e1"
+              ],
+              "form": "binary",
+              "object_id": "nE2",
+              "predicate_id": "nR1",
+              "subject_id": "nE1",
+              "temporal_content": {
+                "discourse_position": {
+                  "passage_order": 0,
+                  "sentence_order": 0,
+                  "token_order": 0
+                },
+                "revelation_position": {
+                  "label": null,
+                  "revelation_order": 0
+                },
+                "story_time": {
+                  "kind": "point",
+                  "label": "story step 1",
+                  "point": 1
+                },
+                "validity_time": {
+                  "kind": "point",
+                  "label": "story step 1",
+                  "point": 1
+                }
+              }
+            },
+            "content_identity": null,
+            "contextual_relevance": 1.0,
+            "direction": "forward",
+            "epistemic_scope": null,
+            "evidence_ids": [
+              "e1"
+            ],
+            "narrative_commitment": "world_committed",
+            "provenance": [
+              {
+                "confidence": 1.0,
+                "evidence_id": "e1"
+              }
+            ],
+            "temporal_scope": "content",
+            "why_matters": "Fara Cedar is a member of the Cedar Circle at story step 1.",
+            "why_matters_evidence_ids": [
+              "e1"
+            ]
+          },
+          {
+            "assertion_id": "nA3",
+            "confidence": 1.0,
+            "content": {
+              "evidence_ids": [
+                "e2"
+              ],
+              "form": "binary",
+              "object_id": "nE3",
+              "predicate_id": "nR1",
+              "subject_id": "nE2",
+              "temporal_content": {
+                "discourse_position": {
+                  "passage_order": 0,
+                  "sentence_order": 0,
+                  "token_order": 0
+                },
+                "revelation_position": {
+                  "label": null,
+                  "revelation_order": 0
+                },
+                "story_time": {
+                  "kind": "point",
+                  "label": "story step 1",
+                  "point": 1
+                },
+                "validity_time": {
+                  "kind": "point",
+                  "label": "story step 1",
+                  "point": 1
+                }
+              }
+            },
+            "content_identity": null,
+            "contextual_relevance": 1.0,
+            "direction": "forward",
+            "epistemic_scope": null,
+            "evidence_ids": [
+              "e2"
+            ],
+            "narrative_commitment": "world_committed",
+            "provenance": [
+              {
+                "confidence": 1.0,
+                "evidence_id": "e2"
+              }
+            ],
+            "temporal_scope": "content",
+            "why_matters": "Evin Cedar is a member of the Cedar Guild at story step 1.",
+            "why_matters_evidence_ids": [
+              "e2"
+            ]
+          },
+          {
+            "assertion_id": "nA4",
+            "confidence": 1.0,
+            "content": {
+              "evidence_ids": [
+                "e2"
+              ],
+              "form": "binary",
+              "object_id": "nE4",
+              "predicate_id": "nR1",
+              "subject_id": "nE3",
+              "temporal_content": {
+                "discourse_position": {
+                  "passage_order": 0,
+                  "sentence_order": 0,
+                  "token_order": 0
+                },
+                "revelation_position": {
+                  "label": null,
+                  "revelation_order": 0
+                },
+                "story_time": {
+                  "kind": "point",
+                  "label": "story step 1",
+                  "point": 1
+                },
+                "validity_time": {
+                  "kind": "point",
+                  "label": "story step 1",
+                  "point": 1
+                }
+              }
+            },
+            "content_identity": null,
+            "contextual_relevance": 1.0,
+            "direction": "forward",
+            "epistemic_scope": null,
+            "evidence_ids": [
+              "e2"
+            ],
+            "narrative_commitment": "world_committed",
+            "provenance": [
+              {
+                "confidence": 1.0,
+                "evidence_id": "e2"
+              }
+            ],
+            "temporal_scope": "content",
+            "why_matters": "Evin Cedar is a member of the Cedar Guild at story step 1.",
+            "why_matters_evidence_ids": [
+              "e2"
+            ]
+          },
+          {
+            "assertion_id": "nA5",
+            "confidence": 1.0,
+            "content": {
+              "evidence_ids": [
+                "e3"
+              ],
+              "form": "binary",
+              "object_id": "nE5",
+              "predicate_id": "nR1",
+              "subject_id": "nE4",
+              "temporal_content": {
+                "discourse_position": {
+                  "passage_order": 0,
+                  "sentence_order": 0,
+                  "token_order": 0
+                },
+                "revelation_position": {
+                  "label": null,
+                  "revelation_order": 0
+                },
+                "story_time": {
+                  "kind": "point",
+                  "label": "story step 1",
+                  "point": 1
+                },
+                "validity_time": {
+                  "kind": "point",
+                  "label": "story step 1",
+                  "point": 1
+                }
+              }
+            },
+            "content_identity": null,
+            "contextual_relevance": 1.0,
+            "direction": "forward",
+            "epistemic_scope": null,
+            "evidence_ids": [
+              "e3"
+            ],
+            "narrative_commitment": "world_committed",
+            "provenance": [
+              {
+                "confidence": 1.0,
+                "evidence_id": "e3"
+              }
+            ],
+            "temporal_scope": "content",
+            "why_matters": "Doran Cedar is a member of the Cedar Circle at story step 1.",
+            "why_matters_evidence_ids": [
+              "e3"
+            ]
+          },
+          {
+            "assertion_id": "nA6",
+            "confidence": 1.0,
+            "content": {
+              "evidence_ids": [
+                "e3"
+              ],
+              "form": "binary",
+              "object_id": "nE6",
+              "predicate_id": "nR1",
+              "subject_id": "nE5",
+              "temporal_content": {
+                "discourse_position": {
+                  "passage_order": 0,
+                  "sentence_order": 0,
+                  "token_order": 0
+                },
+                "revelation_position": {
+                  "label": null,
+                  "revelation_order": 0
+                },
+                "story_time": {
+                  "kind": "point",
+                  "label": "story step 1",
+                  "point": 1
+                },
+                "validity_time": {
+                  "kind": "point",
+                  "label": "story step 1",
+                  "point": 1
+                }
+              }
+            },
+            "content_identity": null,
+            "contextual_relevance": 1.0,
+            "direction": "forward",
+            "epistemic_scope": null,
+            "evidence_ids": [
+              "e3"
+            ],
+            "narrative_commitment": "world_committed",
+            "provenance": [
+              {
+                "confidence": 1.0,
+                "evidence_id": "e3"
+              }
+            ],
+            "temporal_scope": "content",
+            "why_matters": "Doran Cedar is a member of the Cedar Circle at story step 1.",
+            "why_matters_evidence_ids": [
+              "e3"
+            ]
+          }
+        ],
+        "entities": [],
+        "events": []
+      },
+      "local_schema": {
+        "contextual_types": [],
+        "predicates": []
+      },
+      "partial_records_only": true
+    },
+    "row": {
+      "acceptance_gated_citation_validity": null,
+      "acceptance_gated_essential_temporal_accuracy": 0.0,
+      "acceptance_gated_grounding_precision": null,
+      "acceptance_gated_node_f1": 0.0,
+      "acceptance_gated_rare_pivotal_recall": null,
+      "acceptance_gated_rare_support_path_survival": null,
+      "acceptance_gated_strict_f1": 0.0,
+      "acceptance_gated_strict_precision": 0.0,
+      "acceptance_gated_strict_recall": 0.0,
+      "assessment": {
+        "assessment_available": false,
+        "reason": "formal assessment unavailable; see canonical status and failure stage"
+      },
+      "attempt_id": "nested-development-demonstration-20260908-attempt-07",
+      "canonical_valid": null,
+      "condition": "C2",
+      "confirmed_semantic_categories": [
+        "unsupported_intrinsic_precision"
+      ],
+      "confirmed_source_defects": [],
+      "context": 2,
+      "development_request_revision": "v5-server-compatible: unchanged v4 semantic contract, instructions and tokens; uniqueItems retained in post-validation because vLLM rejects it in guided_json",
+      "failure": "vLLM response is not one guided JSON choice",
+      "failure_stage": "decoding",
+      "finish_reason": "length",
+      "http_status": 200,
+      "input_tokens": 7130,
+      "json_complete": false,
+      "offline_prefix_observations": {
+        "attributed_assertions": 0,
+        "identical_assertion_groups_except_id": [],
+        "node_budget": 10,
+        "not_canonical_or_scientific_acceptance": true,
+        "unique_claimed_nodes": 25
+      },
+      "output_allowance": 5120,
+      "output_tokens": 5120,
+      "partial_record_counts": {
+        "assertions": 6,
+        "entities": 0,
+        "events": 0
+      },
+      "partial_source_diagnostics": [
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/0/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/1/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/2/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/3/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/4/temporal_scope/validity_time"
+        },
+        {
+          "category": "unsupported_intrinsic_precision",
+          "constraint": "Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.",
+          "generated_value": {
+            "kind": "point",
+            "label": "story step 1",
+            "point": 1
+          },
+          "path": "/instance_graph/assertions/5/temporal_scope/validity_time"
+        }
+      ],
+      "prepared_input_tokens": 7130,
+      "received_construction_claims": [
+        {
+          "created_id_count": 25,
+          "created_node_id_count": 25,
+          "operator": "include_exclude"
+        },
+        {
+          "created_id_count": 53,
+          "created_node_id_count": 0,
+          "operator": "include_exclude"
+        },
+        {
+          "created_id_count": 53,
+          "created_node_id_count": 0,
+          "operator": "include_exclude"
+        },
+        {
+          "created_id_count": 30,
+          "created_node_id_count": 0,
+          "operator": "include_exclude"
+        },
+        {
+          "created_id_count": 1,
+          "created_node_id_count": 0,
+          "operator": "schema_relation"
+        },
+        {
+          "created_id_count": 53,
+          "created_node_id_count": 0,
+          "operator": "include_exclude"
+        },
+        {
+          "created_id_count": 53,
+          "created_node_id_count": 0,
+          "operator": "include_exclude"
+        },
+        {
+          "created_id_count": 30,
+          "created_node_id_count": 0,
+          "operator": "include_exclude"
+        },
+        {
+          "created_id_count": 1,
+          "created_node_id_count": 0,
+          "operator": "schema_relation"
+        }
+      ],
+      "repair_parent": "nested-development-demonstration-20260908-attempt-03",
+      "replaces_nontransmitted_reservation": null,
+      "request_hash": "72a6b8e39de213bc0a1e08ef7dafb5b210b7e4963deff284ba11152c64f2b945",
+      "request_seconds": 112.372858366929,
+      "request_time_source": "client wall clock",
+      "request_transmitted": true,
+      "reused_actual_cpu_output": false,
+      "schema_valid": null,
+      "scientific_accepted": false,
+      "semantic_diagnosis_scope": "Offline source-only checks of complete received members; not formal acceptance",
+      "source_sha256": "766389780d8b1ff5bd70323191ff28053fabf43eea7f200b0e5a319d0c38c012",
+      "structure_valid": null,
+      "transport_complete": true
     }
   }
 ]

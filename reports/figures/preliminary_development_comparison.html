@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Exploratory development comparison</title><style>body{font:17px system-ui;margin:24px;color:#172335}h1,h2{line-height:1.2}.graph{height:850px;border:1px solid #bbb;background:#fcfcff}table{border-collapse:collapse;width:100%;font-size:15px}td,th{border:1px solid #ccd;padding:8px;vertical-align:top;overflow-wrap:anywhere}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px}section{margin:35px 0}.warning{background:#fff0ce;padding:14px}</style><h1>Exploratory development comparison</h1><p class="warning">One preselected easy development world. Graphs show actual outputs, including failures; they are not expected answers or confirmatory evidence. Drag/zoom nodes; read assertion qualifications below each graph.</p><h2>Shared evidence</h2><ol>
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Exploratory development comparison</title><style>body{font:17px system-ui;margin:24px;color:#172335}h1,h2{line-height:1.2}.graph{height:850px;border:1px solid #bbb;background:#fcfcff}table{border-collapse:collapse;width:100%;font-size:15px;table-layout:fixed}th:nth-child(1){width:15%}th:nth-child(2){width:17%}th:nth-child(3){width:28%}th:nth-child(4){width:40%}td,th{border:1px solid #ccd;padding:8px;vertical-align:top;overflow-wrap:anywhere}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px}section{margin:35px 0}.warning{background:#fff0ce;padding:14px}</style><h1>Exploratory development comparison</h1><p class="warning">One preselected easy development world. Graphs show actual outputs, including failures; they are not expected answers or confirmatory evidence. Drag/zoom nodes; read assertion qualifications below each graph.</p><h2>Shared evidence</h2><ol>
 <li id="e1">At story step 1, Fara Cedar member of Cedar Circle.</li>
 <li id="e2">At story step 1, Evin Cedar member of Cedar Guild.</li>
 <li id="e3">At story step 1, Doran Cedar member of Cedar Circle.</li>
@@ -24,7 +24,7 @@
 <li id="e23">The record explicitly says that Cyra Cedar&#x27;s earlier action enabled Evin Cedar&#x27;s later action at story step 7.</li>
 <li id="e24">At story step 7, Evin Cedar secures outcome for Cedar Guild.</li>
 <li id="e25">At story step 12, Cyra Cedar later visits Cedar Gate.</li>
-</ol><nav>Jump to output: <a href="#view0">C0 / 1</a> · <a href="#view1">C0 / 2</a> · <a href="#view2">C1 / query-blind</a> · <a href="#view3">C2 / 1</a> · <a href="#view4">C2 / 2</a></nav><h2>Contrasting contexts</h2>
+</ol><nav>Jump to output: <a href="#view0">C0 / 1 / base</a> · <a href="#view1">C0 / 2 / base</a> · <a href="#view2">C1 / query-blind / base</a> · <a href="#view3">C2 / 1 / base</a> · <a href="#view4">C2 / 2 / base</a> · <a href="#view5">C1 / query-blind / repair</a> · <a href="#view6">C2 / 1 / repair</a> · <a href="#view7">C2 / 2 / repair</a></nav><h2>Contrasting contexts</h2>
 <h3>Context 1</h3><pre>{
   &quot;abstraction&quot;: &quot;actor&quot;,
   &quot;budgets&quot;: {
@@ -112,7 +112,7 @@
   &quot;scientific_accepted&quot;: false,
   &quot;finish_reason&quot;: null,
   &quot;failure&quot;: &quot;Exploratory source/description assessment includes unresolved matches; see HTML&quot;
-}</pre><div class="graph" id="g0"></div><table><tr><th>Assertion / predicate</th><th>Bindings</th><th>Time / epistemic / commitment</th><th>Evidence / description</th></tr>
+}</pre><div class="graph" id="g0"></div><table><tr><th>Assertion / predicate</th><th>Bindings</th><th>Time / epistemic / commitment</th><th>Evidence / description / assessment</th></tr>
 <tr><td><pre>c0-assertion-d1233995827ab65f61c8 / member of</pre></td><td><pre>Fara Cedar → Cedar Circle</pre></td><td><pre>{
   &quot;time&quot;: {
     &quot;story_time&quot;: {
@@ -154,7 +154,18 @@
   &quot;evidence&quot;: [
     &quot;ev_4e2bab06f9b539f78c37&quot;
   ],
-  &quot;why_matters&quot;: &quot;The explicit member of relation connects two supported narrative objects.&quot;
+  &quot;why_matters&quot;: &quot;The explicit member of relation connects two supported narrative objects.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;ev_4e2bab06f9b539f78c37&quot;: &quot;At story step 1, Fara Cedar member of Cedar Circle.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;supported&quot;,
+    &quot;description&quot;: {
+      &quot;id&quot;: &quot;c0-assertion-d1233995827ab65f61c8&quot;,
+      &quot;status&quot;: &quot;unresolved&quot;,
+      &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+    }
+  }
 }</pre></td></tr>
 <tr><td><pre>c0-assertion-802e11e7a9a31037933f / member of</pre></td><td><pre>Evin Cedar → Cedar Guild</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -197,7 +208,18 @@
   &quot;evidence&quot;: [
     &quot;ev_1400e8ff2d2e392d1d78&quot;
   ],
-  &quot;why_matters&quot;: &quot;The explicit member of relation connects two supported narrative objects.&quot;
+  &quot;why_matters&quot;: &quot;The explicit member of relation connects two supported narrative objects.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;ev_1400e8ff2d2e392d1d78&quot;: &quot;At story step 1, Evin Cedar member of Cedar Guild.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;supported&quot;,
+    &quot;description&quot;: {
+      &quot;id&quot;: &quot;c0-assertion-802e11e7a9a31037933f&quot;,
+      &quot;status&quot;: &quot;unresolved&quot;,
+      &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+    }
+  }
 }</pre></td></tr>
 <tr><td><pre>c0-assertion-d5c54eacc9d9160e6198 / member of</pre></td><td><pre>Doran Cedar → Cedar Circle</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -240,7 +262,18 @@
   &quot;evidence&quot;: [
     &quot;ev_acc240a14a32fc35c23b&quot;
   ],
-  &quot;why_matters&quot;: &quot;The explicit member of relation connects two supported narrative objects.&quot;
+  &quot;why_matters&quot;: &quot;The explicit member of relation connects two supported narrative objects.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;ev_acc240a14a32fc35c23b&quot;: &quot;At story step 1, Doran Cedar member of Cedar Circle.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;supported&quot;,
+    &quot;description&quot;: {
+      &quot;id&quot;: &quot;c0-assertion-d5c54eacc9d9160e6198&quot;,
+      &quot;status&quot;: &quot;unresolved&quot;,
+      &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+    }
+  }
 }</pre></td></tr>
 <tr><td><pre>c0-assertion-eedbc9eda72a00b11654 / member of</pre></td><td><pre>Cyra Cedar → Cedar Guild</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -283,7 +316,18 @@
   &quot;evidence&quot;: [
     &quot;ev_7872464e6de625ece549&quot;
   ],
-  &quot;why_matters&quot;: &quot;The explicit member of relation connects two supported narrative objects.&quot;
+  &quot;why_matters&quot;: &quot;The explicit member of relation connects two supported narrative objects.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;ev_7872464e6de625ece549&quot;: &quot;At story step 1, Cyra Cedar member of Cedar Guild.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;supported&quot;,
+    &quot;description&quot;: {
+      &quot;id&quot;: &quot;c0-assertion-eedbc9eda72a00b11654&quot;,
+      &quot;status&quot;: &quot;unresolved&quot;,
+      &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+    }
+  }
 }</pre></td></tr>
 <tr><td><pre>c0-assertion-de6598e9d3947bda677a / member of</pre></td><td><pre>Galen Cedar → Cedar Guild</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -326,7 +370,18 @@
   &quot;evidence&quot;: [
     &quot;ev_1aacda9a129455ef6685&quot;
   ],
-  &quot;why_matters&quot;: &quot;The explicit member of relation connects two supported narrative objects.&quot;
+  &quot;why_matters&quot;: &quot;The explicit member of relation connects two supported narrative objects.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;ev_1aacda9a129455ef6685&quot;: &quot;At story step 1, Galen Cedar member of Cedar Guild.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;supported&quot;,
+    &quot;description&quot;: {
+      &quot;id&quot;: &quot;c0-assertion-de6598e9d3947bda677a&quot;,
+      &quot;status&quot;: &quot;unresolved&quot;,
+      &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+    }
+  }
 }</pre></td></tr>
 <tr><td><pre>c0-assertion-44b0115bb0f6e9bc5d54 / acts at</pre></td><td><pre>Doran Cedar → Cedar Quay</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -369,7 +424,18 @@
   &quot;evidence&quot;: [
     &quot;ev_9592f35e4ad23ed236f1&quot;
   ],
-  &quot;why_matters&quot;: &quot;The explicit acts at relation connects two supported narrative objects.&quot;
+  &quot;why_matters&quot;: &quot;The explicit acts at relation connects two supported narrative objects.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;ev_9592f35e4ad23ed236f1&quot;: &quot;At story step 3, Doran Cedar acts at Cedar Quay. This relation held from story step 3 through story step 4. The Cedar Turn 1 lasted from story step 3 through story step 4.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;supported&quot;,
+    &quot;description&quot;: {
+      &quot;id&quot;: &quot;c0-assertion-44b0115bb0f6e9bc5d54&quot;,
+      &quot;status&quot;: &quot;unresolved&quot;,
+      &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+    }
+  }
 }</pre></td></tr>
 <tr><td><pre>c0-assertion-362a9ebdb4c88f3bbd33 / participates in</pre></td><td><pre>participant=Doran Cedar; event=Cedar Turn 1</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -412,7 +478,18 @@
   &quot;evidence&quot;: [
     &quot;ev_0d1d7382070dc32de05b&quot;
   ],
-  &quot;why_matters&quot;: &quot;The explicit participates in relation connects two supported narrative objects.&quot;
+  &quot;why_matters&quot;: &quot;The explicit participates in relation connects two supported narrative objects.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;ev_0d1d7382070dc32de05b&quot;: &quot;At story step 3, Doran Cedar participates in Cedar Turn 1. This relation held from story step 3 through story step 4. The Cedar Turn 1 lasted from story step 3 through story step 4.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;unresolved&quot;,
+    &quot;description&quot;: {
+      &quot;id&quot;: &quot;c0-assertion-362a9ebdb4c88f3bbd33&quot;,
+      &quot;status&quot;: &quot;unresolved&quot;,
+      &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+    }
+  }
 }</pre></td></tr>
 <tr><td><pre>c0-assertion-6ef392d7d835e1f7bc97 / participates in</pre></td><td><pre>participant=Fara Cedar; event=Cedar Turn 1</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -455,7 +532,18 @@
   &quot;evidence&quot;: [
     &quot;ev_61a41902bb2a34b6f5f8&quot;
   ],
-  &quot;why_matters&quot;: &quot;The explicit participates in relation connects two supported narrative objects.&quot;
+  &quot;why_matters&quot;: &quot;The explicit participates in relation connects two supported narrative objects.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;ev_61a41902bb2a34b6f5f8&quot;: &quot;At story step 3, Fara Cedar participates in Cedar Turn 1. This relation held from story step 3 through story step 4. The Cedar Turn 1 lasted from story step 3 through story step 4.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;supported&quot;,
+    &quot;description&quot;: {
+      &quot;id&quot;: &quot;c0-assertion-6ef392d7d835e1f7bc97&quot;,
+      &quot;status&quot;: &quot;unresolved&quot;,
+      &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+    }
+  }
 }</pre></td></tr>
 <tr><td><pre>c0-assertion-8a26dcb922f745f08e15 / reveals route to</pre></td><td><pre>Galen Cedar → Cedar Confrontation</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -498,7 +586,18 @@
   &quot;evidence&quot;: [
     &quot;ev_2887b2597cf811c62b8c&quot;
   ],
-  &quot;why_matters&quot;: &quot;The explicit reveals route to relation connects two supported narrative objects.&quot;
+  &quot;why_matters&quot;: &quot;The explicit reveals route to relation connects two supported narrative objects.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;ev_2887b2597cf811c62b8c&quot;: &quot;At story step 4, Galen Cedar reveals route to Cedar Confrontation. This relation held from story step 4 through story step 10. The Cedar Confrontation lasted from story step 6 through story step 7.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;supported&quot;,
+    &quot;description&quot;: {
+      &quot;id&quot;: &quot;c0-assertion-8a26dcb922f745f08e15&quot;,
+      &quot;status&quot;: &quot;unresolved&quot;,
+      &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+    }
+  }
 }</pre></td></tr>
 <tr><td><pre>c0-assertion-ff9fa664ef6b0c5827d9 / participates in</pre></td><td><pre>participant=Cyra Cedar; event=Cedar Confrontation</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -541,7 +640,18 @@
   &quot;evidence&quot;: [
     &quot;ev_25d94d725a62dd885b64&quot;
   ],
-  &quot;why_matters&quot;: &quot;The explicit participates in relation connects two supported narrative objects.&quot;
+  &quot;why_matters&quot;: &quot;The explicit participates in relation connects two supported narrative objects.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;ev_25d94d725a62dd885b64&quot;: &quot;At story step 6, Cyra Cedar participates in Cedar Confrontation. This relation held from story step 6 through story step 7. The Cedar Confrontation lasted from story step 6 through story step 7.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;supported&quot;,
+    &quot;description&quot;: {
+      &quot;id&quot;: &quot;c0-assertion-ff9fa664ef6b0c5827d9&quot;,
+      &quot;status&quot;: &quot;unresolved&quot;,
+      &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+    }
+  }
 }</pre></td></tr>
 <tr><td><pre>c0-assertion-05feee885a07cea4e27c / occurred before</pre></td><td><pre>Cedar Turn 1 → Cedar Confrontation</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -584,7 +694,18 @@
   &quot;evidence&quot;: [
     &quot;ev_3ab588e77941265e6866&quot;
   ],
-  &quot;why_matters&quot;: &quot;The explicit occurred before relation connects two supported narrative objects.&quot;
+  &quot;why_matters&quot;: &quot;The explicit occurred before relation connects two supported narrative objects.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;ev_3ab588e77941265e6866&quot;: &quot;The Cedar Turn 1 occurred before the Cedar Confrontation; the latter began at story step 6.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;unresolved&quot;,
+    &quot;description&quot;: {
+      &quot;id&quot;: &quot;c0-assertion-05feee885a07cea4e27c&quot;,
+      &quot;status&quot;: &quot;unresolved&quot;,
+      &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+    }
+  }
 }</pre></td></tr>
 <tr><td><pre>c0-assertion-941e952e4dc2b9f72da9 / participates in</pre></td><td><pre>participant=Evin Cedar; event=Cedar Confrontation</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -627,9 +748,107 @@
   &quot;evidence&quot;: [
     &quot;ev_bdd9db62ee89ab06f442&quot;
   ],
-  &quot;why_matters&quot;: &quot;The explicit participates in relation connects two supported narrative objects.&quot;
+  &quot;why_matters&quot;: &quot;The explicit participates in relation connects two supported narrative objects.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;ev_bdd9db62ee89ab06f442&quot;: &quot;At story step 6, Evin Cedar participates in Cedar Confrontation. This relation held from story step 6 through story step 7. The Cedar Confrontation lasted from story step 6 through story step 7.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;supported&quot;,
+    &quot;description&quot;: {
+      &quot;id&quot;: &quot;c0-assertion-941e952e4dc2b9f72da9&quot;,
+      &quot;status&quot;: &quot;unresolved&quot;,
+      &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+    }
+  }
 }</pre></td></tr>
-</table><details><summary>All actual graph fields and construction decisions</summary><pre>{
+</table><details><summary>Structural and source-assessment diagnostics</summary><pre>{
+  &quot;formal&quot;: {
+    &quot;assessment_available&quot;: true,
+    &quot;structural_diagnostics&quot;: [],
+    &quot;grounding_supported_assertion_ids&quot;: [
+      &quot;c0-assertion-44b0115bb0f6e9bc5d54&quot;,
+      &quot;c0-assertion-6ef392d7d835e1f7bc97&quot;,
+      &quot;c0-assertion-802e11e7a9a31037933f&quot;,
+      &quot;c0-assertion-8a26dcb922f745f08e15&quot;,
+      &quot;c0-assertion-941e952e4dc2b9f72da9&quot;,
+      &quot;c0-assertion-d1233995827ab65f61c8&quot;,
+      &quot;c0-assertion-d5c54eacc9d9160e6198&quot;,
+      &quot;c0-assertion-de6598e9d3947bda677a&quot;,
+      &quot;c0-assertion-eedbc9eda72a00b11654&quot;,
+      &quot;c0-assertion-ff9fa664ef6b0c5827d9&quot;
+    ],
+    &quot;grounding_unresolved_assertion_ids&quot;: [
+      &quot;c0-assertion-05feee885a07cea4e27c&quot;,
+      &quot;c0-assertion-362a9ebdb4c88f3bbd33&quot;
+    ],
+    &quot;description_assessments&quot;: [
+      {
+        &quot;id&quot;: &quot;c0-assertion-d1233995827ab65f61c8&quot;,
+        &quot;status&quot;: &quot;unresolved&quot;,
+        &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+      },
+      {
+        &quot;id&quot;: &quot;c0-assertion-802e11e7a9a31037933f&quot;,
+        &quot;status&quot;: &quot;unresolved&quot;,
+        &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+      },
+      {
+        &quot;id&quot;: &quot;c0-assertion-d5c54eacc9d9160e6198&quot;,
+        &quot;status&quot;: &quot;unresolved&quot;,
+        &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+      },
+      {
+        &quot;id&quot;: &quot;c0-assertion-eedbc9eda72a00b11654&quot;,
+        &quot;status&quot;: &quot;unresolved&quot;,
+        &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+      },
+      {
+        &quot;id&quot;: &quot;c0-assertion-de6598e9d3947bda677a&quot;,
+        &quot;status&quot;: &quot;unresolved&quot;,
+        &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+      },
+      {
+        &quot;id&quot;: &quot;c0-assertion-44b0115bb0f6e9bc5d54&quot;,
+        &quot;status&quot;: &quot;unresolved&quot;,
+        &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+      },
+      {
+        &quot;id&quot;: &quot;c0-assertion-362a9ebdb4c88f3bbd33&quot;,
+        &quot;status&quot;: &quot;unresolved&quot;,
+        &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+      },
+      {
+        &quot;id&quot;: &quot;c0-assertion-6ef392d7d835e1f7bc97&quot;,
+        &quot;status&quot;: &quot;unresolved&quot;,
+        &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+      },
+      {
+        &quot;id&quot;: &quot;c0-assertion-8a26dcb922f745f08e15&quot;,
+        &quot;status&quot;: &quot;unresolved&quot;,
+        &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+      },
+      {
+        &quot;id&quot;: &quot;c0-assertion-ff9fa664ef6b0c5827d9&quot;,
+        &quot;status&quot;: &quot;unresolved&quot;,
+        &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+      },
+      {
+        &quot;id&quot;: &quot;c0-assertion-05feee885a07cea4e27c&quot;,
+        &quot;status&quot;: &quot;unresolved&quot;,
+        &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+      },
+      {
+        &quot;id&quot;: &quot;c0-assertion-941e952e4dc2b9f72da9&quot;,
+        &quot;status&quot;: &quot;unresolved&quot;,
+        &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+      }
+    ],
+    &quot;unresolved_is_not_false_or_accepted&quot;: true
+  },
+  &quot;source_only&quot;: [],
+  &quot;offline_partial_record_source_checks&quot;: null
+}</pre></details>
+<details><summary>All actual graph fields and construction decisions</summary><pre>{
   &quot;contextual_interpretation&quot;: &quot;Previously executed, hash-verified C0 development projection&quot;,
   &quot;local_schema&quot;: {
     &quot;schema_id&quot;: &quot;c0-schema-ab9cbe579f01f6020da3&quot;,
@@ -2172,7 +2391,7 @@
   &quot;scientific_accepted&quot;: false,
   &quot;finish_reason&quot;: null,
   &quot;failure&quot;: &quot;Exploratory source/description assessment includes unresolved matches; see HTML&quot;
-}</pre><div class="graph" id="g1"></div><table><tr><th>Assertion / predicate</th><th>Bindings</th><th>Time / epistemic / commitment</th><th>Evidence / description</th></tr>
+}</pre><div class="graph" id="g1"></div><table><tr><th>Assertion / predicate</th><th>Bindings</th><th>Time / epistemic / commitment</th><th>Evidence / description / assessment</th></tr>
 <tr><td><pre>c0-assertion-d1233995827ab65f61c8 / member of</pre></td><td><pre>Fara Cedar → Cedar Circle</pre></td><td><pre>{
   &quot;time&quot;: {
     &quot;story_time&quot;: {
@@ -2214,7 +2433,18 @@
   &quot;evidence&quot;: [
     &quot;ev_4e2bab06f9b539f78c37&quot;
   ],
-  &quot;why_matters&quot;: &quot;The explicit member of relation connects two supported narrative objects.&quot;
+  &quot;why_matters&quot;: &quot;The explicit member of relation connects two supported narrative objects.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;ev_4e2bab06f9b539f78c37&quot;: &quot;At story step 1, Fara Cedar member of Cedar Circle.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;supported&quot;,
+    &quot;description&quot;: {
+      &quot;id&quot;: &quot;c0-assertion-d1233995827ab65f61c8&quot;,
+      &quot;status&quot;: &quot;unresolved&quot;,
+      &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+    }
+  }
 }</pre></td></tr>
 <tr><td><pre>c0-assertion-802e11e7a9a31037933f / member of</pre></td><td><pre>Evin Cedar → Cedar Guild</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -2257,7 +2487,18 @@
   &quot;evidence&quot;: [
     &quot;ev_1400e8ff2d2e392d1d78&quot;
   ],
-  &quot;why_matters&quot;: &quot;The explicit member of relation connects two supported narrative objects.&quot;
+  &quot;why_matters&quot;: &quot;The explicit member of relation connects two supported narrative objects.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;ev_1400e8ff2d2e392d1d78&quot;: &quot;At story step 1, Evin Cedar member of Cedar Guild.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;supported&quot;,
+    &quot;description&quot;: {
+      &quot;id&quot;: &quot;c0-assertion-802e11e7a9a31037933f&quot;,
+      &quot;status&quot;: &quot;unresolved&quot;,
+      &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+    }
+  }
 }</pre></td></tr>
 <tr><td><pre>c0-assertion-d5c54eacc9d9160e6198 / member of</pre></td><td><pre>Doran Cedar → Cedar Circle</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -2300,7 +2541,18 @@
   &quot;evidence&quot;: [
     &quot;ev_acc240a14a32fc35c23b&quot;
   ],
-  &quot;why_matters&quot;: &quot;The explicit member of relation connects two supported narrative objects.&quot;
+  &quot;why_matters&quot;: &quot;The explicit member of relation connects two supported narrative objects.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;ev_acc240a14a32fc35c23b&quot;: &quot;At story step 1, Doran Cedar member of Cedar Circle.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;supported&quot;,
+    &quot;description&quot;: {
+      &quot;id&quot;: &quot;c0-assertion-d5c54eacc9d9160e6198&quot;,
+      &quot;status&quot;: &quot;unresolved&quot;,
+      &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+    }
+  }
 }</pre></td></tr>
 <tr><td><pre>c0-assertion-eedbc9eda72a00b11654 / member of</pre></td><td><pre>Cyra Cedar → Cedar Guild</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -2343,7 +2595,18 @@
   &quot;evidence&quot;: [
     &quot;ev_7872464e6de625ece549&quot;
   ],
-  &quot;why_matters&quot;: &quot;The explicit member of relation connects two supported narrative objects.&quot;
+  &quot;why_matters&quot;: &quot;The explicit member of relation connects two supported narrative objects.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;ev_7872464e6de625ece549&quot;: &quot;At story step 1, Cyra Cedar member of Cedar Guild.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;supported&quot;,
+    &quot;description&quot;: {
+      &quot;id&quot;: &quot;c0-assertion-eedbc9eda72a00b11654&quot;,
+      &quot;status&quot;: &quot;unresolved&quot;,
+      &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+    }
+  }
 }</pre></td></tr>
 <tr><td><pre>c0-assertion-de6598e9d3947bda677a / member of</pre></td><td><pre>Galen Cedar → Cedar Guild</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -2386,7 +2649,18 @@
   &quot;evidence&quot;: [
     &quot;ev_1aacda9a129455ef6685&quot;
   ],
-  &quot;why_matters&quot;: &quot;The explicit member of relation connects two supported narrative objects.&quot;
+  &quot;why_matters&quot;: &quot;The explicit member of relation connects two supported narrative objects.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;ev_1aacda9a129455ef6685&quot;: &quot;At story step 1, Galen Cedar member of Cedar Guild.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;supported&quot;,
+    &quot;description&quot;: {
+      &quot;id&quot;: &quot;c0-assertion-de6598e9d3947bda677a&quot;,
+      &quot;status&quot;: &quot;unresolved&quot;,
+      &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+    }
+  }
 }</pre></td></tr>
 <tr><td><pre>c0-assertion-44b0115bb0f6e9bc5d54 / acts at</pre></td><td><pre>Doran Cedar → Cedar Quay</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -2429,7 +2703,18 @@
   &quot;evidence&quot;: [
     &quot;ev_9592f35e4ad23ed236f1&quot;
   ],
-  &quot;why_matters&quot;: &quot;The explicit acts at relation connects two supported narrative objects.&quot;
+  &quot;why_matters&quot;: &quot;The explicit acts at relation connects two supported narrative objects.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;ev_9592f35e4ad23ed236f1&quot;: &quot;At story step 3, Doran Cedar acts at Cedar Quay. This relation held from story step 3 through story step 4. The Cedar Turn 1 lasted from story step 3 through story step 4.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;supported&quot;,
+    &quot;description&quot;: {
+      &quot;id&quot;: &quot;c0-assertion-44b0115bb0f6e9bc5d54&quot;,
+      &quot;status&quot;: &quot;unresolved&quot;,
+      &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+    }
+  }
 }</pre></td></tr>
 <tr><td><pre>c0-assertion-362a9ebdb4c88f3bbd33 / participates in</pre></td><td><pre>participant=Doran Cedar; event=Cedar Turn 1</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -2472,7 +2757,18 @@
   &quot;evidence&quot;: [
     &quot;ev_0d1d7382070dc32de05b&quot;
   ],
-  &quot;why_matters&quot;: &quot;The explicit participates in relation connects two supported narrative objects.&quot;
+  &quot;why_matters&quot;: &quot;The explicit participates in relation connects two supported narrative objects.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;ev_0d1d7382070dc32de05b&quot;: &quot;At story step 3, Doran Cedar participates in Cedar Turn 1. This relation held from story step 3 through story step 4. The Cedar Turn 1 lasted from story step 3 through story step 4.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;unresolved&quot;,
+    &quot;description&quot;: {
+      &quot;id&quot;: &quot;c0-assertion-362a9ebdb4c88f3bbd33&quot;,
+      &quot;status&quot;: &quot;unresolved&quot;,
+      &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+    }
+  }
 }</pre></td></tr>
 <tr><td><pre>c0-assertion-6ef392d7d835e1f7bc97 / participates in</pre></td><td><pre>participant=Fara Cedar; event=Cedar Turn 1</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -2515,7 +2811,18 @@
   &quot;evidence&quot;: [
     &quot;ev_61a41902bb2a34b6f5f8&quot;
   ],
-  &quot;why_matters&quot;: &quot;The explicit participates in relation connects two supported narrative objects.&quot;
+  &quot;why_matters&quot;: &quot;The explicit participates in relation connects two supported narrative objects.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;ev_61a41902bb2a34b6f5f8&quot;: &quot;At story step 3, Fara Cedar participates in Cedar Turn 1. This relation held from story step 3 through story step 4. The Cedar Turn 1 lasted from story step 3 through story step 4.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;supported&quot;,
+    &quot;description&quot;: {
+      &quot;id&quot;: &quot;c0-assertion-6ef392d7d835e1f7bc97&quot;,
+      &quot;status&quot;: &quot;unresolved&quot;,
+      &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+    }
+  }
 }</pre></td></tr>
 <tr><td><pre>c0-assertion-8a26dcb922f745f08e15 / reveals route to</pre></td><td><pre>Galen Cedar → Cedar Confrontation</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -2558,7 +2865,18 @@
   &quot;evidence&quot;: [
     &quot;ev_2887b2597cf811c62b8c&quot;
   ],
-  &quot;why_matters&quot;: &quot;The explicit reveals route to relation connects two supported narrative objects.&quot;
+  &quot;why_matters&quot;: &quot;The explicit reveals route to relation connects two supported narrative objects.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;ev_2887b2597cf811c62b8c&quot;: &quot;At story step 4, Galen Cedar reveals route to Cedar Confrontation. This relation held from story step 4 through story step 10. The Cedar Confrontation lasted from story step 6 through story step 7.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;supported&quot;,
+    &quot;description&quot;: {
+      &quot;id&quot;: &quot;c0-assertion-8a26dcb922f745f08e15&quot;,
+      &quot;status&quot;: &quot;unresolved&quot;,
+      &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+    }
+  }
 }</pre></td></tr>
 <tr><td><pre>c0-assertion-9b0f48488f5b381ab9ff / holds office</pre></td><td><pre>Doran Cedar → Cedar Guild</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -2601,7 +2919,18 @@
   &quot;evidence&quot;: [
     &quot;ev_3957e42e833a2b05d634&quot;
   ],
-  &quot;why_matters&quot;: &quot;The explicit served as relation connects two supported narrative objects.&quot;
+  &quot;why_matters&quot;: &quot;The explicit served as relation connects two supported narrative objects.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;ev_3957e42e833a2b05d634&quot;: &quot;At story step 5, Doran Cedar served as Cedar Warden for Cedar Guild. This relation held from story step 5 with its end unknown.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;supported&quot;,
+    &quot;description&quot;: {
+      &quot;id&quot;: &quot;c0-assertion-9b0f48488f5b381ab9ff&quot;,
+      &quot;status&quot;: &quot;unresolved&quot;,
+      &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+    }
+  }
 }</pre></td></tr>
 <tr><td><pre>c0-assertion-ff9fa664ef6b0c5827d9 / participates in</pre></td><td><pre>participant=Cyra Cedar; event=Cedar Confrontation</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -2644,7 +2973,18 @@
   &quot;evidence&quot;: [
     &quot;ev_25d94d725a62dd885b64&quot;
   ],
-  &quot;why_matters&quot;: &quot;The explicit participates in relation connects two supported narrative objects.&quot;
+  &quot;why_matters&quot;: &quot;The explicit participates in relation connects two supported narrative objects.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;ev_25d94d725a62dd885b64&quot;: &quot;At story step 6, Cyra Cedar participates in Cedar Confrontation. This relation held from story step 6 through story step 7. The Cedar Confrontation lasted from story step 6 through story step 7.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;supported&quot;,
+    &quot;description&quot;: {
+      &quot;id&quot;: &quot;c0-assertion-ff9fa664ef6b0c5827d9&quot;,
+      &quot;status&quot;: &quot;unresolved&quot;,
+      &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+    }
+  }
 }</pre></td></tr>
 <tr><td><pre>c0-assertion-05feee885a07cea4e27c / occurred before</pre></td><td><pre>Cedar Turn 1 → Cedar Confrontation</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -2687,7 +3027,18 @@
   &quot;evidence&quot;: [
     &quot;ev_3ab588e77941265e6866&quot;
   ],
-  &quot;why_matters&quot;: &quot;The explicit occurred before relation connects two supported narrative objects.&quot;
+  &quot;why_matters&quot;: &quot;The explicit occurred before relation connects two supported narrative objects.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;ev_3ab588e77941265e6866&quot;: &quot;The Cedar Turn 1 occurred before the Cedar Confrontation; the latter began at story step 6.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;unresolved&quot;,
+    &quot;description&quot;: {
+      &quot;id&quot;: &quot;c0-assertion-05feee885a07cea4e27c&quot;,
+      &quot;status&quot;: &quot;unresolved&quot;,
+      &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+    }
+  }
 }</pre></td></tr>
 <tr><td><pre>c0-assertion-473fa05d7adab39ac6e9 / greets at</pre></td><td><pre>Galen Cedar → Cedar Quay</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -2730,7 +3081,18 @@
   &quot;evidence&quot;: [
     &quot;ev_e89cafc29d79556df56a&quot;
   ],
-  &quot;why_matters&quot;: &quot;The explicit greets at relation connects two supported narrative objects.&quot;
+  &quot;why_matters&quot;: &quot;The explicit greets at relation connects two supported narrative objects.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;ev_e89cafc29d79556df56a&quot;: &quot;At story step 6, Galen Cedar greets at Cedar Quay.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;supported&quot;,
+    &quot;description&quot;: {
+      &quot;id&quot;: &quot;c0-assertion-473fa05d7adab39ac6e9&quot;,
+      &quot;status&quot;: &quot;unresolved&quot;,
+      &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+    }
+  }
 }</pre></td></tr>
 <tr><td><pre>c0-assertion-941e952e4dc2b9f72da9 / participates in</pre></td><td><pre>participant=Evin Cedar; event=Cedar Confrontation</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -2773,9 +3135,119 @@
   &quot;evidence&quot;: [
     &quot;ev_bdd9db62ee89ab06f442&quot;
   ],
-  &quot;why_matters&quot;: &quot;The explicit participates in relation connects two supported narrative objects.&quot;
+  &quot;why_matters&quot;: &quot;The explicit participates in relation connects two supported narrative objects.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;ev_bdd9db62ee89ab06f442&quot;: &quot;At story step 6, Evin Cedar participates in Cedar Confrontation. This relation held from story step 6 through story step 7. The Cedar Confrontation lasted from story step 6 through story step 7.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;supported&quot;,
+    &quot;description&quot;: {
+      &quot;id&quot;: &quot;c0-assertion-941e952e4dc2b9f72da9&quot;,
+      &quot;status&quot;: &quot;unresolved&quot;,
+      &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+    }
+  }
 }</pre></td></tr>
-</table><details><summary>All actual graph fields and construction decisions</summary><pre>{
+</table><details><summary>Structural and source-assessment diagnostics</summary><pre>{
+  &quot;formal&quot;: {
+    &quot;assessment_available&quot;: true,
+    &quot;structural_diagnostics&quot;: [],
+    &quot;grounding_supported_assertion_ids&quot;: [
+      &quot;c0-assertion-44b0115bb0f6e9bc5d54&quot;,
+      &quot;c0-assertion-473fa05d7adab39ac6e9&quot;,
+      &quot;c0-assertion-6ef392d7d835e1f7bc97&quot;,
+      &quot;c0-assertion-802e11e7a9a31037933f&quot;,
+      &quot;c0-assertion-8a26dcb922f745f08e15&quot;,
+      &quot;c0-assertion-941e952e4dc2b9f72da9&quot;,
+      &quot;c0-assertion-9b0f48488f5b381ab9ff&quot;,
+      &quot;c0-assertion-d1233995827ab65f61c8&quot;,
+      &quot;c0-assertion-d5c54eacc9d9160e6198&quot;,
+      &quot;c0-assertion-de6598e9d3947bda677a&quot;,
+      &quot;c0-assertion-eedbc9eda72a00b11654&quot;,
+      &quot;c0-assertion-ff9fa664ef6b0c5827d9&quot;
+    ],
+    &quot;grounding_unresolved_assertion_ids&quot;: [
+      &quot;c0-assertion-05feee885a07cea4e27c&quot;,
+      &quot;c0-assertion-362a9ebdb4c88f3bbd33&quot;
+    ],
+    &quot;description_assessments&quot;: [
+      {
+        &quot;id&quot;: &quot;c0-assertion-d1233995827ab65f61c8&quot;,
+        &quot;status&quot;: &quot;unresolved&quot;,
+        &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+      },
+      {
+        &quot;id&quot;: &quot;c0-assertion-802e11e7a9a31037933f&quot;,
+        &quot;status&quot;: &quot;unresolved&quot;,
+        &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+      },
+      {
+        &quot;id&quot;: &quot;c0-assertion-d5c54eacc9d9160e6198&quot;,
+        &quot;status&quot;: &quot;unresolved&quot;,
+        &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+      },
+      {
+        &quot;id&quot;: &quot;c0-assertion-eedbc9eda72a00b11654&quot;,
+        &quot;status&quot;: &quot;unresolved&quot;,
+        &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+      },
+      {
+        &quot;id&quot;: &quot;c0-assertion-de6598e9d3947bda677a&quot;,
+        &quot;status&quot;: &quot;unresolved&quot;,
+        &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+      },
+      {
+        &quot;id&quot;: &quot;c0-assertion-44b0115bb0f6e9bc5d54&quot;,
+        &quot;status&quot;: &quot;unresolved&quot;,
+        &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+      },
+      {
+        &quot;id&quot;: &quot;c0-assertion-362a9ebdb4c88f3bbd33&quot;,
+        &quot;status&quot;: &quot;unresolved&quot;,
+        &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+      },
+      {
+        &quot;id&quot;: &quot;c0-assertion-6ef392d7d835e1f7bc97&quot;,
+        &quot;status&quot;: &quot;unresolved&quot;,
+        &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+      },
+      {
+        &quot;id&quot;: &quot;c0-assertion-8a26dcb922f745f08e15&quot;,
+        &quot;status&quot;: &quot;unresolved&quot;,
+        &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+      },
+      {
+        &quot;id&quot;: &quot;c0-assertion-9b0f48488f5b381ab9ff&quot;,
+        &quot;status&quot;: &quot;unresolved&quot;,
+        &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+      },
+      {
+        &quot;id&quot;: &quot;c0-assertion-ff9fa664ef6b0c5827d9&quot;,
+        &quot;status&quot;: &quot;unresolved&quot;,
+        &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+      },
+      {
+        &quot;id&quot;: &quot;c0-assertion-05feee885a07cea4e27c&quot;,
+        &quot;status&quot;: &quot;unresolved&quot;,
+        &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+      },
+      {
+        &quot;id&quot;: &quot;c0-assertion-473fa05d7adab39ac6e9&quot;,
+        &quot;status&quot;: &quot;unresolved&quot;,
+        &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+      },
+      {
+        &quot;id&quot;: &quot;c0-assertion-941e952e4dc2b9f72da9&quot;,
+        &quot;status&quot;: &quot;unresolved&quot;,
+        &quot;check&quot;: &quot;source-substring positive coverage only; paraphrase outside coverage is not false&quot;
+      }
+    ],
+    &quot;unresolved_is_not_false_or_accepted&quot;: true
+  },
+  &quot;source_only&quot;: [],
+  &quot;offline_partial_record_source_checks&quot;: null
+}</pre></details>
+<details><summary>All actual graph fields and construction decisions</summary><pre>{
   &quot;contextual_interpretation&quot;: &quot;Previously executed, hash-verified C0 development projection&quot;,
   &quot;local_schema&quot;: {
     &quot;schema_id&quot;: &quot;c0-schema-ab9cbe579f01f6020da3&quot;,
@@ -4442,13 +4914,13 @@
 }</pre></details></section>
 <section id="view2"><h2>C1 / query-blind / base</h2><pre>{
   &quot;attempt_id&quot;: &quot;nested-development-demonstration-20260908-attempt-01&quot;,
-  &quot;schema_valid&quot;: false,
-  &quot;canonical_valid&quot;: false,
-  &quot;structure_valid&quot;: false,
+  &quot;schema_valid&quot;: null,
+  &quot;canonical_valid&quot;: null,
+  &quot;structure_valid&quot;: null,
   &quot;scientific_accepted&quot;: false,
   &quot;finish_reason&quot;: &quot;length&quot;,
   &quot;failure&quot;: &quot;vLLM response is not one guided JSON choice&quot;
-}</pre><div class="graph" id="g2"></div><table><tr><th>Assertion / predicate</th><th>Bindings</th><th>Time / epistemic / commitment</th><th>Evidence / description</th></tr>
+}</pre><div class="graph" id="g2"></div><table><tr><th>Assertion / predicate</th><th>Bindings</th><th>Time / epistemic / commitment</th><th>Evidence / description / assessment</th></tr>
 <tr><td><pre>nA1 / nR1</pre></td><td><pre>Evin Cedar → Fara Cedar</pre></td><td><pre>{
   &quot;time&quot;: {
     &quot;discourse_position&quot;: {
@@ -4537,9 +5009,58 @@
     &quot;e24&quot;,
     &quot;e25&quot;
   ],
-  &quot;why_matters&quot;: &quot;Describes the initial state of the story involving multiple characters and events.&quot;
+  &quot;why_matters&quot;: &quot;Describes the initial state of the story involving multiple characters and events.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e1&quot;: &quot;At story step 1, Fara Cedar member of Cedar Circle.&quot;,
+    &quot;e2&quot;: &quot;At story step 1, Evin Cedar member of Cedar Guild.&quot;,
+    &quot;e3&quot;: &quot;At story step 1, Doran Cedar member of Cedar Circle.&quot;,
+    &quot;e4&quot;: &quot;At story step 1, Cyra Cedar member of Cedar Guild.&quot;,
+    &quot;e5&quot;: &quot;At story step 1, Galen Cedar member of Cedar Guild.&quot;,
+    &quot;e6&quot;: &quot;At story step 1, Cyra Cedar served as Cedar Warden for Cedar Guild. This relation held from story step 1 through story step 4.&quot;,
+    &quot;e7&quot;: &quot;At story step 3, Doran Cedar acts at Cedar Quay. This relation held from story step 3 through story step 4. The Cedar Turn 1 lasted from story step 3 through story step 4.&quot;,
+    &quot;e8&quot;: &quot;At story step 3, Doran Cedar participates in Cedar Turn 1. This relation held from story step 3 through story step 4. The Cedar Turn 1 lasted from story step 3 through story step 4.&quot;,
+    &quot;e9&quot;: &quot;At story step 3, Fara Cedar participates in Cedar Turn 1. This relation held from story step 3 through story step 4. The Cedar Turn 1 lasted from story step 3 through story step 4.&quot;,
+    &quot;e10&quot;: &quot;At story step 4, Galen Cedar reveals route to Cedar Confrontation. This relation held from story step 4 through story step 10. The Cedar Confrontation lasted from story step 6 through story step 7.&quot;,
+    &quot;e11&quot;: &quot;At story step 5, Doran Cedar succeeds Cyra Cedar.&quot;,
+    &quot;e12&quot;: &quot;At story step 5, Cyra Cedar coordinates with Evin Cedar.&quot;,
+    &quot;e13&quot;: &quot;The record explicitly says that Galen Cedar&#x27;s earlier action enabled Cyra Cedar&#x27;s later action at story step 5.&quot;,
+    &quot;e14&quot;: &quot;At story step 5, Doran Cedar served as Cedar Warden for Cedar Guild. This relation held from story step 5 with its end unknown.&quot;,
+    &quot;e15&quot;: &quot;At story step 5, Doran Cedar reported that Evin Cedar plans to leave Cedar Guild.&quot;,
+    &quot;e16&quot;: &quot;At story step 6, Cyra Cedar acts at Cedar Gate. This relation held from story step 6 through story step 7. The Cedar Confrontation lasted from story step 6 through story step 7.&quot;,
+    &quot;e17&quot;: &quot;At story step 6, Galen Cedar greets at Cedar Quay.&quot;,
+    &quot;e18&quot;: &quot;At story step 6, Cyra Cedar participates in Cedar Confrontation. This relation held from story step 6 through story step 7. The Cedar Confrontation lasted from story step 6 through story step 7.&quot;,
+    &quot;e19&quot;: &quot;The Cedar Turn 1 occurred before the Cedar Confrontation; the latter began at story step 6.&quot;,
+    &quot;e20&quot;: &quot;At story step 6, Galen Cedar greets at Cedar Quay.&quot;,
+    &quot;e21&quot;: &quot;At story step 6, Galen Cedar greets at Cedar Quay.&quot;,
+    &quot;e22&quot;: &quot;At story step 6, Evin Cedar participates in Cedar Confrontation. This relation held from story step 6 through story step 7. The Cedar Confrontation lasted from story step 6 through story step 7.&quot;,
+    &quot;e23&quot;: &quot;The record explicitly says that Cyra Cedar&#x27;s earlier action enabled Evin Cedar&#x27;s later action at story step 7.&quot;,
+    &quot;e24&quot;: &quot;At story step 7, Evin Cedar secures outcome for Cedar Guild.&quot;,
+    &quot;e25&quot;: &quot;At story step 12, Cyra Cedar later visits Cedar Gate.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
 }</pre></td></tr>
-</table><details><summary>All actual graph fields and construction decisions</summary><pre>{
+</table><details><summary>Structural and source-assessment diagnostics</summary><pre>{
+  &quot;formal&quot;: {
+    &quot;assessment_available&quot;: false,
+    &quot;reason&quot;: &quot;formal assessment unavailable; see canonical status and failure stage&quot;
+  },
+  &quot;source_only&quot;: [],
+  &quot;offline_partial_record_source_checks&quot;: [
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/0/epistemic_scope&quot;,
+      &quot;category&quot;: &quot;unsupported_attribution&quot;,
+      &quot;constraint&quot;: &quot;Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;holder_id&quot;: &quot;nE1&quot;,
+        &quot;attitude&quot;: &quot;known&quot;
+      }
+    }
+  ]
+}</pre></details>
+<details><summary>All actual graph fields and construction decisions</summary><pre>{
   &quot;contextual_interpretation&quot;: &quot;A narrative involving multiple characters and events in a story, with detailed temporal and relational information.&quot;,
   &quot;local_schema&quot;: {
     &quot;contextual_types&quot;: [],
@@ -5337,13 +5858,13 @@
 }</pre></details></section>
 <section id="view3"><h2>C2 / 1 / base</h2><pre>{
   &quot;attempt_id&quot;: &quot;nested-development-demonstration-20260908-attempt-02&quot;,
-  &quot;schema_valid&quot;: false,
-  &quot;canonical_valid&quot;: false,
-  &quot;structure_valid&quot;: false,
+  &quot;schema_valid&quot;: null,
+  &quot;canonical_valid&quot;: null,
+  &quot;structure_valid&quot;: null,
   &quot;scientific_accepted&quot;: false,
   &quot;finish_reason&quot;: &quot;length&quot;,
   &quot;failure&quot;: &quot;vLLM response is not one guided JSON choice&quot;
-}</pre><p class="warning">No complete entity/event declarations were received. The assertion table retains unresolved IDs; labels are not inferred from prose.</p><table><tr><th>Assertion / predicate</th><th>Bindings</th><th>Time / epistemic / commitment</th><th>Evidence / description</th></tr>
+}</pre><p class="warning">Generation was truncated before entity/event declarations. Only complete received assertion members appear below; null checks were not reached. Labels are not inferred from prose.</p><table><tr><th>Assertion / predicate</th><th>Bindings</th><th>Time / epistemic / commitment</th><th>Evidence / description / assessment</th></tr>
 <tr><td><pre>nA1 / nR1</pre></td><td><pre>nE2 → nE1</pre></td><td><pre>{
   &quot;time&quot;: {
     &quot;discourse_position&quot;: {
@@ -5384,7 +5905,14 @@
   &quot;evidence&quot;: [
     &quot;e1&quot;
   ],
-  &quot;why_matters&quot;: &quot;Establishes Fara Cedar&#x27;s membership in Cedar Circle at story step 1.&quot;
+  &quot;why_matters&quot;: &quot;Establishes Fara Cedar&#x27;s membership in Cedar Circle at story step 1.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e1&quot;: &quot;At story step 1, Fara Cedar member of Cedar Circle.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
 }</pre></td></tr>
 <tr><td><pre>nA2 / nR1</pre></td><td><pre>nE4 → nE3</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -5426,7 +5954,14 @@
   &quot;evidence&quot;: [
     &quot;e2&quot;
   ],
-  &quot;why_matters&quot;: &quot;Establishes Evin Cedar&#x27;s membership in Cedar Guild at story step 1.&quot;
+  &quot;why_matters&quot;: &quot;Establishes Evin Cedar&#x27;s membership in Cedar Guild at story step 1.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e2&quot;: &quot;At story step 1, Evin Cedar member of Cedar Guild.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
 }</pre></td></tr>
 <tr><td><pre>nA3 / nR1</pre></td><td><pre>nE6 → nE5</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -5468,7 +6003,14 @@
   &quot;evidence&quot;: [
     &quot;e3&quot;
   ],
-  &quot;why_matters&quot;: &quot;Establishes Doran Cedar&#x27;s membership in Cedar Circle at story step 1.&quot;
+  &quot;why_matters&quot;: &quot;Establishes Doran Cedar&#x27;s membership in Cedar Circle at story step 1.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e3&quot;: &quot;At story step 1, Doran Cedar member of Cedar Circle.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
 }</pre></td></tr>
 <tr><td><pre>nA4 / nR1</pre></td><td><pre>nE8 → nE7</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -5510,7 +6052,14 @@
   &quot;evidence&quot;: [
     &quot;e4&quot;
   ],
-  &quot;why_matters&quot;: &quot;Establishes Cyra Cedar&#x27;s membership in Cedar Guild at story step 1.&quot;
+  &quot;why_matters&quot;: &quot;Establishes Cyra Cedar&#x27;s membership in Cedar Guild at story step 1.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e4&quot;: &quot;At story step 1, Cyra Cedar member of Cedar Guild.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
 }</pre></td></tr>
 <tr><td><pre>nA5 / nR1</pre></td><td><pre>nE10 → nE9</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -5552,7 +6101,14 @@
   &quot;evidence&quot;: [
     &quot;e5&quot;
   ],
-  &quot;why_matters&quot;: &quot;Establishes Galen Cedar&#x27;s membership in Cedar Guild at story step 1.&quot;
+  &quot;why_matters&quot;: &quot;Establishes Galen Cedar&#x27;s membership in Cedar Guild at story step 1.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e5&quot;: &quot;At story step 1, Galen Cedar member of Cedar Guild.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
 }</pre></td></tr>
 <tr><td><pre>nA6 / nR2</pre></td><td><pre>nE12 → nE11</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -5594,7 +6150,14 @@
   &quot;evidence&quot;: [
     &quot;e6&quot;
   ],
-  &quot;why_matters&quot;: &quot;Establishes Cyra Cedar&#x27;s role as Cedar Warden for Cedar Guild from story step 1 through story step 4.&quot;
+  &quot;why_matters&quot;: &quot;Establishes Cyra Cedar&#x27;s role as Cedar Warden for Cedar Guild from story step 1 through story step 4.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e6&quot;: &quot;At story step 1, Cyra Cedar served as Cedar Warden for Cedar Guild. This relation held from story step 1 through story step 4.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
 }</pre></td></tr>
 <tr><td><pre>nA7 / nR3</pre></td><td><pre>nE14 → nE13</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -5636,7 +6199,14 @@
   &quot;evidence&quot;: [
     &quot;e7&quot;
   ],
-  &quot;why_matters&quot;: &quot;Establishes Doran Cedar&#x27;s action at Cedar Quay from story step 3 through story step 4.&quot;
+  &quot;why_matters&quot;: &quot;Establishes Doran Cedar&#x27;s action at Cedar Quay from story step 3 through story step 4.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e7&quot;: &quot;At story step 3, Doran Cedar acts at Cedar Quay. This relation held from story step 3 through story step 4. The Cedar Turn 1 lasted from story step 3 through story step 4.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
 }</pre></td></tr>
 <tr><td><pre>nA8 / nR4</pre></td><td><pre>nE16 → nE15</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -5678,7 +6248,14 @@
   &quot;evidence&quot;: [
     &quot;e8&quot;
   ],
-  &quot;why_matters&quot;: &quot;Establishes Doran Cedar&#x27;s participation in Cedar Turn 1 from story step 3 through story step 4.&quot;
+  &quot;why_matters&quot;: &quot;Establishes Doran Cedar&#x27;s participation in Cedar Turn 1 from story step 3 through story step 4.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e8&quot;: &quot;At story step 3, Doran Cedar participates in Cedar Turn 1. This relation held from story step 3 through story step 4. The Cedar Turn 1 lasted from story step 3 through story step 4.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
 }</pre></td></tr>
 <tr><td><pre>nA9 / nR4</pre></td><td><pre>nE18 → nE17</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -5720,9 +6297,156 @@
   &quot;evidence&quot;: [
     &quot;e9&quot;
   ],
-  &quot;why_matters&quot;: &quot;Establishes Fara Cedar&#x27;s participation in Cedar Turn 1 from story step 3 through story step 4.&quot;
+  &quot;why_matters&quot;: &quot;Establishes Fara Cedar&#x27;s participation in Cedar Turn 1 from story step 3 through story step 4.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e9&quot;: &quot;At story step 3, Fara Cedar participates in Cedar Turn 1. This relation held from story step 3 through story step 4. The Cedar Turn 1 lasted from story step 3 through story step 4.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
 }</pre></td></tr>
-</table><details><summary>All actual graph fields and construction decisions</summary><pre>{
+</table><details><summary>Structural and source-assessment diagnostics</summary><pre>{
+  &quot;formal&quot;: {
+    &quot;assessment_available&quot;: false,
+    &quot;reason&quot;: &quot;formal assessment unavailable; see canonical status and failure stage&quot;
+  },
+  &quot;source_only&quot;: [],
+  &quot;offline_partial_record_source_checks&quot;: [
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/0/epistemic_scope&quot;,
+      &quot;category&quot;: &quot;unsupported_attribution&quot;,
+      &quot;constraint&quot;: &quot;Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;holder_id&quot;: &quot;nE2&quot;,
+        &quot;attitude&quot;: &quot;known&quot;
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/0/temporal_scope/validity_time&quot;,
+      &quot;category&quot;: &quot;unsupported_intrinsic_precision&quot;,
+      &quot;constraint&quot;: &quot;Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;kind&quot;: &quot;point&quot;,
+        &quot;label&quot;: &quot;story step 1&quot;,
+        &quot;point&quot;: 1
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/1/epistemic_scope&quot;,
+      &quot;category&quot;: &quot;unsupported_attribution&quot;,
+      &quot;constraint&quot;: &quot;Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;holder_id&quot;: &quot;nE3&quot;,
+        &quot;attitude&quot;: &quot;known&quot;
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/1/temporal_scope/validity_time&quot;,
+      &quot;category&quot;: &quot;unsupported_intrinsic_precision&quot;,
+      &quot;constraint&quot;: &quot;Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;kind&quot;: &quot;point&quot;,
+        &quot;label&quot;: &quot;story step 1&quot;,
+        &quot;point&quot;: 1
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/2/epistemic_scope&quot;,
+      &quot;category&quot;: &quot;unsupported_attribution&quot;,
+      &quot;constraint&quot;: &quot;Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;holder_id&quot;: &quot;nE5&quot;,
+        &quot;attitude&quot;: &quot;known&quot;
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/2/temporal_scope/validity_time&quot;,
+      &quot;category&quot;: &quot;unsupported_intrinsic_precision&quot;,
+      &quot;constraint&quot;: &quot;Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;kind&quot;: &quot;point&quot;,
+        &quot;label&quot;: &quot;story step 1&quot;,
+        &quot;point&quot;: 1
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/3/epistemic_scope&quot;,
+      &quot;category&quot;: &quot;unsupported_attribution&quot;,
+      &quot;constraint&quot;: &quot;Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;holder_id&quot;: &quot;nE7&quot;,
+        &quot;attitude&quot;: &quot;known&quot;
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/3/temporal_scope/validity_time&quot;,
+      &quot;category&quot;: &quot;unsupported_intrinsic_precision&quot;,
+      &quot;constraint&quot;: &quot;Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;kind&quot;: &quot;point&quot;,
+        &quot;label&quot;: &quot;story step 1&quot;,
+        &quot;point&quot;: 1
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/4/epistemic_scope&quot;,
+      &quot;category&quot;: &quot;unsupported_attribution&quot;,
+      &quot;constraint&quot;: &quot;Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;holder_id&quot;: &quot;nE9&quot;,
+        &quot;attitude&quot;: &quot;known&quot;
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/4/temporal_scope/validity_time&quot;,
+      &quot;category&quot;: &quot;unsupported_intrinsic_precision&quot;,
+      &quot;constraint&quot;: &quot;Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;kind&quot;: &quot;point&quot;,
+        &quot;label&quot;: &quot;story step 1&quot;,
+        &quot;point&quot;: 1
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/5/epistemic_scope&quot;,
+      &quot;category&quot;: &quot;unsupported_attribution&quot;,
+      &quot;constraint&quot;: &quot;Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;holder_id&quot;: &quot;nE11&quot;,
+        &quot;attitude&quot;: &quot;known&quot;
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/6/epistemic_scope&quot;,
+      &quot;category&quot;: &quot;unsupported_attribution&quot;,
+      &quot;constraint&quot;: &quot;Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;holder_id&quot;: &quot;nE13&quot;,
+        &quot;attitude&quot;: &quot;known&quot;
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/7/epistemic_scope&quot;,
+      &quot;category&quot;: &quot;unsupported_attribution&quot;,
+      &quot;constraint&quot;: &quot;Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;holder_id&quot;: &quot;nE15&quot;,
+        &quot;attitude&quot;: &quot;known&quot;
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/8/epistemic_scope&quot;,
+      &quot;category&quot;: &quot;unsupported_attribution&quot;,
+      &quot;constraint&quot;: &quot;Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;holder_id&quot;: &quot;nE17&quot;,
+        &quot;attitude&quot;: &quot;known&quot;
+      }
+    }
+  ]
+}</pre></details>
+<details><summary>All actual graph fields and construction decisions</summary><pre>{
   &quot;contextual_interpretation&quot;: &quot;The narrative explores the affiliations and state changes of characters in Cedar Harbor Accord, focusing on their roles and interactions across story steps. Key entities include individuals like Fara Cedar, Evin Cedar, Doran Cedar, Cyra Cedar, and Galen Cedar, along with collectives such as Cedar Circle, Cedar Guild, and events like Cedar Turn 1 and Cedar Confrontation. The story emphasizes their roles, transitions, and consequences over time.&quot;,
   &quot;local_schema&quot;: {
     &quot;contextual_types&quot;: [],
@@ -6470,13 +7194,13 @@
 }</pre></details></section>
 <section id="view4"><h2>C2 / 2 / base</h2><pre>{
   &quot;attempt_id&quot;: &quot;nested-development-demonstration-20260908-attempt-03&quot;,
-  &quot;schema_valid&quot;: false,
-  &quot;canonical_valid&quot;: false,
-  &quot;structure_valid&quot;: false,
+  &quot;schema_valid&quot;: null,
+  &quot;canonical_valid&quot;: null,
+  &quot;structure_valid&quot;: null,
   &quot;scientific_accepted&quot;: false,
   &quot;finish_reason&quot;: &quot;length&quot;,
   &quot;failure&quot;: &quot;vLLM response is not one guided JSON choice&quot;
-}</pre><p class="warning">No complete entity/event declarations were received. The assertion table retains unresolved IDs; labels are not inferred from prose.</p><table><tr><th>Assertion / predicate</th><th>Bindings</th><th>Time / epistemic / commitment</th><th>Evidence / description</th></tr>
+}</pre><p class="warning">Generation was truncated before entity/event declarations. Only complete received assertion members appear below; null checks were not reached. Labels are not inferred from prose.</p><table><tr><th>Assertion / predicate</th><th>Bindings</th><th>Time / epistemic / commitment</th><th>Evidence / description / assessment</th></tr>
 <tr><td><pre>nA1 / nR1</pre></td><td><pre>nE1 → nE1</pre></td><td><pre>{
   &quot;time&quot;: {
     &quot;discourse_position&quot;: {
@@ -6517,7 +7241,14 @@
   &quot;evidence&quot;: [
     &quot;e1&quot;
   ],
-  &quot;why_matters&quot;: &quot;Fara Cedar is a member of the Cedar Circle at story step 1.&quot;
+  &quot;why_matters&quot;: &quot;Fara Cedar is a member of the Cedar Circle at story step 1.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e1&quot;: &quot;At story step 1, Fara Cedar member of Cedar Circle.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
 }</pre></td></tr>
 <tr><td><pre>nA2 / nR1</pre></td><td><pre>nE1 → nE2</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -6559,7 +7290,14 @@
   &quot;evidence&quot;: [
     &quot;e1&quot;
   ],
-  &quot;why_matters&quot;: &quot;Fara Cedar is a member of the Cedar Circle at story step 1.&quot;
+  &quot;why_matters&quot;: &quot;Fara Cedar is a member of the Cedar Circle at story step 1.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e1&quot;: &quot;At story step 1, Fara Cedar member of Cedar Circle.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
 }</pre></td></tr>
 <tr><td><pre>nA3 / nR1</pre></td><td><pre>nE1 → nE3</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -6601,7 +7339,14 @@
   &quot;evidence&quot;: [
     &quot;e2&quot;
   ],
-  &quot;why_matters&quot;: &quot;Evin Cedar is a member of the Cedar Guild at story step 1.&quot;
+  &quot;why_matters&quot;: &quot;Evin Cedar is a member of the Cedar Guild at story step 1.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e2&quot;: &quot;At story step 1, Evin Cedar member of Cedar Guild.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
 }</pre></td></tr>
 <tr><td><pre>nA4 / nR1</pre></td><td><pre>nE1 → nE4</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -6643,7 +7388,14 @@
   &quot;evidence&quot;: [
     &quot;e3&quot;
   ],
-  &quot;why_matters&quot;: &quot;Doran Cedar is a member of the Cedar Circle at story step 1.&quot;
+  &quot;why_matters&quot;: &quot;Doran Cedar is a member of the Cedar Circle at story step 1.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e3&quot;: &quot;At story step 1, Doran Cedar member of Cedar Circle.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
 }</pre></td></tr>
 <tr><td><pre>nA5 / nR1</pre></td><td><pre>nE1 → nE5</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -6685,7 +7437,14 @@
   &quot;evidence&quot;: [
     &quot;e4&quot;
   ],
-  &quot;why_matters&quot;: &quot;Cyra Cedar is a member of the Cedar Guild at story step 1.&quot;
+  &quot;why_matters&quot;: &quot;Cyra Cedar is a member of the Cedar Guild at story step 1.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e4&quot;: &quot;At story step 1, Cyra Cedar member of Cedar Guild.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
 }</pre></td></tr>
 <tr><td><pre>nA6 / nR1</pre></td><td><pre>nE1 → nE6</pre></td><td><pre>{
   &quot;time&quot;: {
@@ -6727,9 +7486,139 @@
   &quot;evidence&quot;: [
     &quot;e5&quot;
   ],
-  &quot;why_matters&quot;: &quot;Galen Cedar is a member of the Cedar Guild at story step 1.&quot;
+  &quot;why_matters&quot;: &quot;Galen Cedar is a member of the Cedar Guild at story step 1.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e5&quot;: &quot;At story step 1, Galen Cedar member of Cedar Guild.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
 }</pre></td></tr>
-</table><details><summary>All actual graph fields and construction decisions</summary><pre>{
+</table><details><summary>Structural and source-assessment diagnostics</summary><pre>{
+  &quot;formal&quot;: {
+    &quot;assessment_available&quot;: false,
+    &quot;reason&quot;: &quot;formal assessment unavailable; see canonical status and failure stage&quot;
+  },
+  &quot;source_only&quot;: [],
+  &quot;offline_partial_record_source_checks&quot;: [
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/0/epistemic_scope&quot;,
+      &quot;category&quot;: &quot;unsupported_attribution&quot;,
+      &quot;constraint&quot;: &quot;Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;holder_id&quot;: &quot;nE1&quot;,
+        &quot;attitude&quot;: &quot;known&quot;
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/0/temporal_scope/validity_time&quot;,
+      &quot;category&quot;: &quot;unsupported_intrinsic_precision&quot;,
+      &quot;constraint&quot;: &quot;Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;kind&quot;: &quot;point&quot;,
+        &quot;label&quot;: &quot;story step 1&quot;,
+        &quot;point&quot;: 1
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/1/epistemic_scope&quot;,
+      &quot;category&quot;: &quot;unsupported_attribution&quot;,
+      &quot;constraint&quot;: &quot;Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;holder_id&quot;: &quot;nE1&quot;,
+        &quot;attitude&quot;: &quot;known&quot;
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/1/temporal_scope/validity_time&quot;,
+      &quot;category&quot;: &quot;unsupported_intrinsic_precision&quot;,
+      &quot;constraint&quot;: &quot;Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;kind&quot;: &quot;point&quot;,
+        &quot;label&quot;: &quot;story step 1&quot;,
+        &quot;point&quot;: 1
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/2/epistemic_scope&quot;,
+      &quot;category&quot;: &quot;unsupported_attribution&quot;,
+      &quot;constraint&quot;: &quot;Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;holder_id&quot;: &quot;nE1&quot;,
+        &quot;attitude&quot;: &quot;known&quot;
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/2/temporal_scope/validity_time&quot;,
+      &quot;category&quot;: &quot;unsupported_intrinsic_precision&quot;,
+      &quot;constraint&quot;: &quot;Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;kind&quot;: &quot;point&quot;,
+        &quot;label&quot;: &quot;story step 1&quot;,
+        &quot;point&quot;: 1
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/3/epistemic_scope&quot;,
+      &quot;category&quot;: &quot;unsupported_attribution&quot;,
+      &quot;constraint&quot;: &quot;Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;holder_id&quot;: &quot;nE1&quot;,
+        &quot;attitude&quot;: &quot;known&quot;
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/3/temporal_scope/validity_time&quot;,
+      &quot;category&quot;: &quot;unsupported_intrinsic_precision&quot;,
+      &quot;constraint&quot;: &quot;Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;kind&quot;: &quot;point&quot;,
+        &quot;label&quot;: &quot;story step 1&quot;,
+        &quot;point&quot;: 1
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/4/epistemic_scope&quot;,
+      &quot;category&quot;: &quot;unsupported_attribution&quot;,
+      &quot;constraint&quot;: &quot;Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;holder_id&quot;: &quot;nE1&quot;,
+        &quot;attitude&quot;: &quot;known&quot;
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/4/temporal_scope/validity_time&quot;,
+      &quot;category&quot;: &quot;unsupported_intrinsic_precision&quot;,
+      &quot;constraint&quot;: &quot;Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;kind&quot;: &quot;point&quot;,
+        &quot;label&quot;: &quot;story step 1&quot;,
+        &quot;point&quot;: 1
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/5/epistemic_scope&quot;,
+      &quot;category&quot;: &quot;unsupported_attribution&quot;,
+      &quot;constraint&quot;: &quot;Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;holder_id&quot;: &quot;nE1&quot;,
+        &quot;attitude&quot;: &quot;known&quot;
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/5/temporal_scope/validity_time&quot;,
+      &quot;category&quot;: &quot;unsupported_intrinsic_precision&quot;,
+      &quot;constraint&quot;: &quot;Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;kind&quot;: &quot;point&quot;,
+        &quot;label&quot;: &quot;story step 1&quot;,
+        &quot;point&quot;: 1
+      }
+    }
+  ]
+}</pre></details>
+<details><summary>All actual graph fields and construction decisions</summary><pre>{
   &quot;contextual_interpretation&quot;: &quot;The narrative explores the relationships and roles of individuals and groups within the Cedar Harbor Accord, focusing on their continuity, actions, and consequences across different story steps. The main goal is to distinguish and group actors, their offices, and events, while tracking their interactions and outcomes.&quot;,
   &quot;local_schema&quot;: {
     &quot;contextual_types&quot;: [],
@@ -7484,6 +8373,2776 @@
       ],
       &quot;operator&quot;: &quot;schema_relation&quot;,
       &quot;rationale&quot;: &quot;Establishing assertions that bind entities, events, and relations based on the narrative evidence.&quot;,
+      &quot;removed_object_ids&quot;: []
+    }
+  ],
+  &quot;partial_records_only&quot;: true
+}</pre></details></section>
+<section id="view5"><h2>C1 / query-blind / repair</h2><pre>{
+  &quot;attempt_id&quot;: &quot;nested-development-demonstration-20260908-attempt-05&quot;,
+  &quot;schema_valid&quot;: null,
+  &quot;canonical_valid&quot;: null,
+  &quot;structure_valid&quot;: null,
+  &quot;scientific_accepted&quot;: false,
+  &quot;finish_reason&quot;: null,
+  &quot;failure&quot;: &quot;server emitted a streaming error event&quot;
+}</pre><p class="warning">No generated graph is available. The server rejected this request before generation; this is not a model-authored empty graph.</p><table><tr><th>Assertion / predicate</th><th>Bindings</th><th>Time / epistemic / commitment</th><th>Evidence / description / assessment</th></tr>
+</table><details><summary>Structural and source-assessment diagnostics</summary><pre>{
+  &quot;formal&quot;: {
+    &quot;assessment_available&quot;: false,
+    &quot;reason&quot;: &quot;formal assessment unavailable; see canonical status and failure stage&quot;
+  },
+  &quot;source_only&quot;: [],
+  &quot;offline_partial_record_source_checks&quot;: null
+}</pre></details>
+<details><summary>All actual graph fields and construction decisions</summary><pre>{
+  &quot;local_schema&quot;: {
+    &quot;contextual_types&quot;: [],
+    &quot;predicates&quot;: []
+  },
+  &quot;instance_graph&quot;: {
+    &quot;entities&quot;: [],
+    &quot;events&quot;: [],
+    &quot;assertions&quot;: []
+  },
+  &quot;decisions&quot;: [],
+  &quot;partial_records_only&quot;: true
+}</pre></details></section>
+<section id="view6"><h2>C2 / 1 / repair</h2><pre>{
+  &quot;attempt_id&quot;: &quot;nested-development-demonstration-20260908-attempt-06&quot;,
+  &quot;schema_valid&quot;: null,
+  &quot;canonical_valid&quot;: null,
+  &quot;structure_valid&quot;: null,
+  &quot;scientific_accepted&quot;: false,
+  &quot;finish_reason&quot;: &quot;length&quot;,
+  &quot;failure&quot;: &quot;vLLM response is not one guided JSON choice&quot;
+}</pre><p class="warning">Generation was truncated before entity/event declarations. Only complete received assertion members appear below; null checks were not reached. Labels are not inferred from prose.</p><table><tr><th>Assertion / predicate</th><th>Bindings</th><th>Time / epistemic / commitment</th><th>Evidence / description / assessment</th></tr>
+<tr><td><pre>nA1 / nR1</pre></td><td><pre>nE2 → nE1</pre></td><td><pre>{
+  &quot;time&quot;: {
+    &quot;discourse_position&quot;: {
+      &quot;passage_order&quot;: 0,
+      &quot;sentence_order&quot;: 0,
+      &quot;token_order&quot;: 0
+    },
+    &quot;revelation_position&quot;: {
+      &quot;label&quot;: null,
+      &quot;revelation_order&quot;: 4
+    },
+    &quot;story_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 1&quot;,
+      &quot;point&quot;: 1
+    },
+    &quot;validity_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 1&quot;,
+      &quot;point&quot;: 1
+    }
+  },
+  &quot;epistemic&quot;: null,
+  &quot;commitment&quot;: &quot;world_committed&quot;,
+  &quot;direction&quot;: &quot;forward&quot;
+}</pre></td><td><pre>{
+  &quot;evidence&quot;: [
+    &quot;e1&quot;
+  ],
+  &quot;why_matters&quot;: &quot;Establishes the affiliation of Fara Cedar with Cedar Circle at story step 1.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e1&quot;: &quot;At story step 1, Fara Cedar member of Cedar Circle.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
+}</pre></td></tr>
+<tr><td><pre>nA2 / nR2</pre></td><td><pre>nE4 → nE3</pre></td><td><pre>{
+  &quot;time&quot;: {
+    &quot;discourse_position&quot;: {
+      &quot;passage_order&quot;: 1,
+      &quot;sentence_order&quot;: 0,
+      &quot;token_order&quot;: 0
+    },
+    &quot;revelation_position&quot;: {
+      &quot;label&quot;: null,
+      &quot;revelation_order&quot;: 3
+    },
+    &quot;story_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 1&quot;,
+      &quot;point&quot;: 1
+    },
+    &quot;validity_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 1&quot;,
+      &quot;point&quot;: 1
+    }
+  },
+  &quot;epistemic&quot;: null,
+  &quot;commitment&quot;: &quot;world_committed&quot;,
+  &quot;direction&quot;: &quot;forward&quot;
+}</pre></td><td><pre>{
+  &quot;evidence&quot;: [
+    &quot;e2&quot;
+  ],
+  &quot;why_matters&quot;: &quot;Establishes the affiliation of Evin Cedar with Cedar Guild at story step 1.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e2&quot;: &quot;At story step 1, Evin Cedar member of Cedar Guild.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
+}</pre></td></tr>
+<tr><td><pre>nA3 / nR3</pre></td><td><pre>nE6 → nE5</pre></td><td><pre>{
+  &quot;time&quot;: {
+    &quot;discourse_position&quot;: {
+      &quot;passage_order&quot;: 2,
+      &quot;sentence_order&quot;: 0,
+      &quot;token_order&quot;: 0
+    },
+    &quot;revelation_position&quot;: {
+      &quot;label&quot;: null,
+      &quot;revelation_order&quot;: 2
+    },
+    &quot;story_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 1&quot;,
+      &quot;point&quot;: 1
+    },
+    &quot;validity_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 1&quot;,
+      &quot;point&quot;: 1
+    }
+  },
+  &quot;epistemic&quot;: null,
+  &quot;commitment&quot;: &quot;world_committed&quot;,
+  &quot;direction&quot;: &quot;forward&quot;
+}</pre></td><td><pre>{
+  &quot;evidence&quot;: [
+    &quot;e3&quot;
+  ],
+  &quot;why_matters&quot;: &quot;Establishes the affiliation of Doran Cedar with Cedar Circle at story step 1.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e3&quot;: &quot;At story step 1, Doran Cedar member of Cedar Circle.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
+}</pre></td></tr>
+<tr><td><pre>nA4 / nR4</pre></td><td><pre>nE8 → nE7</pre></td><td><pre>{
+  &quot;time&quot;: {
+    &quot;discourse_position&quot;: {
+      &quot;passage_order&quot;: 3,
+      &quot;sentence_order&quot;: 0,
+      &quot;token_order&quot;: 0
+    },
+    &quot;revelation_position&quot;: {
+      &quot;label&quot;: null,
+      &quot;revelation_order&quot;: 1
+    },
+    &quot;story_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 1&quot;,
+      &quot;point&quot;: 1
+    },
+    &quot;validity_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 1&quot;,
+      &quot;point&quot;: 1
+    }
+  },
+  &quot;epistemic&quot;: null,
+  &quot;commitment&quot;: &quot;world_committed&quot;,
+  &quot;direction&quot;: &quot;forward&quot;
+}</pre></td><td><pre>{
+  &quot;evidence&quot;: [
+    &quot;e4&quot;
+  ],
+  &quot;why_matters&quot;: &quot;Establishes the affiliation of Cyra Cedar with Cedar Guild at story step 1.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e4&quot;: &quot;At story step 1, Cyra Cedar member of Cedar Guild.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
+}</pre></td></tr>
+<tr><td><pre>nA5 / nR5</pre></td><td><pre>nE10 → nE9</pre></td><td><pre>{
+  &quot;time&quot;: {
+    &quot;discourse_position&quot;: {
+      &quot;passage_order&quot;: 4,
+      &quot;sentence_order&quot;: 0,
+      &quot;token_order&quot;: 0
+    },
+    &quot;revelation_position&quot;: {
+      &quot;label&quot;: null,
+      &quot;revelation_order&quot;: 5
+    },
+    &quot;story_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 1&quot;,
+      &quot;point&quot;: 1
+    },
+    &quot;validity_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 1&quot;,
+      &quot;point&quot;: 1
+    }
+  },
+  &quot;epistemic&quot;: null,
+  &quot;commitment&quot;: &quot;world_committed&quot;,
+  &quot;direction&quot;: &quot;forward&quot;
+}</pre></td><td><pre>{
+  &quot;evidence&quot;: [
+    &quot;e5&quot;
+  ],
+  &quot;why_matters&quot;: &quot;Establishes the affiliation of Galen Cedar with Cedar Guild at story step 1.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e5&quot;: &quot;At story step 1, Galen Cedar member of Cedar Guild.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
+}</pre></td></tr>
+<tr><td><pre>nA6 / nR6</pre></td><td><pre>nE12 → nE11</pre></td><td><pre>{
+  &quot;time&quot;: {
+    &quot;discourse_position&quot;: {
+      &quot;passage_order&quot;: 5,
+      &quot;sentence_order&quot;: 0,
+      &quot;token_order&quot;: 0
+    },
+    &quot;revelation_position&quot;: {
+      &quot;label&quot;: null,
+      &quot;revelation_order&quot;: 20
+    },
+    &quot;story_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 1&quot;,
+      &quot;point&quot;: 1
+    },
+    &quot;validity_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 1&quot;,
+      &quot;point&quot;: 1
+    }
+  },
+  &quot;epistemic&quot;: null,
+  &quot;commitment&quot;: &quot;world_committed&quot;,
+  &quot;direction&quot;: &quot;forward&quot;
+}</pre></td><td><pre>{
+  &quot;evidence&quot;: [
+    &quot;e6&quot;
+  ],
+  &quot;why_matters&quot;: &quot;Establishes that Cyra Cedar served as Cedar Warden for Cedar Guild at story step 1.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e6&quot;: &quot;At story step 1, Cyra Cedar served as Cedar Warden for Cedar Guild. This relation held from story step 1 through story step 4.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
+}</pre></td></tr>
+<tr><td><pre>nA7 / nR7</pre></td><td><pre>nE14 → nE13</pre></td><td><pre>{
+  &quot;time&quot;: {
+    &quot;discourse_position&quot;: {
+      &quot;passage_order&quot;: 6,
+      &quot;sentence_order&quot;: 0,
+      &quot;token_order&quot;: 0
+    },
+    &quot;revelation_position&quot;: {
+      &quot;label&quot;: null,
+      &quot;revelation_order&quot;: 35
+    },
+    &quot;story_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 3&quot;,
+      &quot;point&quot;: 3
+    },
+    &quot;validity_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 3&quot;,
+      &quot;point&quot;: 3
+    }
+  },
+  &quot;epistemic&quot;: null,
+  &quot;commitment&quot;: &quot;world_committed&quot;,
+  &quot;direction&quot;: &quot;forward&quot;
+}</pre></td><td><pre>{
+  &quot;evidence&quot;: [
+    &quot;e7&quot;
+  ],
+  &quot;why_matters&quot;: &quot;Establishes that Doran Cedar acts at Cedar Quay at story step 3.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e7&quot;: &quot;At story step 3, Doran Cedar acts at Cedar Quay. This relation held from story step 3 through story step 4. The Cedar Turn 1 lasted from story step 3 through story step 4.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
+}</pre></td></tr>
+<tr><td><pre>nA8 / nR8</pre></td><td><pre>nE16 → nE15</pre></td><td><pre>{
+  &quot;time&quot;: {
+    &quot;discourse_position&quot;: {
+      &quot;passage_order&quot;: 7,
+      &quot;sentence_order&quot;: 0,
+      &quot;token_order&quot;: 0
+    },
+    &quot;revelation_position&quot;: {
+      &quot;label&quot;: null,
+      &quot;revelation_order&quot;: 33
+    },
+    &quot;story_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 3&quot;,
+      &quot;point&quot;: 3
+    },
+    &quot;validity_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 3&quot;,
+      &quot;point&quot;: 3
+    }
+  },
+  &quot;epistemic&quot;: null,
+  &quot;commitment&quot;: &quot;world_committed&quot;,
+  &quot;direction&quot;: &quot;forward&quot;
+}</pre></td><td><pre>{
+  &quot;evidence&quot;: [
+    &quot;e8&quot;
+  ],
+  &quot;why_matters&quot;: &quot;Establishes that Doran Cedar participates in Cedar Turn 1 at story step 3.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e8&quot;: &quot;At story step 3, Doran Cedar participates in Cedar Turn 1. This relation held from story step 3 through story step 4. The Cedar Turn 1 lasted from story step 3 through story step 4.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
+}</pre></td></tr>
+<tr><td><pre>nA9 / nR9</pre></td><td><pre>nE18 → nE17</pre></td><td><pre>{
+  &quot;time&quot;: {
+    &quot;discourse_position&quot;: {
+      &quot;passage_order&quot;: 8,
+      &quot;sentence_order&quot;: 0,
+      &quot;token_order&quot;: 0
+    },
+    &quot;revelation_position&quot;: {
+      &quot;label&quot;: null,
+      &quot;revelation_order&quot;: 34
+    },
+    &quot;story_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 3&quot;,
+      &quot;point&quot;: 3
+    },
+    &quot;validity_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 3&quot;,
+      &quot;point&quot;: 3
+    }
+  },
+  &quot;epistemic&quot;: null,
+  &quot;commitment&quot;: &quot;world_committed&quot;,
+  &quot;direction&quot;: &quot;forward&quot;
+}</pre></td><td><pre>{
+  &quot;evidence&quot;: [
+    &quot;e9&quot;
+  ],
+  &quot;why_matters&quot;: &quot;Establishes that Fara Cedar participates in Cedar Turn 1 at story step 3.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e9&quot;: &quot;At story step 3, Fara Cedar participates in Cedar Turn 1. This relation held from story step 3 through story step 4. The Cedar Turn 1 lasted from story step 3 through story step 4.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
+}</pre></td></tr>
+<tr><td><pre>nA10 / nR10</pre></td><td><pre>nE20 → nE19</pre></td><td><pre>{
+  &quot;time&quot;: {
+    &quot;discourse_position&quot;: {
+      &quot;passage_order&quot;: 9,
+      &quot;sentence_order&quot;: 0,
+      &quot;token_order&quot;: 0
+    },
+    &quot;revelation_position&quot;: {
+      &quot;label&quot;: null,
+      &quot;revelation_order&quot;: 45
+    },
+    &quot;story_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 4&quot;,
+      &quot;point&quot;: 4
+    },
+    &quot;validity_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 4&quot;,
+      &quot;point&quot;: 4
+    }
+  },
+  &quot;epistemic&quot;: null,
+  &quot;commitment&quot;: &quot;world_committed&quot;,
+  &quot;direction&quot;: &quot;forward&quot;
+}</pre></td><td><pre>{
+  &quot;evidence&quot;: [
+    &quot;e10&quot;
+  ],
+  &quot;why_matters&quot;: &quot;Establishes that Galen Cedar reveals route to Cedar Confrontation at story step 4.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e10&quot;: &quot;At story step 4, Galen Cedar reveals route to Cedar Confrontation. This relation held from story step 4 through story step 10. The Cedar Confrontation lasted from story step 6 through story step 7.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
+}</pre></td></tr>
+<tr><td><pre>nA11 / nR11</pre></td><td><pre>nE22 → nE21</pre></td><td><pre>{
+  &quot;time&quot;: {
+    &quot;discourse_position&quot;: {
+      &quot;passage_order&quot;: 10,
+      &quot;sentence_order&quot;: 0,
+      &quot;token_order&quot;: 0
+    },
+    &quot;revelation_position&quot;: {
+      &quot;label&quot;: null,
+      &quot;revelation_order&quot;: 22
+    },
+    &quot;story_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 5&quot;,
+      &quot;point&quot;: 5
+    },
+    &quot;validity_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 5&quot;,
+      &quot;point&quot;: 5
+    }
+  },
+  &quot;epistemic&quot;: null,
+  &quot;commitment&quot;: &quot;world_committed&quot;,
+  &quot;direction&quot;: &quot;forward&quot;
+}</pre></td><td><pre>{
+  &quot;evidence&quot;: [
+    &quot;e11&quot;
+  ],
+  &quot;why_matters&quot;: &quot;Establishes that Doran Cedar succeeds Cyra Cedar at story step 5.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e11&quot;: &quot;At story step 5, Doran Cedar succeeds Cyra Cedar.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
+}</pre></td></tr>
+<tr><td><pre>nA12 / nR12</pre></td><td><pre>nE24 → nE23</pre></td><td><pre>{
+  &quot;time&quot;: {
+    &quot;discourse_position&quot;: {
+      &quot;passage_order&quot;: 11,
+      &quot;sentence_order&quot;: 0,
+      &quot;token_order&quot;: 0
+    },
+    &quot;revelation_position&quot;: {
+      &quot;label&quot;: null,
+      &quot;revelation_order&quot;: 50
+    },
+    &quot;story_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 5&quot;,
+      &quot;point&quot;: 5
+    },
+    &quot;validity_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 5&quot;,
+      &quot;point&quot;: 5
+    }
+  },
+  &quot;epistemic&quot;: null,
+  &quot;commitment&quot;: &quot;world_committed&quot;,
+  &quot;direction&quot;: &quot;forward&quot;
+}</pre></td><td><pre>{
+  &quot;evidence&quot;: [
+    &quot;e12&quot;
+  ],
+  &quot;why_matters&quot;: &quot;Establishes that Cyra Cedar coordinates with Evin Cedar at story step 5.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e12&quot;: &quot;At story step 5, Cyra Cedar coordinates with Evin Cedar.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
+}</pre></td></tr>
+</table><details><summary>Structural and source-assessment diagnostics</summary><pre>{
+  &quot;formal&quot;: {
+    &quot;assessment_available&quot;: false,
+    &quot;reason&quot;: &quot;formal assessment unavailable; see canonical status and failure stage&quot;
+  },
+  &quot;source_only&quot;: [],
+  &quot;offline_partial_record_source_checks&quot;: [
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/0/temporal_scope/validity_time&quot;,
+      &quot;category&quot;: &quot;unsupported_intrinsic_precision&quot;,
+      &quot;constraint&quot;: &quot;Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;kind&quot;: &quot;point&quot;,
+        &quot;label&quot;: &quot;story step 1&quot;,
+        &quot;point&quot;: 1
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/1/temporal_scope/validity_time&quot;,
+      &quot;category&quot;: &quot;unsupported_intrinsic_precision&quot;,
+      &quot;constraint&quot;: &quot;Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;kind&quot;: &quot;point&quot;,
+        &quot;label&quot;: &quot;story step 1&quot;,
+        &quot;point&quot;: 1
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/2/temporal_scope/validity_time&quot;,
+      &quot;category&quot;: &quot;unsupported_intrinsic_precision&quot;,
+      &quot;constraint&quot;: &quot;Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;kind&quot;: &quot;point&quot;,
+        &quot;label&quot;: &quot;story step 1&quot;,
+        &quot;point&quot;: 1
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/3/temporal_scope/validity_time&quot;,
+      &quot;category&quot;: &quot;unsupported_intrinsic_precision&quot;,
+      &quot;constraint&quot;: &quot;Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;kind&quot;: &quot;point&quot;,
+        &quot;label&quot;: &quot;story step 1&quot;,
+        &quot;point&quot;: 1
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/4/temporal_scope/validity_time&quot;,
+      &quot;category&quot;: &quot;unsupported_intrinsic_precision&quot;,
+      &quot;constraint&quot;: &quot;Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;kind&quot;: &quot;point&quot;,
+        &quot;label&quot;: &quot;story step 1&quot;,
+        &quot;point&quot;: 1
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/10/temporal_scope/validity_time&quot;,
+      &quot;category&quot;: &quot;unsupported_intrinsic_precision&quot;,
+      &quot;constraint&quot;: &quot;Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;kind&quot;: &quot;point&quot;,
+        &quot;label&quot;: &quot;story step 5&quot;,
+        &quot;point&quot;: 5
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/11/temporal_scope/validity_time&quot;,
+      &quot;category&quot;: &quot;unsupported_intrinsic_precision&quot;,
+      &quot;constraint&quot;: &quot;Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;kind&quot;: &quot;point&quot;,
+        &quot;label&quot;: &quot;story step 5&quot;,
+        &quot;point&quot;: 5
+      }
+    }
+  ]
+}</pre></details>
+<details><summary>All actual graph fields and construction decisions</summary><pre>{
+  &quot;contextual_interpretation&quot;: &quot;The narrative explores the affiliations and state changes of characters in Cedar Harbor Accord, focusing on their roles, events, and consequences within a defined time frame. The analysis centers on actors, offices, and events, with an emphasis on how their relationships and statuses evolve through the story steps.&quot;,
+  &quot;local_schema&quot;: {
+    &quot;contextual_types&quot;: [],
+    &quot;predicates&quot;: []
+  },
+  &quot;instance_graph&quot;: {
+    &quot;entities&quot;: [],
+    &quot;events&quot;: [],
+    &quot;assertions&quot;: [
+      {
+        &quot;assertion_id&quot;: &quot;nA1&quot;,
+        &quot;confidence&quot;: 0.96,
+        &quot;content&quot;: {
+          &quot;evidence_ids&quot;: [
+            &quot;e1&quot;
+          ],
+          &quot;form&quot;: &quot;binary&quot;,
+          &quot;object_id&quot;: &quot;nE1&quot;,
+          &quot;predicate_id&quot;: &quot;nR1&quot;,
+          &quot;subject_id&quot;: &quot;nE2&quot;,
+          &quot;temporal_content&quot;: {
+            &quot;discourse_position&quot;: {
+              &quot;passage_order&quot;: 0,
+              &quot;sentence_order&quot;: 0,
+              &quot;token_order&quot;: 0
+            },
+            &quot;revelation_position&quot;: {
+              &quot;label&quot;: null,
+              &quot;revelation_order&quot;: 4
+            },
+            &quot;story_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 1&quot;,
+              &quot;point&quot;: 1
+            },
+            &quot;validity_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 1&quot;,
+              &quot;point&quot;: 1
+            }
+          }
+        },
+        &quot;content_identity&quot;: null,
+        &quot;contextual_relevance&quot;: 0.96,
+        &quot;direction&quot;: &quot;forward&quot;,
+        &quot;epistemic_scope&quot;: null,
+        &quot;evidence_ids&quot;: [
+          &quot;e1&quot;
+        ],
+        &quot;narrative_commitment&quot;: &quot;world_committed&quot;,
+        &quot;provenance&quot;: [
+          {
+            &quot;confidence&quot;: 1.0,
+            &quot;evidence_id&quot;: &quot;e1&quot;
+          }
+        ],
+        &quot;temporal_scope&quot;: &quot;content&quot;,
+        &quot;why_matters&quot;: &quot;Establishes the affiliation of Fara Cedar with Cedar Circle at story step 1.&quot;,
+        &quot;why_matters_evidence_ids&quot;: [
+          &quot;e1&quot;
+        ]
+      },
+      {
+        &quot;assertion_id&quot;: &quot;nA2&quot;,
+        &quot;confidence&quot;: 0.96,
+        &quot;content&quot;: {
+          &quot;evidence_ids&quot;: [
+            &quot;e2&quot;
+          ],
+          &quot;form&quot;: &quot;binary&quot;,
+          &quot;object_id&quot;: &quot;nE3&quot;,
+          &quot;predicate_id&quot;: &quot;nR2&quot;,
+          &quot;subject_id&quot;: &quot;nE4&quot;,
+          &quot;temporal_content&quot;: {
+            &quot;discourse_position&quot;: {
+              &quot;passage_order&quot;: 1,
+              &quot;sentence_order&quot;: 0,
+              &quot;token_order&quot;: 0
+            },
+            &quot;revelation_position&quot;: {
+              &quot;label&quot;: null,
+              &quot;revelation_order&quot;: 3
+            },
+            &quot;story_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 1&quot;,
+              &quot;point&quot;: 1
+            },
+            &quot;validity_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 1&quot;,
+              &quot;point&quot;: 1
+            }
+          }
+        },
+        &quot;content_identity&quot;: null,
+        &quot;contextual_relevance&quot;: 0.96,
+        &quot;direction&quot;: &quot;forward&quot;,
+        &quot;epistemic_scope&quot;: null,
+        &quot;evidence_ids&quot;: [
+          &quot;e2&quot;
+        ],
+        &quot;narrative_commitment&quot;: &quot;world_committed&quot;,
+        &quot;provenance&quot;: [
+          {
+            &quot;confidence&quot;: 1.0,
+            &quot;evidence_id&quot;: &quot;e2&quot;
+          }
+        ],
+        &quot;temporal_scope&quot;: &quot;content&quot;,
+        &quot;why_matters&quot;: &quot;Establishes the affiliation of Evin Cedar with Cedar Guild at story step 1.&quot;,
+        &quot;why_matters_evidence_ids&quot;: [
+          &quot;e2&quot;
+        ]
+      },
+      {
+        &quot;assertion_id&quot;: &quot;nA3&quot;,
+        &quot;confidence&quot;: 0.96,
+        &quot;content&quot;: {
+          &quot;evidence_ids&quot;: [
+            &quot;e3&quot;
+          ],
+          &quot;form&quot;: &quot;binary&quot;,
+          &quot;object_id&quot;: &quot;nE5&quot;,
+          &quot;predicate_id&quot;: &quot;nR3&quot;,
+          &quot;subject_id&quot;: &quot;nE6&quot;,
+          &quot;temporal_content&quot;: {
+            &quot;discourse_position&quot;: {
+              &quot;passage_order&quot;: 2,
+              &quot;sentence_order&quot;: 0,
+              &quot;token_order&quot;: 0
+            },
+            &quot;revelation_position&quot;: {
+              &quot;label&quot;: null,
+              &quot;revelation_order&quot;: 2
+            },
+            &quot;story_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 1&quot;,
+              &quot;point&quot;: 1
+            },
+            &quot;validity_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 1&quot;,
+              &quot;point&quot;: 1
+            }
+          }
+        },
+        &quot;content_identity&quot;: null,
+        &quot;contextual_relevance&quot;: 0.96,
+        &quot;direction&quot;: &quot;forward&quot;,
+        &quot;epistemic_scope&quot;: null,
+        &quot;evidence_ids&quot;: [
+          &quot;e3&quot;
+        ],
+        &quot;narrative_commitment&quot;: &quot;world_committed&quot;,
+        &quot;provenance&quot;: [
+          {
+            &quot;confidence&quot;: 1.0,
+            &quot;evidence_id&quot;: &quot;e3&quot;
+          }
+        ],
+        &quot;temporal_scope&quot;: &quot;content&quot;,
+        &quot;why_matters&quot;: &quot;Establishes the affiliation of Doran Cedar with Cedar Circle at story step 1.&quot;,
+        &quot;why_matters_evidence_ids&quot;: [
+          &quot;e3&quot;
+        ]
+      },
+      {
+        &quot;assertion_id&quot;: &quot;nA4&quot;,
+        &quot;confidence&quot;: 0.96,
+        &quot;content&quot;: {
+          &quot;evidence_ids&quot;: [
+            &quot;e4&quot;
+          ],
+          &quot;form&quot;: &quot;binary&quot;,
+          &quot;object_id&quot;: &quot;nE7&quot;,
+          &quot;predicate_id&quot;: &quot;nR4&quot;,
+          &quot;subject_id&quot;: &quot;nE8&quot;,
+          &quot;temporal_content&quot;: {
+            &quot;discourse_position&quot;: {
+              &quot;passage_order&quot;: 3,
+              &quot;sentence_order&quot;: 0,
+              &quot;token_order&quot;: 0
+            },
+            &quot;revelation_position&quot;: {
+              &quot;label&quot;: null,
+              &quot;revelation_order&quot;: 1
+            },
+            &quot;story_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 1&quot;,
+              &quot;point&quot;: 1
+            },
+            &quot;validity_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 1&quot;,
+              &quot;point&quot;: 1
+            }
+          }
+        },
+        &quot;content_identity&quot;: null,
+        &quot;contextual_relevance&quot;: 0.96,
+        &quot;direction&quot;: &quot;forward&quot;,
+        &quot;epistemic_scope&quot;: null,
+        &quot;evidence_ids&quot;: [
+          &quot;e4&quot;
+        ],
+        &quot;narrative_commitment&quot;: &quot;world_committed&quot;,
+        &quot;provenance&quot;: [
+          {
+            &quot;confidence&quot;: 1.0,
+            &quot;evidence_id&quot;: &quot;e4&quot;
+          }
+        ],
+        &quot;temporal_scope&quot;: &quot;content&quot;,
+        &quot;why_matters&quot;: &quot;Establishes the affiliation of Cyra Cedar with Cedar Guild at story step 1.&quot;,
+        &quot;why_matters_evidence_ids&quot;: [
+          &quot;e4&quot;
+        ]
+      },
+      {
+        &quot;assertion_id&quot;: &quot;nA5&quot;,
+        &quot;confidence&quot;: 0.96,
+        &quot;content&quot;: {
+          &quot;evidence_ids&quot;: [
+            &quot;e5&quot;
+          ],
+          &quot;form&quot;: &quot;binary&quot;,
+          &quot;object_id&quot;: &quot;nE9&quot;,
+          &quot;predicate_id&quot;: &quot;nR5&quot;,
+          &quot;subject_id&quot;: &quot;nE10&quot;,
+          &quot;temporal_content&quot;: {
+            &quot;discourse_position&quot;: {
+              &quot;passage_order&quot;: 4,
+              &quot;sentence_order&quot;: 0,
+              &quot;token_order&quot;: 0
+            },
+            &quot;revelation_position&quot;: {
+              &quot;label&quot;: null,
+              &quot;revelation_order&quot;: 5
+            },
+            &quot;story_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 1&quot;,
+              &quot;point&quot;: 1
+            },
+            &quot;validity_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 1&quot;,
+              &quot;point&quot;: 1
+            }
+          }
+        },
+        &quot;content_identity&quot;: null,
+        &quot;contextual_relevance&quot;: 0.96,
+        &quot;direction&quot;: &quot;forward&quot;,
+        &quot;epistemic_scope&quot;: null,
+        &quot;evidence_ids&quot;: [
+          &quot;e5&quot;
+        ],
+        &quot;narrative_commitment&quot;: &quot;world_committed&quot;,
+        &quot;provenance&quot;: [
+          {
+            &quot;confidence&quot;: 1.0,
+            &quot;evidence_id&quot;: &quot;e5&quot;
+          }
+        ],
+        &quot;temporal_scope&quot;: &quot;content&quot;,
+        &quot;why_matters&quot;: &quot;Establishes the affiliation of Galen Cedar with Cedar Guild at story step 1.&quot;,
+        &quot;why_matters_evidence_ids&quot;: [
+          &quot;e5&quot;
+        ]
+      },
+      {
+        &quot;assertion_id&quot;: &quot;nA6&quot;,
+        &quot;confidence&quot;: 0.96,
+        &quot;content&quot;: {
+          &quot;evidence_ids&quot;: [
+            &quot;e6&quot;
+          ],
+          &quot;form&quot;: &quot;binary&quot;,
+          &quot;object_id&quot;: &quot;nE11&quot;,
+          &quot;predicate_id&quot;: &quot;nR6&quot;,
+          &quot;subject_id&quot;: &quot;nE12&quot;,
+          &quot;temporal_content&quot;: {
+            &quot;discourse_position&quot;: {
+              &quot;passage_order&quot;: 5,
+              &quot;sentence_order&quot;: 0,
+              &quot;token_order&quot;: 0
+            },
+            &quot;revelation_position&quot;: {
+              &quot;label&quot;: null,
+              &quot;revelation_order&quot;: 20
+            },
+            &quot;story_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 1&quot;,
+              &quot;point&quot;: 1
+            },
+            &quot;validity_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 1&quot;,
+              &quot;point&quot;: 1
+            }
+          }
+        },
+        &quot;content_identity&quot;: null,
+        &quot;contextual_relevance&quot;: 0.96,
+        &quot;direction&quot;: &quot;forward&quot;,
+        &quot;epistemic_scope&quot;: null,
+        &quot;evidence_ids&quot;: [
+          &quot;e6&quot;
+        ],
+        &quot;narrative_commitment&quot;: &quot;world_committed&quot;,
+        &quot;provenance&quot;: [
+          {
+            &quot;confidence&quot;: 1.0,
+            &quot;evidence_id&quot;: &quot;e6&quot;
+          }
+        ],
+        &quot;temporal_scope&quot;: &quot;content&quot;,
+        &quot;why_matters&quot;: &quot;Establishes that Cyra Cedar served as Cedar Warden for Cedar Guild at story step 1.&quot;,
+        &quot;why_matters_evidence_ids&quot;: [
+          &quot;e6&quot;
+        ]
+      },
+      {
+        &quot;assertion_id&quot;: &quot;nA7&quot;,
+        &quot;confidence&quot;: 0.96,
+        &quot;content&quot;: {
+          &quot;evidence_ids&quot;: [
+            &quot;e7&quot;
+          ],
+          &quot;form&quot;: &quot;binary&quot;,
+          &quot;object_id&quot;: &quot;nE13&quot;,
+          &quot;predicate_id&quot;: &quot;nR7&quot;,
+          &quot;subject_id&quot;: &quot;nE14&quot;,
+          &quot;temporal_content&quot;: {
+            &quot;discourse_position&quot;: {
+              &quot;passage_order&quot;: 6,
+              &quot;sentence_order&quot;: 0,
+              &quot;token_order&quot;: 0
+            },
+            &quot;revelation_position&quot;: {
+              &quot;label&quot;: null,
+              &quot;revelation_order&quot;: 35
+            },
+            &quot;story_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 3&quot;,
+              &quot;point&quot;: 3
+            },
+            &quot;validity_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 3&quot;,
+              &quot;point&quot;: 3
+            }
+          }
+        },
+        &quot;content_identity&quot;: null,
+        &quot;contextual_relevance&quot;: 0.96,
+        &quot;direction&quot;: &quot;forward&quot;,
+        &quot;epistemic_scope&quot;: null,
+        &quot;evidence_ids&quot;: [
+          &quot;e7&quot;
+        ],
+        &quot;narrative_commitment&quot;: &quot;world_committed&quot;,
+        &quot;provenance&quot;: [
+          {
+            &quot;confidence&quot;: 1.0,
+            &quot;evidence_id&quot;: &quot;e7&quot;
+          }
+        ],
+        &quot;temporal_scope&quot;: &quot;content&quot;,
+        &quot;why_matters&quot;: &quot;Establishes that Doran Cedar acts at Cedar Quay at story step 3.&quot;,
+        &quot;why_matters_evidence_ids&quot;: [
+          &quot;e7&quot;
+        ]
+      },
+      {
+        &quot;assertion_id&quot;: &quot;nA8&quot;,
+        &quot;confidence&quot;: 0.96,
+        &quot;content&quot;: {
+          &quot;evidence_ids&quot;: [
+            &quot;e8&quot;
+          ],
+          &quot;form&quot;: &quot;binary&quot;,
+          &quot;object_id&quot;: &quot;nE15&quot;,
+          &quot;predicate_id&quot;: &quot;nR8&quot;,
+          &quot;subject_id&quot;: &quot;nE16&quot;,
+          &quot;temporal_content&quot;: {
+            &quot;discourse_position&quot;: {
+              &quot;passage_order&quot;: 7,
+              &quot;sentence_order&quot;: 0,
+              &quot;token_order&quot;: 0
+            },
+            &quot;revelation_position&quot;: {
+              &quot;label&quot;: null,
+              &quot;revelation_order&quot;: 33
+            },
+            &quot;story_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 3&quot;,
+              &quot;point&quot;: 3
+            },
+            &quot;validity_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 3&quot;,
+              &quot;point&quot;: 3
+            }
+          }
+        },
+        &quot;content_identity&quot;: null,
+        &quot;contextual_relevance&quot;: 0.96,
+        &quot;direction&quot;: &quot;forward&quot;,
+        &quot;epistemic_scope&quot;: null,
+        &quot;evidence_ids&quot;: [
+          &quot;e8&quot;
+        ],
+        &quot;narrative_commitment&quot;: &quot;world_committed&quot;,
+        &quot;provenance&quot;: [
+          {
+            &quot;confidence&quot;: 1.0,
+            &quot;evidence_id&quot;: &quot;e8&quot;
+          }
+        ],
+        &quot;temporal_scope&quot;: &quot;content&quot;,
+        &quot;why_matters&quot;: &quot;Establishes that Doran Cedar participates in Cedar Turn 1 at story step 3.&quot;,
+        &quot;why_matters_evidence_ids&quot;: [
+          &quot;e8&quot;
+        ]
+      },
+      {
+        &quot;assertion_id&quot;: &quot;nA9&quot;,
+        &quot;confidence&quot;: 0.96,
+        &quot;content&quot;: {
+          &quot;evidence_ids&quot;: [
+            &quot;e9&quot;
+          ],
+          &quot;form&quot;: &quot;binary&quot;,
+          &quot;object_id&quot;: &quot;nE17&quot;,
+          &quot;predicate_id&quot;: &quot;nR9&quot;,
+          &quot;subject_id&quot;: &quot;nE18&quot;,
+          &quot;temporal_content&quot;: {
+            &quot;discourse_position&quot;: {
+              &quot;passage_order&quot;: 8,
+              &quot;sentence_order&quot;: 0,
+              &quot;token_order&quot;: 0
+            },
+            &quot;revelation_position&quot;: {
+              &quot;label&quot;: null,
+              &quot;revelation_order&quot;: 34
+            },
+            &quot;story_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 3&quot;,
+              &quot;point&quot;: 3
+            },
+            &quot;validity_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 3&quot;,
+              &quot;point&quot;: 3
+            }
+          }
+        },
+        &quot;content_identity&quot;: null,
+        &quot;contextual_relevance&quot;: 0.96,
+        &quot;direction&quot;: &quot;forward&quot;,
+        &quot;epistemic_scope&quot;: null,
+        &quot;evidence_ids&quot;: [
+          &quot;e9&quot;
+        ],
+        &quot;narrative_commitment&quot;: &quot;world_committed&quot;,
+        &quot;provenance&quot;: [
+          {
+            &quot;confidence&quot;: 1.0,
+            &quot;evidence_id&quot;: &quot;e9&quot;
+          }
+        ],
+        &quot;temporal_scope&quot;: &quot;content&quot;,
+        &quot;why_matters&quot;: &quot;Establishes that Fara Cedar participates in Cedar Turn 1 at story step 3.&quot;,
+        &quot;why_matters_evidence_ids&quot;: [
+          &quot;e9&quot;
+        ]
+      },
+      {
+        &quot;assertion_id&quot;: &quot;nA10&quot;,
+        &quot;confidence&quot;: 0.96,
+        &quot;content&quot;: {
+          &quot;evidence_ids&quot;: [
+            &quot;e10&quot;
+          ],
+          &quot;form&quot;: &quot;binary&quot;,
+          &quot;object_id&quot;: &quot;nE19&quot;,
+          &quot;predicate_id&quot;: &quot;nR10&quot;,
+          &quot;subject_id&quot;: &quot;nE20&quot;,
+          &quot;temporal_content&quot;: {
+            &quot;discourse_position&quot;: {
+              &quot;passage_order&quot;: 9,
+              &quot;sentence_order&quot;: 0,
+              &quot;token_order&quot;: 0
+            },
+            &quot;revelation_position&quot;: {
+              &quot;label&quot;: null,
+              &quot;revelation_order&quot;: 45
+            },
+            &quot;story_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 4&quot;,
+              &quot;point&quot;: 4
+            },
+            &quot;validity_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 4&quot;,
+              &quot;point&quot;: 4
+            }
+          }
+        },
+        &quot;content_identity&quot;: null,
+        &quot;contextual_relevance&quot;: 0.96,
+        &quot;direction&quot;: &quot;forward&quot;,
+        &quot;epistemic_scope&quot;: null,
+        &quot;evidence_ids&quot;: [
+          &quot;e10&quot;
+        ],
+        &quot;narrative_commitment&quot;: &quot;world_committed&quot;,
+        &quot;provenance&quot;: [
+          {
+            &quot;confidence&quot;: 1.0,
+            &quot;evidence_id&quot;: &quot;e10&quot;
+          }
+        ],
+        &quot;temporal_scope&quot;: &quot;content&quot;,
+        &quot;why_matters&quot;: &quot;Establishes that Galen Cedar reveals route to Cedar Confrontation at story step 4.&quot;,
+        &quot;why_matters_evidence_ids&quot;: [
+          &quot;e10&quot;
+        ]
+      },
+      {
+        &quot;assertion_id&quot;: &quot;nA11&quot;,
+        &quot;confidence&quot;: 0.96,
+        &quot;content&quot;: {
+          &quot;evidence_ids&quot;: [
+            &quot;e11&quot;
+          ],
+          &quot;form&quot;: &quot;binary&quot;,
+          &quot;object_id&quot;: &quot;nE21&quot;,
+          &quot;predicate_id&quot;: &quot;nR11&quot;,
+          &quot;subject_id&quot;: &quot;nE22&quot;,
+          &quot;temporal_content&quot;: {
+            &quot;discourse_position&quot;: {
+              &quot;passage_order&quot;: 10,
+              &quot;sentence_order&quot;: 0,
+              &quot;token_order&quot;: 0
+            },
+            &quot;revelation_position&quot;: {
+              &quot;label&quot;: null,
+              &quot;revelation_order&quot;: 22
+            },
+            &quot;story_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 5&quot;,
+              &quot;point&quot;: 5
+            },
+            &quot;validity_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 5&quot;,
+              &quot;point&quot;: 5
+            }
+          }
+        },
+        &quot;content_identity&quot;: null,
+        &quot;contextual_relevance&quot;: 0.96,
+        &quot;direction&quot;: &quot;forward&quot;,
+        &quot;epistemic_scope&quot;: null,
+        &quot;evidence_ids&quot;: [
+          &quot;e11&quot;
+        ],
+        &quot;narrative_commitment&quot;: &quot;world_committed&quot;,
+        &quot;provenance&quot;: [
+          {
+            &quot;confidence&quot;: 1.0,
+            &quot;evidence_id&quot;: &quot;e11&quot;
+          }
+        ],
+        &quot;temporal_scope&quot;: &quot;content&quot;,
+        &quot;why_matters&quot;: &quot;Establishes that Doran Cedar succeeds Cyra Cedar at story step 5.&quot;,
+        &quot;why_matters_evidence_ids&quot;: [
+          &quot;e11&quot;
+        ]
+      },
+      {
+        &quot;assertion_id&quot;: &quot;nA12&quot;,
+        &quot;confidence&quot;: 0.96,
+        &quot;content&quot;: {
+          &quot;evidence_ids&quot;: [
+            &quot;e12&quot;
+          ],
+          &quot;form&quot;: &quot;binary&quot;,
+          &quot;object_id&quot;: &quot;nE23&quot;,
+          &quot;predicate_id&quot;: &quot;nR12&quot;,
+          &quot;subject_id&quot;: &quot;nE24&quot;,
+          &quot;temporal_content&quot;: {
+            &quot;discourse_position&quot;: {
+              &quot;passage_order&quot;: 11,
+              &quot;sentence_order&quot;: 0,
+              &quot;token_order&quot;: 0
+            },
+            &quot;revelation_position&quot;: {
+              &quot;label&quot;: null,
+              &quot;revelation_order&quot;: 50
+            },
+            &quot;story_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 5&quot;,
+              &quot;point&quot;: 5
+            },
+            &quot;validity_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 5&quot;,
+              &quot;point&quot;: 5
+            }
+          }
+        },
+        &quot;content_identity&quot;: null,
+        &quot;contextual_relevance&quot;: 0.96,
+        &quot;direction&quot;: &quot;forward&quot;,
+        &quot;epistemic_scope&quot;: null,
+        &quot;evidence_ids&quot;: [
+          &quot;e12&quot;
+        ],
+        &quot;narrative_commitment&quot;: &quot;world_committed&quot;,
+        &quot;provenance&quot;: [
+          {
+            &quot;confidence&quot;: 1.0,
+            &quot;evidence_id&quot;: &quot;e12&quot;
+          }
+        ],
+        &quot;temporal_scope&quot;: &quot;content&quot;,
+        &quot;why_matters&quot;: &quot;Establishes that Cyra Cedar coordinates with Evin Cedar at story step 5.&quot;,
+        &quot;why_matters_evidence_ids&quot;: [
+          &quot;e12&quot;
+        ]
+      }
+    ]
+  },
+  &quot;decisions&quot;: [
+    {
+      &quot;created_object_ids&quot;: [
+        &quot;nE1&quot;,
+        &quot;nE2&quot;,
+        &quot;nE3&quot;,
+        &quot;nE4&quot;,
+        &quot;nE5&quot;,
+        &quot;nE6&quot;,
+        &quot;nE7&quot;,
+        &quot;nE8&quot;,
+        &quot;nE9&quot;,
+        &quot;nE10&quot;,
+        &quot;nE11&quot;,
+        &quot;nE12&quot;,
+        &quot;nE13&quot;,
+        &quot;nE14&quot;,
+        &quot;nE15&quot;,
+        &quot;nE16&quot;,
+        &quot;nE17&quot;,
+        &quot;nE18&quot;,
+        &quot;nE19&quot;,
+        &quot;nE20&quot;,
+        &quot;nE21&quot;,
+        &quot;nE22&quot;,
+        &quot;nE23&quot;,
+        &quot;nE24&quot;,
+        &quot;nE25&quot;
+      ],
+      &quot;decision_id&quot;: &quot;nD1&quot;,
+      &quot;evidence_ids&quot;: [
+        &quot;e1&quot;,
+        &quot;e2&quot;,
+        &quot;e3&quot;,
+        &quot;e4&quot;,
+        &quot;e5&quot;,
+        &quot;e6&quot;,
+        &quot;e7&quot;,
+        &quot;e8&quot;,
+        &quot;e9&quot;,
+        &quot;e10&quot;,
+        &quot;e11&quot;,
+        &quot;e12&quot;,
+        &quot;e13&quot;,
+        &quot;e14&quot;,
+        &quot;e15&quot;,
+        &quot;e16&quot;,
+        &quot;e17&quot;,
+        &quot;e18&quot;,
+        &quot;e19&quot;,
+        &quot;e20&quot;,
+        &quot;e21&quot;,
+        &quot;e22&quot;,
+        &quot;e23&quot;,
+        &quot;e24&quot;,
+        &quot;e25&quot;
+      ],
+      &quot;input_object_ids&quot;: [],
+      &quot;operator&quot;: &quot;include_exclude&quot;,
+      &quot;rationale&quot;: &quot;Include all entities identified as characters, collectives, places, and events from the evidence.&quot;,
+      &quot;removed_object_ids&quot;: []
+    },
+    {
+      &quot;created_object_ids&quot;: [
+        &quot;nT1&quot;,
+        &quot;nT2&quot;,
+        &quot;nT3&quot;,
+        &quot;nT4&quot;,
+        &quot;nT5&quot;,
+        &quot;nT6&quot;,
+        &quot;nT7&quot;,
+        &quot;nT8&quot;,
+        &quot;nT9&quot;,
+        &quot;nT10&quot;,
+        &quot;nT11&quot;,
+        &quot;nT12&quot;,
+        &quot;nT13&quot;,
+        &quot;nT14&quot;,
+        &quot;nT15&quot;,
+        &quot;nT16&quot;,
+        &quot;nT17&quot;,
+        &quot;nT18&quot;,
+        &quot;nT19&quot;,
+        &quot;nT20&quot;,
+        &quot;nT21&quot;,
+        &quot;nT22&quot;,
+        &quot;nT23&quot;,
+        &quot;nT24&quot;,
+        &quot;nT25&quot;
+      ],
+      &quot;decision_id&quot;: &quot;nD2&quot;,
+      &quot;evidence_ids&quot;: [
+        &quot;e1&quot;,
+        &quot;e2&quot;,
+        &quot;e3&quot;,
+        &quot;e4&quot;,
+        &quot;e5&quot;,
+        &quot;e6&quot;,
+        &quot;e7&quot;,
+        &quot;e8&quot;,
+        &quot;e9&quot;,
+        &quot;e10&quot;,
+        &quot;e11&quot;,
+        &quot;e12&quot;,
+        &quot;e13&quot;,
+        &quot;e14&quot;,
+        &quot;e15&quot;,
+        &quot;e16&quot;,
+        &quot;e17&quot;,
+        &quot;e18&quot;,
+        &quot;e19&quot;,
+        &quot;e20&quot;,
+        &quot;e21&quot;,
+        &quot;e22&quot;,
+        &quot;e23&quot;,
+        &quot;e24&quot;,
+        &quot;e25&quot;
+      ],
+      &quot;input_object_ids&quot;: [],
+      &quot;operator&quot;: &quot;include_exclude&quot;,
+      &quot;rationale&quot;: &quot;Include all temporal clues and relations from the evidence to establish the timeline and sequence of events.&quot;,
+      &quot;removed_object_ids&quot;: []
+    },
+    {
+      &quot;created_object_ids&quot;: [
+        &quot;nR1&quot;,
+        &quot;nR2&quot;,
+        &quot;nR3&quot;,
+        &quot;nR4&quot;,
+        &quot;nR5&quot;,
+        &quot;nR6&quot;,
+        &quot;nR7&quot;,
+        &quot;nR8&quot;,
+        &quot;nR9&quot;,
+        &quot;nR10&quot;,
+        &quot;nR11&quot;,
+        &quot;nR12&quot;,
+        &quot;nR13&quot;,
+        &quot;nR14&quot;,
+        &quot;nR15&quot;,
+        &quot;nR16&quot;,
+        &quot;nR17&quot;,
+        &quot;nR18&quot;,
+        &quot;nR19&quot;,
+        &quot;nR20&quot;,
+        &quot;nR21&quot;,
+        &quot;nR22&quot;,
+        &quot;nR23&quot;,
+        &quot;nR24&quot;,
+        &quot;nR25&quot;
+      ],
+      &quot;decision_id&quot;: &quot;nD3&quot;,
+      &quot;evidence_ids&quot;: [
+        &quot;e1&quot;,
+        &quot;e2&quot;,
+        &quot;e3&quot;,
+        &quot;e4&quot;,
+        &quot;e5&quot;,
+        &quot;e6&quot;,
+        &quot;e7&quot;,
+        &quot;e8&quot;,
+        &quot;e9&quot;,
+        &quot;e10&quot;,
+        &quot;e11&quot;,
+        &quot;e12&quot;,
+        &quot;e13&quot;,
+        &quot;e14&quot;,
+        &quot;e15&quot;,
+        &quot;e16&quot;,
+        &quot;e17&quot;,
+        &quot;e18&quot;,
+        &quot;e19&quot;,
+        &quot;e20&quot;,
+        &quot;e21&quot;,
+        &quot;e22&quot;,
+        &quot;e23&quot;,
+        &quot;e24&quot;,
+        &quot;e25&quot;
+      ],
+      &quot;input_object_ids&quot;: [],
+      &quot;operator&quot;: &quot;include_exclude&quot;,
+      &quot;rationale&quot;: &quot;Include all relations and predicates from the evidence to establish the relationships between entities.&quot;,
+      &quot;removed_object_ids&quot;: []
+    },
+    {
+      &quot;created_object_ids&quot;: [
+        &quot;nA1&quot;,
+        &quot;nA2&quot;,
+        &quot;nA3&quot;,
+        &quot;nA4&quot;,
+        &quot;nA5&quot;,
+        &quot;nA6&quot;,
+        &quot;nA7&quot;,
+        &quot;nA8&quot;,
+        &quot;nA9&quot;,
+        &quot;nA10&quot;,
+        &quot;nA11&quot;,
+        &quot;nA12&quot;,
+        &quot;nA13&quot;,
+        &quot;nA14&quot;,
+        &quot;nA15&quot;,
+        &quot;nA16&quot;,
+        &quot;nA17&quot;,
+        &quot;nA18&quot;,
+        &quot;nA19&quot;,
+        &quot;nA20&quot;,
+        &quot;nA21&quot;,
+        &quot;nA22&quot;,
+        &quot;nA23&quot;,
+        &quot;nA24&quot;,
+        &quot;nA25&quot;
+      ],
+      &quot;decision_id&quot;: &quot;nD4&quot;,
+      &quot;evidence_ids&quot;: [
+        &quot;e1&quot;,
+        &quot;e2&quot;,
+        &quot;e3&quot;,
+        &quot;e4&quot;,
+        &quot;e5&quot;,
+        &quot;e6&quot;,
+        &quot;e7&quot;,
+        &quot;e8&quot;,
+        &quot;e9&quot;,
+        &quot;e10&quot;,
+        &quot;e11&quot;,
+        &quot;e12&quot;,
+        &quot;e13&quot;,
+        &quot;e14&quot;,
+        &quot;e15&quot;,
+        &quot;e16&quot;,
+        &quot;e17&quot;,
+        &quot;e18&quot;,
+        &quot;e19&quot;,
+        &quot;e20&quot;,
+        &quot;e21&quot;,
+        &quot;e22&quot;,
+        &quot;e23&quot;,
+        &quot;e24&quot;,
+        &quot;e25&quot;
+      ],
+      &quot;input_object_ids&quot;: [],
+      &quot;operator&quot;: &quot;include_exclude&quot;,
+      &quot;rationale&quot;: &quot;Include all assertions from the evidence to establish the relationships and events.&quot;,
+      &quot;removed_object_ids&quot;: []
+    },
+    {
+      &quot;created_object_ids&quot;: [
+        &quot;nS1&quot;
+      ],
+      &quot;decision_id&quot;: &quot;nD5&quot;,
+      &quot;evidence_ids&quot;: [
+        &quot;e1&quot;,
+        &quot;e2&quot;,
+        &quot;e3&quot;,
+        &quot;e4&quot;,
+        &quot;e5&quot;,
+        &quot;e6&quot;,
+        &quot;e7&quot;,
+        &quot;e8&quot;,
+        &quot;e9&quot;,
+        &quot;e10&quot;,
+        &quot;e11&quot;,
+        &quot;e12&quot;,
+        &quot;e13&quot;,
+        &quot;e14&quot;,
+        &quot;e15&quot;,
+        &quot;e16&quot;,
+        &quot;e17&quot;,
+        &quot;e18&quot;,
+        &quot;e19&quot;,
+        &quot;e20&quot;,
+        &quot;e21&quot;,
+        &quot;e22&quot;,
+        &quot;e23&quot;,
+        &quot;e24&quot;,
+        &quot;e25&quot;
+      ],
+      &quot;input_object_ids&quot;: [],
+      &quot;operator&quot;: &quot;schema_relation&quot;,
+      &quot;rationale&quot;: &quot;Define the schema to organize the entities, relations, and events identified in the evidence.&quot;,
+      &quot;removed_object_ids&quot;: []
+    }
+  ],
+  &quot;partial_records_only&quot;: true
+}</pre></details></section>
+<section id="view7"><h2>C2 / 2 / repair</h2><pre>{
+  &quot;attempt_id&quot;: &quot;nested-development-demonstration-20260908-attempt-07&quot;,
+  &quot;schema_valid&quot;: null,
+  &quot;canonical_valid&quot;: null,
+  &quot;structure_valid&quot;: null,
+  &quot;scientific_accepted&quot;: false,
+  &quot;finish_reason&quot;: &quot;length&quot;,
+  &quot;failure&quot;: &quot;vLLM response is not one guided JSON choice&quot;
+}</pre><p class="warning">Generation was truncated before entity/event declarations. Only complete received assertion members appear below; null checks were not reached. Labels are not inferred from prose.</p><table><tr><th>Assertion / predicate</th><th>Bindings</th><th>Time / epistemic / commitment</th><th>Evidence / description / assessment</th></tr>
+<tr><td><pre>nA1 / nR1</pre></td><td><pre>nE1 → nE1</pre></td><td><pre>{
+  &quot;time&quot;: {
+    &quot;discourse_position&quot;: {
+      &quot;passage_order&quot;: 0,
+      &quot;sentence_order&quot;: 0,
+      &quot;token_order&quot;: 0
+    },
+    &quot;revelation_position&quot;: {
+      &quot;label&quot;: null,
+      &quot;revelation_order&quot;: 0
+    },
+    &quot;story_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 1&quot;,
+      &quot;point&quot;: 1
+    },
+    &quot;validity_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 1&quot;,
+      &quot;point&quot;: 1
+    }
+  },
+  &quot;epistemic&quot;: null,
+  &quot;commitment&quot;: &quot;world_committed&quot;,
+  &quot;direction&quot;: &quot;forward&quot;
+}</pre></td><td><pre>{
+  &quot;evidence&quot;: [
+    &quot;e1&quot;
+  ],
+  &quot;why_matters&quot;: &quot;Fara Cedar is a member of the Cedar Circle at story step 1.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e1&quot;: &quot;At story step 1, Fara Cedar member of Cedar Circle.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
+}</pre></td></tr>
+<tr><td><pre>nA2 / nR1</pre></td><td><pre>nE1 → nE2</pre></td><td><pre>{
+  &quot;time&quot;: {
+    &quot;discourse_position&quot;: {
+      &quot;passage_order&quot;: 0,
+      &quot;sentence_order&quot;: 0,
+      &quot;token_order&quot;: 0
+    },
+    &quot;revelation_position&quot;: {
+      &quot;label&quot;: null,
+      &quot;revelation_order&quot;: 0
+    },
+    &quot;story_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 1&quot;,
+      &quot;point&quot;: 1
+    },
+    &quot;validity_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 1&quot;,
+      &quot;point&quot;: 1
+    }
+  },
+  &quot;epistemic&quot;: null,
+  &quot;commitment&quot;: &quot;world_committed&quot;,
+  &quot;direction&quot;: &quot;forward&quot;
+}</pre></td><td><pre>{
+  &quot;evidence&quot;: [
+    &quot;e1&quot;
+  ],
+  &quot;why_matters&quot;: &quot;Fara Cedar is a member of the Cedar Circle at story step 1.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e1&quot;: &quot;At story step 1, Fara Cedar member of Cedar Circle.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
+}</pre></td></tr>
+<tr><td><pre>nA3 / nR1</pre></td><td><pre>nE2 → nE3</pre></td><td><pre>{
+  &quot;time&quot;: {
+    &quot;discourse_position&quot;: {
+      &quot;passage_order&quot;: 0,
+      &quot;sentence_order&quot;: 0,
+      &quot;token_order&quot;: 0
+    },
+    &quot;revelation_position&quot;: {
+      &quot;label&quot;: null,
+      &quot;revelation_order&quot;: 0
+    },
+    &quot;story_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 1&quot;,
+      &quot;point&quot;: 1
+    },
+    &quot;validity_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 1&quot;,
+      &quot;point&quot;: 1
+    }
+  },
+  &quot;epistemic&quot;: null,
+  &quot;commitment&quot;: &quot;world_committed&quot;,
+  &quot;direction&quot;: &quot;forward&quot;
+}</pre></td><td><pre>{
+  &quot;evidence&quot;: [
+    &quot;e2&quot;
+  ],
+  &quot;why_matters&quot;: &quot;Evin Cedar is a member of the Cedar Guild at story step 1.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e2&quot;: &quot;At story step 1, Evin Cedar member of Cedar Guild.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
+}</pre></td></tr>
+<tr><td><pre>nA4 / nR1</pre></td><td><pre>nE3 → nE4</pre></td><td><pre>{
+  &quot;time&quot;: {
+    &quot;discourse_position&quot;: {
+      &quot;passage_order&quot;: 0,
+      &quot;sentence_order&quot;: 0,
+      &quot;token_order&quot;: 0
+    },
+    &quot;revelation_position&quot;: {
+      &quot;label&quot;: null,
+      &quot;revelation_order&quot;: 0
+    },
+    &quot;story_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 1&quot;,
+      &quot;point&quot;: 1
+    },
+    &quot;validity_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 1&quot;,
+      &quot;point&quot;: 1
+    }
+  },
+  &quot;epistemic&quot;: null,
+  &quot;commitment&quot;: &quot;world_committed&quot;,
+  &quot;direction&quot;: &quot;forward&quot;
+}</pre></td><td><pre>{
+  &quot;evidence&quot;: [
+    &quot;e2&quot;
+  ],
+  &quot;why_matters&quot;: &quot;Evin Cedar is a member of the Cedar Guild at story step 1.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e2&quot;: &quot;At story step 1, Evin Cedar member of Cedar Guild.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
+}</pre></td></tr>
+<tr><td><pre>nA5 / nR1</pre></td><td><pre>nE4 → nE5</pre></td><td><pre>{
+  &quot;time&quot;: {
+    &quot;discourse_position&quot;: {
+      &quot;passage_order&quot;: 0,
+      &quot;sentence_order&quot;: 0,
+      &quot;token_order&quot;: 0
+    },
+    &quot;revelation_position&quot;: {
+      &quot;label&quot;: null,
+      &quot;revelation_order&quot;: 0
+    },
+    &quot;story_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 1&quot;,
+      &quot;point&quot;: 1
+    },
+    &quot;validity_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 1&quot;,
+      &quot;point&quot;: 1
+    }
+  },
+  &quot;epistemic&quot;: null,
+  &quot;commitment&quot;: &quot;world_committed&quot;,
+  &quot;direction&quot;: &quot;forward&quot;
+}</pre></td><td><pre>{
+  &quot;evidence&quot;: [
+    &quot;e3&quot;
+  ],
+  &quot;why_matters&quot;: &quot;Doran Cedar is a member of the Cedar Circle at story step 1.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e3&quot;: &quot;At story step 1, Doran Cedar member of Cedar Circle.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
+}</pre></td></tr>
+<tr><td><pre>nA6 / nR1</pre></td><td><pre>nE5 → nE6</pre></td><td><pre>{
+  &quot;time&quot;: {
+    &quot;discourse_position&quot;: {
+      &quot;passage_order&quot;: 0,
+      &quot;sentence_order&quot;: 0,
+      &quot;token_order&quot;: 0
+    },
+    &quot;revelation_position&quot;: {
+      &quot;label&quot;: null,
+      &quot;revelation_order&quot;: 0
+    },
+    &quot;story_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 1&quot;,
+      &quot;point&quot;: 1
+    },
+    &quot;validity_time&quot;: {
+      &quot;kind&quot;: &quot;point&quot;,
+      &quot;label&quot;: &quot;story step 1&quot;,
+      &quot;point&quot;: 1
+    }
+  },
+  &quot;epistemic&quot;: null,
+  &quot;commitment&quot;: &quot;world_committed&quot;,
+  &quot;direction&quot;: &quot;forward&quot;
+}</pre></td><td><pre>{
+  &quot;evidence&quot;: [
+    &quot;e3&quot;
+  ],
+  &quot;why_matters&quot;: &quot;Doran Cedar is a member of the Cedar Circle at story step 1.&quot;,
+  &quot;cited_source_text&quot;: {
+    &quot;e3&quot;: &quot;At story step 1, Doran Cedar member of Cedar Circle.&quot;
+  },
+  &quot;assessment&quot;: {
+    &quot;grounding&quot;: &quot;not formally assessed&quot;,
+    &quot;description&quot;: &quot;not formally assessed&quot;
+  }
+}</pre></td></tr>
+</table><details><summary>Structural and source-assessment diagnostics</summary><pre>{
+  &quot;formal&quot;: {
+    &quot;assessment_available&quot;: false,
+    &quot;reason&quot;: &quot;formal assessment unavailable; see canonical status and failure stage&quot;
+  },
+  &quot;source_only&quot;: [],
+  &quot;offline_partial_record_source_checks&quot;: [
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/0/temporal_scope/validity_time&quot;,
+      &quot;category&quot;: &quot;unsupported_intrinsic_precision&quot;,
+      &quot;constraint&quot;: &quot;Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;kind&quot;: &quot;point&quot;,
+        &quot;label&quot;: &quot;story step 1&quot;,
+        &quot;point&quot;: 1
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/1/temporal_scope/validity_time&quot;,
+      &quot;category&quot;: &quot;unsupported_intrinsic_precision&quot;,
+      &quot;constraint&quot;: &quot;Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;kind&quot;: &quot;point&quot;,
+        &quot;label&quot;: &quot;story step 1&quot;,
+        &quot;point&quot;: 1
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/2/temporal_scope/validity_time&quot;,
+      &quot;category&quot;: &quot;unsupported_intrinsic_precision&quot;,
+      &quot;constraint&quot;: &quot;Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;kind&quot;: &quot;point&quot;,
+        &quot;label&quot;: &quot;story step 1&quot;,
+        &quot;point&quot;: 1
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/3/temporal_scope/validity_time&quot;,
+      &quot;category&quot;: &quot;unsupported_intrinsic_precision&quot;,
+      &quot;constraint&quot;: &quot;Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;kind&quot;: &quot;point&quot;,
+        &quot;label&quot;: &quot;story step 1&quot;,
+        &quot;point&quot;: 1
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/4/temporal_scope/validity_time&quot;,
+      &quot;category&quot;: &quot;unsupported_intrinsic_precision&quot;,
+      &quot;constraint&quot;: &quot;Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;kind&quot;: &quot;point&quot;,
+        &quot;label&quot;: &quot;story step 1&quot;,
+        &quot;point&quot;: 1
+      }
+    },
+    {
+      &quot;path&quot;: &quot;/instance_graph/assertions/5/temporal_scope/validity_time&quot;,
+      &quot;category&quot;: &quot;unsupported_intrinsic_precision&quot;,
+      &quot;constraint&quot;: &quot;Occurrence/observation time alone does not support intrinsic validity bounds. Use evidence-supported duration or explicit unknown.&quot;,
+      &quot;generated_value&quot;: {
+        &quot;kind&quot;: &quot;point&quot;,
+        &quot;label&quot;: &quot;story step 1&quot;,
+        &quot;point&quot;: 1
+      }
+    }
+  ]
+}</pre></details>
+<details><summary>All actual graph fields and construction decisions</summary><pre>{
+  &quot;contextual_interpretation&quot;: &quot;A narrative about the Cedar Harbor Accord, focusing on the actors, their roles, and events within a structured timeline. The ontology captures the relationships between individuals, collectives, places, and events, emphasizing continuity and causality across story steps.&quot;,
+  &quot;local_schema&quot;: {
+    &quot;contextual_types&quot;: [],
+    &quot;predicates&quot;: []
+  },
+  &quot;instance_graph&quot;: {
+    &quot;entities&quot;: [],
+    &quot;events&quot;: [],
+    &quot;assertions&quot;: [
+      {
+        &quot;assertion_id&quot;: &quot;nA1&quot;,
+        &quot;confidence&quot;: 1.0,
+        &quot;content&quot;: {
+          &quot;evidence_ids&quot;: [
+            &quot;e1&quot;
+          ],
+          &quot;form&quot;: &quot;binary&quot;,
+          &quot;object_id&quot;: &quot;nE1&quot;,
+          &quot;predicate_id&quot;: &quot;nR1&quot;,
+          &quot;subject_id&quot;: &quot;nE1&quot;,
+          &quot;temporal_content&quot;: {
+            &quot;discourse_position&quot;: {
+              &quot;passage_order&quot;: 0,
+              &quot;sentence_order&quot;: 0,
+              &quot;token_order&quot;: 0
+            },
+            &quot;revelation_position&quot;: {
+              &quot;label&quot;: null,
+              &quot;revelation_order&quot;: 0
+            },
+            &quot;story_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 1&quot;,
+              &quot;point&quot;: 1
+            },
+            &quot;validity_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 1&quot;,
+              &quot;point&quot;: 1
+            }
+          }
+        },
+        &quot;content_identity&quot;: null,
+        &quot;contextual_relevance&quot;: 1.0,
+        &quot;direction&quot;: &quot;forward&quot;,
+        &quot;epistemic_scope&quot;: null,
+        &quot;evidence_ids&quot;: [
+          &quot;e1&quot;
+        ],
+        &quot;narrative_commitment&quot;: &quot;world_committed&quot;,
+        &quot;provenance&quot;: [
+          {
+            &quot;confidence&quot;: 1.0,
+            &quot;evidence_id&quot;: &quot;e1&quot;
+          }
+        ],
+        &quot;temporal_scope&quot;: &quot;content&quot;,
+        &quot;why_matters&quot;: &quot;Fara Cedar is a member of the Cedar Circle at story step 1.&quot;,
+        &quot;why_matters_evidence_ids&quot;: [
+          &quot;e1&quot;
+        ]
+      },
+      {
+        &quot;assertion_id&quot;: &quot;nA2&quot;,
+        &quot;confidence&quot;: 1.0,
+        &quot;content&quot;: {
+          &quot;evidence_ids&quot;: [
+            &quot;e1&quot;
+          ],
+          &quot;form&quot;: &quot;binary&quot;,
+          &quot;object_id&quot;: &quot;nE2&quot;,
+          &quot;predicate_id&quot;: &quot;nR1&quot;,
+          &quot;subject_id&quot;: &quot;nE1&quot;,
+          &quot;temporal_content&quot;: {
+            &quot;discourse_position&quot;: {
+              &quot;passage_order&quot;: 0,
+              &quot;sentence_order&quot;: 0,
+              &quot;token_order&quot;: 0
+            },
+            &quot;revelation_position&quot;: {
+              &quot;label&quot;: null,
+              &quot;revelation_order&quot;: 0
+            },
+            &quot;story_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 1&quot;,
+              &quot;point&quot;: 1
+            },
+            &quot;validity_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 1&quot;,
+              &quot;point&quot;: 1
+            }
+          }
+        },
+        &quot;content_identity&quot;: null,
+        &quot;contextual_relevance&quot;: 1.0,
+        &quot;direction&quot;: &quot;forward&quot;,
+        &quot;epistemic_scope&quot;: null,
+        &quot;evidence_ids&quot;: [
+          &quot;e1&quot;
+        ],
+        &quot;narrative_commitment&quot;: &quot;world_committed&quot;,
+        &quot;provenance&quot;: [
+          {
+            &quot;confidence&quot;: 1.0,
+            &quot;evidence_id&quot;: &quot;e1&quot;
+          }
+        ],
+        &quot;temporal_scope&quot;: &quot;content&quot;,
+        &quot;why_matters&quot;: &quot;Fara Cedar is a member of the Cedar Circle at story step 1.&quot;,
+        &quot;why_matters_evidence_ids&quot;: [
+          &quot;e1&quot;
+        ]
+      },
+      {
+        &quot;assertion_id&quot;: &quot;nA3&quot;,
+        &quot;confidence&quot;: 1.0,
+        &quot;content&quot;: {
+          &quot;evidence_ids&quot;: [
+            &quot;e2&quot;
+          ],
+          &quot;form&quot;: &quot;binary&quot;,
+          &quot;object_id&quot;: &quot;nE3&quot;,
+          &quot;predicate_id&quot;: &quot;nR1&quot;,
+          &quot;subject_id&quot;: &quot;nE2&quot;,
+          &quot;temporal_content&quot;: {
+            &quot;discourse_position&quot;: {
+              &quot;passage_order&quot;: 0,
+              &quot;sentence_order&quot;: 0,
+              &quot;token_order&quot;: 0
+            },
+            &quot;revelation_position&quot;: {
+              &quot;label&quot;: null,
+              &quot;revelation_order&quot;: 0
+            },
+            &quot;story_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 1&quot;,
+              &quot;point&quot;: 1
+            },
+            &quot;validity_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 1&quot;,
+              &quot;point&quot;: 1
+            }
+          }
+        },
+        &quot;content_identity&quot;: null,
+        &quot;contextual_relevance&quot;: 1.0,
+        &quot;direction&quot;: &quot;forward&quot;,
+        &quot;epistemic_scope&quot;: null,
+        &quot;evidence_ids&quot;: [
+          &quot;e2&quot;
+        ],
+        &quot;narrative_commitment&quot;: &quot;world_committed&quot;,
+        &quot;provenance&quot;: [
+          {
+            &quot;confidence&quot;: 1.0,
+            &quot;evidence_id&quot;: &quot;e2&quot;
+          }
+        ],
+        &quot;temporal_scope&quot;: &quot;content&quot;,
+        &quot;why_matters&quot;: &quot;Evin Cedar is a member of the Cedar Guild at story step 1.&quot;,
+        &quot;why_matters_evidence_ids&quot;: [
+          &quot;e2&quot;
+        ]
+      },
+      {
+        &quot;assertion_id&quot;: &quot;nA4&quot;,
+        &quot;confidence&quot;: 1.0,
+        &quot;content&quot;: {
+          &quot;evidence_ids&quot;: [
+            &quot;e2&quot;
+          ],
+          &quot;form&quot;: &quot;binary&quot;,
+          &quot;object_id&quot;: &quot;nE4&quot;,
+          &quot;predicate_id&quot;: &quot;nR1&quot;,
+          &quot;subject_id&quot;: &quot;nE3&quot;,
+          &quot;temporal_content&quot;: {
+            &quot;discourse_position&quot;: {
+              &quot;passage_order&quot;: 0,
+              &quot;sentence_order&quot;: 0,
+              &quot;token_order&quot;: 0
+            },
+            &quot;revelation_position&quot;: {
+              &quot;label&quot;: null,
+              &quot;revelation_order&quot;: 0
+            },
+            &quot;story_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 1&quot;,
+              &quot;point&quot;: 1
+            },
+            &quot;validity_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 1&quot;,
+              &quot;point&quot;: 1
+            }
+          }
+        },
+        &quot;content_identity&quot;: null,
+        &quot;contextual_relevance&quot;: 1.0,
+        &quot;direction&quot;: &quot;forward&quot;,
+        &quot;epistemic_scope&quot;: null,
+        &quot;evidence_ids&quot;: [
+          &quot;e2&quot;
+        ],
+        &quot;narrative_commitment&quot;: &quot;world_committed&quot;,
+        &quot;provenance&quot;: [
+          {
+            &quot;confidence&quot;: 1.0,
+            &quot;evidence_id&quot;: &quot;e2&quot;
+          }
+        ],
+        &quot;temporal_scope&quot;: &quot;content&quot;,
+        &quot;why_matters&quot;: &quot;Evin Cedar is a member of the Cedar Guild at story step 1.&quot;,
+        &quot;why_matters_evidence_ids&quot;: [
+          &quot;e2&quot;
+        ]
+      },
+      {
+        &quot;assertion_id&quot;: &quot;nA5&quot;,
+        &quot;confidence&quot;: 1.0,
+        &quot;content&quot;: {
+          &quot;evidence_ids&quot;: [
+            &quot;e3&quot;
+          ],
+          &quot;form&quot;: &quot;binary&quot;,
+          &quot;object_id&quot;: &quot;nE5&quot;,
+          &quot;predicate_id&quot;: &quot;nR1&quot;,
+          &quot;subject_id&quot;: &quot;nE4&quot;,
+          &quot;temporal_content&quot;: {
+            &quot;discourse_position&quot;: {
+              &quot;passage_order&quot;: 0,
+              &quot;sentence_order&quot;: 0,
+              &quot;token_order&quot;: 0
+            },
+            &quot;revelation_position&quot;: {
+              &quot;label&quot;: null,
+              &quot;revelation_order&quot;: 0
+            },
+            &quot;story_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 1&quot;,
+              &quot;point&quot;: 1
+            },
+            &quot;validity_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 1&quot;,
+              &quot;point&quot;: 1
+            }
+          }
+        },
+        &quot;content_identity&quot;: null,
+        &quot;contextual_relevance&quot;: 1.0,
+        &quot;direction&quot;: &quot;forward&quot;,
+        &quot;epistemic_scope&quot;: null,
+        &quot;evidence_ids&quot;: [
+          &quot;e3&quot;
+        ],
+        &quot;narrative_commitment&quot;: &quot;world_committed&quot;,
+        &quot;provenance&quot;: [
+          {
+            &quot;confidence&quot;: 1.0,
+            &quot;evidence_id&quot;: &quot;e3&quot;
+          }
+        ],
+        &quot;temporal_scope&quot;: &quot;content&quot;,
+        &quot;why_matters&quot;: &quot;Doran Cedar is a member of the Cedar Circle at story step 1.&quot;,
+        &quot;why_matters_evidence_ids&quot;: [
+          &quot;e3&quot;
+        ]
+      },
+      {
+        &quot;assertion_id&quot;: &quot;nA6&quot;,
+        &quot;confidence&quot;: 1.0,
+        &quot;content&quot;: {
+          &quot;evidence_ids&quot;: [
+            &quot;e3&quot;
+          ],
+          &quot;form&quot;: &quot;binary&quot;,
+          &quot;object_id&quot;: &quot;nE6&quot;,
+          &quot;predicate_id&quot;: &quot;nR1&quot;,
+          &quot;subject_id&quot;: &quot;nE5&quot;,
+          &quot;temporal_content&quot;: {
+            &quot;discourse_position&quot;: {
+              &quot;passage_order&quot;: 0,
+              &quot;sentence_order&quot;: 0,
+              &quot;token_order&quot;: 0
+            },
+            &quot;revelation_position&quot;: {
+              &quot;label&quot;: null,
+              &quot;revelation_order&quot;: 0
+            },
+            &quot;story_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 1&quot;,
+              &quot;point&quot;: 1
+            },
+            &quot;validity_time&quot;: {
+              &quot;kind&quot;: &quot;point&quot;,
+              &quot;label&quot;: &quot;story step 1&quot;,
+              &quot;point&quot;: 1
+            }
+          }
+        },
+        &quot;content_identity&quot;: null,
+        &quot;contextual_relevance&quot;: 1.0,
+        &quot;direction&quot;: &quot;forward&quot;,
+        &quot;epistemic_scope&quot;: null,
+        &quot;evidence_ids&quot;: [
+          &quot;e3&quot;
+        ],
+        &quot;narrative_commitment&quot;: &quot;world_committed&quot;,
+        &quot;provenance&quot;: [
+          {
+            &quot;confidence&quot;: 1.0,
+            &quot;evidence_id&quot;: &quot;e3&quot;
+          }
+        ],
+        &quot;temporal_scope&quot;: &quot;content&quot;,
+        &quot;why_matters&quot;: &quot;Doran Cedar is a member of the Cedar Circle at story step 1.&quot;,
+        &quot;why_matters_evidence_ids&quot;: [
+          &quot;e3&quot;
+        ]
+      }
+    ]
+  },
+  &quot;decisions&quot;: [
+    {
+      &quot;created_object_ids&quot;: [
+        &quot;nE1&quot;,
+        &quot;nE2&quot;,
+        &quot;nE3&quot;,
+        &quot;nE4&quot;,
+        &quot;nE5&quot;,
+        &quot;nE6&quot;,
+        &quot;nE7&quot;,
+        &quot;nE8&quot;,
+        &quot;nE9&quot;,
+        &quot;nE10&quot;,
+        &quot;nE11&quot;,
+        &quot;nE12&quot;,
+        &quot;nE13&quot;,
+        &quot;nE14&quot;,
+        &quot;nE15&quot;,
+        &quot;nE16&quot;,
+        &quot;nE17&quot;,
+        &quot;nE18&quot;,
+        &quot;nE19&quot;,
+        &quot;nE20&quot;,
+        &quot;nE21&quot;,
+        &quot;nE22&quot;,
+        &quot;nE23&quot;,
+        &quot;nE24&quot;,
+        &quot;nE25&quot;
+      ],
+      &quot;decision_id&quot;: &quot;nD1&quot;,
+      &quot;evidence_ids&quot;: [
+        &quot;e1&quot;,
+        &quot;e2&quot;,
+        &quot;e3&quot;,
+        &quot;e4&quot;,
+        &quot;e5&quot;,
+        &quot;e6&quot;,
+        &quot;e7&quot;,
+        &quot;e8&quot;,
+        &quot;e9&quot;,
+        &quot;e10&quot;,
+        &quot;e11&quot;,
+        &quot;e12&quot;,
+        &quot;e13&quot;,
+        &quot;e14&quot;,
+        &quot;e15&quot;,
+        &quot;e16&quot;,
+        &quot;e17&quot;,
+        &quot;e18&quot;,
+        &quot;e19&quot;,
+        &quot;e20&quot;,
+        &quot;e21&quot;,
+        &quot;e22&quot;,
+        &quot;e23&quot;,
+        &quot;e24&quot;,
+        &quot;e25&quot;
+      ],
+      &quot;input_object_ids&quot;: [],
+      &quot;operator&quot;: &quot;include_exclude&quot;,
+      &quot;rationale&quot;: &quot;Including all entities and events identified in the evidence as they are directly supported by the narrative.&quot;,
+      &quot;removed_object_ids&quot;: []
+    },
+    {
+      &quot;created_object_ids&quot;: [
+        &quot;nT1&quot;,
+        &quot;nT2&quot;,
+        &quot;nT3&quot;,
+        &quot;nT4&quot;,
+        &quot;nT5&quot;,
+        &quot;nT6&quot;,
+        &quot;nT7&quot;,
+        &quot;nT8&quot;,
+        &quot;nT9&quot;,
+        &quot;nT10&quot;,
+        &quot;nT11&quot;,
+        &quot;nT12&quot;,
+        &quot;nT13&quot;,
+        &quot;nT14&quot;,
+        &quot;nT15&quot;,
+        &quot;nT16&quot;,
+        &quot;nT17&quot;,
+        &quot;nT18&quot;,
+        &quot;nT19&quot;,
+        &quot;nT20&quot;,
+        &quot;nT21&quot;,
+        &quot;nT22&quot;,
+        &quot;nT23&quot;,
+        &quot;nT24&quot;,
+        &quot;nT25&quot;,
+        &quot;nT26&quot;,
+        &quot;nT27&quot;,
+        &quot;nT28&quot;,
+        &quot;nT29&quot;,
+        &quot;nT30&quot;,
+        &quot;nT31&quot;,
+        &quot;nT32&quot;,
+        &quot;nT33&quot;,
+        &quot;nT34&quot;,
+        &quot;nT35&quot;,
+        &quot;nT36&quot;,
+        &quot;nT37&quot;,
+        &quot;nT38&quot;,
+        &quot;nT39&quot;,
+        &quot;nT40&quot;,
+        &quot;nT41&quot;,
+        &quot;nT42&quot;,
+        &quot;nT43&quot;,
+        &quot;nT44&quot;,
+        &quot;nT45&quot;,
+        &quot;nT46&quot;,
+        &quot;nT47&quot;,
+        &quot;nT48&quot;,
+        &quot;nT49&quot;,
+        &quot;nT50&quot;,
+        &quot;nT51&quot;,
+        &quot;nT52&quot;,
+        &quot;nT53&quot;
+      ],
+      &quot;decision_id&quot;: &quot;nD2&quot;,
+      &quot;evidence_ids&quot;: [
+        &quot;e1&quot;,
+        &quot;e2&quot;,
+        &quot;e3&quot;,
+        &quot;e4&quot;,
+        &quot;e5&quot;,
+        &quot;e6&quot;,
+        &quot;e7&quot;,
+        &quot;e8&quot;,
+        &quot;e9&quot;,
+        &quot;e10&quot;,
+        &quot;e11&quot;,
+        &quot;e12&quot;,
+        &quot;e13&quot;,
+        &quot;e14&quot;,
+        &quot;e15&quot;,
+        &quot;e16&quot;,
+        &quot;e17&quot;,
+        &quot;e18&quot;,
+        &quot;e19&quot;,
+        &quot;e20&quot;,
+        &quot;e21&quot;,
+        &quot;e22&quot;,
+        &quot;e23&quot;,
+        &quot;e24&quot;,
+        &quot;e25&quot;
+      ],
+      &quot;input_object_ids&quot;: [],
+      &quot;operator&quot;: &quot;include_exclude&quot;,
+      &quot;rationale&quot;: &quot;Including all temporal and relational events as they are explicitly mentioned in the narrative.&quot;,
+      &quot;removed_object_ids&quot;: []
+    },
+    {
+      &quot;created_object_ids&quot;: [
+        &quot;nR1&quot;,
+        &quot;nR2&quot;,
+        &quot;nR3&quot;,
+        &quot;nR4&quot;,
+        &quot;nR5&quot;,
+        &quot;nR6&quot;,
+        &quot;nR7&quot;,
+        &quot;nR8&quot;,
+        &quot;nR9&quot;,
+        &quot;nR10&quot;,
+        &quot;nR11&quot;,
+        &quot;nR12&quot;,
+        &quot;nR13&quot;,
+        &quot;nR14&quot;,
+        &quot;nR15&quot;,
+        &quot;nR16&quot;,
+        &quot;nR17&quot;,
+        &quot;nR18&quot;,
+        &quot;nR19&quot;,
+        &quot;nR20&quot;,
+        &quot;nR21&quot;,
+        &quot;nR22&quot;,
+        &quot;nR23&quot;,
+        &quot;nR24&quot;,
+        &quot;nR25&quot;,
+        &quot;nR26&quot;,
+        &quot;nR27&quot;,
+        &quot;nR28&quot;,
+        &quot;nR29&quot;,
+        &quot;nR30&quot;,
+        &quot;nR31&quot;,
+        &quot;nR32&quot;,
+        &quot;nR33&quot;,
+        &quot;nR34&quot;,
+        &quot;nR35&quot;,
+        &quot;nR36&quot;,
+        &quot;nR37&quot;,
+        &quot;nR38&quot;,
+        &quot;nR39&quot;,
+        &quot;nR40&quot;,
+        &quot;nR41&quot;,
+        &quot;nR42&quot;,
+        &quot;nR43&quot;,
+        &quot;nR44&quot;,
+        &quot;nR45&quot;,
+        &quot;nR46&quot;,
+        &quot;nR47&quot;,
+        &quot;nR48&quot;,
+        &quot;nR49&quot;,
+        &quot;nR50&quot;,
+        &quot;nR51&quot;,
+        &quot;nR52&quot;,
+        &quot;nR53&quot;
+      ],
+      &quot;decision_id&quot;: &quot;nD3&quot;,
+      &quot;evidence_ids&quot;: [
+        &quot;e1&quot;,
+        &quot;e2&quot;,
+        &quot;e3&quot;,
+        &quot;e4&quot;,
+        &quot;e5&quot;,
+        &quot;e6&quot;,
+        &quot;e7&quot;,
+        &quot;e8&quot;,
+        &quot;e9&quot;,
+        &quot;e10&quot;,
+        &quot;e11&quot;,
+        &quot;e12&quot;,
+        &quot;e13&quot;,
+        &quot;e14&quot;,
+        &quot;e15&quot;,
+        &quot;e16&quot;,
+        &quot;e17&quot;,
+        &quot;e18&quot;,
+        &quot;e19&quot;,
+        &quot;e20&quot;,
+        &quot;e21&quot;,
+        &quot;e22&quot;,
+        &quot;e23&quot;,
+        &quot;e24&quot;,
+        &quot;e25&quot;
+      ],
+      &quot;input_object_ids&quot;: [],
+      &quot;operator&quot;: &quot;include_exclude&quot;,
+      &quot;rationale&quot;: &quot;Including all relations as they are explicitly mentioned in the narrative.&quot;,
+      &quot;removed_object_ids&quot;: []
+    },
+    {
+      &quot;created_object_ids&quot;: [
+        &quot;nA1&quot;,
+        &quot;nA2&quot;,
+        &quot;nA3&quot;,
+        &quot;nA4&quot;,
+        &quot;nA5&quot;,
+        &quot;nA6&quot;,
+        &quot;nA7&quot;,
+        &quot;nA8&quot;,
+        &quot;nA9&quot;,
+        &quot;nA10&quot;,
+        &quot;nA11&quot;,
+        &quot;nA12&quot;,
+        &quot;nA13&quot;,
+        &quot;nA14&quot;,
+        &quot;nA15&quot;,
+        &quot;nA16&quot;,
+        &quot;nA17&quot;,
+        &quot;nA18&quot;,
+        &quot;nA19&quot;,
+        &quot;nA20&quot;,
+        &quot;nA21&quot;,
+        &quot;nA22&quot;,
+        &quot;nA23&quot;,
+        &quot;nA24&quot;,
+        &quot;nA25&quot;,
+        &quot;nA26&quot;,
+        &quot;nA27&quot;,
+        &quot;nA28&quot;,
+        &quot;nA29&quot;,
+        &quot;nA30&quot;
+      ],
+      &quot;decision_id&quot;: &quot;nD4&quot;,
+      &quot;evidence_ids&quot;: [
+        &quot;e1&quot;,
+        &quot;e2&quot;,
+        &quot;e3&quot;,
+        &quot;e4&quot;,
+        &quot;e5&quot;,
+        &quot;e6&quot;,
+        &quot;e7&quot;,
+        &quot;e8&quot;,
+        &quot;e9&quot;,
+        &quot;e10&quot;,
+        &quot;e11&quot;,
+        &quot;e12&quot;,
+        &quot;e13&quot;,
+        &quot;e14&quot;,
+        &quot;e15&quot;,
+        &quot;e16&quot;,
+        &quot;e17&quot;,
+        &quot;e18&quot;,
+        &quot;e19&quot;,
+        &quot;e20&quot;,
+        &quot;e21&quot;,
+        &quot;e22&quot;,
+        &quot;e23&quot;,
+        &quot;e24&quot;,
+        &quot;e25&quot;
+      ],
+      &quot;input_object_ids&quot;: [],
+      &quot;operator&quot;: &quot;include_exclude&quot;,
+      &quot;rationale&quot;: &quot;Including all assertions as they are directly supported by the narrative.&quot;,
+      &quot;removed_object_ids&quot;: []
+    },
+    {
+      &quot;created_object_ids&quot;: [
+        &quot;nS1&quot;
+      ],
+      &quot;decision_id&quot;: &quot;nD5&quot;,
+      &quot;evidence_ids&quot;: [
+        &quot;e1&quot;,
+        &quot;e2&quot;,
+        &quot;e3&quot;,
+        &quot;e4&quot;,
+        &quot;e5&quot;,
+        &quot;e6&quot;,
+        &quot;e7&quot;,
+        &quot;e8&quot;,
+        &quot;e9&quot;,
+        &quot;e10&quot;,
+        &quot;e11&quot;,
+        &quot;e12&quot;,
+        &quot;e13&quot;,
+        &quot;e14&quot;,
+        &quot;e15&quot;,
+        &quot;e16&quot;,
+        &quot;e17&quot;,
+        &quot;e18&quot;,
+        &quot;e19&quot;,
+        &quot;e20&quot;,
+        &quot;e21&quot;,
+        &quot;e22&quot;,
+        &quot;e23&quot;,
+        &quot;e24&quot;,
+        &quot;e25&quot;
+      ],
+      &quot;input_object_ids&quot;: [],
+      &quot;operator&quot;: &quot;schema_relation&quot;,
+      &quot;rationale&quot;: &quot;Creating a schema to organize the narrative elements and their relationships.&quot;,
+      &quot;removed_object_ids&quot;: []
+    },
+    {
+      &quot;created_object_ids&quot;: [
+        &quot;nT1&quot;,
+        &quot;nT2&quot;,
+        &quot;nT3&quot;,
+        &quot;nT4&quot;,
+        &quot;nT5&quot;,
+        &quot;nT6&quot;,
+        &quot;nT7&quot;,
+        &quot;nT8&quot;,
+        &quot;nT9&quot;,
+        &quot;nT10&quot;,
+        &quot;nT11&quot;,
+        &quot;nT12&quot;,
+        &quot;nT13&quot;,
+        &quot;nT14&quot;,
+        &quot;nT15&quot;,
+        &quot;nT16&quot;,
+        &quot;nT17&quot;,
+        &quot;nT18&quot;,
+        &quot;nT19&quot;,
+        &quot;nT20&quot;,
+        &quot;nT21&quot;,
+        &quot;nT22&quot;,
+        &quot;nT23&quot;,
+        &quot;nT24&quot;,
+        &quot;nT25&quot;,
+        &quot;nT26&quot;,
+        &quot;nT27&quot;,
+        &quot;nT28&quot;,
+        &quot;nT29&quot;,
+        &quot;nT30&quot;,
+        &quot;nT31&quot;,
+        &quot;nT32&quot;,
+        &quot;nT33&quot;,
+        &quot;nT34&quot;,
+        &quot;nT35&quot;,
+        &quot;nT36&quot;,
+        &quot;nT37&quot;,
+        &quot;nT38&quot;,
+        &quot;nT39&quot;,
+        &quot;nT40&quot;,
+        &quot;nT41&quot;,
+        &quot;nT42&quot;,
+        &quot;nT43&quot;,
+        &quot;nT44&quot;,
+        &quot;nT45&quot;,
+        &quot;nT46&quot;,
+        &quot;nT47&quot;,
+        &quot;nT48&quot;,
+        &quot;nT49&quot;,
+        &quot;nT50&quot;,
+        &quot;nT51&quot;,
+        &quot;nT52&quot;,
+        &quot;nT53&quot;
+      ],
+      &quot;decision_id&quot;: &quot;nD6&quot;,
+      &quot;evidence_ids&quot;: [
+        &quot;e1&quot;,
+        &quot;e2&quot;,
+        &quot;e3&quot;,
+        &quot;e4&quot;,
+        &quot;e5&quot;,
+        &quot;e6&quot;,
+        &quot;e7&quot;,
+        &quot;e8&quot;,
+        &quot;e9&quot;,
+        &quot;e10&quot;,
+        &quot;e11&quot;,
+        &quot;e12&quot;,
+        &quot;e13&quot;,
+        &quot;e14&quot;,
+        &quot;e15&quot;,
+        &quot;e16&quot;,
+        &quot;e17&quot;,
+        &quot;e18&quot;,
+        &quot;e19&quot;,
+        &quot;e20&quot;,
+        &quot;e21&quot;,
+        &quot;e22&quot;,
+        &quot;e23&quot;,
+        &quot;e24&quot;,
+        &quot;e25&quot;
+      ],
+      &quot;input_object_ids&quot;: [],
+      &quot;operator&quot;: &quot;include_exclude&quot;,
+      &quot;rationale&quot;: &quot;Including all temporal events as they are explicitly mentioned in the narrative.&quot;,
+      &quot;removed_object_ids&quot;: []
+    },
+    {
+      &quot;created_object_ids&quot;: [
+        &quot;nR1&quot;,
+        &quot;nR2&quot;,
+        &quot;nR3&quot;,
+        &quot;nR4&quot;,
+        &quot;nR5&quot;,
+        &quot;nR6&quot;,
+        &quot;nR7&quot;,
+        &quot;nR8&quot;,
+        &quot;nR9&quot;,
+        &quot;nR10&quot;,
+        &quot;nR11&quot;,
+        &quot;nR12&quot;,
+        &quot;nR13&quot;,
+        &quot;nR14&quot;,
+        &quot;nR15&quot;,
+        &quot;nR16&quot;,
+        &quot;nR17&quot;,
+        &quot;nR18&quot;,
+        &quot;nR19&quot;,
+        &quot;nR20&quot;,
+        &quot;nR21&quot;,
+        &quot;nR22&quot;,
+        &quot;nR23&quot;,
+        &quot;nR24&quot;,
+        &quot;nR25&quot;,
+        &quot;nR26&quot;,
+        &quot;nR27&quot;,
+        &quot;nR28&quot;,
+        &quot;nR29&quot;,
+        &quot;nR30&quot;,
+        &quot;nR31&quot;,
+        &quot;nR32&quot;,
+        &quot;nR33&quot;,
+        &quot;nR34&quot;,
+        &quot;nR35&quot;,
+        &quot;nR36&quot;,
+        &quot;nR37&quot;,
+        &quot;nR38&quot;,
+        &quot;nR39&quot;,
+        &quot;nR40&quot;,
+        &quot;nR41&quot;,
+        &quot;nR42&quot;,
+        &quot;nR43&quot;,
+        &quot;nR44&quot;,
+        &quot;nR45&quot;,
+        &quot;nR46&quot;,
+        &quot;nR47&quot;,
+        &quot;nR48&quot;,
+        &quot;nR49&quot;,
+        &quot;nR50&quot;,
+        &quot;nR51&quot;,
+        &quot;nR52&quot;,
+        &quot;nR53&quot;
+      ],
+      &quot;decision_id&quot;: &quot;nD7&quot;,
+      &quot;evidence_ids&quot;: [
+        &quot;e1&quot;,
+        &quot;e2&quot;,
+        &quot;e3&quot;,
+        &quot;e4&quot;,
+        &quot;e5&quot;,
+        &quot;e6&quot;,
+        &quot;e7&quot;,
+        &quot;e8&quot;,
+        &quot;e9&quot;,
+        &quot;e10&quot;,
+        &quot;e11&quot;,
+        &quot;e12&quot;,
+        &quot;e13&quot;,
+        &quot;e14&quot;,
+        &quot;e15&quot;,
+        &quot;e16&quot;,
+        &quot;e17&quot;,
+        &quot;e18&quot;,
+        &quot;e19&quot;,
+        &quot;e20&quot;,
+        &quot;e21&quot;,
+        &quot;e22&quot;,
+        &quot;e23&quot;,
+        &quot;e24&quot;,
+        &quot;e25&quot;
+      ],
+      &quot;input_object_ids&quot;: [],
+      &quot;operator&quot;: &quot;include_exclude&quot;,
+      &quot;rationale&quot;: &quot;Including all relations as they are explicitly mentioned in the narrative.&quot;,
+      &quot;removed_object_ids&quot;: []
+    },
+    {
+      &quot;created_object_ids&quot;: [
+        &quot;nA1&quot;,
+        &quot;nA2&quot;,
+        &quot;nA3&quot;,
+        &quot;nA4&quot;,
+        &quot;nA5&quot;,
+        &quot;nA6&quot;,
+        &quot;nA7&quot;,
+        &quot;nA8&quot;,
+        &quot;nA9&quot;,
+        &quot;nA10&quot;,
+        &quot;nA11&quot;,
+        &quot;nA12&quot;,
+        &quot;nA13&quot;,
+        &quot;nA14&quot;,
+        &quot;nA15&quot;,
+        &quot;nA16&quot;,
+        &quot;nA17&quot;,
+        &quot;nA18&quot;,
+        &quot;nA19&quot;,
+        &quot;nA20&quot;,
+        &quot;nA21&quot;,
+        &quot;nA22&quot;,
+        &quot;nA23&quot;,
+        &quot;nA24&quot;,
+        &quot;nA25&quot;,
+        &quot;nA26&quot;,
+        &quot;nA27&quot;,
+        &quot;nA28&quot;,
+        &quot;nA29&quot;,
+        &quot;nA30&quot;
+      ],
+      &quot;decision_id&quot;: &quot;nD8&quot;,
+      &quot;evidence_ids&quot;: [
+        &quot;e1&quot;,
+        &quot;e2&quot;,
+        &quot;e3&quot;,
+        &quot;e4&quot;,
+        &quot;e5&quot;,
+        &quot;e6&quot;,
+        &quot;e7&quot;,
+        &quot;e8&quot;,
+        &quot;e9&quot;,
+        &quot;e10&quot;,
+        &quot;e11&quot;,
+        &quot;e12&quot;,
+        &quot;e13&quot;,
+        &quot;e14&quot;,
+        &quot;e15&quot;,
+        &quot;e16&quot;,
+        &quot;e17&quot;,
+        &quot;e18&quot;,
+        &quot;e19&quot;,
+        &quot;e20&quot;,
+        &quot;e21&quot;,
+        &quot;e22&quot;,
+        &quot;e23&quot;,
+        &quot;e24&quot;,
+        &quot;e25&quot;
+      ],
+      &quot;input_object_ids&quot;: [],
+      &quot;operator&quot;: &quot;include_exclude&quot;,
+      &quot;rationale&quot;: &quot;Including all assertions as they are directly supported by the narrative.&quot;,
+      &quot;removed_object_ids&quot;: []
+    },
+    {
+      &quot;created_object_ids&quot;: [
+        &quot;nS1&quot;
+      ],
+      &quot;decision_id&quot;: &quot;nD9&quot;,
+      &quot;evidence_ids&quot;: [
+        &quot;e1&quot;,
+        &quot;e2&quot;,
+        &quot;e3&quot;,
+        &quot;e4&quot;,
+        &quot;e5&quot;,
+        &quot;e6&quot;,
+        &quot;e7&quot;,
+        &quot;e8&quot;,
+        &quot;e9&quot;,
+        &quot;e10&quot;,
+        &quot;e11&quot;,
+        &quot;e12&quot;,
+        &quot;e13&quot;,
+        &quot;e14&quot;,
+        &quot;e15&quot;,
+        &quot;e16&quot;,
+        &quot;e17&quot;,
+        &quot;e18&quot;,
+        &quot;e19&quot;,
+        &quot;e20&quot;,
+        &quot;e21&quot;,
+        &quot;e22&quot;,
+        &quot;e23&quot;,
+        &quot;e24&quot;,
+        &quot;e25&quot;
+      ],
+      &quot;input_object_ids&quot;: [],
+      &quot;operator&quot;: &quot;schema_relation&quot;,
+      &quot;rationale&quot;: &quot;Creating a schema to organize the narrative elements and their relationships.&quot;,
       &quot;removed_object_ids&quot;: []
     }
   ],
