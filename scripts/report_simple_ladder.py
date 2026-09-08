@@ -40,7 +40,12 @@ def graph(facts):
         '<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#64748b"/></marker></defs>',
     ]
     for i, f in enumerate(facts):
-        if not isinstance(f, dict) or f.get("subject") not in xy or f.get("object") not in xy:
+        if (
+            not isinstance(f, dict)
+            or not all(isinstance(f.get(k), str) for k in ("subject", "object"))
+            or f["subject"] not in xy
+            or f["object"] not in xy
+        ):
             continue
         x, y = xy[f["subject"]]
         a, b = xy[f["object"]]

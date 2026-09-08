@@ -79,6 +79,16 @@ def test_toy_baseline_parses_not_lookup():
     ]
 
 
+def test_absent_qualifications_are_not_literal_sentinels():
+    for field, value in (("holder", "ABSENT"), ("attitude", None), ("valid_from", "ABSENT")):
+        facts = copy.deepcopy(references()["1"][0])
+        facts[0][field] = value
+        assert evaluate("1", {"facts": facts})["full"]["true_positive"] == 2
+    from scripts.report_simple_ladder import graph
+
+    assert "No mechanically" in graph([{"subject": {}, "object": []}])
+
+
 def test_progression_and_bounds():
     from story_projection_onto.simple_ladder_execution import next_case
 

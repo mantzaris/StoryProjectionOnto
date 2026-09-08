@@ -121,12 +121,18 @@ def key(row, *, underlying=False):
     )
     if underlying:
         return base
-    bounds = tuple(row.get(k, "ABSENT") for k in ("valid_from", "valid_until"))
     if any(
-        v != "ABSENT" and (isinstance(v, bool) or not isinstance(v, (int, float))) for v in bounds
+        k in row and (isinstance(row[k], bool) or not isinstance(row[k], (int, float)))
+        for k in ("valid_from", "valid_until")
     ):
         return None
-    return base + bounds + tuple(normalize(row.get(k, "ABSENT")) for k in ("holder", "attitude"))
+    if any(k in row and not isinstance(row[k], str) for k in ("holder", "attitude")):
+        return None
+    # Field absence is not a model-authored string, null, or unspecified holder.
+    return base + tuple(
+        (k in row, normalize(row.get(k)))
+        for k in ("valid_from", "valid_until", "holder", "attitude")
+    )
 
 
 def counts(predictions, reference, *, underlying=False):
