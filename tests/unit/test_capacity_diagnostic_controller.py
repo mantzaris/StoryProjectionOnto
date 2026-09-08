@@ -29,14 +29,14 @@ def test_stage_caps_preserve_whole_deadline_and_shutdown():
 
 def test_semantic_session_limits_are_new_and_preserve_every_historical_second():
     s = driver.SEMANTIC_SESSION
-    assert s["historical_actual_seconds"] == 5363.502630
+    assert s["historical_actual_seconds"] == 5755.222442
     assert s["global_maximum_seconds"] == s["historical_actual_seconds"] + 1100
-    assert driver.semantic_session_admit(5363.502630, 0, 0, starting=True, seconds=1035)
+    assert driver.semantic_session_admit(5755.222442, 0, 0, starting=True, seconds=1035)
     for args in (
-        dict(actual=5363.502629, starts=0, attempts=0, seconds=0),
-        dict(actual=5363.502630, starts=1, attempts=0, starting=True, seconds=0),
-        dict(actual=5363.502630, starts=1, attempts=3, generating=True, seconds=0),
-        dict(actual=6400, starts=1, attempts=2, generating=True, seconds=4),
+        dict(actual=5755.222441, starts=0, attempts=0, seconds=0),
+        dict(actual=5755.222442, starts=1, attempts=0, starting=True, seconds=0),
+        dict(actual=5755.222442, starts=1, attempts=3, generating=True, seconds=0),
+        dict(actual=6800, starts=1, attempts=2, generating=True, seconds=4),
     ):
         with pytest.raises(ValueError):
             driver.semantic_session_admit(**args)

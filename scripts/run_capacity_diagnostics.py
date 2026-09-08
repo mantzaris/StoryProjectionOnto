@@ -77,12 +77,12 @@ BLOCK_ID = "output-capacity-recovery-v1"
 EXCEPTION_DRAIN_SECONDS = 5
 SMALL_REQUEST_HASH = "cde6c6b6eedefab00aa46b7a01833998ca0b291ad8ff1daf55e574ad23681e7a"
 SEMANTIC_SESSION = {
-    "block_id": "small-semantic-interface-validation-20260907",
-    "historical_actual_seconds": 5363.502630,
+    "block_id": "small-typed-semantic-validation-20260908",
+    "historical_actual_seconds": 5755.222442,
     "maximum_new_starts": 1,
     "maximum_new_attempts": 3,
     "maximum_additional_seconds": 1100,
-    "global_maximum_seconds": 6463.502630,
+    "global_maximum_seconds": 6855.222442,
     "startup_seconds": 360,
     "live_checks_seconds": 15,
     "generation_seconds": 180,
@@ -390,13 +390,14 @@ def validate_small_diagnostic(result, fixture, oracle_evidence):
     return _validate_small_canonical_draft(draft, result, fixture, oracle_evidence)
 
 
-def validate_named_semantic_diagnostic(result, fixture, oracle_evidence, execution):
+def validate_named_semantic_diagnostic(result, fixture, oracle_evidence, execution, *, typed=False):
     """Diagnostic adapter entry point only; no scheduler/counter/GPU route activated.
 
     Retain the identical scientific checks, after runtime metadata reconstruction.
     The old production parser above still requires its original raw sentinels.
     """
     from story_projection_onto.semantic_generation import reconstruct
+    from story_projection_onto.semantic_identifiers import reconstruct_typed
 
     if (
         result.finish_reason != "stop"
@@ -408,7 +409,7 @@ def validate_named_semantic_diagnostic(result, fixture, oracle_evidence, executi
         raise ValueError("semantic diagnostic requires bound response identity and observed usage")
     adapted = result.diagnostic_journal.validate(
         "schema_validation",
-        lambda: reconstruct(
+        lambda: (reconstruct_typed if typed else reconstruct)(
             result.parsed_object,
             evidence=fixture.evidence,
             upper=fixture.upper_ontology,
@@ -533,7 +534,10 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
         raise ValueError("small diagnostic request changed from the authorized exact request")
     semantic_fixtures = {}
     if semantic:
-        from story_projection_onto.semantic_generation import build_small_request
+        from story_projection_onto.semantic_identifiers import (
+            FROZEN_FIRST_REQUEST,
+            build_typed_small_request,
+        )
 
         # Freeze both sources before allocation; no output-dependent selection.
         second_evidence = next(e for e in small_oracle if e.evidence_id == "ev-03")
@@ -553,12 +557,10 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
             "semantic-second": PreconstructionRequest.model_validate(second_raw),
         }
         variants = {
-            k: replace(build_small_request(f, tokenizer, tokenizer_manifest), request_id=k)
+            k: replace(build_typed_small_request(f, tokenizer, tokenizer_manifest), request_id=k)
             for k, f in semantic_fixtures.items()
         }
-        if variants["semantic-first"].request_hash != (
-            "bf083c095b1655da8bfb060f98e017c22e7554ef443e59c3bf22cbd5dc266ac4"
-        ):
+        if variants["semantic-first"].request_hash != FROZEN_FIRST_REQUEST:
             raise ValueError("first semantic request differs from CPU-frozen interface")
         for label, fixture in semantic_fixtures.items():
             immutable(run / f"fixture-{label}.json", fixture.model_dump(mode="json"))
@@ -750,7 +752,7 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
     started = time.monotonic()
     prior = actual - (policy_mode.BASELINE if comparison else BASELINE_SECONDS)
     session = (
-        f"semantic-interface-start-{starts + 1}"
+        f"{policy_mode.BLOCK_ID}-start-{starts + 1}"
         if semantic
         else f"representation-start-{starts + 1}"
         if comparison
@@ -891,7 +893,7 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
                 )
             )
             attempt_id = (
-                f"semantic-diagnostic-{attempts + 1}"
+                f"{policy_mode.BLOCK_ID}-diagnostic-{attempts + 1}"
                 if semantic
                 else f"representation-diagnostic-{attempts + 1}"
                 if comparison
@@ -961,6 +963,7 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
             validation = None
             schema_valid = False
             generation_schema_valid = None
+            component_checks = None
             cap = generation_watchdog(
                 stage(
                     "generation_and_exception_drain",
@@ -996,12 +999,31 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
 
                     from story_projection_onto.semantic_generation import (
                         ExecutionFacts,
-                        reconstruct,
+                    )
+                    from story_projection_onto.semantic_identifiers import (
+                        identifier_audit,
+                        reconstruct_typed,
                     )
 
                     generation_schema_valid = False
                     Draft202012Validator(request.output_schema).validate(result.parsed_object)
                     generation_schema_valid = True
+                    supplied_ids = [
+                        obj.candidate_id
+                        for e in semantic_fixtures[kind].evidence
+                        for field in (
+                            "mention_candidates",
+                            "event_candidates",
+                            "relation_phrase_candidates",
+                        )
+                        for obj in getattr(e, field)
+                    ] + [
+                        c.clue_id
+                        for e in semantic_fixtures[kind].evidence
+                        for c in e.temporal_clues
+                    ]
+                    reference_audit = identifier_audit(result.parsed_object, supplied_ids)
+                    immutable(attempt_root / "identifier-audit.json", reference_audit)
                     execution = ExecutionFacts(
                         result.request_hash,
                         result.response_sha256,
@@ -1010,7 +1032,7 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
                         result.prompt_tokens,
                         result.completion_tokens,
                     )
-                    adapted = reconstruct(
+                    adapted = reconstruct_typed(
                         result.parsed_object,
                         evidence=semantic_fixtures[kind].evidence,
                         upper=semantic_fixtures[kind].upper_ontology,
@@ -1021,13 +1043,21 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
                         attempt_root / "canonical.json", adapted.draft.model_dump(mode="json")
                     )
                     immutable(attempt_root / "adapter-provenance.json", adapted.provenance)
+                    from story_projection_onto.scorer_only.small_diagnostic_checks import (
+                        component_audit,
+                    )
+
+                    component_checks = component_audit(
+                        adapted.draft, semantic_fixtures[kind], small_oracle
+                    )
+                    immutable(attempt_root / "component-checks.json", component_checks)
                 else:
                     OntologyDraft.model_validate(result.parsed_object)
                 schema_valid = True
                 failure_stage = "schema_or_structural_validation"
                 validation = (
                     validate_named_semantic_diagnostic(
-                        result, semantic_fixtures[kind], small_oracle, execution
+                        result, semantic_fixtures[kind], small_oracle, execution, typed=True
                     )
                     if semantic
                     else validate_small_diagnostic(result, small_fixture, small_oracle)
@@ -1045,6 +1075,11 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
                     )
                 )
                 failure_stage = "scientific_capability_validation"
+                if semantic and not component_checks["all_checks_pass"]:
+                    raise ValueError(
+                        "independent small-task component checks failed; "
+                        "see restricted component-checks.json"
+                    )
                 if kind != "small" and not comparison:
                     validation["operator_behavior"] = _require_call_operator_coverage(
                         call, validation, result.parsed_object, root=root
@@ -1106,12 +1141,10 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
                 "diagnostic_kind": kind,
                 "canonical_schema_valid": schema_valid,
                 "generation_schema_valid": generation_schema_valid,
-                "reference_cross_field_valid": (
-                    failure is None
-                    or transport_metadata.get("failure_stage") == "scientific_validation"
-                )
-                if semantic and schema_valid
-                else None,
+                "reference_cross_field_valid": None
+                if component_checks is None
+                else component_checks["reference_integrity"],
+                "component_checks": component_checks,
                 "scientifically_valid": failure is None,
                 "production_form": kind != "small" and not comparison,
                 "repair_parent": semantic_retry_parent,

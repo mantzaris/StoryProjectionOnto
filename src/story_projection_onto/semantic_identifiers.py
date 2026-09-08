@@ -1,6 +1,6 @@
 """Proposed diagnostic adapter: administrative IDs, never semantic disambiguation.
 
-Not installed in any live/held-out pathway. A field's declared reference type
+Opt-in small diagnostics only, never ordinary/held-out execution. A field's declared reference type
 can resolve cross-type reuse; an ambiguous untyped decision target cannot.
 """
 
@@ -14,6 +14,39 @@ from typing import Any
 from story_projection_onto.contracts import canonical_sha256
 
 REVISION = "typed-local-identifiers-candidate-v2"
+FROZEN_FIRST_REQUEST = "fc57ab003859a7bfd7c8075fb2f1b1bec6b102f970238f778c15d392dac83693"
+
+
+def build_typed_small_request(fixture, tokenizer, tokenizer_manifest):
+    """The previously prepared request, rebuilt from complete evidence, not outputs."""
+    import json
+
+    from story_projection_onto.contracts import canonical_json
+    from story_projection_onto.gpu_runtime import ChatMessage
+    from story_projection_onto.representation_diagnostic import _repack
+    from story_projection_onto.semantic_generation import build_small_request, schema_guide
+
+    base = build_small_request(fixture, tokenizer, tokenizer_manifest)
+    # The prepared candidate was derived from the immutable canonical request,
+    # whose key order and numeric spelling determine the readable field guide.
+    schema = typed_identifier_schema(json.loads(canonical_json(base.output_schema)))
+    instruction = base.messages[0].content.split("The following complete field guide")[0]
+    begin = instruction.index("New local IDs start with n")
+    end = instruction.index("Evidence", begin)
+    instruction = instruction[:begin] + IDENTIFIER_INSTRUCTION + " " + instruction[end:]
+    system = (
+        instruction + "The following complete field guide matches the supplied grammar. "
+        "It is syntax, not an answer.\n" + schema_guide(schema)
+    )
+    return _repack(
+        base,
+        (ChatMessage(role="system", content=system), *base.messages[1:]),
+        schema,
+        tokenizer,
+        label="typed-small",
+    )
+
+
 # Independent short counters, not a shared counter the model must maintain.
 PREFIXES = dict(
     schema="nS",
