@@ -63,6 +63,7 @@ def summarize_semantic(run: Path, output: Path, readable: Path):
             "generation_schema_valid": outcome["generation_schema_valid"],
             "canonical_reconstruction": outcome["canonical_schema_valid"],
             "reference_cross_field_valid": outcome["reference_cross_field_valid"],
+            "component_checks": outcome.get("component_checks"),
             "scientific_task_accepted": outcome["accepted"],
             "failure": outcome["failure"],
             "first_event_seconds": metadata.get("stream_first_event_seconds"),
@@ -101,6 +102,72 @@ def summarize_semantic(run: Path, output: Path, readable: Path):
         rows.append(row)
         pages.append(f"## {outcome['attempt_id']} — {label}\n\n### Supplied evidence\n")
         pages.extend(f"- `{e['evidence_id']}`: {e['text']}\n" for e in fixture["evidence"])
+        if row.get("syntax_valid") and "instance_graph" in wire:
+
+            def cell(value):
+                return str(value).replace("|", "\\|").replace("\n", " ")
+
+            graph = wire["instance_graph"]
+            nodes = graph["entities"] + graph["events"]
+            labels = {n.get("entity_id", n.get("event_id")): n["label"] for n in nodes}
+            predicates = {p["predicate_id"]: p["label"] for p in wire["local_schema"]["predicates"]}
+            pages.append(
+                "\n### Readable generated records (not corrected)\n\n"
+                "| ID | Node | Description | Support assertions |\n|---|---|---|---|"
+            )
+            for n in nodes:
+                pages.append(
+                    "| "
+                    + " | ".join(
+                        map(
+                            cell,
+                            (
+                                n.get("entity_id", n.get("event_id")),
+                                n["label"],
+                                n["description"],
+                                ", ".join(n["description_assertion_ids"]),
+                            ),
+                        )
+                    )
+                    + " |"
+                )
+            pages.append(
+                "\n| ID | Subject / roles | Relation | Object | Story time | "
+                "Intrinsic validity | Citations |\n"
+                "|---|---|---|---|---|---|---|"
+            )
+            for a in graph["assertions"]:
+                subject = labels.get(a.get("subject_id"), a.get("subject_id"))
+                if a.get("roles"):
+                    subject = "; ".join(
+                        r["role"] + "=" + labels.get(r["object_id"], r["object_id"])
+                        for r in a["roles"]
+                    )
+                pages.append(
+                    "| "
+                    + " | ".join(
+                        map(
+                            cell,
+                            (
+                                a["assertion_id"],
+                                subject,
+                                predicates.get(a["predicate_id"], a["predicate_id"]),
+                                labels.get(a.get("object_id"), a.get("object_id")),
+                                a["temporal_scope"]["story_time"],
+                                a["temporal_scope"]["validity_time"],
+                                ", ".join(a["evidence_ids"]),
+                            ),
+                        )
+                    )
+                    + " |"
+                )
+            pages.append("\nConstruction decisions (exact local targets):\n")
+            for d in wire["decisions"]:
+                pages.append(
+                    f"- `{d['decision_id']}` {d['operator']}; inputs "
+                    f"`{d['input_object_ids']}`; created `{d['created_object_ids']}`; "
+                    f"removed `{d['removed_object_ids']}`. {d['rationale']}"
+                )
         pages.append(
             "\n### Observed validation outcome\n\n```json\n"
             + json.dumps(

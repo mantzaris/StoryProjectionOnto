@@ -1,5 +1,33 @@
 # Run status
 
+Updated: 2026-09-08 UTC — authorized typed-ID diagnostic session IN PROGRESS
+
+Tested live source: `2584064`; source-map SHA-256
+`25c32d6baeb889c61cedfe67d14bd1c49e2d88a058e3b6a56e4529366861e422`.
+Local 56 focused tests pass; remote 55 pass and one retained-local-artifact test
+skips. Remote CUDA-hidden packing/decoder preflight passes. Call 1 reproduces
+the frozen candidate hash exactly. Second passage preselected and frozen before
+allocation; 5,857 input + 6,144 output tokens fits 12,288 total context.
+
+One tmux session `storyprojection-study`, launched once. Baseline 5,755.222442 s;
+at most 1,100 new allocated seconds, global session maximum 6,855.222442 s.
+No ordinary calls, full C1, held-out inference or additional startup authorized.
+Caps/source binding and independent checks: `docs/TYPED_SEMANTIC_VALIDATION_SESSION.md`.
+Remote relative run:
+`artifacts/restricted/small-typed-semantic-validation-20260908/run-20260908T025837478254`.
+Status: read that run's `state.json`, `terminal.json` (when present), `vllm.log`,
+and the parent `controller-20260908T0300Z.log`. Do not duplicate this live job.
+The guardian enforces stages, whole-session deadline, three-call maximum and
+protected shutdown. A CPU preparation run preceded it without any GPU usage.
+
+C0's preserved **complete** extraction competence gate is verified: precision
+104/122, recall 104/114, all five fixture families, evidence-reference validity
+1.00. Matcher-only remains a separate failed gate. Contextual metrics unchanged.
+All 24 matcher-only/repaired assessment sidecar hashes verified this turn.
+Independent review remains pending. No interim PDF.
+
+## Previous CPU-only handoff (superseded by live status above)
+
 Updated: 2026-09-08 UTC — CPU ID diagnosis and C0 repair complete; no GPU start
 
 ## Current verified state
