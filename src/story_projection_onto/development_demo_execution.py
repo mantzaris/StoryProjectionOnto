@@ -152,7 +152,21 @@ def execute_workload(root, block, run, *, prepare_only=False, staged=False):
                 failed = [o for o in prior_outcomes if o.get("construction_stage") == missing]
                 if not failed:
                     queue.append((k + "." + missing, None, None))
-                # A terminal invalid stage is not blindly repeated on restart.
+                elif k != "c1" and missing == "A" and not stage_repairs[k]:
+                    # Never reopen terminal C1 after query-bearing calls. Only
+                    # a concrete duplicate-list defect permits a C2 prefix repair.
+                    from scripts.report_preliminary_development import streamed_content
+
+                    last = failed[-1]
+                    previous_root = stage_records[last["attempt_id"]][1]
+                    text = streamed_content(previous_root.parent, last["request_hash"])
+                    feedback = stages.prefix_duplicate_feedback(text)
+                    if (
+                        last.get("transport_metadata", {}).get("finish_reason") == "length"
+                        and feedback
+                    ):
+                        stage_repairs[k] += 1
+                        queue.append((k + ".A", last["attempt_id"], feedback))
         queue += [("fixed-q1", None, None), ("fixed-q2", None, None)]
     nontransmitted = {} if staged else nontransmitted_reservations(block)
     for attempt in nontransmitted:
@@ -171,6 +185,21 @@ def execute_workload(root, block, run, *, prepare_only=False, staged=False):
         for kind, parent, feedback in queue
         if parent and not kind.startswith("fixed") and not staged
     }
+    if staged:
+        for key, parent, feedback in queue:
+            if not parent:
+                continue
+            kind, name = key.split(".")
+            prepared_retries[parent] = stages.prepare(
+                root,
+                kind,
+                name,
+                tokenizer,
+                token_manifest,
+                prior=stage_values[kind],
+                feedback=feedback,
+            )
+            immutable(run / f"prepared-feedback-{parent}.json", feedback)
     import xgrammar
 
     compiler = xgrammar.GrammarCompiler(xgrammar.TokenizerInfo.from_huggingface(tokenizer))
@@ -200,7 +229,7 @@ def execute_workload(root, block, run, *, prepare_only=False, staged=False):
             "output_allowance": q.decoding.maximum_output_tokens,
         }
     for parent, (q, _, _, _) in prepared_retries.items():
-        if (
+        if not staged and (
             read(block / "prepared-parent-feedback.json")[parent]["prepared_request_hash"]
             != q.request_hash
         ):
@@ -405,9 +434,14 @@ def execute_workload(root, block, run, *, prepare_only=False, staged=False):
                         prior=stage_values[kind],
                         feedback=feedback,
                         previous=read(stage_records[parent][1] / "decoded.json")
-                        if parent
+                        if parent and (stage_records[parent][1] / "decoded.json").exists()
                         else None,
                     )
+                    if (
+                        parent in prepared_retries
+                        and q.request_hash != prepared_retries[parent][0].request_hash
+                    ):
+                        raise ValueError("prepared staged repair changed before transmission")
                     validate_server_schema(q.output_schema)
                 else:
                     q, evidence, mapping, budgets = (

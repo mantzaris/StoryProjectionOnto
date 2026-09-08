@@ -25,7 +25,7 @@
   "production_adoption_authorized": false,
   "model_revision": "4da05a8edb55c6046cce958586c33b61da07bb79",
   "context_limit": 12288,
-  "allocation_ladder": [[7168,5120],[8192,4096],[9216,3072],[10240,2048],[10752,1536]],
+  "allocation_ladder": [[6144,6144],[7168,5120],[8192,4096],[9216,3072],[10240,2048],[10752,1536]],
   "maximum_repairs_per_construction": 1,
-  "repair_policy_revision": "staged-v1: replace one explicitly failed stage; invalidate and regenerate later stages; unchanged semantic validators"
+  "repair_policy_revision": "staged-v2: same fields/validators; factor redundant root-budget guide; source-only duplicate-reference feedback for incomplete prefixes retained in restricted lineage; parsed stage repairs retain previous stage input"
 }

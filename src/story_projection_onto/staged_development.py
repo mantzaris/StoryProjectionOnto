@@ -5,6 +5,8 @@ from __future__ import annotations
 import copy
 import json
 import math
+import re
+from collections import Counter
 from dataclasses import asdict
 from pathlib import Path
 from types import SimpleNamespace
@@ -464,6 +466,58 @@ def repair_owner(stage, feedback):
     # More than one owning stage requires more than the one permitted semantic
     # repair, not an adapter patch or a knowingly irrelevant Stage C retry.
     return next(iter(owners)) if len(owners) == 1 else None
+
+
+def prefix_duplicate_feedback(text):
+    """Only provable list-uniqueness defects in COMPLETE received A members.
+
+    Does not reconstruct incomplete JSON, infer semantic identity, or insert
+    reference answers. Full bytes remain in restricted transport lineage.
+    """
+    paths = []
+    duplicate_count = 0
+    for field in ("entities", "events"):
+        match = re.search(r'"' + field + r'"\s*:\s*\[', text)
+        if not match:
+            continue
+        rest = text[match.end() :].lstrip()
+        index = 0
+        while rest.startswith("{"):
+            try:
+                record, end = json.JSONDecoder().raw_decode(rest)
+            except json.JSONDecodeError:
+                break
+            for key, values in record.items():
+                if (
+                    key.endswith("_ids")
+                    and isinstance(values, list)
+                    and all(isinstance(v, str) for v in values)
+                ):
+                    count = Counter(values)
+                    excess = sum(n - 1 for n in count.values())
+                    if excess:
+                        paths.append(f"/{field}/{index}/{key}")
+                        duplicate_count += excess
+            rest = rest[end:].lstrip()
+            if not rest.startswith(","):
+                break
+            rest = rest[1:].lstrip()
+            index += 1
+    if not paths:
+        return []
+    return [
+        {
+            "category": "duplicate_reference_list",
+            "paths": paths,
+            "generated_duplicate_occurrences": duplicate_count,
+            "constraint": "Each reference list must contain unique IDs. The previous incomplete "
+            "Stage A repeated references at these paths. Regenerate Stage A from "
+            "the complete evidence, retaining only references you judge support "
+            "each modeled identity. Do not copy the entire index into each record. "
+            "Keep all required fields and scientific content; budgets are unchanged. "
+            "This is a replacement, not a request to complete the truncated suffix.",
+        }
+    ]
 
 
 def validate_stage(name, value, request):

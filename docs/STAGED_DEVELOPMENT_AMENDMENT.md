@@ -74,3 +74,28 @@ project session with a tested commit bound through `STORYPROJECTION_LOCAL_COMMIT
 Report with `python -m scripts.report_preliminary_development --run <closed-run>`.
 Stop the service after work/limits/unsafe state; preserve the pod. No PDF, push,
 production inference or held-out execution is authorized by this amendment.
+
+## Bounded repair revision after the three Stage A bases
+
+Starts/reservations 5/10, actual allocation 8,668.935157 s. All three responses
+reached 5,120 tokens with incomplete Stage A. C1 remains terminally failed before
+the two query-bearing calls. It is not reopened. No B/C graph was assembled.
+
+The context-2 prefix contains 141 duplicate mention-reference occurrences in
+nine complete node records. This supplies a specific, source-independent repair
+constraint (existing list uniqueness), not a guessed graph. One parent-linked
+context-2 Stage A replacement is prepared, followed by B/C only on success and
+intact packing. Context 1 has no duplicate-list repair signal and is not repeated.
+
+Revision v2 factors repeated root-budget alternatives in the HUMAN field guide
+into a single exact aggregate ceiling; the effective schema and all scientific
+fields/validators are unchanged. The same allocation ladder now starts with
+`(6144,6144)` when the entire rendered request fits that input ceiling. This is
+the existing pinned context, not an enlarged context or a condition-specific
+advantage. Parsed-stage repairs still include the previous stage. For a truncated
+prefix, the complete original bytes stay in restricted parent lineage; the model
+receives complete evidence and every compact confirmed defect, not a CPU-completed
+prefix or a cut-down prior answer. This input omission is explicit, not truncation.
+The repair can retract unsupported content. No gold, desired binding or missing
+semantic field is supplied. One remaining authorized start and at most twelve
+remaining reservations are available within 1,647.172924 s; no new allowance.

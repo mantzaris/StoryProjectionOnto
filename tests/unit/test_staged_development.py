@@ -98,6 +98,39 @@ def test_authority_shutdown_and_stage_repair_owner():
     assert repair_owner("C", [{"category": "unknown", "paths": ["/"]}]) is None
 
 
+def test_retained_prefix_repair_is_specific_complete_and_packable(pinned):
+    import json
+
+    from scripts.report_preliminary_development import streamed_content
+    from story_projection_onto.staged_development import prefix_duplicate_feedback
+
+    r = (
+        ROOT
+        / "artifacts/restricted/staged-development-backup.q30cWu"
+        / "nested-development-demonstration-20260908/run-20260908T190755327081"
+    )
+    if not r.exists():
+        pytest.skip("Restricted actual response not available")
+    t, m = pinned
+    for p in sorted(r.glob("*/outcome.json")):
+        o = read(p)
+        raw = streamed_content(r, o["request_hash"])
+        feedback = prefix_duplicate_feedback(raw)
+        assert bool(feedback) == (o["kind"] == "c2-q2")
+        if feedback:
+            assert len(feedback[0]["paths"]) == 9
+            assert feedback[0]["generated_duplicate_occurrences"] == 141
+            q, e, _, _ = prepare(ROOT, o["kind"], "A", t, m, feedback=feedback)
+            body = json.loads(q.messages[-1].content)
+            assert all(x.text in body["evidence_index"] for x in e)
+            assert body["repair"]["diagnostics"] == feedback
+            assert body["repair"]["previous_stage_untrusted"] is None
+            assert q.rendered_input_token_count + q.decoding.maximum_output_tokens <= 12288
+            assert q.decoding.maximum_output_tokens == 6144
+            old = read(p.parent / "request.json")
+            assert q.output_schema == old["guided_json"]
+
+
 @pytest.mark.parametrize("pre_event", [False, True])
 def test_staged_controller_real_guard_transport_and_independent_contexts(
     tmp_path, monkeypatch, pinned, pre_event

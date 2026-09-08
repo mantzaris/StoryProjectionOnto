@@ -411,10 +411,18 @@ def field_guide(schema):
             )
         return str(kind)
 
+    root_view = schema
+    root_note = ""
+    if schema.get("$comment", "").startswith("development_joint_node_budget="):
+        limit = int(schema["$comment"].split("=")[1])
+        root_view = copy.deepcopy(schema["anyOf"][0])
+        for field in ("entities", "events"):
+            root_view["properties"][field].update(minItems=0, maxItems=limit)
+        root_note = f"; entities+events length<={limit}"
     rows = [
         "All fields required except ?; null=absence; []=empty; + combines fields; "
         "| selects an alternative. No extra fields.",
-        "Output=" + show(schema),
+        "Output=" + show(root_view) + root_note,
     ]
     for name, n in schema["$defs"].items():
         if name == "InstanceGraph" and n.get("$comment", "").startswith(
