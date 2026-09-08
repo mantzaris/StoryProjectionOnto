@@ -15,6 +15,7 @@ from typing import Any
 
 from story_projection_onto.contracts import BenchmarkSplit, TemporalKind, canonical_sha256
 from story_projection_onto.metrics.alignment import (
+    PREDICATE_NORMALIZATION_REVISION,
     AlignmentPlan,
     build_alignment_plan,
     score_alignment,
@@ -116,7 +117,8 @@ def compile_direct_reference(scorer: Any, evidence: Sequence[Any], root: Path) -
         "representation_coverage": coverage,
         "complete_source_and_reference_coverage": True,
         "references_compiled_without_predictions": True,
-        "strict_matcher_unchanged": True,
+        "strict_qualification_fields_unchanged": True,
+        "predicate_normalization_revision": PREDICATE_NORMALIZATION_REVISION,
         "contextual_relevance_changes_eligibility_only_in_this_extraction_scope": True,
     }
     return DirectReference(witnesses, tuple(plans), target_map, manifest)
@@ -230,5 +232,5 @@ def aggregate_extraction(rows: Sequence[Mapping[str, Any]]) -> dict:
         and metric.recall >= 0.70
         and coverage == 1
         and evidence == 1,
-        "implementation_change": False,
+        "scoring_does_not_modify_predictions": True,
     }

@@ -225,7 +225,8 @@ def run(root: Path, source: Path, output: Path):
         "extraction_world_scores": extraction,
         "predictions_reused_unchanged": True,
         "source_calibration": str(source.relative_to(root)),
-        "extraction_implementation_changed": False,
+        "scoring_does_not_modify_predictions": True,
+        "extraction_change_vs_previous_calibration": "compare bound source identities",
         "source_sha256": {
             name: hashlib.sha256((root / name).read_bytes()).hexdigest()
             for name in (

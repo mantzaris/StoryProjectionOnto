@@ -47,6 +47,16 @@ HASH_A = "a" * 64
 HASH_B = "b" * 64
 
 
+def test_direct_enabled_label_uses_common_causal_normalization_not_precedence():
+    from story_projection_onto.metrics.alignment import _normalize_predicate
+
+    for label in ("enabled", "enables", "causally enables", "contextual_enabled"):
+        assert _normalize_predicate(label, {}) == "causally_enables"
+        assert _normalize_predicate(label, {"causally_enables": "causal"}) == "causal"
+    for label in ("precedes", "occurred before", "supported", "causes"):
+        assert _normalize_predicate(label, {}) != "causally_enables"
+
+
 def test_development_office_state_labels_normalize_without_relaxing_events():
     from story_projection_onto.metrics.alignment import _normalize_predicate
 

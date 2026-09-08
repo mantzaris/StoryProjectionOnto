@@ -1,5 +1,71 @@
 # C0 development competence: denominator audit
 
+## CPU implementation repair — 2026-09-08 UTC
+
+The earlier failed records below remain immutable. These new results use the
+**same approved scope, reference witnesses, thresholds and strict qualifications**.
+No benchmark/evidence/gold or contextual denominator rule changed.
+
+| Stage | Extraction precision | Extraction recall | Contextual precision | Contextual recall |
+|---|---:|---:|---:|---:|
+| Before these CPU repairs | 53/154 (.344156) | 53/114 (.464912) | 29/269 (.107807) | 29/91 (.318681) |
+| Common lexical matcher only; original outputs | 59/154 (.383117) | 59/114 (.517544) | 31/269 (.115242) | 31/91 (.340659) |
+| Repaired C0; newly executed CPU outputs | 104/122 (.852459) | 104/114 (.912281) | 54/275 (.196364) | 54/91 (.593407) |
+
+Extraction now **passes** .85 precision/.70 recall, family coverage **1.00** and
+evidence-reference validity **1.00**; F1 **.881356**. This is the CPU competence
+record, not the integrated 24-call development gate or LLM acceptance. Contextual
+F1 is only **.295082**. All 275 emitted final assertions remain in precision,
+including **121** strictly supported but context-excluded assertions.
+
+Implementation changes are general development-derived rules, not gold/name IDs:
+
+- Explicit person/office-title/organization clauses bind each title occurrence
+  to its stated holder in the fixed actor interpretation. Repeated title text
+  no longer merges successive holders. An office assertion's organization comes
+  from its explicit `for` phrase, not a second parser-generated title endpoint.
+- Consistent explicit named-event durations unify that occurrence across its
+  supporting passages. Participation becomes evidence-cited participant/event
+  role bindings. Conflicting durations are not arbitrarily selected; unrelated
+  triggers still use the existing event rules. No query-time semantics are added.
+- Named-event organization replaces the auxiliary per-trigger event_agent
+  representation; the original participation facts now have explicit roles.
+  Across four preconstructions, 24 auxiliary event_agent assertions and eight
+  duplicate office candidate assertions are no longer emitted. This explains
+  154 -> 122 predictions; the scorer did **not** filter them out. The 24 auxiliary
+  assertions are not claimed to be byte-identical duplicates or all false facts.
+- `development-lexical-normalization-v2` makes enabled/enables and
+  causally_enables equivalent in the **common** predicate matcher. The source
+  generator's explicit causal witness already renders “enabled” for that same
+  directed relation. This implements methodological plan §12's normalized
+  predicate requirement, rather than adding a causal inference from precedence.
+  It does not merge causes, support, correlation or occurred_before into this
+  predicate. All other strict fields remain required. The six extra extraction
+  matches on the old outputs are a matching correction, not better extraction.
+
+The same pinned spaCy backend/model manifest was used before and after:
+spaCy 3.8.16, en_core_web_sm 3.8.0. New four preconstructions/twelve projections
+completed in **8.961555 local CPU wall seconds**, zero GPU allocation. Source
+identities, seals and output hashes are retained in
+`artifacts/restricted/c0-calibration-identity-events-v9/`.
+The duplicate metadata-key cleanup after execution has no semantic effect; the
+exact executed calibration script is archived there. Its existing source hash
+map retained the actual executed source identities.
+
+Canonical assessments: `c0-matcher-only-v4/assessment.json` and
+`c0-repaired-extraction-v6/assessment.json`, both under `artifacts/restricted/`.
+Readable automatically generated evidence/prediction/reference comparisons:
+`artifacts/restricted/C0_CPU_REPAIR_EXAMPLES.md`.
+
+Remaining **18 unmatched predictions / 10 unmatched witnesses** include eight
+repeated-source one-to-one conflicts, one holder/title anchor mismatch, two
+participation organization mismatches and seven precedence representations
+(one is a lexical-only occurred_before/precedes_event difference). These are
+not all unsupported extractions; existing permissible representations and target
+coverage are preserved. No new equivalence or gold amendment is applied to erase
+them. Context-dependent relevance selection remains poor despite extraction
+improvement. The prior scope amendment itself is not an implementation gain.
+
 ## Approved amendment and actual evaluations — 2026-09-07
 
 The user approved `development-query-blind-direct-extraction-v1` and

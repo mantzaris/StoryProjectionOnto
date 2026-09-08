@@ -330,6 +330,9 @@ class AlignmentResult(ImmutableRecord):
     invalid_semantic_output: bool
 
 
+PREDICATE_NORMALIZATION_REVISION = "development-lexical-normalization-v2"
+
+
 def _normalize_predicate(value: str, aliases: Mapping[str, str]) -> str:
     if value in aliases:
         return aliases[value]
@@ -341,8 +344,17 @@ def _normalize_predicate(value: str, aliases: Mapping[str, str]) -> str:
     # every condition. This is predicate normalization, not relaxed assertion
     # matching: endpoints/roles, direction, time, epistemic scope and evidence
     # must still match. Appointment/succession events are NOT office states.
-    office_state_aliases = {"served_as": "holds_office", "serves_as": "holds_office"}
-    return aliases.get(normalized, office_state_aliases.get(normalized, normalized))
+    lexical_aliases = {
+        "served_as": "holds_office",
+        "serves_as": "holds_office",
+        # Direct causal witness uses "enabled"; the compiler labels that SAME
+        # directed relation "causally_enables". Not equivalent to precedence,
+        # correlation, support, or all relations under the causal upper parent.
+        "enabled": "causally_enables",
+        "enables": "causally_enables",
+    }
+    normalized = lexical_aliases.get(normalized, normalized)
+    return aliases.get(normalized, normalized)
 
 
 def _epistemic_signature(

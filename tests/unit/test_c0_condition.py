@@ -60,6 +60,134 @@ from story_projection_onto.evidence import build_evidence_snapshot
 BASE = datetime(2026, 9, 3, 10, 0, tzinfo=UTC)
 
 
+def direct_rule_record(evidence_id, text, names, phrase, subject, object_, event=False):
+    """Authored names and source spans; no benchmark IDs or gold graphs."""
+    candidates = tuple(
+        mention(evidence_id, f"{evidence_id}-m-{i}", text, name, "person")
+        for i, name in enumerate(names)
+    )
+    return EvidenceRecord(
+        evidence_id=evidence_id,
+        passage_id=evidence_id,
+        text=text,
+        text_hash=digest(text),
+        release_class=ReleaseClass.PUBLIC,
+        discourse_position=DiscoursePosition(passage_order=1),
+        mention_candidates=candidates,
+        relation_phrase_candidates=(
+            RelationPhraseCandidate(
+                candidate_id=f"{evidence_id}-r",
+                evidence_id=evidence_id,
+                subject_mention_candidate_id=candidates[subject].candidate_id,
+                object_mention_candidate_id=candidates[object_].candidate_id,
+                surface_phrase=phrase,
+                confidence=0.95,
+            ),
+        ),
+        event_candidates=(
+            EventCandidate(
+                candidate_id=f"{evidence_id}-v",
+                evidence_id=evidence_id,
+                trigger_surface=phrase,
+                trigger_start_char=text.index(phrase),
+                trigger_end_char=text.index(phrase) + len(phrase),
+                participant_mention_candidate_ids=(candidates[subject].candidate_id,),
+                confidence=0.95,
+            ),
+        )
+        if event
+        else (),
+        provenance=ProvenanceReference(
+            provenance_id=f"{evidence_id}-prov",
+            evidence_id=evidence_id,
+            extraction_method="authored-test",
+            locator=evidence_id,
+            confidence=1,
+        ),
+        confidence=1,
+    )
+
+
+def construct_authored_records(records):
+    builder = ClassicalPreBuilder()
+    return builder._construct_draft(
+        evidence_by_id={e.evidence_id: e for e in records},
+        analyses=tuple(builder.candidate_backend.analyze(e, builder.config) for e in records),
+        upper_ontology=upper(),
+        budgets=semantic_budgets(),
+        constructed_at=BASE,
+    )
+
+
+def test_role_title_identity_is_source_bound_not_a_merge_of_successive_holders():
+    rows = tuple(
+        direct_rule_record(
+            f"office-{i}",
+            f"At story step {i + 1}, {name} served as Harbor Steward for River Union.",
+            (name, "Harbor Steward", "River Union"),
+            "served as",
+            0,
+            1,
+        )
+        for i, name in enumerate(("Mira", "Taro"))
+    )
+    draft = construct_authored_records(rows)
+    nodes = {e.label: e for e in draft.instance_graph.entities}
+    assert set(nodes) == {"Mira", "Taro", "River Union"}
+    assert set(nodes["Mira"].supported_mention_candidate_ids) == {"office-0-m-0", "office-0-m-1"}
+    assert set(nodes["Taro"].supported_mention_candidate_ids) == {"office-1-m-0", "office-1-m-1"}
+    assert all(
+        a.object_id == nodes["River Union"].entity_id for a in draft.instance_graph.assertions
+    )
+
+
+def test_named_event_shared_across_passages_has_explicit_duration_and_roles():
+    rows = tuple(
+        direct_rule_record(
+            f"event-{i}",
+            f"At story step 2, {name} participates in Bridge Opening. "
+            "This relation held from story step 2 through story step 3. "
+            "The Bridge Opening lasted from story step 2 through story step 3.",
+            (name, "Bridge Opening"),
+            "participates in",
+            0,
+            1,
+            event=True,
+        )
+        for i, name in enumerate(("Mira", "Taro"))
+    )
+    draft = construct_authored_records(rows)
+    assert len(draft.instance_graph.events) == 1
+    occurrence = draft.instance_graph.events[0]
+    assert occurrence.label == "Bridge Opening"
+    assert set(occurrence.evidence_ids) == {"event-0", "event-1"}
+    assert (occurrence.occurrence_time.start, occurrence.occurrence_time.end) == (2, 3)
+    assert len(draft.instance_graph.assertions) == 2
+    for a in draft.instance_graph.assertions:
+        assert a.subject_id is None and a.object_id is None
+        assert {r.role for r in a.roles} == {"participant", "event"}
+        assert next(r.object_id for r in a.roles if r.role == "event") == occurrence.event_id
+        assert (a.temporal_scope.validity_time.start, a.temporal_scope.validity_time.end) == (2, 3)
+
+
+def test_conflicting_named_durations_do_not_select_one_reference():
+    rows = tuple(
+        direct_rule_record(
+            f"conflict-{i}",
+            f"At story step 2, {name} participates in Bridge Opening. "
+            f"The Bridge Opening lasted from story step 2 through story step {3 + i}.",
+            (name, "Bridge Opening"),
+            "participates in",
+            0,
+            1,
+            event=True,
+        )
+        for i, name in enumerate(("Mira", "Taro"))
+    )
+    draft = construct_authored_records(rows)
+    assert all(e.label != "Bridge Opening" for e in draft.instance_graph.events)
+
+
 @pytest.mark.parametrize("left,right", [("Gate 1", "Gate 2"), ("Turn 17", "Turn 18"), ("R2", "R3")])
 def test_entity_identity_normalization_preserves_distinguishing_numbers(left, right):
     from story_projection_onto.conditions.c0 import _normalized_surface

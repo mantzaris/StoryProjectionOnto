@@ -1314,9 +1314,34 @@ class ClassicalPreBuilder:
             for alias_id in mention.alias_candidate_ids:
                 union.union(mention.mention_id, alias_id)
 
+        # A role-title mention in an explicit "person served as title for org"
+        # clause denotes that holder in the fixed actor organization. It is not
+        # an alias linking EVERY occurrence of a title (and hence all holders).
+        title_holders: dict[str, str] = {}
+        office_organizations: dict[str, str] = {}
+        for analysis in analyses:
+            text = evidence_by_id[analysis.evidence_id].text
+            for clause in re.finditer(r"\b(?:served|serves) as\s+(.+?)\s+for\s+([^.;]+)", text):
+                prior = [m for m in analysis.mentions if m.end_char <= clause.start()]
+                titles = [
+                    m
+                    for m in analysis.mentions
+                    if clause.start(1) <= m.start_char and m.end_char <= clause.end(1)
+                ]
+                organizations = [
+                    m
+                    for m in analysis.mentions
+                    if clause.start(2) <= m.start_char and m.end_char <= clause.end(2)
+                ]
+                if prior and len(titles) == 1 and len(organizations) == 1:
+                    holder = max(prior, key=lambda m: m.end_char)
+                    title_holders[titles[0].mention_id] = holder.mention_id
+                    office_organizations[analysis.evidence_id] = organizations[0].mention_id
+                    union.union(titles[0].mention_id, holder.mention_id)
+
         by_normalized: dict[str, list[str]] = defaultdict(list)
         for mention in mentions.values():
-            if not mention.is_pronoun:
+            if not mention.is_pronoun and mention.mention_id not in title_holders:
                 normalized = _normalized_surface(mention.surface, self.config.honorifics)
                 if normalized:
                     by_normalized[normalized].append(mention.mention_id)
@@ -1380,7 +1405,11 @@ class ClassicalPreBuilder:
             entity_id = _identifier("c0-entity", *(item.mention_id for item in group))
             for mention in group:
                 entity_id_by_mention[mention.mention_id] = entity_id
-            named = [item for item in group if not item.is_pronoun] or list(group)
+            named = [
+                item
+                for item in group
+                if not item.is_pronoun and item.mention_id not in title_holders
+            ] or list(group)
             label = sorted(named, key=lambda item: (-len(item.surface), item.surface))[0].surface
             kinds = Counter(item.entity_kind for item in group)
             kind = sorted(kinds, key=lambda item: (-kinds[item], item.value))[0]
@@ -1404,12 +1433,73 @@ class ClassicalPreBuilder:
         }
         assertion_specs: list[_AssertionSpec] = []
         event_specs: list[dict[str, object]] = []
+        # Explicit named durations license a single occurrence shared across
+        # passages. No gold/event metadata, query window, or observation-onset
+        # assumption is consulted. Conflicting durations are not resolved here.
+        named_durations: dict[str, list[tuple[str, str, int, int]]] = defaultdict(list)
+        for record in evidence_by_id.values():
+            for match in re.finditer(
+                r"\bThe ([^.\n]+?) lasted from story step (\d+) through story step (\d+)\b",
+                record.text,
+            ):
+                named_durations[_normalized_surface(match[1], self.config.honorifics)].append(
+                    (record.evidence_id, match[1], int(match[2]), int(match[3]))
+                )
+        named_event_ids: set[str] = set()
+        named_evidence_ids: set[str] = set()
+        for name, rows in sorted(named_durations.items()):
+            bounds = {(row[2], row[3]) for row in rows}
+            if len(bounds) != 1 or next(iter(bounds))[0] > next(iter(bounds))[1]:
+                continue
+            source_ids = tuple(sorted({row[0] for row in rows}))
+            if not any(evidence_by_id[e].event_candidates for e in source_ids):
+                continue
+            matched_mentions = [
+                m
+                for m in mentions.values()
+                if _normalized_surface(m.surface, self.config.honorifics) == name
+            ]
+            if not matched_mentions:
+                continue
+            event_id = _identifier("c0-event", name, *next(iter(bounds)))
+            previous_ids = {entity_id_by_mention.get(m.mention_id) for m in matched_mentions}
+            for mention_id, previous_id in tuple(entity_id_by_mention.items()):
+                if previous_id in previous_ids:
+                    entity_id_by_mention[mention_id] = event_id
+            entity_specs = [s for s in entity_specs if s["entity_id"] not in previous_ids]
+            named_event_ids.add(event_id)
+            named_evidence_ids.update(source_ids)
+            start, end = next(iter(bounds))
+            event_specs.append(
+                dict(
+                    event_id=event_id,
+                    trigger=rows[0][1],
+                    label=rows[0][1],
+                    evidence_id=source_ids[0],
+                    evidence_ids=source_ids,
+                    occurrence_time=StoryTime(kind=TemporalKind.INTERVAL, start=start, end=end),
+                    confidence=min(evidence_by_id[e].confidence for e in source_ids),
+                    description_assertion_ids=(),
+                )
+            )
         relation_rows = [relation for analysis in analyses for relation in analysis.relations]
+        emitted_relations: set[tuple[str, str, str, str]] = set()
         for relation in relation_rows:
             subject_id = entity_id_by_mention.get(relation.subject_mention_id)
             object_id = entity_id_by_mention.get(relation.object_mention_id)
+            if (
+                relation.predicate == "holds_office"
+                and relation.evidence_id in office_organizations
+            ):
+                object_id = entity_id_by_mention[office_organizations[relation.evidence_id]]
             if subject_id is None or object_id is None:
                 continue
+            relation_key = (relation.evidence_id, relation.predicate, subject_id, object_id)
+            if relation_key in emitted_relations:
+                # Candidate parser and neutral phrase may witness the same
+                # source-bound relation; emit it once, before any scoring.
+                continue
+            emitted_relations.add(relation_key)
             evidence_record = evidence_by_id[relation.evidence_id]
             state_like = relation.predicate in {
                 "allied_with",
@@ -1432,6 +1522,19 @@ class ClassicalPreBuilder:
             if embedded is not None:
                 attitude, holder_mention_id = embedded
                 holder_id = entity_id_by_mention[holder_mention_id]
+            roles: tuple[RoleBinding, ...] = ()
+            if relation.predicate == "participates_in" and object_id in named_event_ids:
+                roles = (
+                    RoleBinding(
+                        role="participant",
+                        object_id=subject_id,
+                        evidence_ids=(relation.evidence_id,),
+                    ),
+                    RoleBinding(
+                        role="event", object_id=object_id, evidence_ids=(relation.evidence_id,)
+                    ),
+                )
+                subject_id = object_id = None
             assertion_specs.append(
                 _AssertionSpec(
                     assertion_id=_identifier("c0-assertion", relation.relation_id),
@@ -1439,6 +1542,7 @@ class ClassicalPreBuilder:
                     evidence_id=relation.evidence_id,
                     subject_id=subject_id,
                     object_id=object_id,
+                    roles=roles,
                     confidence=relation.confidence,
                     temporal_scope=_temporal_scope(
                         evidence_record,
@@ -1455,6 +1559,16 @@ class ClassicalPreBuilder:
             )
 
         for event_candidate in (event for analysis in analyses for event in analysis.events):
+            if event_candidate.evidence_id in named_evidence_ids and any(
+                relation.evidence_id == event_candidate.evidence_id
+                and relation.predicate == _normalize_predicate(event_candidate.trigger, self.config)
+                and entity_id_by_mention.get(relation.object_mention_id) in named_event_ids
+                for relation in relation_rows
+            ):
+                # A role/relation to an explicit named occurrence need not also
+                # be a separate per-trigger event. Unrelated triggers in the
+                # same passage still follow the ordinary construction rules.
+                continue
             # An occurrence-order relation connects two events; it is not a
             # third event with those events as agents. Neutral candidates are
             # defeasible. Keep the explicit binary ordering assertion above.
@@ -1540,6 +1654,9 @@ class ClassicalPreBuilder:
             for endpoint in endpoints:
                 if endpoint is not None:
                     incident_assertions[endpoint].append(spec.assertion_id)
+        for spec in event_specs:
+            if spec["event_id"] in named_event_ids:
+                spec["description_assertion_ids"] = tuple(incident_assertions[spec["event_id"]])
         for spec in entity_specs:
             entity_id = str(spec["entity_id"])
             if incident_assertions[entity_id]:
@@ -1619,7 +1736,9 @@ class ClassicalPreBuilder:
         evidence_ids_by_kind: dict[ClassicalEntityKind, set[str]] = defaultdict(set)
         for spec in entity_specs:
             evidence_ids_by_kind[spec["kind"]].update(spec["evidence_ids"])
-        event_evidence_ids = {str(spec["evidence_id"]) for spec in event_specs}
+        event_evidence_ids = {
+            e for spec in event_specs for e in spec.get("evidence_ids", (str(spec["evidence_id"]),))
+        }
         upper_entity = (
             "entity"
             if "entity" in upper_ontology.primitive_types
@@ -1663,6 +1782,11 @@ class ClassicalPreBuilder:
             if "related_to" in upper_ontology.primitive_relations
             else upper_ontology.primitive_relations[0]
         )
+        role_names = {
+            spec.predicate: tuple(role.role for role in spec.roles)
+            for spec in assertion_specs
+            if spec.roles
+        }
         predicates = tuple(
             LocalPredicateDefinition(
                 predicate_id=f"c0-predicate-{predicate}",
@@ -1671,6 +1795,7 @@ class ClassicalPreBuilder:
                     f"Fixed classical relation normalized from explicit {predicate} evidence."
                 ),
                 arity=2,
+                role_names=role_names.get(predicate, ()),
                 parent_upper_relation=upper_relation,
                 evidence_ids=tuple(sorted(evidence_ids)),
             )
@@ -1720,16 +1845,20 @@ class ClassicalPreBuilder:
         events = tuple(
             Event(
                 event_id=str(spec["event_id"]),
-                label=f"{str(spec['trigger']).title()} event",
+                label=str(spec.get("label", f"{str(spec['trigger']).title()} event")),
                 contextual_type_id="c0-type-event",
-                occurrence_time=spec["temporal_scope"].story_time,
+                occurrence_time=(
+                    spec["occurrence_time"]
+                    if "occurrence_time" in spec
+                    else spec["temporal_scope"].story_time
+                ),
                 reification_reason=(
                     "A frozen lexical trigger with participant roles or independent time "
                     "requires an event object."
                 ),
                 uncertainty=ExplicitValueState.KNOWN,
                 confidence=float(spec["confidence"]),
-                evidence_ids=(str(spec["evidence_id"]),),
+                evidence_ids=tuple(spec.get("evidence_ids", (str(spec["evidence_id"]),))),
                 description=f"Evidence-grounded {spec['trigger']} occurrence.",
                 description_assertion_ids=tuple(spec["description_assertion_ids"]),
             )

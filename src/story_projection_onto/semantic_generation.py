@@ -411,7 +411,11 @@ def schema_guide(schema: Mapping[str, Any]) -> str:
                 f"..{node.get('maxItems', '*')}"
             )
         if "pattern" in node:
-            return "local-ID" if node["pattern"] == LOCAL_ID_PATTERN else str(kind)
+            return (
+                "local-ID"
+                if node["pattern"] == LOCAL_ID_PATTERN
+                else f"{kind} matching {node['pattern']}"
+            )
         if kind in {"integer", "number"}:
             return (
                 str(kind)
