@@ -59,6 +59,18 @@ def test_semantic_retry_never_uses_scorer_diagnostics():
             None,
             {
                 "stage": "schema_or_structural_validation",
+                "message": "small diagnostic reconciliation: unresolved; "
+                "see restricted component checks",
+            },
+            None,
+        )
+        is None
+    )
+    assert (
+        driver.prepare_structural_semantic_retry(
+            None,
+            {
+                "stage": "schema_or_structural_validation",
                 "message": "semantic grounding audit failed: secret",
             },
             None,

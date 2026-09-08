@@ -541,7 +541,11 @@ def prepare_structural_semantic_retry(request, failure, tokenizer, *, contract_d
         if failure["stage"] == "scientific_capability_validation":
             return None  # Scientific text is not contract-only repair feedback.
         message = failure["message"]
-    if "semantic grounding audit" in message or len(message) > 4000:
+    if (
+        "semantic grounding audit" in message
+        or "small diagnostic reconciliation" in message
+        or len(message) > 4000
+    ):
         return None
     from story_projection_onto.gpu_runtime import ChatMessage
     from story_projection_onto.representation_diagnostic import _repack
