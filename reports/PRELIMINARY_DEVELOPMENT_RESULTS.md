@@ -2,6 +2,17 @@
 
 Exploratory development only. One preselected easy world and two contrasting contexts over identical evidence; no significance testing, held-out efficacy, production acceptance or p95 claim.
 
+## Current development outcome
+
+Complete inspectable C2 graphs: 1. Mechanical completion does not imply semantic correctness. C1 and FixedSelect remain blocked; no production or held-out execution occurred.
+
+| Context | Existing C0 strict F1 | C2 complete usable graph | C2 strict F1 |
+|---|---:|---|---:|
+| 1 | 0.5714 | False | — |
+| 2 | 0.0952 | True | 0.0000 |
+
+A missing C2 score means no assembled graph, not an invented empty graph. All emitted assertions in the completed graph are scored, including errors.
+
 ## Results
 
 All base attempts and prepared repairs are retained below. Scores describe canonical outputs even when other validation failed; they are not registered accepted-study results. Missing canonical outputs have no scored draft. Separate acceptance_gated columns apply the existing invalid-output rule to failed LLM attempts (strict F1=0), without declaring every received statement false. Not-transmitted and not-attempted repairs are not model outputs. Absence of a strict match is not proof of an invented claim.
@@ -20,6 +31,12 @@ All base attempts and prepared repairs are retained below. Scores describe canon
 | C2 / 1 | stage A base | — / — / — | False | — / — / — | length / 5824 : 5120 | 90.6464 |
 | C2 / 2 | stage A base | — / — / — | False | — / — / — | length / 5795 : 5120 | 83.5846 |
 | C2 / 2 | stage A repair | — / — / — | False | — / — / — | length / 5863 : 6144 | 147.1145 |
+| C2 / 1 | stage A base | False / False / — | False | — / — / — | stop / 5812 : 2693 | 98.5478 |
+| C2 / 1 | stage A repair | False / False / — | False | — / — / — | stop / 7993 : 2686 | 97.9358 |
+| C2 / 2 | stage A base | False / False / — | False | — / — / — | stop / 5783 : 2535 | 80.0477 |
+| C2 / 2 | stage A repair | False / False / — | False | — / — / — | stop / 7848 : 2533 | 80.9942 |
+| C2 / 2 | stage B base | True / False / — | False | — / — / — | stop / 7921 : 592 | 13.4500 |
+| C2 / 2 | stage C base | True / True / False | False | 0.0000 / 0.0000 / 0.0000 | stop / 7671 : 1304 | 69.4468 |
 | C1 / query-blind | repair | — / — / — | False | — / — / — | not_transmitted / — : — | — |
 | A-FixedSelect / 1 | blocked | — / — / — | False | — / — / — | blocked / — : — | — |
 | A-FixedSelect / 2 | blocked | — / — / — | False | — / — / — | blocked / — : — | — |
@@ -32,6 +49,7 @@ These use the existing scoring definitions. Unmatched reference grounding is a r
 |---|---|---|---|---|---|
 | C0 / 1 | 0.8889 | 0.6667 | 0.5000 | 1.0000 | 0.0000 |
 | C0 / 2 | 0.4706 | 0.1429 | 0.0714 | — | — |
+| C2 / 2 | 0.0000 | 0.0000 | 0.0000 | — | — |
 
 ## Evidence, contexts and actual graphs
 
@@ -41,11 +59,11 @@ The [interactive comparison](figures/preliminary_development_comparison.html) in
 
 ## Allocation and gates
 
-Historical allocation 6716.108081 s; this phase 2267.141867 s; cumulative 8983.249948 s. Open GPU/service journals: 0/0. The phase ceiling is 3,600 s. The global scheduled/hard limits remain 33,660/36,000 s; no complete-study admission is claimed.
+Historical allocation 6716.108081 s; this phase 3025.392008 s; cumulative 9741.500089 s. Open GPU/service journals: 0/0. The phase ceiling is 3,600 s. The global scheduled/hard limits remain 33,660/36,000 s; no complete-study admission is claimed.
 
-Service starts: 6; transmitted HTTP requests: 10; responses with generation tokens: 9; reserved attempts: 11. The continuation allows at most 6 total starts within the same phase. Transmitted parent repairs: 3. vLLM is stopped; the pod remains intact. No further phase is initiated.
+Service starts: 8; transmitted HTTP requests: 16; responses with generation tokens: 15; reserved attempts: 17. The continuation allows at most 8 total starts within the same phase. Transmitted parent repairs: 3. vLLM is stopped; the pod remains intact. No further phase is initiated.
 
-Peak sampled GPU VRAM / process RAM / project occupancy (bytes): 22793945088 / 7201918976 / 17042163200. These are sampled peaks, not continuous maximum guarantees. Terminal full storage checks passed.
+Peak sampled GPU VRAM / process RAM / project occupancy (bytes): 22793945088 / 7201918976 / 17134682624. These are sampled peaks, not continuous maximum guarantees. Terminal full storage checks passed.
 
 Remaining registered inventory is preserved in the restricted run manifest; it has not been removed or reset. A few development calls cannot establish production throughput. Held-out execution remains independently reviewed and gated.
 
@@ -73,6 +91,12 @@ Existing graph and single-kind creation budgets were added to the grammar. The f
 - C2 context 1 base: vLLM response is not one guided JSON choice
 - C2 context 2 base: vLLM response is not one guided JSON choice
 - C2 context 2 repair: vLLM response is not one guided JSON choice
+- C2 context 1 base: generation schema failed; see full errors
+- C2 context 1 repair: generation schema failed; see full errors
+- C2 context 2 base: generation schema failed; see full errors
+- C2 context 2 repair: generation schema failed; see full errors
+- C2 context 2 base: Confirmed source defects in intermediate stage
+- C2 context 2 base: Rejected or unresolved development output; see source and component checks
 - C1 context None repair: Missing repair flag rejected the prepared call before a GPU event; subsequent bookkeeping masked the original exception. CPU-reproduced diagnosis; no new model response.
 - A-FixedSelect context 1 base: No accepted sealed C1; not attempted
 - A-FixedSelect context 2 base: No accepted sealed C1; not attempted
@@ -87,6 +111,8 @@ Existing graph and single-kind creation budgets were added to the grammar. The f
 | 4 | 428.570203 | 8200.425164 | completed |
 | 5 | 468.509993 | 8668.935157 | completed |
 | 6 | 314.314791 | 8983.249948 | completed |
+| 7 | 518.751331 | 9502.001279 | completed |
+| 8 | 239.498810 | 9741.500089 | completed |
 
 Pinned model: Qwen/Qwen3-8B-AWQ at `4da05a8edb55c6046cce958586c33b61da07bb79`, 12,288 total tokens; vLLM 0.10.2 / XGrammar, no fallback, whitespace restriction enabled. No model change. Historical rows used single-response construction. Separately labeled staged rows use the explicitly amended A/B/C protocol, not successful execution of the original protocol.
 
@@ -94,7 +120,7 @@ C1 repair requests remain model-query-blind. A late repair/seal cannot retrospec
 
 ## Remaining registered work
 
-Unvalidated legacy remaining-work proxy: 40162.013213 s; all-in with preserved actual allocation: 49145.263161 s. This is not a calibrated production forecast. Failed completion speeds receive no credit. The original nine-hour target was not met; the amended scheduled ceiling remains unchanged.
+Unvalidated legacy remaining-work proxy: 40162.013213 s; all-in with preserved actual allocation: 49903.513302 s. This is not a calibrated production forecast. Failed completion speeds receive no credit. The original nine-hour target was not met; the amended scheduled ceiling remains unchanged.
 
 The fallback gate still needs its C1, two C2, FixedSelect and conditional repair forms plus restart/resume validation. These calls remain earmarked within reserve rows, not added twice. Superseded historical 14B acceptance rows do not mean fallback acceptance passed.
 
@@ -122,7 +148,7 @@ The fallback gate still needs its C1, two C2, FixedSelect and conditional repair
 | reserve_standard | 8 |
 | reserve_short | 4 |
 
-No GPU output was scientifically accepted. This development configuration failed within the used allowance. Structural completion, confirmed semantic errors and unresolved assessments are distinguished below. No further diagnostic phase is automatically initiated.
+No GPU output was scientifically accepted. The stricter scientific acceptance requirement was not met; this does not suppress mechanically usable exploratory graphs or their measured accuracy. Structural completion, confirmed semantic errors and unresolved assessments are distinguished below. No further diagnostic phase is automatically initiated.
 
 ## What changed and what was wrong
 
@@ -193,9 +219,9 @@ No entity or predicate declarations were received in either repair. Consequently
 
 ## Staged exploratory development
 
-A owns schema and graph objects; B owns qualified assertions; C owns descriptions and construction reporting. Only assembled canonical outputs receive contextual draft scores. Intermediate completion is not canonical or scientific success. C1 stages finish or fail before the new C2 query-bearing transmissions. C2 contexts do not inherit C1 or each other's records. No checker changed.
+A owns schema and graph objects; B owns qualified assertions; C owns descriptions and construction reporting. Only assembled canonical outputs receive contextual draft scores. Intermediate completion is not canonical or scientific success. The initial C1 stages terminally failed; C1 and FixedSelect remain blocked in the bounded C2-only continuation. C2 contexts do not inherit C1 or each other's records. No checker changed.
 
-New reservations: 4. Additional staged allocation: 782.824784 s. Complete canonical stage-C outputs: 0; scientific accepts: 0.
+New reservations: 10. Additional staged allocation: 1541.074925 s. Complete canonical stage-C outputs: 1; scientific accepts: 0.
 
 | Condition/context/stage | Nodes/assertions available | Confirmed source defects | Grounding/description unresolved | Failure stage |
 |---|---|---|---|---|
@@ -203,18 +229,27 @@ New reservations: 4. Additional staged allocation: 782.824784 s. Complete canoni
 | C2/1/A base | 10/0 | none established | —/— | decoding |
 | C2/2/A base | 10/0 | none established | —/— | decoding |
 | C2/2/A repair | 10/0 | none established | —/— | decoding |
+| C2/1/A base | 10/0 | none established | —/— | canonical_or_assessment |
+| C2/1/A repair | 10/0 | none established | —/— | canonical_or_assessment |
+| C2/2/A base | 10/0 | none established | —/— | canonical_or_assessment |
+| C2/2/A repair | 10/0 | none established | —/— | canonical_or_assessment |
+| C2/2/B base | 10/1 | unsupported_attribution | —/— | stage_semantic_validation |
+| C2/2/C base | 10/1 | unsupported_attribution | 1/1 | scientific_or_structural_validation |
 
 The HTML provides the actual stage inventories, full assembled graphs where available, and each assertion alongside its cited evidence. Earlier failed rows remain unchanged evidence; no authored fixture is reported as GPU output.
 
 ### Construction completion (not just successful HTTP)
 
-| Condition/context | A / B / C valid | Canonical / scientific | Calls / repairs | Input / output tokens | Strict F1 |
+| Condition/context | A / B / C mechanically available | Canonical / scientific | Calls / repairs | Input / output tokens | Strict F1 |
 |---|---|---|---|---|---|
-| C1/None | False / False / False | False / False | 1 / 0 | 5996 / 5120 | — |
-| C2/1 | False / False / False | False / False | 1 / 0 | 5824 / 5120 | — |
-| C2/2 | False / False / False | False / False | 2 / 1 | 11658 / 11264 | — |
+| C2/1 (staged-development-bounded-aux-v3) | False / False / False | False / False | 2 / 1 | 13805 / 5379 | — |
+| C2/2 (staged-development-bounded-aux-v3) | True / True / True | True / False | 4 / 1 | 29223 / 6964 | 0.0000 |
+| C1/None (staged-development-v1) | False / False / False | False / False | 1 / 0 | 5996 / 5120 | — |
+| C2/1 (staged-development-v1) | False / False / False | False / False | 1 / 0 | 5824 / 5120 | — |
+| C2/2 (staged-development-v1) | False / False / False | False / False | 2 / 1 | 11658 / 11264 | — |
 
 Unreached B/C stages are blocked by prerequisite or intact-packing failure, not model-authored empty graphs. Prefix node counts describe only complete received members. No CPU-created assertions are drawn. Stage-C scores, if present, are conditional draft scores and are separate from scientific acceptance.
+Mechanical reuse is an explicitly versioned re-evaluation of unchanged complete records. Duplicate reference lists do not make destinations ambiguous; unknown type destinations still block continuation. Historical schema failures remain failed and are inherited by the final strict acceptance verdict.
 
 ### Observed Stage A expansion
 
@@ -225,4 +260,35 @@ Unreached B/C stages are blocked by prerequisite or intact-packing failure, not 
 | 2/10 | 141 | 2 / 0 | [] |
 | 2/11 | 0 | 10 / 24 | [["nR17", "nR18", "nR19", "nR20", "nR21", "nR22", "nR23", "nR24"]] |
 
-Repeated predicates are an observed expansion pattern, not proof of an additional semantic contradiction or a universal model limitation. No tighter schema-object scientific budget was invented to force completion. Removing duplicate references alone did not establish complete staged construction.
+Repeated predicates are an observed expansion pattern, not proof of an additional semantic contradiction or a universal model limitation. The original staged attempts did not tighten auxiliary budgets. The later bounded-v3 continuation uses explicitly authorized development-only collection and prose ceilings; these can reduce coverage and are not the registered protocol.
+
+## Bounded C2 continuation: usability versus measured quality
+
+C1 and FixedSelect are blocked and were not retried. Stage A/B semantic imperfections do not prevent completion of mechanically usable dependencies. Every emitted assertion remains in contextual precision; omissions remain recall failures. Unmatched paraphrases remain unresolved, not false or accepted. Registered acceptance-gated scores are retained separately.
+This continuation made 6 calls, including 2 repairs, and consumed 758.250141 allocated seconds. Effective backend schema validity and stricter post-generation schema validity are distinct CSV fields; the latter retains duplicate-list failures.
+
+Development-only ceilings: six types, eight predicates, four references per list, three aliases, eight decisions, four omissions/abstentions; 64-character labels, 180-character prose, 320-character interpretation. Required scientific fields and full evidence remain intact. Coverage effects are reflected in the scores below; one world cannot establish a causal effect of these limits.
+
+| Condition/context | Usable / canonical / registered acceptance | P / R / F1 | Grounded / wrong binding / unsupported / unresolved |
+|---|---|---|---|
+| C0/1 | True / True / False | 0.5000 / 0.6667 / 0.5714 | see existing assessment |
+| C0/2 | True / True / False | 0.0714 / 0.1429 / 0.0952 | see existing assessment |
+| C2/2 | True / True / False | 0.0000 / 0.0000 / 0.0000 | 0 / 0 / 1 / 0 |
+
+### C2 context 2: complete authored records
+
+The linked HTML shows every generated assertion beside its evidence and qualifications; no error-bearing edge is removed. Mechanical blockers: []. Canonical blocker (if any): none.
+
+All-prediction contextual counts: `{"true_positive_count": 0, "false_positive_count": 1, "false_negative_count": 7, "precision_denominator": 1, "recall_denominator": 7}`.
+- **member_of**: Fara Cedar → Cedar Circle — unsupported_qualification; Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.
+
+### Readable source-based diagnosis (manual, not a new score)
+
+These observations are bound to the unchanged graph hash. They do not alter the automated checker, gold, or historical acceptance; they are not independent review.
+
+- The bare membership endpoints and relation agree with the cited sentence about Fara Cedar and Cedar Circle. This is a supported subclaim, not a correct qualified assertion or contextual match.
+- The generated known attitude is attributed to Fara, but none of the cited sentences states that holder's knowledge. The existing source checker correctly flags unsupported attribution.
+- The membership sentence supplies an observation at story step 1, not intrinsic point validity. Other citations describe durations of different relations and cannot establish this membership's validity. The existing cue-based checker did not flag the unsupported validity point because unrelated co-citations contain duration words. This is a manually identified coverage limitation; its original result is unchanged.
+- The membership description is a reasonable paraphrase of the bare narrated fact. The substring-only description checker leaves it unresolved; this is not proof that the paraphrase is false. Its factual core does not support the added epistemic or intrinsic-validity qualifications.
+- Other nodes are mapped to the same membership assertion although they are not its participants. Those description-to-graph mappings are invalid; the graph keeps them visible.
+- Stage A authored local types and predicates, but Stage C reported only include_exclude operations. The report does not explain the authored schema-formation decisions. No additional construction operation is inferred by the runtime.

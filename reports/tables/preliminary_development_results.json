@@ -36,9 +36,21 @@
         "cumulative_seconds": 8983.249948,
         "run_id": "run-20260908T193045255475",
         "stop_reason": "completed"
+      },
+      {
+        "allocated_seconds": 518.751331,
+        "cumulative_seconds": 9502.001279,
+        "run_id": "run-20260908T210300466916",
+        "stop_reason": "completed"
+      },
+      {
+        "allocated_seconds": 239.49881,
+        "cumulative_seconds": 9741.500089,
+        "run_id": "run-20260908T212351589288",
+        "stop_reason": "completed"
       }
     ],
-    "cumulative_seconds": 8983.249948,
+    "cumulative_seconds": 9741.500089,
     "global_hard_seconds": 36000,
     "global_scheduled_seconds": 33660,
     "historical_seconds": 6716.108081,
@@ -47,20 +59,20 @@
     "peak_sampled_resources": {
       "gpu_vram_bytes": 22793945088,
       "process_ram_bytes": 7201918976,
-      "project_storage_bytes": 17042163200
+      "project_storage_bytes": 17134682624
     },
     "phase_cap_seconds": 3600,
-    "phase_maximum_reservations": 22,
-    "phase_maximum_starts": 6,
-    "phase_seconds": 2267.141867,
-    "reserved_attempts": 11,
-    "service_starts": 6,
+    "phase_maximum_reservations": 19,
+    "phase_maximum_starts": 8,
+    "phase_seconds": 3025.392008,
+    "reserved_attempts": 17,
+    "service_starts": 8,
     "staged_baseline_seconds": 8200.425164,
-    "staged_new_reservations": 4,
-    "staged_seconds": 782.824784,
+    "staged_new_reservations": 10,
+    "staged_seconds": 1541.074925,
     "stop_reason": "completed",
-    "transmitted_generations": 9,
-    "transmitted_http_requests": 10
+    "transmitted_generations": 15,
+    "transmitted_http_requests": 16
   },
   "contexts": [
     {
@@ -158,6 +170,53 @@
   },
   "human_review_still_required": true,
   "label": "EXPLORATORY DEVELOPMENT ONLY — one easy world, not held-out efficacy",
+  "manual_diagnostic_review": {
+    "assertion_id": "nC491a2c62ecce77ece4d44851005c8a16e7a9bd45",
+    "attempt_id": "nested-development-demonstration-20260908-attempt-17",
+    "canonical_file_sha256": "47b74315601e4d98d38f978e45f979b477ddaf774e3ca7ba8352f7e0fbe8331f",
+    "no_metric_gold_threshold_or_historical_verdict_changed": true,
+    "observations": [
+      "The bare membership endpoints and relation agree with the cited sentence about Fara Cedar and Cedar Circle. This is a supported subclaim, not a correct qualified assertion or contextual match.",
+      "The generated known attitude is attributed to Fara, but none of the cited sentences states that holder's knowledge. The existing source checker correctly flags unsupported attribution.",
+      "The membership sentence supplies an observation at story step 1, not intrinsic point validity. Other citations describe durations of different relations and cannot establish this membership's validity. The existing cue-based checker did not flag the unsupported validity point because unrelated co-citations contain duration words. This is a manually identified coverage limitation; its original result is unchanged.",
+      "The membership description is a reasonable paraphrase of the bare narrated fact. The substring-only description checker leaves it unresolved; this is not proof that the paraphrase is false. Its factual core does not support the added epistemic or intrinsic-validity qualifications.",
+      "Other nodes are mapped to the same membership assertion although they are not its participants. Those description-to-graph mappings are invalid; the graph keeps them visible.",
+      "Stage A authored local types and predicates, but Stage C reported only include_exclude operations. The report does not explain the authored schema-formation decisions. No additional construction operation is inferred by the runtime."
+    ],
+    "status": "assistant manual diagnostic reading; not independent review or formal acceptance"
+  },
+  "mechanical_reuse_receipts": [
+    {
+      "attempt_id": "nested-development-demonstration-20260908-attempt-14",
+      "mechanically_reusable": true,
+      "original_status_unchanged": true,
+      "policy": "uniqueness-only lists do not prevent stage use; all local destinations must resolve",
+      "scientific_acceptance": false,
+      "source_outcome_hash": "c0fa5d718cc578eb5af9aa785f650412b1dde5ed5ef78e60e95dd0b9bb7c35ca"
+    },
+    {
+      "attempt_id": "nested-development-demonstration-20260908-attempt-13",
+      "blocker": "A object type is undeclared",
+      "mechanically_reusable": false,
+      "original_status_unchanged": true,
+      "source_outcome_hash": "e71c61ae5c18f16efb580608c01f21453c01107bb4a687fbb135b56068ff31c0"
+    },
+    {
+      "attempt_id": "nested-development-demonstration-20260908-attempt-15",
+      "mechanically_reusable": true,
+      "original_status_unchanged": true,
+      "policy": "uniqueness-only lists do not prevent stage use; all local destinations must resolve",
+      "scientific_acceptance": false,
+      "source_outcome_hash": "8c759ddb697145674ee4a44e4286ca92b4c838ffa36bd7814a8afaab2b4efda8"
+    },
+    {
+      "attempt_id": "nested-development-demonstration-20260908-attempt-12",
+      "blocker": "A object type is undeclared",
+      "mechanically_reusable": false,
+      "original_status_unchanged": true,
+      "source_outcome_hash": "5ad571d4ac2deaf9d650d55f9a0f6a74d521b070624191a365503c3f97b529c6"
+    }
+  ],
   "model": {
     "backend": "vLLM 0.10.2 / XGrammar, no fallback, whitespace restriction enabled",
     "context_limit": 12288,
@@ -167,7 +226,7 @@
   },
   "ordinary_admission": false,
   "registered_remaining_work": {
-    "all_in_proxy_seconds": 49145.26316073815,
+    "all_in_proxy_seconds": 49903.51330173815,
     "failed_throughput_credited": false,
     "fallback_gate_unpassed": {
       "accounted_within_reserve_rows_not_added_again": true,
@@ -1472,6 +1531,468 @@
       "transport_complete": true
     },
     {
+      "assertions_received": 0,
+      "assessment": {
+        "assessment_available": false,
+        "reason": "formal assessment unavailable; see canonical status and failure stage"
+      },
+      "attempt_id": "nested-development-demonstration-20260908-attempt-12",
+      "backend_schema_valid": true,
+      "canonical_valid": false,
+      "condition": "C2",
+      "confirmed_semantic_categories": [],
+      "confirmed_source_defects": [
+        {
+          "category": "generation_schema",
+          "constraint": "Must satisfy the supplied schema at this path: anyOf",
+          "path": "/"
+        },
+        {
+          "category": "canonical_contract",
+          "constraint": "generation schema failed; see full errors",
+          "path": "/"
+        }
+      ],
+      "construction_stage": "A",
+      "context": 1,
+      "development_request_revision": "staged-v3: user-approved auxiliary/prose ceilings shared across two C2 contexts; semantic errors do not suppress mechanically usable stages or exploratory scores; registered acceptance unchanged; C1/FixedSelect blocked",
+      "failure": "generation schema failed; see full errors",
+      "failure_stage": "canonical_or_assessment",
+      "finish_reason": "stop",
+      "generation_object_budget_valid": true,
+      "http_status": 200,
+      "input_tokens": 5812,
+      "json_complete": true,
+      "mechanically_usable": false,
+      "nodes_received": 10,
+      "output_allowance": 6144,
+      "output_tokens": 2693,
+      "prepared_input_tokens": 5812,
+      "protocol": "staged-development-bounded-aux-v3",
+      "repair_parent": null,
+      "replaces_nontransmitted_reservation": null,
+      "request_hash": "fa6ec2644c56e59cb2fb4c86f183e9c9e027ecb9de1c7af5ac0eb91f4729ceb3",
+      "request_seconds": 98.54784069489688,
+      "request_time_source": "client wall clock",
+      "request_transmitted": true,
+      "reused_actual_cpu_output": false,
+      "schema_valid": false,
+      "scientific_accepted": false,
+      "source_sha256": "cd9e0e0ee89e862564e140f4293ecc9263c640285bc930e1baf50ec5f2e96f83",
+      "stage_complete": true,
+      "stage_dependencies": {},
+      "stage_valid": false,
+      "structure_valid": null,
+      "transport_complete": true
+    },
+    {
+      "assertions_received": 0,
+      "assessment": {
+        "assessment_available": false,
+        "reason": "formal assessment unavailable; see canonical status and failure stage"
+      },
+      "attempt_id": "nested-development-demonstration-20260908-attempt-13",
+      "backend_schema_valid": true,
+      "canonical_valid": false,
+      "condition": "C2",
+      "confirmed_semantic_categories": [],
+      "confirmed_source_defects": [
+        {
+          "category": "generation_schema",
+          "constraint": "Must satisfy the supplied schema at this path: anyOf",
+          "path": "/"
+        },
+        {
+          "category": "canonical_contract",
+          "constraint": "generation schema failed; see full errors",
+          "path": "/"
+        }
+      ],
+      "construction_stage": "A",
+      "context": 1,
+      "development_request_revision": "staged-v3: user-approved auxiliary/prose ceilings shared across two C2 contexts; semantic errors do not suppress mechanically usable stages or exploratory scores; registered acceptance unchanged; C1/FixedSelect blocked",
+      "failure": "generation schema failed; see full errors",
+      "failure_stage": "canonical_or_assessment",
+      "finish_reason": "stop",
+      "generation_object_budget_valid": true,
+      "http_status": 200,
+      "input_tokens": 7993,
+      "json_complete": true,
+      "mechanically_usable": false,
+      "nodes_received": 10,
+      "output_allowance": 4096,
+      "output_tokens": 2686,
+      "prepared_input_tokens": 7993,
+      "protocol": "staged-development-bounded-aux-v3",
+      "repair_parent": "nested-development-demonstration-20260908-attempt-12",
+      "replaces_nontransmitted_reservation": null,
+      "request_hash": "b18a937c5d774cd3ed186f747fe3698d69c82746c2446a6922d0628e180b6aff",
+      "request_seconds": 97.93575277738273,
+      "request_time_source": "client wall clock",
+      "request_transmitted": true,
+      "reused_actual_cpu_output": false,
+      "schema_valid": false,
+      "scientific_accepted": false,
+      "source_sha256": "69f1ceff312e9e78e8121f625ef0640d46b4ae3c00f98b6b5d70bd04abeea60a",
+      "stage_complete": true,
+      "stage_dependencies": {},
+      "stage_valid": false,
+      "structure_valid": null,
+      "transport_complete": true
+    },
+    {
+      "assertions_received": 0,
+      "assessment": {
+        "assessment_available": false,
+        "reason": "formal assessment unavailable; see canonical status and failure stage"
+      },
+      "attempt_id": "nested-development-demonstration-20260908-attempt-14",
+      "backend_schema_valid": true,
+      "canonical_valid": false,
+      "condition": "C2",
+      "confirmed_semantic_categories": [],
+      "confirmed_source_defects": [
+        {
+          "category": "generation_schema",
+          "constraint": "Must satisfy the supplied schema at this path: anyOf",
+          "path": "/"
+        },
+        {
+          "category": "canonical_contract",
+          "constraint": "generation schema failed; see full errors",
+          "path": "/"
+        }
+      ],
+      "construction_stage": "A",
+      "context": 2,
+      "development_request_revision": "staged-v3: user-approved auxiliary/prose ceilings shared across two C2 contexts; semantic errors do not suppress mechanically usable stages or exploratory scores; registered acceptance unchanged; C1/FixedSelect blocked",
+      "failure": "generation schema failed; see full errors",
+      "failure_stage": "canonical_or_assessment",
+      "finish_reason": "stop",
+      "generation_object_budget_valid": true,
+      "http_status": 200,
+      "input_tokens": 5783,
+      "json_complete": true,
+      "mechanically_usable": false,
+      "nodes_received": 10,
+      "output_allowance": 6144,
+      "output_tokens": 2535,
+      "prepared_input_tokens": 5783,
+      "protocol": "staged-development-bounded-aux-v3",
+      "repair_parent": null,
+      "replaces_nontransmitted_reservation": null,
+      "request_hash": "043afd7781f7e2808b47081c764b4295032e6de86ec8d99bad0a37fa8e7e5f8c",
+      "request_seconds": 80.04774020146579,
+      "request_time_source": "client wall clock",
+      "request_transmitted": true,
+      "reused_actual_cpu_output": false,
+      "schema_valid": false,
+      "scientific_accepted": false,
+      "source_sha256": "180d2f915813ece29bcc5f1ef1ef3a82ea51799c190515da1339eb9f1fd92e85",
+      "stage_complete": true,
+      "stage_dependencies": {},
+      "stage_valid": false,
+      "structure_valid": null,
+      "transport_complete": true
+    },
+    {
+      "assertions_received": 0,
+      "assessment": {
+        "assessment_available": false,
+        "reason": "formal assessment unavailable; see canonical status and failure stage"
+      },
+      "attempt_id": "nested-development-demonstration-20260908-attempt-15",
+      "backend_schema_valid": true,
+      "canonical_valid": false,
+      "condition": "C2",
+      "confirmed_semantic_categories": [],
+      "confirmed_source_defects": [
+        {
+          "category": "generation_schema",
+          "constraint": "Must satisfy the supplied schema at this path: anyOf",
+          "path": "/"
+        },
+        {
+          "category": "canonical_contract",
+          "constraint": "generation schema failed; see full errors",
+          "path": "/"
+        }
+      ],
+      "construction_stage": "A",
+      "context": 2,
+      "development_request_revision": "staged-v3: user-approved auxiliary/prose ceilings shared across two C2 contexts; semantic errors do not suppress mechanically usable stages or exploratory scores; registered acceptance unchanged; C1/FixedSelect blocked",
+      "failure": "generation schema failed; see full errors",
+      "failure_stage": "canonical_or_assessment",
+      "finish_reason": "stop",
+      "generation_object_budget_valid": true,
+      "http_status": 200,
+      "input_tokens": 7848,
+      "json_complete": true,
+      "mechanically_usable": false,
+      "nodes_received": 10,
+      "output_allowance": 4096,
+      "output_tokens": 2533,
+      "prepared_input_tokens": 7848,
+      "protocol": "staged-development-bounded-aux-v3",
+      "repair_parent": "nested-development-demonstration-20260908-attempt-14",
+      "replaces_nontransmitted_reservation": null,
+      "request_hash": "7c57259d9f659a43b0d6675371894060fed4f95594c507f9db2a1692556636d7",
+      "request_seconds": 80.99421244021505,
+      "request_time_source": "client wall clock",
+      "request_transmitted": true,
+      "reused_actual_cpu_output": false,
+      "schema_valid": false,
+      "scientific_accepted": false,
+      "source_sha256": "8530f7ff7dde434126429ea7b868573915578d31a18cc4aa81071164c7b79b29",
+      "stage_complete": true,
+      "stage_dependencies": {},
+      "stage_valid": false,
+      "structure_valid": null,
+      "transport_complete": true
+    },
+    {
+      "assertions_received": 1,
+      "assessment": {
+        "assessment_available": false,
+        "reason": "formal assessment unavailable; see canonical status and failure stage"
+      },
+      "attempt_id": "nested-development-demonstration-20260908-attempt-16",
+      "backend_schema_valid": true,
+      "canonical_valid": false,
+      "condition": "C2",
+      "confirmed_semantic_categories": [
+        "unsupported_attribution"
+      ],
+      "confirmed_source_defects": [
+        {
+          "category": "unsupported_attribution",
+          "constraint": "Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.",
+          "generated_value": {
+            "attitude": "known",
+            "holder_id": "nE1"
+          },
+          "path": "/instance_graph/assertions/0/epistemic_scope"
+        }
+      ],
+      "construction_stage": "B",
+      "context": 2,
+      "development_request_revision": "staged-v3: user-approved auxiliary/prose ceilings shared across two C2 contexts; semantic errors do not suppress mechanically usable stages or exploratory scores; registered acceptance unchanged; C1/FixedSelect blocked",
+      "failure": "Confirmed source defects in intermediate stage",
+      "failure_stage": "stage_semantic_validation",
+      "finish_reason": "stop",
+      "generation_object_budget_valid": true,
+      "http_status": 200,
+      "input_tokens": 7921,
+      "json_complete": true,
+      "mechanically_usable": false,
+      "nodes_received": 10,
+      "output_allowance": 4096,
+      "output_tokens": 592,
+      "prepared_input_tokens": 7921,
+      "protocol": "staged-development-bounded-aux-v3",
+      "repair_parent": null,
+      "replaces_nontransmitted_reservation": null,
+      "request_hash": "f60e53025b7e3fd231e9e6b7de7d24911da306031de75c29bdb2bffa651806c6",
+      "request_seconds": 13.450025632977486,
+      "request_time_source": "client wall clock",
+      "request_transmitted": true,
+      "reused_actual_cpu_output": false,
+      "schema_valid": true,
+      "scientific_accepted": false,
+      "source_sha256": "f412bf7471afb2e8fa15ef779fd2202d75578453ed7951e04247eca8f357aeeb",
+      "stage_complete": true,
+      "stage_dependencies": {
+        "A": "nested-development-demonstration-20260908-attempt-15"
+      },
+      "stage_valid": true,
+      "structure_valid": null,
+      "transport_complete": true
+    },
+    {
+      "acceptance_gated_citation_validity": null,
+      "acceptance_gated_essential_temporal_accuracy": 0.0,
+      "acceptance_gated_grounding_precision": null,
+      "acceptance_gated_node_f1": 0.0,
+      "acceptance_gated_rare_pivotal_recall": null,
+      "acceptance_gated_rare_support_path_survival": null,
+      "acceptance_gated_strict_f1": 0.0,
+      "acceptance_gated_strict_precision": 0.0,
+      "acceptance_gated_strict_recall": 0.0,
+      "assertions_received": 1,
+      "assessment": {
+        "assessment_available": true,
+        "description_assessments": [
+          {
+            "check": "source-substring positive coverage only; paraphrase outside coverage is not false",
+            "id": "nC491a2c62ecce77ece4d44851005c8a16e7a9bd45",
+            "status": "unresolved"
+          }
+        ],
+        "grounding_supported_assertion_ids": [],
+        "grounding_unresolved_assertion_ids": [
+          "nC491a2c62ecce77ece4d44851005c8a16e7a9bd45"
+        ],
+        "structural_diagnostics": [
+          {
+            "code": "mention_support_invalid",
+            "message": "entity evidence omits the source of a supported mention",
+            "path": "instance_graph.entities.nC23b610a14eee083a6ef9355138e91189787a8b3a.evidence_ids"
+          },
+          {
+            "code": "description_support_invalid",
+            "message": "description support assertion does not involve the described node",
+            "path": "instance_graph.entities.nC0e7203355414c64249330c67d07f6ec02f320f9c.description_assertion_ids"
+          },
+          {
+            "code": "description_support_invalid",
+            "message": "description support assertion does not involve the described node",
+            "path": "instance_graph.entities.nC79b4ad2023f9b758cb1bda70243fc581da81ac72.description_assertion_ids"
+          },
+          {
+            "code": "description_support_invalid",
+            "message": "description support assertion does not involve the described node",
+            "path": "instance_graph.entities.nC7162e256dcd45cc03cf36ac8a2fdad580f8aad1e.description_assertion_ids"
+          },
+          {
+            "code": "description_support_invalid",
+            "message": "description support assertion does not involve the described node",
+            "path": "instance_graph.entities.nCbfbd14020733d05a72649e7d7fd61035ea02ff7d.description_assertion_ids"
+          },
+          {
+            "code": "description_support_invalid",
+            "message": "description support assertion does not involve the described node",
+            "path": "instance_graph.entities.nC1109303e309a2a785348fc14be62d8f549c8f3b6.description_assertion_ids"
+          },
+          {
+            "code": "description_support_invalid",
+            "message": "description support assertion does not involve the described node",
+            "path": "instance_graph.entities.nCec42fd4c27be1fe5b2702c5cc72cb3793a5ab880.description_assertion_ids"
+          },
+          {
+            "code": "description_support_invalid",
+            "message": "description support assertion does not involve the described node",
+            "path": "instance_graph.entities.nC3025fb3114d586a8a4695616ca6087c455c89711.description_assertion_ids"
+          },
+          {
+            "code": "description_support_invalid",
+            "message": "description support assertion does not involve the described node",
+            "path": "instance_graph.entities.nC23b610a14eee083a6ef9355138e91189787a8b3a.description_assertion_ids"
+          }
+        ],
+        "unresolved_is_not_false_or_accepted": true
+      },
+      "attempt_id": "nested-development-demonstration-20260908-attempt-17",
+      "backend_schema_valid": true,
+      "canonical_valid": true,
+      "citation_validity": 1.0,
+      "condition": "C2",
+      "confirmed_semantic_categories": [
+        "unsupported_attribution"
+      ],
+      "confirmed_source_defects": [
+        {
+          "category": "unsupported_attribution",
+          "constraint": "Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.",
+          "generated_value": {
+            "attitude": "known",
+            "holder_id": "nE1"
+          },
+          "path": "/instance_graph/assertions/0/epistemic_scope"
+        }
+      ],
+      "construction_stage": "C",
+      "context": 2,
+      "contextual_false_negative_count": 7,
+      "contextual_false_positive_count": 1,
+      "contextual_precision_denominator": 1,
+      "contextual_recall_denominator": 7,
+      "contextual_true_positive_count": 0,
+      "description_unresolved_count": 1,
+      "development_request_revision": "staged-v3: user-approved auxiliary/prose ceilings shared across two C2 contexts; semantic errors do not suppress mechanically usable stages or exploratory scores; registered acceptance unchanged; C1/FixedSelect blocked",
+      "essential_temporal_accuracy": 0.0,
+      "exploratory_quality": {
+        "all_predictions_retained": true,
+        "assertion_count": 1,
+        "assertions": [
+          {
+            "assertion_id": "nC491a2c62ecce77ece4d44851005c8a16e7a9bd45",
+            "binding_checks": [],
+            "confirmed_source_checks": [
+              {
+                "category": "unsupported_attribution",
+                "constraint": "Cited direct narration does not state this holder attitude. Attribution needs positive evidence; it may be retracted, not defaulted to world truth.",
+                "generated_value": {
+                  "attitude": "known",
+                  "holder_id": "nE1"
+                },
+                "path": "/instance_graph/assertions/0/epistemic_scope"
+              }
+            ],
+            "status": "unsupported_qualification"
+          }
+        ],
+        "available": true,
+        "contextual_counts": {
+          "false_negative_count": 7,
+          "false_positive_count": 1,
+          "precision_denominator": 1,
+          "recall_denominator": 7,
+          "true_positive_count": 0
+        },
+        "counts": {
+          "incorrect_binding": 0,
+          "supported_direct_reference": 0,
+          "unresolved": 0,
+          "unsupported_qualification": 1
+        },
+        "unmatched_is_not_false": true
+      },
+      "failure": "Rejected or unresolved development output; see source and component checks",
+      "failure_stage": "scientific_or_structural_validation",
+      "finish_reason": "stop",
+      "generation_object_budget_valid": true,
+      "grounding_precision": 0.0,
+      "grounding_unresolved_count": 1,
+      "http_status": 200,
+      "input_tokens": 7671,
+      "json_complete": true,
+      "mechanical_blockers": [],
+      "mechanically_usable": true,
+      "node_f1": 0.0,
+      "nodes_received": 10,
+      "output_allowance": 4096,
+      "output_tokens": 1304,
+      "prepared_input_tokens": 7671,
+      "protocol": "staged-development-bounded-aux-v3",
+      "quality_incorrect_binding": 0,
+      "quality_supported_direct_reference": 0,
+      "quality_unresolved": 0,
+      "quality_unsupported_qualification": 1,
+      "rare_pivotal_recall": null,
+      "rare_support_path_survival": null,
+      "repair_parent": null,
+      "replaces_nontransmitted_reservation": null,
+      "request_hash": "962d69150593101c326511564da70b679dd9795af945e241b5796b436fefb901",
+      "request_seconds": 69.44677408691496,
+      "request_time_source": "client wall clock",
+      "request_transmitted": true,
+      "reused_actual_cpu_output": false,
+      "schema_valid": true,
+      "scientific_accepted": false,
+      "source_sha256": "de2347aeef2bd7c599774c01ba41d5758f43ee0d0e5f59cb0505e28463c1b78f",
+      "stage_complete": true,
+      "stage_dependencies": {
+        "A": "nested-development-demonstration-20260908-attempt-15",
+        "B": "nested-development-demonstration-20260908-attempt-16"
+      },
+      "stage_valid": true,
+      "strict_f1": 0.0,
+      "strict_precision": 0.0,
+      "strict_recall": 0.0,
+      "structure_valid": false,
+      "transport_complete": true
+    },
+    {
       "attempt_id": "nested-development-demonstration-20260908-attempt-04",
       "canonical_valid": null,
       "condition": "C1",
@@ -1508,13 +2029,70 @@
   "snapshot_hash": "070f9abcaefa270873527e3d21509f0f8b366596a7a8cae2f1239fefea34d515",
   "staged_constructions": [
     {
+      "calls": 2,
+      "complete_canonical_graph": false,
+      "condition": "C2",
+      "context": 1,
+      "input_tokens": 13805,
+      "last_attempt": "nested-development-demonstration-20260908-attempt-13",
+      "mechanically_usable": false,
+      "output_tokens": 5379,
+      "protocol": "staged-development-bounded-aux-v3",
+      "repairs": 1,
+      "request_seconds": 196.4835934722796,
+      "scientific_accepted": false,
+      "stage_validity": {
+        "A": false,
+        "B": false,
+        "C": false
+      },
+      "strict_f1": null,
+      "strict_stage_schema_validity": {
+        "A": null,
+        "B": null,
+        "C": null
+      },
+      "unreached_stages": [
+        "B",
+        "C"
+      ]
+    },
+    {
+      "calls": 4,
+      "complete_canonical_graph": true,
+      "condition": "C2",
+      "context": 2,
+      "input_tokens": 29223,
+      "last_attempt": "nested-development-demonstration-20260908-attempt-17",
+      "mechanically_usable": true,
+      "output_tokens": 6964,
+      "protocol": "staged-development-bounded-aux-v3",
+      "repairs": 1,
+      "request_seconds": 243.93875236157328,
+      "scientific_accepted": false,
+      "stage_validity": {
+        "A": true,
+        "B": true,
+        "C": true
+      },
+      "strict_f1": 0.0,
+      "strict_stage_schema_validity": {
+        "A": false,
+        "B": true,
+        "C": true
+      },
+      "unreached_stages": []
+    },
+    {
       "calls": 1,
       "complete_canonical_graph": false,
       "condition": "C1",
       "context": null,
       "input_tokens": 5996,
       "last_attempt": "nested-development-demonstration-20260908-attempt-08",
+      "mechanically_usable": false,
       "output_tokens": 5120,
+      "protocol": "staged-development-v1",
       "repairs": 0,
       "request_seconds": 143.16094819642603,
       "scientific_accepted": false,
@@ -1524,6 +2102,11 @@
         "C": false
       },
       "strict_f1": null,
+      "strict_stage_schema_validity": {
+        "A": null,
+        "B": null,
+        "C": null
+      },
       "unreached_stages": [
         "B",
         "C"
@@ -1536,7 +2119,9 @@
       "context": 1,
       "input_tokens": 5824,
       "last_attempt": "nested-development-demonstration-20260908-attempt-09",
+      "mechanically_usable": false,
       "output_tokens": 5120,
+      "protocol": "staged-development-v1",
       "repairs": 0,
       "request_seconds": 90.64644331205636,
       "scientific_accepted": false,
@@ -1546,6 +2131,11 @@
         "C": false
       },
       "strict_f1": null,
+      "strict_stage_schema_validity": {
+        "A": null,
+        "B": null,
+        "C": null
+      },
       "unreached_stages": [
         "B",
         "C"
@@ -1558,7 +2148,9 @@
       "context": 2,
       "input_tokens": 11658,
       "last_attempt": "nested-development-demonstration-20260908-attempt-11",
+      "mechanically_usable": false,
       "output_tokens": 11264,
+      "protocol": "staged-development-v1",
       "repairs": 1,
       "request_seconds": 230.69905466679484,
       "scientific_accepted": false,
@@ -1568,6 +2160,11 @@
         "C": false
       },
       "strict_f1": null,
+      "strict_stage_schema_validity": {
+        "A": null,
+        "B": null,
+        "C": null
+      },
       "unreached_stages": [
         "B",
         "C"
@@ -1601,28 +2198,44 @@
         1536
       ]
     ],
-    "amendment_baseline_actual_seconds": 8200.425164,
+    "amendment_baseline_actual_seconds": 8983.249948,
     "amendment_id": "nested-development-demonstration-20260908",
+    "auxiliary_limits": {
+      "aliases": 3,
+      "contextual_types": 6,
+      "decisions": 8,
+      "interpretation_characters": 320,
+      "label_characters": 64,
+      "omissions": 4,
+      "predicates": 8,
+      "prose_characters": 180,
+      "reference_list": 4,
+      "uncertainty_and_abstentions": 4
+    },
     "complete_study_forecast_exception": true,
+    "conditions_to_construct": [
+      "c2-q1",
+      "c2-q2"
+    ],
     "context_limit": 12288,
     "generation_seconds": 180,
     "guard_seconds": 5,
     "held_out_authorized": false,
     "historical_actual_seconds": 6716.108081,
-    "historical_reservations": 7,
-    "historical_starts": 4,
+    "historical_reservations": 11,
+    "historical_starts": 6,
     "live_checks_seconds": 20,
     "maximum_additional_seconds": 3600,
-    "maximum_attempts": 22,
+    "maximum_attempts": 19,
     "maximum_global_seconds": 10316.108081,
-    "maximum_new_reservations": 15,
+    "maximum_new_reservations": 8,
     "maximum_new_starts": 2,
     "maximum_repairs_per_construction": 1,
-    "maximum_service_starts": 6,
+    "maximum_service_starts": 8,
     "model_revision": "4da05a8edb55c6046cce958586c33b61da07bb79",
     "production_adoption_authorized": false,
-    "protocol": "staged-development-v1",
-    "repair_policy_revision": "staged-v2: same fields/validators; factor redundant root-budget guide; source-only duplicate-reference feedback for incomplete prefixes retained in restricted lineage; parsed stage repairs retain previous stage input",
+    "protocol": "staged-development-bounded-aux-v3",
+    "repair_policy_revision": "staged-v3: user-approved auxiliary/prose ceilings shared across two C2 contexts; semantic errors do not suppress mechanically usable stages or exploratory scores; registered acceptance unchanged; C1/FixedSelect blocked",
     "scheduled_global_seconds": 33660,
     "scope": "exploratory_development_only",
     "shutdown_seconds": 60,

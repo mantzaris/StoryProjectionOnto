@@ -1,31 +1,51 @@
 # Run status
 
-Updated: 2026-09-08 UTC — first bounded C2 start closed; actual-stage reuse prepared.
+Updated: 2026-09-08 UTC — bounded C2 continuation finished; service stopped.
 
-Branch `implementation/query-dependent-temporal-ontology`, baseline `d86199a`.
-Remote ledger reconciled at **9,502.001279 s**, seven starts/fifteen reservations;
-journals closed and vLLM stopped. Remaining current authority: one start/four
-reservations within **814.106802 s**, maximum **10,316.108081 s**.
-C1/FixedSelect remain blocked. Both C2 contexts use the same bounded staged-v3
-auxiliary policy in `configs/study/staged_development.json`; complete source and
-semantic field ownership remain intact. Exploratory usable graphs are displayed
-and scored independently of the unchanged registered acceptance verdict.
+Branch `implementation/query-dependent-temporal-ontology`; pushed baseline
+`d86199a`; tested execution checkpoints `fe627ff`, `3d94ff9`.
+**One complete, mechanically usable and canonical C2 graph (context 2): ten nodes,
+one assertion; contextual P=0/1, R=0/7, F1=0.000.** Node F1 and essential temporal
+accuracy are 0; all four assertion citations resolve, but reference grounding is 0.
+Rare-pivotal metrics are not applicable in this context (no eligible targets).
+Strict scientific acceptance remains failed. The graph and every error remain
+visible; unsupported attribution, invalid description mappings and unresolved
+paraphrase assessment are separate. Manual diagnosis also identifies unsupported
+intrinsic point validity obscured by unrelated duration-bearing co-citations.
+The checker, gold, thresholds and historical verdicts were not changed.
 
-Focused CPU controller/adapter/packing tests pass. Effective XGrammar controls
-accept the authored specimen and reject excess types, predicates, references and
-prose. The backend's required default JSON whitespace is included in capacity
-checks; Stage C's repeated annotation guides are factored without omitting records.
-Four complete A responses were generated below their caps. Context 1 has genuine
-undeclared types; its base and permitted repair remain failed. Context 2's actual
-saved A has all destinations declared but duplicate type-reference lists. A nested
-anyOf/uniqueness routing error stopped it before B. The mechanical-only check is
-corrected without editing records or strict validators. Reuse receipts preserve
-original failures; inherited strict failures block scientific acceptance even if
-the assembled graph later scores. Next actual B input: 7,921 + 4,096 output tokens.
-Pending: context-2 B/C on the unchanged actual A, report regeneration and shutdown.
-Run only within existing authority: `python -m scripts.run_capacity_diagnostics
---staged-development --execute` in the persistent study session, with current
-source/commit binding. Held-out review and production acceptance remain blocked.
+Context 1's complete A base/repair retain undeclared types, blocking B/C without
+invented records. Context 2's reference-resolved A was reused unchanged after
+fixing a nested anyOf/uniqueness mechanical-routing bug. Duplicates and old failures
+were retained, not normalized away; inherited strict failures remain disqualifying.
+C1/FixedSelect were not retried and remain blocked. C2 never inherited C1.
+
+Six new generations (including two A repairs) all completed below their caps;
+two starts consumed **758.250141 s**. Actual cumulative **9,741.500089 s**;
+same-phase use **3,025.392008 / 3,600 s**. Eight total starts and seventeen
+reservations are preserved. Numeric remainder **574.607992 s**, but both newly
+authorized starts are consumed; no further GPU work is initiated. Journals 0/0
+open, no active GPU process, vLLM stopped; pod intact. Global 33,660 / strict
+36,000 ceilings remain. Sampled VRAM/RAM/project-storage peaks:
+22,793,945,088 / 7,201,918,976 / 17,134,682,624 bytes.
+
+Sixteen focused stage/controller/actual-output tests plus the report regression
+pass. Actual vLLM and XGrammar controls pass. All 4,737 recovered hashes match;
+10,122 pre-continuation ledger rows are unchanged; SQLite integrity/foreign keys
+pass. All fifteen previous result rows remain intact, with six added call rows.
+CSV/JSON numerics, release scan and report hashes pass. Graph/table browser checks
+cover the completed C2 graph and corresponding C0 output.
+
+C0 extraction gate remains passed: P=104/122, R=104/114, 5/5 families, valid
+citations 100%; separate all-development contextual F1=.295082 unchanged.
+Selected C0 contextual F1 is .571429 / .095238. No confirmatory inference or
+production timing claim. Registered remaining-work proxy 40,162.013213 s is
+still unvalidated and cannot establish admission. Held-out review remains required.
+
+Report: `reports/PRELIMINARY_DEVELOPMENT_RESULTS.md`; CSV/JSON/manifest in
+`reports/tables/`; graph: `reports/figures/preliminary_development_comparison.html`.
+CPU-only reproduction (no inference):
+`python -m scripts.report_preliminary_development --run artifacts/restricted/bounded-c2-backup.N8Dtlv/nested-development-demonstration-20260908/run-20260908T212351589288 --output reports`
 
 ## Previous staged execution (historical)
 

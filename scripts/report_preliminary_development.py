@@ -213,7 +213,16 @@ def label_graph(graph):
                 "predicate": predicates.get(b.get("predicate_id"), b.get("predicate_id")),
                 "bindings": binding,
                 "time": time,
-                "epistemic": a.get("epistemic_scope"),
+                "epistemic": (
+                    {
+                        **a["epistemic_scope"],
+                        "holder_label": labels.get(
+                            a["epistemic_scope"]["holder_id"], "unresolved holder"
+                        ),
+                    }
+                    if a.get("epistemic_scope")
+                    else None
+                ),
                 "evidence": a.get("evidence_ids"),
                 "why_matters": a.get("why_matters"),
                 "commitment": a.get("narrative_commitment"),
@@ -320,7 +329,7 @@ def exploratory_quality(assessment, graph, defects=()):
     }
 
 
-def graph_elements(graph, anchors):
+def graph_elements(graph, anchors, quality=None):
     labels, predicates, _ = label_graph(graph)
     g = graph.get("instance_graph", {})
     elements = []
@@ -349,6 +358,16 @@ def graph_elements(graph, anchors):
                 (aid, r["object_id"], r["role"]) for r in b["roles"] if r["object_id"] in labels
             ]
         for i, (s, o, label) in enumerate(pairs):
+            finding = next(
+                (
+                    x["status"]
+                    for x in (quality or {}).get("assertions", [])
+                    if x["assertion_id"] == a["assertion_id"]
+                ),
+                None,
+            )
+            if finding in {"unsupported_qualification", "incorrect_binding"}:
+                label += " [" + finding.replace("_", " ") + "]"
             if a.get("direction") == "inverse":
                 s, o = o, s
             elements.append(
@@ -358,6 +377,7 @@ def graph_elements(graph, anchors):
                         "source": s,
                         "target": o,
                         "label": label,
+                        "quality": finding,
                     }
                 }
             )
@@ -499,6 +519,13 @@ def build(root, run, output):
         }
         if "mechanically_usable" in o:
             row["mechanically_usable"] = o["mechanically_usable"]
+            row["backend_schema_valid"] = None
+            if (folder / "decoded.json").exists():
+                from jsonschema import Draft202012Validator
+
+                row["backend_schema_valid"] = Draft202012Validator(
+                    read(folder / "request.json")["guided_json"]
+                ).is_valid(read(folder / "decoded.json"))
         # Detailed exception chains stay restricted; concise public failure label.
         if len(row["failure"]) > 450:
             row["failure"] = (
@@ -899,8 +926,14 @@ def build(root, run, output):
     }
     if staged_rows:
         result["staged_development_protocol"] = read(root / "configs/study/staged_development.json")
+        reuse_records = [
+            read(p) | {"attempt_id": p.stem.removeprefix("mechanical-reuse-")}
+            for p in run.glob("mechanical-reuse-*.json")
+        ]
+        result["mechanical_reuse_receipts"] = reuse_records
+        reusable_attempts = {r["attempt_id"] for r in reuse_records if r["mechanically_reusable"]}
         constructions = []
-        for protocol, condition, ordinal in sorted(
+        for stage_protocol, condition, ordinal in sorted(
             {(r["protocol"], r["condition"], r["context"]) for r in staged_rows}
         ):
             attempts = [
@@ -908,22 +941,25 @@ def build(root, run, output):
                 for r in staged_rows
                 if r["condition"] == condition
                 and r["context"] == ordinal
-                and r["protocol"] == protocol
+                and r["protocol"] == stage_protocol
             ]
             active = {}
             for r in attempts:
                 s = r["construction_stage"]
                 for dependent in "ABC"["ABC".index(s) :]:
                     active.pop(dependent, None)
-                if r.get("stage_valid"):
+                if r.get("stage_valid") or r.get("attempt_id") in reusable_attempts:
                     active[s] = r
             final = active.get("C", {})
             constructions.append(
                 {
                     "condition": condition,
-                    "protocol": protocol,
+                    "protocol": stage_protocol,
                     "context": ordinal,
                     "stage_validity": {s: s in active for s in "ABC"},
+                    "strict_stage_schema_validity": {
+                        s: active.get(s, {}).get("schema_valid") for s in "ABC"
+                    },
                     "complete_canonical_graph": bool(final.get("canonical_valid")),
                     "mechanically_usable": bool(final.get("mechanically_usable")),
                     "scientific_accepted": bool(final.get("scientific_accepted")),
@@ -940,6 +976,13 @@ def build(root, run, output):
                 }
             )
         result["staged_constructions"] = constructions
+    manual_path = run.parent / "bounded-c2-manual-graph-review.json"
+    if manual_path.exists():
+        manual = read(manual_path)
+        actual_path = by_attempt[manual["attempt_id"]] / "canonical.json"
+        if hashlib.sha256(actual_path.read_bytes()).hexdigest() != manual["canonical_file_sha256"]:
+            raise ValueError("Manual diagnostic belongs to a different graph")
+        result["manual_diagnostic_review"] = manual
     inventory_path = run / "remaining-registered-inventory.json"
     if inventory_path.exists():
         from story_projection_onto.output_capacity_gate import capacity_forecast
@@ -991,6 +1034,7 @@ def build(root, run, output):
         "attempt_id",
         "repair_parent",
         "schema_valid",
+        "backend_schema_valid",
         "canonical_valid",
         "mechanically_usable",
         "quality_supported_direct_reference",
@@ -1594,7 +1638,8 @@ def build(root, run, output):
             "",
             "### Construction completion (not just successful HTTP)",
             "",
-            "| Condition/context | A / B / C valid | Canonical / scientific | Calls / repairs | "
+            "| Condition/context | A / B / C mechanically available | "
+            "Canonical / scientific | Calls / repairs | "
             "Input / output tokens | Strict F1 |",
             "|---|---|---|---|---|---|",
         ]
@@ -1612,6 +1657,10 @@ def build(root, run, output):
             "not model-authored empty graphs. Prefix node counts describe only complete received "
             "members. No CPU-created assertions are drawn. Stage-C scores, if present, are "
             "conditional draft scores and are separate from scientific acceptance.",
+            "Mechanical reuse is an explicitly versioned re-evaluation of unchanged complete "
+            "records. Duplicate reference lists do not make destinations ambiguous; unknown "
+            "type destinations still block continuation. Historical schema failures remain "
+            "failed and are inherited by the final strict acceptance verdict.",
         ]
         md += [
             "",
@@ -1649,6 +1698,11 @@ def build(root, run, output):
             "Every emitted assertion remains in contextual precision; omissions remain recall "
             "failures. Unmatched paraphrases remain unresolved, not false or accepted. "
             "Registered acceptance-gated scores are retained separately.",
+            f"This continuation made {len(current)} calls, including "
+            f"{sum(bool(r.get('repair_parent')) for r in current)} repairs, and consumed "
+            f"{accounting['cumulative_seconds'] - 8983.249948:.6f} allocated seconds. "
+            "Effective backend schema validity and stricter post-generation schema validity "
+            "are distinct CSV fields; the latter retains duplicate-list failures.",
             "",
             "Development-only ceilings: six types, eight predicates, four references per "
             "list, three aliases, eight decisions, four omissions/abstentions; 64-character "
@@ -1719,6 +1773,42 @@ def build(root, run, output):
                 "The received records and exact blockers remain visible; "
                 "prefixes are not complete graphs.",
             ]
+        if "manual_diagnostic_review" in result:
+            md += [
+                "",
+                "### Readable source-based diagnosis (manual, not a new score)",
+                "",
+                "These observations are bound to the unchanged graph hash. They do not alter "
+                "the automated checker, gold, or historical acceptance; "
+                "they are not independent review.",
+                "",
+            ]
+            md += ["- " + note for note in result["manual_diagnostic_review"]["observations"]]
+        overview = [
+            "## Current development outcome",
+            "",
+            "Complete inspectable C2 graphs: "
+            f"{sum(bool(r.get('mechanically_usable')) for r in finals)}. "
+            "Mechanical completion does not imply semantic correctness. C1 and FixedSelect "
+            "remain blocked; no production or held-out execution occurred.",
+            "",
+            "| Context | Existing C0 strict F1 | C2 complete usable graph | C2 strict F1 |",
+            "|---|---:|---|---:|",
+        ]
+        for ordinal in (1, 2):
+            baseline = next(r for r in rows if r["condition"] == "C0" and r["context"] == ordinal)
+            final = next((r for r in finals if r["context"] == ordinal), {})
+            overview.append(
+                f"| {ordinal} | {fmt(baseline['strict_f1'])} | "
+                f"{bool(final.get('mechanically_usable'))} | {fmt(final.get('strict_f1'))} |"
+            )
+        overview += [
+            "",
+            "A missing C2 score means no assembled graph, not an invented empty graph. "
+            "All emitted assertions in the completed graph are scored, including errors.",
+            "",
+        ]
+        md[4:4] = overview
     atomic_text(output / "PRELIMINARY_DEVELOPMENT_RESULTS.md", "\n".join(md) + "\n")
     labels = sorted({label for g in graphs for label in label_graph(g["graph"])[0].values()})
     anchors = {
@@ -1845,6 +1935,9 @@ def build(root, run, output):
         for a in assertions:
             assessment = g.get("assessment", {})
             checks = {
+                "manual_diagnosis": result.get("manual_diagnostic_review", {}).get("observations")
+                if result.get("manual_diagnostic_review", {}).get("assertion_id") == a["id"]
+                else None,
                 "exploratory_quality": next(
                     (
                         x
@@ -1910,7 +2003,12 @@ def build(root, run, output):
             + "</pre></details></section>"
         )
         if labels_here:
-            js.append({"id": "g" + str(i), "elements": graph_elements(graph, anchors)})
+            js.append(
+                {
+                    "id": "g" + str(i),
+                    "elements": graph_elements(graph, anchors, r.get("exploratory_quality")),
+                }
+            )
     parts.append(
         '<script src="../../ui/cytoscape.min.js"></script><script>const views='
         + json.dumps(js).replace("<", "\\u003c")
