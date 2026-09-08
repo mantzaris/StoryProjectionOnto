@@ -1,8 +1,74 @@
 # Run status
 
-Updated: 2026-09-07 — small semantic session terminal; approved C0 scope implemented
+Updated: 2026-09-08 UTC — CPU ID diagnosis and C0 repair complete; no GPU start
 
 ## Current verified state
+
+Tested source checkpoint **`73dfc83`**, branch
+`implementation/query-dependent-temporal-ontology`; previous checkpoint `898d8af`.
+All work in this update was CPU-only. Remote service/source was not redeployed or
+restarted. Pinned remote xgrammar compiled the proposed schema with CUDA hidden.
+
+The first named-semantic response remains **failed and immutable**. Its collisions
+are cross-type, but three untyped decision targets each refer ambiguously to an
+entity or assertion. No semantic choice or retrospective acceptance was made.
+Further failures include an unsupported carrier endpoint, disconnected description
+support/event structure, unsupported intrinsic validity and no substantive
+construction decision. Exact record/reference table and readable original graph:
+`artifacts/restricted/semantic-id-diagnosis-v3/FAILED_GRAPH.md`.
+Diagnosis and proposed typed-ID adapter: `docs/SEMANTIC_ID_CPU_REPAIR.md`.
+
+The opt-in candidate is **not activated for live or held-out execution**. Its
+typed counters and runtime canonical-ID translation reject ambiguity, preserve
+every record/reference and do not complete semantics. CPU-prepared request:
+`artifacts/restricted/semantic-id-diagnosis-v3/CANDIDATE_REQUEST.md`.
+Packing: **5,605 input + 6,144 reserved output = 11,749 / 12,288 tokens**.
+Pinned xgrammar CPU compilation passes without warnings (**.015388 s**).
+This is not a model result, full acceptance or throughput estimate.
+
+C0 newly executed four sealed preconstructions and twelve projections on CPU:
+
+- Before these repairs: extraction **53/154 precision, 53/114 recall**; failed.
+- Common lexical matcher only on original outputs: **59/154, 59/114**; failed.
+- Repaired extraction: **104/122 precision (.852459), 104/114 recall (.912281)**,
+  F1 **.881356**, family/evidence coverage **1.00/1.00**. Unchanged CPU competence
+  thresholds pass; this does not substitute for the integrated development gate.
+- Contextual projection: **54/275 precision (.196364), 54/91 recall (.593407)**,
+  F1 **.295082**. All 275 emitted assertions count, including 121 strictly supported
+  but context-excluded assertions. Relevance selection remains poor.
+
+No scope, gold, evidence, threshold or denominator-rule change in this repair.
+The source-bound title/holder and named-event/role rules changed actual C0 output;
+the declared common enabled/causally_enables normalization is separately measured.
+Canonical assessment: `artifacts/restricted/c0-repaired-extraction-v6/assessment.json`.
+Readable examples: `artifacts/restricted/C0_CPU_REPAIR_EXAMPLES.md`.
+Details/historical results: `docs/C0_PRECISION_DENOMINATOR_AUDIT.md`.
+
+Verification: **110-test focused suite passed**, plus all **9 identifier-adapter
+tests** (two added afterward: **112 distinct cases**, not 119). Includes strict
+time/epistemic matching, scope/coverage, query boundary and benchmark firewall.
+Lint/diff checks pass. Verified 4 original response/request hashes, 17 CPU run
+artifact hashes, 12 assessment sidecars and 6 source hashes; C0 CPU ledger is zero.
+Verification record: `artifacts/restricted/semantic-id-diagnosis-v3/CPU_VERIFICATION.json`.
+
+**New GPU allocation: 0 s. Historical total remains 5,755.222442 s.** vLLM remains
+stopped; pod remains active. Last complete-run proxy is unchanged:
+40,162.013213 s remaining; **45,917.235655 s all-in**, above scheduled 33,660 s.
+Strict actual stop before 36,000 s remains. No valid production p95 exists.
+No PDF, inference, budget increase, model change, gold amendment or push occurred.
+
+Next useful live test, **not authorized/launched**: one same-evidence small call
+with the typed-ID candidate, then stop. Requires explicit GPU-session authority
+and a diagnostic-only forecast exception; unused prior-session seconds do not
+authorize a restart. Ordinary admission, complete fallback acceptance (including
+restart/resume), production interface approval and human review remain gates.
+Review package unchanged:
+`artifacts/restricted/scorer_only/independent_review_handoff_v4_intrinsic/`.
+
+Safe CPU resume/check:
+`python -m pytest -q tests/unit/test_semantic_identifiers.py tests/unit/test_c0_condition.py tests/unit/test_direct_extraction_scope.py`.
+
+## Historical semantic session and original C0 scope assessment — 2026-09-07
 
 Tested source checkpoint **`e841572`**, branch
 `implementation/query-dependent-temporal-ontology`; live diagnostic source
