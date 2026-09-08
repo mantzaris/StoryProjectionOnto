@@ -1,10 +1,18 @@
 """CPU validation of the actual opt-in small diagnostic path, no GPU calls."""
 
 import copy
+import json
+from pathlib import Path
+
+import pytest
 
 from story_projection_onto.scorer_only.small_diagnostic_checks import component_audit
 from story_projection_onto.semantic_generation import reconstruct
-from story_projection_onto.semantic_identifiers import build_typed_small_request
+from story_projection_onto.semantic_identifiers import (
+    build_typed_small_request,
+    identifier_audit,
+    reconstruct_typed,
+)
 from tests.unit.test_fallback_acceptance import FakeTokenizer, fallback_tokenizer_manifest
 from tests.unit.test_semantic_generation import execution, small_wire, source_fixture
 
@@ -75,3 +83,42 @@ def test_supported_description_is_not_substantive_construction():
     wire["decisions"][0]["operator"] = "supported_description"
     result = assess(wire)
     assert not result["structural_valid"] and not result["construction_decision_grounding"]
+
+
+def test_retained_typed_live_output_is_reference_valid_but_remains_scientifically_failed():
+    root = Path(__file__).resolve().parents[2]
+    run = root / (
+        "artifacts/restricted/typed-session-backup.jXb6mu/artifacts/restricted/"
+        "small-typed-semantic-validation-20260908/run-20260908T025837478254"
+    )
+    if not run.exists():
+        pytest.skip("restricted actual response is not part of the public checkout")
+    from story_projection_onto.contracts import PreconstructionRequest, canonical_sha256
+
+    path = run / "small-typed-semantic-validation-20260908-diagnostic-1/decoded.json"
+    wire = json.loads(path.read_bytes())
+    assert (
+        canonical_sha256(wire) == "d1e9ec0e58c619d3e75482c85818db1152b64aab9506ca6a2b20b52cebdfdc86"
+    )
+    original = copy.deepcopy(wire)
+    fixture = PreconstructionRequest.model_validate(
+        json.loads((run / "fixture-semantic-first.json").read_bytes())
+    )
+    audit = identifier_audit(
+        wire, ["event-candidate-arrival", "m-lio-01", "m-gate-01", "m-seal-01"]
+    )
+    assert audit["normalizable"] and not audit["collisions"]
+    assert len(audit["declarations"]) == 11
+    adapted = reconstruct_typed(
+        wire,
+        evidence=fixture.evidence,
+        upper=fixture.upper_ontology,
+        execution=execution(),
+        small=True,
+    )
+    result = component_audit(adapted.draft, fixture, source_fixture().evidence)
+    assert result["reference_integrity"] and result["event_connectivity"]
+    assert not result["endpoint_correctness"] and not result["all_checks_pass"]
+    assert not result["construction_decision_grounding"]
+    assert len(result["temporal_support_issues"]) == 10
+    assert wire == original

@@ -1,24 +1,36 @@
 # Run status
 
-Updated: 2026-09-08 UTC — authorized typed-ID diagnostic session IN PROGRESS
+Updated: 2026-09-08 UTC — typed-ID diagnostic finished; vLLM stopped
 
 Tested live source: `2584064`; source-map SHA-256
 `25c32d6baeb889c61cedfe67d14bd1c49e2d88a058e3b6a56e4529366861e422`.
-Local 56 focused tests pass; remote 55 pass and one retained-local-artifact test
-skips. Remote CUDA-hidden packing/decoder preflight passes. Call 1 reproduces
+Final local **57 focused tests pass**; remote 55 passed and one retained-local-artifact
+test skipped. Remote CUDA-hidden packing/decoder preflight passes. Call 1 reproduces
 the frozen candidate hash exactly. Second passage preselected and frozen before
 allocation; 5,857 input + 6,144 output tokens fits 12,288 total context.
 
-One tmux session `storyprojection-study`, launched once. Baseline 5,755.222442 s;
-at most 1,100 new allocated seconds, global session maximum 6,855.222442 s.
-No ordinary calls, full C1, held-out inference or additional startup authorized.
-Caps/source binding and independent checks: `docs/TYPED_SEMANTIC_VALIDATION_SESSION.md`.
+One start, **one call**, no live repair. HTTP 200, stop, complete JSON, generation
+schema and canonical reconstruction pass: 1,846 output tokens, 49.611827 s request
+wall time. Eleven distinct records and all references resolve; arrival is connected.
+**Zero scientific passes**: event assigned a generic entity type, relation definition
+and endpoints disagree, ten unsupported numeric time qualifications, and only a
+supported-description decision. The second frozen passage was not executed.
+Legacy oracle coverage/clock limitations are separately documented, not silently
+corrected. No full C1, C2, FixedSelect, ordinary or held-out calls.
+Outcome and complete C0 gate: `docs/TYPED_SEMANTIC_VALIDATION_OUTCOME.md`.
+
+Allocation: **270.213729 s new + 5,755.222442 s preserved = 6,025.436171 s**.
+Unused 829.786271 s does not authorize another start. Service and tmux job stopped;
+no GPU compute processes and zero open journals. Pod active. Remaining mandatory
+proxy 40,162.013213 s; all-in **46,187.449384 s**, above scheduled 33,660 s.
+No production p95 or study-feasibility claim. Strict actual stop before 36,000 s.
 Remote relative run:
 `artifacts/restricted/small-typed-semantic-validation-20260908/run-20260908T025837478254`.
-Status: read that run's `state.json`, `terminal.json` (when present), `vllm.log`,
-and the parent `controller-20260908T0300Z.log`. Do not duplicate this live job.
-The guardian enforces stages, whole-session deadline, three-call maximum and
-protected shutdown. A CPU preparation run preceded it without any GPU usage.
+Restricted local backup: `artifacts/restricted/typed-session-backup.jXb6mu/`;
+all 363 transferred files hash-match, ledger integrity passes, all historical
+accounting/failure rows preserved. Actual evidence/graph: `EVIDENCE_AND_GENERATED_GRAPHS.md`;
+specific field-level diagnosis: `MANUAL_DIAGNOSTIC_REVIEW.md`; measurements: `summary.json`.
+Peak VRAM/RAM/storage: 22,793,945,088 / 7,091,417,088 / 16,740,758,528 bytes.
 
 C0's preserved **complete** extraction competence gate is verified: precision
 104/122, recall 104/114, all five fixture families, evidence-reference validity
@@ -26,7 +38,11 @@ C0's preserved **complete** extraction competence gate is verified: precision
 All 24 matcher-only/repaired assessment sidecar hashes verified this turn.
 Independent review remains pending. No interim PDF.
 
-## Previous CPU-only handoff (superseded by live status above)
+Next: targeted semantic-interface/checker repair, not full-size acceptance yet.
+No further GPU execution authorized. Safe CPU check:
+`python -m pytest -q tests/unit/test_typed_small_live_path.py tests/unit/test_semantic_identifiers.py`.
+
+## Historical CPU-only handoff (superseded by terminal status above)
 
 Updated: 2026-09-08 UTC — CPU ID diagnosis and C0 repair complete; no GPU start
 
