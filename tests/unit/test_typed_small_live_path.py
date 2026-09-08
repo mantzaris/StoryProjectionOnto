@@ -50,7 +50,7 @@ def assess(wire):
 
 def test_endpoint_support_does_not_depend_on_hidden_numeric_clock():
     result = assess(small_wire())
-    assert result["reference_integrity"] and result["endpoint_correctness"]
+    assert result["reference_integrity"] and result["endpoint_support"] == "supported"
     assert result["evidence_supported_temporal_bounds"]
     assert not result["legacy_audit_complete"] and not result["all_checks_pass"]
     assert any("story time" in a["reason"] for a in result["legacy_assessments"])
@@ -75,14 +75,16 @@ def test_wrong_endpoint_is_distinct_from_reference_integrity():
         assertion["subject_id"],
     )
     result = assess(wire)
-    assert result["reference_integrity"] and not result["endpoint_correctness"]
+    assert result["reference_integrity"] and result["endpoint_support"] == "unknown"
 
 
 def test_supported_description_is_not_substantive_construction():
     wire = copy.deepcopy(small_wire())
     wire["decisions"][0]["operator"] = "supported_description"
     result = assess(wire)
-    assert not result["structural_valid"] and not result["construction_decision_grounding"]
+    assert result["structural_valid"] and result["required_nonempty_structure"]
+    assert not result["substantive_operation_reported"]
+    assert not result["construction_decision_grounding"]
 
 
 def test_retained_typed_live_output_is_reference_valid_but_remains_scientifically_failed():
@@ -118,7 +120,8 @@ def test_retained_typed_live_output_is_reference_valid_but_remains_scientificall
     )
     result = component_audit(adapted.draft, fixture, source_fixture().evidence)
     assert result["reference_integrity"] and result["event_connectivity"]
-    assert not result["endpoint_correctness"] and not result["all_checks_pass"]
+    assert result["endpoint_support"] == "unknown" and not result["all_checks_pass"]
+    assert result["structural_valid"] and result["required_nonempty_structure"]
     assert not result["construction_decision_grounding"]
     assert len(result["temporal_support_issues"]) == 10
     assert wire == original

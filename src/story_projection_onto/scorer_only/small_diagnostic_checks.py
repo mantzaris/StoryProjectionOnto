@@ -7,6 +7,7 @@ These checks do not claim exhaustive natural-language description entailment.
 
 from dataclasses import asdict
 
+from story_projection_onto.contracts import SUBSTANTIVE_CONSTRUCTION_OPERATORS
 from story_projection_onto.scorer_only.acceptance_grounding import (
     _KNOWN_FACTS,
     _MENTION_CONCEPTS,
@@ -60,7 +61,7 @@ def component_audit(draft, fixture, oracle_evidence):
         endpoint_checks.append(
             dict(
                 assertion_id=assertion.assertion_id,
-                endpoint_relation_citation_supported=fact is not None,
+                endpoint_relation_citation_support="supported" if fact is not None else "unknown",
                 matched_fact=None if fact is None else fact.fact_id,
                 qualification_or_matching_reason=reason,
             )
@@ -113,11 +114,9 @@ def component_audit(draft, fixture, oracle_evidence):
         audit_error = None
     except (KeyError, ValueError) as error:
         assessments, legacy_complete, audit_error = [], False, str(error)
-    nonselection = [
-        d
-        for d in draft.decisions
-        if d.operator.value not in {"selection", "compression", "supported_description"}
-    ]
+    # Use the authoritative existing operator set. Include/exclude and rarity
+    # checks must not accidentally certify substantive construction.
+    nonselection = [d for d in draft.decisions if d.operator in SUBSTANTIVE_CONSTRUCTION_OPERATORS]
     decisions_supported = (
         bool(nonselection)
         and all(
@@ -128,18 +127,48 @@ def component_audit(draft, fixture, oracle_evidence):
         and any(a["record_kind"] == "ontology_decision" for a in assessments)
     )
     reference_ok = not any(d["code"] == "unknown_reference" for d in errors)
-    structure_ok = structural.validation_status == "accepted" and (
-        2 <= len(graph.entities) + len(graph.events) <= 4
-        and 1 <= len(graph.assertions) <= 3
-        and bool(nonselection)
+    nonempty_ok = (
+        2 <= len(graph.entities) + len(graph.events) <= 4 and 1 <= len(graph.assertions) <= 3
+    )
+    structure_ok = structural.validation_status == "accepted"
+    # Fact-free violations of existing contract requirements, never expected
+    # facts from _KNOWN_FACTS. Whitelisted codes may support a bounded repair.
+    repairable = []
+    if not nonselection:
+        repairable.append(dict(code="substantive_decision_missing", path="decisions"))
+    types = {t.type_id: t for t in draft.local_schema.contextual_types}
+    for event in graph.events:
+        typ = types.get(event.contextual_type_id)
+        if typ is not None and typ.parent_upper_type != "event":
+            repairable.append(
+                dict(
+                    code="event_type_incompatible",
+                    path=f"instance_graph.events.{event.event_id}.contextual_type_id",
+                )
+            )
+    endpoint_support = (
+        "supported"
+        if endpoint_checks
+        and all(x["endpoint_relation_citation_support"] == "supported" for x in endpoint_checks)
+        else "unknown"
     )
     return dict(
+        revision="small-component-observations-v2",
         reference_integrity=reference_ok,
         structural_valid=structure_ok,
+        required_nonempty_structure=nonempty_ok,
+        substantive_operation_reported=bool(nonselection),
+        materialized_objects=dict(
+            types=len(draft.local_schema.contextual_types),
+            predicates=len(predicates),
+            entities=len(graph.entities),
+            events=len(graph.events),
+        ),
         structural_diagnostics=errors,
         endpoint_checks=endpoint_checks,
-        endpoint_correctness=bool(endpoint_checks)
-        and all(x["endpoint_relation_citation_supported"] for x in endpoint_checks),
+        endpoint_support=endpoint_support,
+        endpoint_support_scope="legacy witness coverage only; unmatched is unknown, not false; "
+        "definition/role consistency requires separate assessment",
         description_support_links=description_links,
         description_text_entailment="requires readable-output diagnostic review; "
         "links alone are not entailment",
@@ -151,12 +180,14 @@ def component_audit(draft, fixture, oracle_evidence):
         legacy_assessments=assessments,
         legacy_audit_complete=legacy_complete,
         legacy_audit_error=audit_error,
+        repairable_contract_diagnostics=repairable,
         legacy_clock_assumptions={
             f.fact_id: f.story_point
             for f in _KNOWN_FACTS
             if f.required_evidence <= {e.evidence_id for e in fixture.evidence}
         },
         all_checks_pass=structure_ok
+        and nonempty_ok
         and reference_ok
         and legacy_complete
         and not temporal_issues

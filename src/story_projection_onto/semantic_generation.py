@@ -246,6 +246,35 @@ def semantic_schema(
     return schema
 
 
+def build_clarified_small_request(fixture, tokenizer, tokenizer_manifest, instruction: str):
+    """CPU-prepared instruction revision; existing codec/schema/runtime unchanged.
+
+    Opt-in only. The frozen v1/typed request builder remains reproducible. The
+    instruction contains no evidence-specific answers and cannot change the
+    complete evidence, template, sampling settings, or output allowance.
+    """
+    from story_projection_onto.gpu_runtime import ChatMessage
+    from story_projection_onto.representation_diagnostic import _repack
+    from story_projection_onto.semantic_identifiers import (
+        IDENTIFIER_INSTRUCTION,
+        build_typed_small_request,
+    )
+
+    if instruction.count("{{TYPED_IDENTIFIERS}}") != 1:
+        raise ValueError("exactly one unchanged typed-ID contract placeholder required")
+    base = build_typed_small_request(fixture, tokenizer, tokenizer_manifest)
+    marker = "The following complete field guide"
+    guide = marker + base.messages[0].content.split(marker, 1)[1]
+    text = instruction.replace("{{TYPED_IDENTIFIERS}}", IDENTIFIER_INSTRUCTION).strip()
+    return _repack(
+        base,
+        (ChatMessage(role="system", content=text + "\n\n" + guide), *base.messages[1:]),
+        base.output_schema,
+        tokenizer,
+        label="semantic-instruction-v2",
+    )
+
+
 def build_small_request(fixture, tokenizer, tokenizer_manifest):
     """CPU packing into the existing GuidedJSONRequest/streaming client pathway.
 

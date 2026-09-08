@@ -1,5 +1,53 @@
 # Run status
 
+Updated: 2026-09-08 UTC — semantic diagnosis/justified CPU repairs complete
+
+Previous verified checkpoint: **`5d9a0a2`**. Current CPU source and test hashes:
+`artifacts/restricted/semantic-diagnosis-v2/CPU_VERIFICATION.json`.
+**69 focused tests pass** (10.86 s), lint and diff checks pass. Nine retained
+response/request/canonical artifact hashes and the ledger hash are unchanged.
+No remote actions, deployment, GPU allocation, new PDF or C0 rerun this turn.
+
+Readable assertion-level evidence, generated fields and actual rejections:
+`artifacts/restricted/semantic-diagnosis-v2/ASSERTION_RECORDS.md` and
+`SEMANTIC_DIAGNOSIS.md` in that directory. The original output remains failed.
+Typed IDs, reconstruction, reference integrity, nonempty structure and event
+connectivity remain passing. The diagnosis separates inconsistent model-authored
+predicate roles, unsupported validity, and incorrect operation reporting from
+instruction gaps and the legacy oracle's clock/alternative-coverage problems.
+
+Completed: general semantic instruction v2, versioned observation corrections,
+and one fact-free contract-repair branch in the existing controller. Canonical and
+temporal validators and the legacy scientific oracle are unchanged, as are the
+original response, model, codec, schema, evidence and token limits. The previous
+one-call stop was an automatic scientific-failure
+branch, not evidence that no repair was available. Both preselected development
+examples are now prepared before any future allocation; their input token counts
+are 5,740 and 5,992, each reserving 6,144 output within 12,288 total context.
+The exhausted old session still rejects another start.
+
+**Next decision:** scoped pilot reference/clock reconciliation and a proposed
+single 1,100-second, two-example-plus-one-repair diagnostic session, neither
+activated nor launched. Current/proposed rules and consequences:
+`docs/SMALL_SEMANTIC_RULE_RECONCILIATION.md`. Prepared readable requests:
+`artifacts/restricted/semantic-diagnosis-v2/REQUESTS.md`. Human review, full fallback
+acceptance and ordinary complete-run admission remain separate gates.
+
+**C0 full extraction gate remains passed:** P 104/122, R 104/114, 5/5 families,
+100% valid evidence references. Matcher-only/historical failures preserved.
+Contextual P 54/275, R 54/91, F1 .295082 remain separate and unchanged; extraction
+thresholds do not apply to contextual projection.
+
+**GPU added: 0 s; historical total: 6,025.436171 s.** Last verified remote state:
+vLLM stopped, pod active; not newly queried this CPU turn. Remaining mandatory
+proxy 40,162.013213 s, all-in 46,187.449384 s, above scheduled 33,660 s;
+no new production-throughput evidence. Strict stop before 36,000 s unchanged.
+
+Safe CPU check (does not allocate GPU):
+`python -m pytest -q tests/unit/test_semantic_instruction_revision.py tests/unit/test_typed_small_live_path.py tests/unit/test_capacity_diagnostic_controller.py tests/unit/test_semantic_generation.py tests/unit/test_semantic_identifiers.py`.
+
+## Previous live session — preserved terminal handoff
+
 Updated: 2026-09-08 UTC — typed-ID diagnostic finished; vLLM stopped
 
 Tested live source: `2584064`; source-map SHA-256

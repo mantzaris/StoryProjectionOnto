@@ -459,25 +459,57 @@ def next_diagnostic(*, completed, accepted_c1):
     return "small" if completed == 0 else None
 
 
-def prepare_structural_semantic_retry(request, failure, tokenizer):
+def prepare_structural_semantic_retry(request, failure, tokenizer, *, contract_diagnostics=()):
     """One diagnostic clarification of observed syntax/cross-field errors only.
 
     Never feed the scorer's expected facts back to the model. Full evidence is
     unchanged. An overlarge error or packing failure ends this repair branch.
     """
-    if failure["stage"] not in {"canonical_schema_validation", "schema_or_structural_validation"}:
+    if failure["stage"] not in {
+        "canonical_schema_validation",
+        "schema_or_structural_validation",
+        "scientific_capability_validation",
+    }:
         return None
-    message = failure["message"]
+    # Scientific rejection alone is not an automatic shutdown rule. A model's
+    # observable cross-field/operation violations can justify ONE clarification;
+    # the scorer's expected facts and latent clocks can never enter that request.
+    rules = {
+        "substantive_decision_missing": "Report an actually performed substantive operation, "
+        "not description/selection alone. No particular reification is required.",
+        "event_type_incompatible": "Event records require event-compatible contextual types "
+        "under the supplied upper vocabulary. Correct that inconsistency without inventing facts.",
+    }
+    if contract_diagnostics:
+        import re
+
+        messages = []
+        for diagnostic in contract_diagnostics:
+            if set(diagnostic) != {"code", "path"} or diagnostic["code"] not in rules:
+                return None
+            path = diagnostic["path"]
+            if not isinstance(path, str) or not re.fullmatch(
+                r"decisions|instance_graph\.events\.[A-Za-z0-9_-]+\.contextual_type_id", path
+            ):
+                return None
+            if (diagnostic["code"] == "substantive_decision_missing") != (path == "decisions"):
+                return None
+            messages.append(path + ": " + rules[diagnostic["code"]])
+        # One explicit discriminating repair, not an accumulating hint list.
+        # Still validate ALL input diagnostics before selecting the first.
+        message = messages[0]
+    else:
+        if failure["stage"] == "scientific_capability_validation":
+            return None  # Scientific text is not contract-only repair feedback.
+        message = failure["message"]
     if "semantic grounding audit" in message or len(message) > 4000:
         return None
     from story_projection_onto.gpu_runtime import ChatMessage
     from story_projection_onto.representation_diagnostic import _repack
 
     system = request.messages[0].content + (
-        "\nStructural repair revision semantic-structural-retry-v1. The previous attempt "
-        "failed the following check(s). Reconstruct from the same complete evidence, "
-        "correcting these contract violations. No expected facts or graph are supplied. "
-        "Do not fill missing semantics with unsupported guesses.\n" + message
+        "\nContract repair semantic-contract-retry-v2: reconstruct from unchanged evidence. "
+        "Address this observed violation without inventing missing semantics.\n" + message
     )
     try:
         return _repack(
@@ -489,6 +521,20 @@ def prepare_structural_semantic_retry(request, failure, tokenizer):
         )
     except ValueError:
         return None
+
+
+def next_small_semantic_step(kind, pending_repair):
+    """Prepared next-session order: two frozen examples, then at most one repair.
+
+    Scientific failure is not a service-health signal. Transport cancellation,
+    allocation admission and shutdown stay in the existing controller/guardian.
+    This function grants no session authority and resets no reservations.
+    """
+    if kind == "semantic-first":
+        return "semantic-second", None
+    if kind == "semantic-second" and pending_repair is not None:
+        return pending_repair
+    return None, None
 
 
 def controller(root, block, run, *, prepare_only=False, comparison=False, semantic=False):
@@ -534,10 +580,7 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
         raise ValueError("small diagnostic request changed from the authorized exact request")
     semantic_fixtures = {}
     if semantic:
-        from story_projection_onto.semantic_identifiers import (
-            FROZEN_FIRST_REQUEST,
-            build_typed_small_request,
-        )
+        from story_projection_onto.semantic_generation import build_clarified_small_request
 
         # Freeze both sources before allocation; no output-dependent selection.
         second_evidence = next(e for e in small_oracle if e.evidence_id == "ev-03")
@@ -557,11 +600,23 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
             "semantic-second": PreconstructionRequest.model_validate(second_raw),
         }
         variants = {
-            k: replace(build_typed_small_request(f, tokenizer, tokenizer_manifest), request_id=k)
+            k: replace(
+                build_clarified_small_request(
+                    f,
+                    tokenizer,
+                    tokenizer_manifest,
+                    (root / "prompts/diagnostics/semantic_instruction_v2.md").read_text(),
+                ),
+                request_id=k,
+            )
             for k, f in semantic_fixtures.items()
         }
-        if variants["semantic-first"].request_hash != FROZEN_FIRST_REQUEST:
-            raise ValueError("first semantic request differs from CPU-frozen interface")
+        frozen = {
+            "semantic-first": "4a20f6a8d7bdca39b2901d16d9ceed3000db9878639a1fa03c43291bf400e39c",
+            "semantic-second": "158c051116ed185a755dc0c01084b70ffe82f229ebe6c9116570c750b6579157",
+        }
+        if {k: q.request_hash for k, q in variants.items()} != frozen:
+            raise ValueError("semantic request differs from the CPU-frozen general instruction")
         for label, fixture in semantic_fixtures.items():
             immutable(run / f"fixture-{label}.json", fixture.model_dump(mode="json"))
     else:
@@ -793,6 +848,7 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
     accepted_c1_seal = None
     semantic_next = "semantic-first"
     semantic_retry_parent = None
+    pending_semantic_repair = None
     try:
         cap = stage("startup", STARTUP_SECONDS)
         service.start(
@@ -1202,35 +1258,35 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
                 # overlap it or keep using an unhealthy service.
                 break
             if semantic:
-                if failure is None:
-                    semantic_next = "semantic-second" if kind.startswith("semantic-first") else None
-                    semantic_retry_parent = None
-                else:
-                    # No retry from scorer oracle diagnostics. Only a concrete
-                    # structural failure can support a prompt clarification.
-                    if (
-                        transport_metadata.get("failure_stage") == "scientific_validation"
-                        or failure["stage"] == "client"
-                        or attempts + 1 >= 3
-                        or semantic_retry_parent is not None
-                    ):
-                        semantic_next = None
-                    else:
-                        stage("bounded_structural_repair_preparation", 90)
-                        repaired = prepare_structural_semantic_retry(request, failure, tokenizer)
-                        if repaired is None:
-                            semantic_next = None
-                        else:
-                            semantic_next = kind + "-repair"
-                            variants[semantic_next] = repaired
-                            semantic_fixtures[semantic_next] = semantic_fixtures[kind]
-                            semantic_retry_parent = attempt_id
-                            compiler.compile_json_schema(
-                                json.dumps(repaired.output_schema), any_whitespace=False
-                            )
-                            immutable(
-                                run / f"prepared-{semantic_next}.json", repaired.wire_payload()
-                            )
+                if failure and failure["stage"] == "client":
+                    break  # Unknown completion/cancellation: do not overlap requests.
+                if (
+                    failure
+                    and semantic_retry_parent is None
+                    and pending_semantic_repair is None
+                    and attempts + 1 < 3
+                ):
+                    stage("bounded_structural_repair_preparation", 30)
+                    repaired = prepare_structural_semantic_retry(
+                        request,
+                        failure,
+                        tokenizer,
+                        contract_diagnostics=()
+                        if component_checks is None
+                        else component_checks["repairable_contract_diagnostics"],
+                    )
+                    if repaired is not None:
+                        repair_kind = kind + "-repair"
+                        variants[repair_kind] = repaired
+                        semantic_fixtures[repair_kind] = semantic_fixtures[kind]
+                        pending_semantic_repair = (repair_kind, attempt_id)
+                        compiler.compile_json_schema(
+                            json.dumps(repaired.output_schema), any_whitespace=False
+                        )
+                        immutable(run / f"prepared-{repair_kind}.json", repaired.wire_payload())
+                semantic_next, semantic_retry_parent = next_small_semantic_step(
+                    kind, pending_semantic_repair
+                )
     finally:
         state.update(
             stage="shutdown",
