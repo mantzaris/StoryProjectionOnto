@@ -1,11 +1,11 @@
 # Run status
 
-Updated: 2026-09-08 UTC — bounded C2 continuation prepared; no new allocation yet.
+Updated: 2026-09-08 UTC — first bounded C2 start closed; actual-stage reuse prepared.
 
 Branch `implementation/query-dependent-temporal-ontology`, baseline `d86199a`.
-Remote ledger reconciled at **8,983.249948 s**, six starts/eleven reservations;
-journals closed and vLLM stopped. Current explicit authority: up to two additional
-starts/eight reservations within **1,332.858133 s**, maximum **10,316.108081 s**.
+Remote ledger reconciled at **9,502.001279 s**, seven starts/fifteen reservations;
+journals closed and vLLM stopped. Remaining current authority: one start/four
+reservations within **814.106802 s**, maximum **10,316.108081 s**.
 C1/FixedSelect remain blocked. Both C2 contexts use the same bounded staged-v3
 auxiliary policy in `configs/study/staged_development.json`; complete source and
 semantic field ownership remain intact. Exploratory usable graphs are displayed
@@ -15,7 +15,14 @@ Focused CPU controller/adapter/packing tests pass. Effective XGrammar controls
 accept the authored specimen and reject excess types, predicates, references and
 prose. The backend's required default JSON whitespace is included in capacity
 checks; Stage C's repeated annotation guides are factored without omitting records.
-Pending: live two-context A/B/C execution, report regeneration, verified shutdown.
+Four complete A responses were generated below their caps. Context 1 has genuine
+undeclared types; its base and permitted repair remain failed. Context 2's actual
+saved A has all destinations declared but duplicate type-reference lists. A nested
+anyOf/uniqueness routing error stopped it before B. The mechanical-only check is
+corrected without editing records or strict validators. Reuse receipts preserve
+original failures; inherited strict failures block scientific acceptance even if
+the assembled graph later scores. Next actual B input: 7,921 + 4,096 output tokens.
+Pending: context-2 B/C on the unchanged actual A, report regeneration and shutdown.
 Run only within existing authority: `python -m scripts.run_capacity_diagnostics
 --staged-development --execute` in the persistent study session, with current
 source/commit binding. Held-out review and production acceptance remain blocked.

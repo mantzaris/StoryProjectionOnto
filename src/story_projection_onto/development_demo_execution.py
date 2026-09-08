@@ -129,7 +129,45 @@ def execute_workload(root, block, run, *, prepare_only=False, staged=False):
             stage_records[old["attempt_id"]] = (old, f.parent)
             if old.get("repair_parent"):
                 stage_repairs[k] += 1
-            if s and old.get("stage_valid"):
+            reusable = old.get("stage_valid")
+            if not reusable and s == "A" and old.get("stage_complete"):
+                from types import SimpleNamespace
+
+                try:
+                    stages.validate_stage(
+                        "A",
+                        read(f.parent / "decoded.json"),
+                        SimpleNamespace(
+                            output_schema=read(f.parent / "request.json")["guided_json"]
+                        ),
+                        mechanical=True,
+                    )
+                except Exception as exc:
+                    immutable(
+                        run / f"mechanical-reuse-{old['attempt_id']}.json",
+                        {
+                            "source_outcome_hash": canonical_sha256(old),
+                            "mechanically_reusable": False,
+                            "blocker": str(exc)[:500],
+                            "original_status_unchanged": True,
+                        },
+                    )
+                else:
+                    reusable = True
+                    immutable(
+                        run / f"mechanical-reuse-{old['attempt_id']}.json",
+                        {
+                            "source_outcome_hash": canonical_sha256(old),
+                            "mechanically_reusable": True,
+                            "scientific_acceptance": False,
+                            "original_status_unchanged": True,
+                            "policy": (
+                                "uniqueness-only lists do not prevent stage use; "
+                                "all local destinations must resolve"
+                            ),
+                        },
+                    )
+            if s and reusable:
                 for later in "ABC"["ABC".index(s) :]:
                     stage_values[k].pop(later, None)
                     stage_attempts[k].pop(later, None)
@@ -202,6 +240,21 @@ def execute_workload(root, block, run, *, prepare_only=False, staged=False):
 
     compiler = xgrammar.GrammarCompiler(xgrammar.TokenizerInfo.from_huggingface(tokenizer))
     packing = {}
+    if staged:
+        for key, parent, _feedback in queue:
+            k, s = key.split(".")
+            if s == "A" or parent:
+                continue
+            q, *_ = stages.prepare(root, k, s, tokenizer, token_manifest, prior=stage_values[k])
+            validate_server_schema(q.output_schema)
+            compiler.compile_json_schema(canonical_json(q.output_schema), any_whitespace=False)
+            immutable(run / f"prepared-actual-resume-{k}-{s}.json", q.wire_payload())
+            packing[key + ".actual_resume"] = {
+                "request_hash": q.request_hash,
+                "input_tokens": q.rendered_input_token_count,
+                "output_allowance": q.decoding.maximum_output_tokens,
+                "actual_model_dependencies": dict(stage_attempts[k]),
+            }
     for kind, (q, _, _mapping, _budgets) in variants.items():
         validate_server_schema(q.output_schema)
         compiler.compile_json_schema(canonical_json(q.output_schema), any_whitespace=False)
@@ -596,7 +649,7 @@ def execute_workload(root, block, run, *, prepare_only=False, staged=False):
                 if result.finish_reason != "stop":
                     raise ValueError(f"incomplete generation finish_reason={result.finish_reason}")
                 if schema_errors and not (
-                    staged and all(e.validator == "uniqueItems" for e in schema_errors)
+                    staged and Draft202012Validator(q.output_schema).is_valid(result.parsed_object)
                 ):
                     raise ValueError("generation schema failed; see full errors")
                 if staged and not fixed:
@@ -697,7 +750,26 @@ def execute_workload(root, block, run, *, prepare_only=False, staged=False):
                         fixed=fixed,
                     )
                     immutable(attempt_root / "assessment.json", assessment)
-                    if defects or not assessment["scientific_accepted"]:
+                    inherited_strict_failures = []
+                    if staged and not fixed:
+                        for earlier in "AB":
+                            earlier_outcome, earlier_root = stage_records[
+                                stage_attempts[kind][earlier]
+                            ]
+                            if not earlier_outcome["stage_valid"] or read(
+                                earlier_root / "schema-errors.json"
+                            ):
+                                inherited_strict_failures.append(earlier_outcome["attempt_id"])
+                        immutable(
+                            attempt_root / "inherited-strict-failures.json",
+                            inherited_strict_failures,
+                        )
+                    if (
+                        defects
+                        or schema_errors
+                        or inherited_strict_failures
+                        or not assessment["scientific_accepted"]
+                    ):
                         failure = {
                             "stage": "scientific_or_structural_validation",
                             "message": (

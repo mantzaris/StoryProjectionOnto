@@ -609,11 +609,13 @@ def prefix_duplicate_feedback(text):
 def validate_stage(name, value, request, *, mechanical=False):
     from .development_demo import development_validation_schema
 
-    for error in Draft202012Validator(
-        development_validation_schema(request.output_schema)
-    ).iter_errors(value):
-        if not (mechanical and error.validator == "uniqueItems"):
-            raise error
+    # Removing ONLY uniqueness for mechanical inspection must happen before
+    # evaluating alternatives. An anyOf parent can wrap a uniqueness-only leaf.
+    # Strict post-validation retains every uniqueness check and historical fail.
+    schema = development_validation_schema(request.output_schema)
+    if mechanical:
+        schema = backend_generation_schema(schema)
+    Draft202012Validator(schema).validate(value)
     if name == "A":
         ids = inventory(value)
         types = set(ids["nT"])

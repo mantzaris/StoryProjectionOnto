@@ -540,6 +540,15 @@ def build(root, run, output):
             row["exploratory_quality"] = exploratory_quality(
                 assessment, graph, o.get("source_defects", [])
             )
+            row.update(
+                {"quality_" + k: v for k, v in row["exploratory_quality"].get("counts", {}).items()}
+            )
+            row.update(
+                {
+                    "contextual_" + k: v
+                    for k, v in (row["exploratory_quality"].get("contextual_counts") or {}).items()
+                }
+            )
             row["mechanical_blockers"] = (
                 read(folder / "mechanical-status.json")["structural_blockers"]
                 if (folder / "mechanical-status.json").exists()
@@ -984,6 +993,15 @@ def build(root, run, output):
         "schema_valid",
         "canonical_valid",
         "mechanically_usable",
+        "quality_supported_direct_reference",
+        "quality_incorrect_binding",
+        "quality_unsupported_qualification",
+        "quality_unresolved",
+        "contextual_true_positive_count",
+        "contextual_false_positive_count",
+        "contextual_false_negative_count",
+        "contextual_precision_denominator",
+        "contextual_recall_denominator",
         "structure_valid",
         "scientific_accepted",
         "strict_precision",
@@ -1666,6 +1684,10 @@ def build(root, run, output):
                 + " |"
             )
         for r in finals:
+            authored_graph = next(
+                g["graph"] for g in graphs if g["row"]["attempt_id"] == r["attempt_id"]
+            )
+            _, _, readable_assertions = label_graph(authored_graph)
             md += [
                 "",
                 f"### C2 context {r['context']}: complete authored records",
@@ -1682,8 +1704,9 @@ def build(root, run, output):
                 + "`.",
             ]
             for item in r.get("exploratory_quality", {}).get("assertions", []):
+                actual = next(a for a in readable_assertions if a["id"] == item["assertion_id"])
                 md += [
-                    f"- `{item['assertion_id']}`: {item['status']}; "
+                    f"- **{actual['predicate']}**: {actual['bindings']} — {item['status']}; "
                     + "; ".join(
                         x.get("constraint", x.get("message", ""))
                         for x in item["confirmed_source_checks"] + item["binding_checks"]
@@ -1822,6 +1845,14 @@ def build(root, run, output):
         for a in assertions:
             assessment = g.get("assessment", {})
             checks = {
+                "exploratory_quality": next(
+                    (
+                        x
+                        for x in r.get("exploratory_quality", {}).get("assertions", [])
+                        if x["assertion_id"] == a["id"]
+                    ),
+                    None,
+                ),
                 "grounding": "supported"
                 if a["id"] in assessment.get("grounding_supported_assertion_ids", [])
                 else "unresolved"

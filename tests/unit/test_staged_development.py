@@ -131,9 +131,9 @@ def test_retained_prefix_repair_is_specific_complete_and_packable(pinned):
             assert q.output_schema != old["guided_json"]  # authorized bounded-v3 amendment
 
 
-@pytest.mark.parametrize("pre_event", [False, True])
+@pytest.mark.parametrize("pre_event,resume", [(False, False), (True, False), (False, True)])
 def test_staged_controller_real_guard_transport_and_independent_contexts(
-    tmp_path, monkeypatch, pinned, pre_event
+    tmp_path, monkeypatch, pinned, pre_event, resume
 ):
     """Run the actual workload/queue with simulated transport; no model service."""
     import sys
@@ -250,6 +250,42 @@ def test_staged_controller_real_guard_transport_and_independent_contexts(
         write_json_atomic({"historical": True}, block / f"start-{n:02d}.json")
     for n in range(1, 12):
         write_json_atomic({"historical": True}, block / f"attempt-{n:02d}.json")
+    if resume:
+        from story_projection_onto.staged_development import PROTOCOL
+
+        for n in range(12, 16):
+            write_json_atomic({"historical": True}, block / f"attempt-{n:02d}.json")
+        write_json_atomic({"historical": True}, block / "start-07.json")
+        for k in ("c2-q1", "c2-q2"):
+            prior = block / "run-before" / k
+            old_a = copy.deepcopy(a)
+            old_a["local_schema"]["predicates"][0]["domain_type_ids"] *= 2
+            if k == "c2-q1":
+                old_a["entities"][0]["contextual_type_id"] = "nT999"
+            q, *_ = prepare(ROOT, k, "A", pinned[0], m)
+            write_json_atomic(old_a, prior / "decoded.json")
+            write_json_atomic(q.wire_payload(), prior / "request.json")
+            write_json_atomic([{"validator": "uniqueItems"}], prior / "schema-errors.json")
+            write_json_atomic(
+                {
+                    "protocol": PROTOCOL,
+                    "kind": k,
+                    "attempt_id": "prior-" + k,
+                    "construction_stage": "A",
+                    "stage_valid": False,
+                    "stage_complete": True,
+                    "repair_parent": "original-" + k,
+                    "scientific_accepted": False,
+                    "request_hash": q.request_hash,
+                    "started_at": "2026-09-08T21:00:00+00:00",
+                    "response": {
+                        "response_sha256": "b" * 64,
+                        "prompt_tokens": 10,
+                        "completion_tokens": 10,
+                    },
+                },
+                prior / "outcome.json",
+            )
     workload.execute_workload(ROOT, block, run, staged=True)
     outcomes = read(run / "terminal.json")["outcomes"]
     if pre_event:
@@ -258,6 +294,17 @@ def test_staged_controller_real_guard_transport_and_independent_contexts(
         assert len(list(run.glob("*/failure.json"))) == 1
         ledger.record_model_call.assert_not_called()
         service.client.generate.assert_not_called()
+        service.shutdown.assert_called_once()
+        return
+    if resume:
+        assert [o["kind"] for o in outcomes] == ["c2-q2", "c2-q2"]
+        assert [o["construction_stage"] for o in outcomes] == ["B", "C"]
+        assert outcomes[-1]["canonical_valid"] and outcomes[-1]["mechanically_usable"]
+        assert not outcomes[-1]["scientific_accepted"]
+        assert read(run / "mechanical-reuse-prior-c2-q2.json")["mechanically_reusable"]
+        assert not read(run / "mechanical-reuse-prior-c2-q1.json")["mechanically_reusable"]
+        assert service.client.generate.call_count == 2
+        assert len(list(block.glob("attempt-*.json"))) == 17
         service.shutdown.assert_called_once()
         return
     assert [x["kind"] for x in outcomes] == ["c2-q1"] * 4 + ["c2-q2"] * 3
@@ -306,3 +353,45 @@ def test_mechanical_status_does_not_certify_wrong_semantics():
     v["instance_graph"]["assertions"][0]["content"]["subject_id"] = "nE999"
     assert not mechanical_graph_status(v)["mechanically_usable"]
     assert original != v
+
+
+def test_nested_uniqueness_does_not_hide_mechanical_type_blockers(pinned):
+    from story_projection_onto.staged_development_fixtures import capacity_fixture
+
+    t, m = pinned
+    a, _, _ = split_fixture(capacity_fixture(ROOT))
+    q, *_ = prepare(ROOT, "c2-q2", "A", t, m)
+    a["local_schema"]["predicates"][0]["domain_type_ids"] *= 2
+    with pytest.raises(ValidationError):
+        validate_stage("A", a, q)
+    validate_stage("A", a, q, mechanical=True)
+    assert len(a["local_schema"]["predicates"][0]["domain_type_ids"]) == 2
+    a["entities"][0]["contextual_type_id"] = "nT999"
+    with pytest.raises(ValueError, match="undeclared"):
+        validate_stage("A", a, q, mechanical=True)
+
+
+@pytest.mark.parametrize("number,usable", [(12, False), (13, False), (14, True), (15, True)])
+def test_retained_completed_stage_a_reuse(number, usable):
+    from types import SimpleNamespace
+
+    p = (
+        ROOT
+        / "artifacts/restricted/bounded-c2-backup.N8Dtlv"
+        / "nested-development-demonstration-20260908/run-20260908T210300466916"
+        / f"nested-development-demonstration-20260908-attempt-{number}"
+    )
+    if not p.exists():
+        pytest.skip("Restricted retained output unavailable")
+    a = read(p / "decoded.json")
+    untouched = copy.deepcopy(a)
+    q = SimpleNamespace(output_schema=read(p / "request.json")["guided_json"])
+    assert not read(p / "outcome.json")["stage_valid"]
+    with pytest.raises(ValidationError):
+        validate_stage("A", a, q)
+    if usable:
+        validate_stage("A", a, q, mechanical=True)
+    else:
+        with pytest.raises(ValueError, match="undeclared"):
+            validate_stage("A", a, q, mechanical=True)
+    assert a == untouched
