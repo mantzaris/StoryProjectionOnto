@@ -292,6 +292,7 @@ def prepare_request(root, kind, tokenizer, manifest, *, previous=None, feedback=
                         "diagnostics": feedback,
                     },
                     separators=(",", ":"),
+                    sort_keys=True,
                 ),
             )
         ]

@@ -63,7 +63,7 @@ declarations in a truncated prefix are not retrospectively inferred or repaired.
 Use the already authorized second start for exactly one parent-linked repair of
 each base, preserving the original evidence/instructions and the declared
 8,192-input / 4,096-output repair policy. The initial CPU-only proposal reserved
-3,072 output tokens; exact feedback packing (7,880 / 8,127 / 8,115 input tokens)
+3,072 output tokens; exact feedback packing (7,877 / 8,124 / 8,112 input tokens)
 shows that all three can retain the full base output allowance. This revision is
 frozen before any repair generation; the unused proposal remains in restricted
 preparation history. Feedback permits retraction and calls for
@@ -73,3 +73,10 @@ No repeated base, second repair, budget reset or third service start. C2 repairs
 remain independent. The existing workload now resumes from terminal records and
 hash-bound prepared feedback; transport-complete decoding failures no longer
 silently lose their measured elapsed time in future records.
+
+Feedback v3 canonically orders message JSON keys; a CPU preflight rejected v2's
+key-order/hash drift before allocation. This changes no feedback meaning.
+The C1 repair remains strictly model-query-blind, but runs after the initial C2
+bases. It is a labeled exploratory repair, not retrospective satisfaction of the
+registered physical pre-query timing barrier. Any seal records its actual time;
+neither this repair nor the demonstration certifies registered C1 acceptance.

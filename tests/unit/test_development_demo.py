@@ -395,3 +395,26 @@ def test_resume_only_parent_bound_repairs_never_repeats_a_base(tmp_path):
     write_json_atomic(feedback, block / "prepared-parent-feedback.json")
     with pytest.raises(ValueError, match="bound"):
         pending_work(block)
+
+
+def test_persisted_feedback_key_order_does_not_change_wire_request(pinned):
+    import json
+
+    t, m = pinned
+    feedback = [
+        {
+            "path": "/decisions",
+            "category": "construction_reporting",
+            "constraint": "Only report actual operations",
+        }
+    ]
+    a, *_ = prepare_request(ROOT, "c2-q1", t, m, previous={"parent": "a"}, feedback=feedback)
+    b, *_ = prepare_request(
+        ROOT,
+        "c2-q1",
+        t,
+        m,
+        previous={"parent": "a"},
+        feedback=json.loads(json.dumps(feedback, sort_keys=True)),
+    )
+    assert a.request_hash == b.request_hash and a.wire_payload() == b.wire_payload()
