@@ -199,6 +199,24 @@ parent-linked ledger writes, both-call ordering despite ordinary validation
 failure, third-call rejection, deadline protection and existing guardian cleanup.
 These are controller checks, not new model outcomes.
 
+### Terminal outcome of the subsequently authorized session
+
+Execution checkpoint `12ead20`: exactly two repairs, one service, no adaptive
+changes. Both completed with `stop`, passed generation schema, canonical
+reconstruction and reference resolution, and failed frozen scientific validation.
+Actual input/output tokens: 8,049/2,817 and 8,461/2,870; neither reached 3,584.
+The missing proposition declarations and scope/commitment inconsistencies were
+repaired by the model, not filled by CPU code. Unsupported attribution/time and
+binding/description/operation defects remain; no full acceptance claim.
+
+New allocated time 394.719438 s; total 6,716.108081 s. Service stopped, journals
+closed, no GPU compute processes; pod remains active. The unused envelope does
+not authorize another start. Full readable before/after assertions, formal checks,
+manual distinctions and hashes are in
+`artifacts/restricted/parent-repair-session-backup.vaJysn/BEFORE_AFTER_DIAGNOSIS.md`.
+See current `RUN_STATUS.md` for exact accounting, remaining forecast and the
+preserved ledger verifier's transport/scientific-status mismatch qualification.
+
 Run both if safe and time remains. Stop on transport/cancellation uncertainty,
 resource/deadline exhaustion or completion; no identical blind retries or semantic
 CPU repair. Assess ID declaration, epistemic support, role meaning, time, descriptions

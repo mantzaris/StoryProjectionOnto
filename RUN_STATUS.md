@@ -1,26 +1,57 @@
 # Run status
 
-Updated: 2026-09-08 UTC — authorized two parent-linked repairs prepared; not yet launched
+Updated: 2026-09-08 UTC — two prepared v4 repair calls completed; vLLM stopped
 
-Previous verified commit: `375974d`. The existing controller is bound to exactly
-the two v4 requests in `artifacts/restricted/small-retry-path-cpu-v4/`, with
-8,049 / 8,461 input tokens and 3,584 reserved output tokens each. 39 focused CPU
-tests pass. Original responses, checker, evidence and all historical accounting
-are unchanged. Remote ledger hash matches the previous terminal backup; no
-vLLM/controller or GPU compute processes are running.
+Execution checkpoint: **`12ead20`**. Session `small-parent-linked-repairs-20260908`
+used exactly one start and two parent-linked repair attempts, with unchanged
+evidence, prompts, pinned model, effective schemas and frozen checker. No adaptive
+change, third call, ordinary study execution or PDF. **39 focused CPU tests passed**;
+remote exact-request/template/decoder/parent preflight passed before allocation.
 
-Authorized new session: `small-parent-linked-repairs-20260908`, one start,
-two parent-linked repair calls, at most 860 allocated seconds including shutdown.
-Baseline 6,321.388643; maximum 7,181.388643 actual seconds. Stage limits:
-360 startup, 15 live checks, 180 generation + 30 validation per call,
-60 protected shutdown, 5 guard. No adaptive changes, third call or study execution.
-Diagnostic-only forecast exception; global 33,660/36,000 ceilings unchanged.
+| Actual small repair | Input/output tokens | Finish | JSON/schema/canonical/references | Scientific acceptance |
+|---|---|---|---|---|
+| First | 8,049 / 2,817 | stop | Pass | Fail |
+| Second | 8,461 / 2,870 | stop | Pass | Fail |
 
-Exact remote execution command after deployed-source and CPU-preparation checks:
-`.venv/bin/python scripts/run_capacity_diagnostics.py --semantic --execute`
-inside persistent `storyprojection-study` tmux, with a timestamped log and the
-tested local commit in `STORYPROJECTION_LOCAL_COMMIT`. Do not rerun an exhausted
-start. Stop service after the two diagnostics; independent review remains required.
+Neither reached the approved 3,584-token output cap. Both declared the previously
+missing proposition records and corrected scope/commitment consistency. Unsupported
+holder attribution, numeric story/intrinsic validity, and operation reporting
+remain. First: one carrying binding improved, but arrival is now disconnected and
+its schema_relation decision creates only proposition records. Second: wrong
+bindings/types, six-node budget excess and revelation-horizon error remain.
+Formal unresolved matching is not positive support or automatically false prose.
+
+Restricted readable before/after diagnosis and full generated graphs:
+`artifacts/restricted/parent-repair-session-backup.vaJysn/BEFORE_AFTER_DIAGNOSIS.md`
+and `EVIDENCE_AND_GENERATED_GRAPHS.md` in the same directory. Exact requests remain
+under `artifacts/restricted/small-retry-path-cpu-v4/`. 819 backup files hash-verified;
+all 5,083 historical ledger rows unchanged. Both new attempts retain original parents.
+
+**New actual: 394.719438 s; total actual: 6,716.108081 s.** Breakdown: startup
+246.157283 s, generation 66.616048 + 70.304265 s, other allocated service time
+11.641842 s. Unused portion of the 860-second cap: 465.280562 s; it does not permit
+another start. No open allocation/service journals or GPU compute processes;
+vLLM stopped, pod intact and active. Peak sampled VRAM/RAM/project storage:
+22,793,945,088 / 7,145,652,224 / 16,848,642,048 bytes. Terminal full storage census
+passed. Global 33,660 scheduled / strict-before-36,000 actual ceilings unchanged.
+
+SQLite integrity, foreign keys, history, lineage, response hashes and allocation
+totals verify. Full ledger/CAS verification is **not clean**: nine success-status
+mismatches (seven historical, two new) compare completed generation events with
+scientifically failed model calls. No status or historical timing was rewritten;
+details in `ACCOUNTING_AND_HISTORY_VERIFICATION.json` and the retained verifier report.
+
+Qualified complete-run proxy: **46,878.121294 s** = total actual + unchanged
+40,162.013213 s remaining mandatory-work proxy; still above 33,660. Small repair
+timings are not production p95. Full acceptance, production adoption, ordinary
+admission and independent human review remain unpassed or pending gates.
+C0 extraction remains passed (104/122 precision, 104/114 recall, 5/5 families,
+100% valid evidence); separate contextual 54/275 precision, 54/91 recall,
+F1 .295082 unchanged. No baseline/gold/metric/threshold change.
+
+**No further GPU execution is authorized. Do not rerun `--execute`.** Safe CPU
+verification command:
+`/tmp/spo-refresh-venv/bin/python -m pytest -q tests/unit/test_prepared_small_repair_session.py tests/unit/test_capacity_diagnostic_controller.py tests/unit/test_small_retry_path.py`.
 
 ## Previous CPU checkpoint (historical, superseded authorization status)
 

@@ -22,6 +22,12 @@ def summarize_semantic(run: Path, output: Path, readable: Path):
     if any("restricted" not in p.parts or p.exists() for p in (output, readable)):
         raise ValueError("fresh restricted summary and readable destinations required")
     terminal = json.loads((run / "terminal.json").read_bytes())
+    binding = json.loads((run / "binding.json").read_bytes())
+    authorization = next(
+        v
+        for v in binding["authorization"].values()
+        if isinstance(v, dict) and v.get("block_id") == run.parent.name
+    )
     rows = []
     pages = ["# Small semantic-interface diagnostics (not production acceptance)\n"]
     for outcome in terminal["outcomes"]:
@@ -54,6 +60,7 @@ def summarize_semantic(run: Path, output: Path, readable: Path):
             raise ValueError("complete response hash mismatch")
         row = {
             "attempt_id": outcome["attempt_id"],
+            "repair_parent": outcome.get("repair_parent"),
             "task": label,
             "request_hash": outcome["request_hash"],
             "input_tokens": outcome["template_inclusive_input_tokens"],
@@ -197,7 +204,9 @@ def summarize_semantic(run: Path, output: Path, readable: Path):
         "rows": rows,
         "actual_global_seconds": terminal["actual_allocated_seconds"],
         "new_session_seconds": terminal["additional_block_seconds"],
-        "unused_session_allowance_seconds": 1100 - terminal["additional_block_seconds"],
+        "session_allowance_seconds": authorization["maximum_additional_seconds"],
+        "unused_session_allowance_seconds": authorization["maximum_additional_seconds"]
+        - terminal["additional_block_seconds"],
         "remaining_mandatory_proxy_seconds": forecast["remaining_forecast_seconds"],
         "complete_forecast_proxy_seconds": terminal["actual_allocated_seconds"]
         + forecast["remaining_forecast_seconds"],
