@@ -129,6 +129,10 @@ def semantic_session_admit(actual, starts, attempts, *, starting=False, generati
 
 
 def diagnostic_policy(semantic):
+    if semantic == "simple-ladder":
+        from story_projection_onto.simple_ladder import policy
+
+        return policy()
     if semantic == "staged-development":
         from story_projection_onto.staged_development import policy
 
@@ -915,6 +919,10 @@ def advance_small_semantic(
 
 
 def controller(root, block, run, *, prepare_only=False, comparison=False, semantic=False):
+    if semantic == "simple-ladder":
+        from story_projection_onto.simple_ladder_execution import execute_workload
+
+        return execute_workload(root, block, run, prepare_only=prepare_only)
     if semantic in ("development", "staged-development"):
         from story_projection_onto.development_demo_execution import execute_workload
 
@@ -1747,7 +1755,7 @@ def guardian(root, *, prepare_only=False, comparison=False, semantic=False):
                 "fifth-start-only authorization requires four historical starts and three attempts"
             )
         authorization = read(root / "configs/study/output_capacity_recovery.json")
-        if semantic in ("development", "staged-development"):
+        if semantic in ("development", "staged-development", "simple-ladder"):
             authorization = {**authorization, "preliminary_development_demo": policy_mode.config}
         if authorization["activation_scope"] != "bounded_feasibility_diagnostics_only":
             raise ValueError("missing narrow diagnostic authorization")
@@ -1782,14 +1790,14 @@ def guardian(root, *, prepare_only=False, comparison=False, semantic=False):
             # actual global ledger must include its terminal consumption.
             current = authorization[
                 "preliminary_development_demo"
-                if semantic in ("development", "staged-development")
+                if semantic in ("development", "staged-development", "simple-ladder")
                 else "parent_linked_small_repairs"
                 if semantic
                 else "representation_comparison"
             ]
             expected_comparison = (
                 policy_mode.config
-                if semantic in ("development", "staged-development")
+                if semantic in ("development", "staged-development", "simple-ladder")
                 else SEMANTIC_SESSION
                 if semantic
                 else {
@@ -1824,7 +1832,9 @@ def guardian(root, *, prepare_only=False, comparison=False, semantic=False):
         ]
         if prepare_only:
             command.append("--prepare-only")
-        if semantic == "staged-development":
+        if semantic == "simple-ladder":
+            command.append("--simple-ladder")
+        elif semantic == "staged-development":
             command.append("--staged-development")
         elif semantic == "development":
             command.append("--development-demo")
@@ -1923,6 +1933,7 @@ if __name__ == "__main__":
     parser.add_argument("--semantic", action="store_true")
     parser.add_argument("--development-demo", action="store_true")
     parser.add_argument("--staged-development", action="store_true")
+    parser.add_argument("--simple-ladder", action="store_true")
     args = parser.parse_args()
     root = Path.cwd()
     if args.controller:
@@ -1932,7 +1943,9 @@ if __name__ == "__main__":
             args.controller,
             prepare_only=args.prepare_only,
             comparison=args.comparison,
-            semantic="staged-development"
+            semantic="simple-ladder"
+            if args.simple_ladder
+            else "staged-development"
             if args.staged_development
             else "development"
             if args.development_demo
@@ -1943,7 +1956,9 @@ if __name__ == "__main__":
             root,
             prepare_only=True,
             comparison=args.comparison,
-            semantic="staged-development"
+            semantic="simple-ladder"
+            if args.simple_ladder
+            else "staged-development"
             if args.staged_development
             else "development"
             if args.development_demo
@@ -1953,7 +1968,9 @@ if __name__ == "__main__":
         guardian(
             root,
             comparison=args.comparison,
-            semantic="staged-development"
+            semantic="simple-ladder"
+            if args.simple_ladder
+            else "staged-development"
             if args.staged_development
             else "development"
             if args.development_demo

@@ -1532,8 +1532,13 @@ class VLLMGuidedJSONClient:
                     usage=response.get("usage"),
                 )
             content = choice["message"]["content"]
-            parsed_object = json.loads(content)
-            if diagnostic_journal is not None:
+            raw_diagnostic = getattr(request, "diagnostic_raw_text", False)
+            if raw_diagnostic and not request.request_id.startswith("simple-ladder-"):
+                raise ValueError("raw text capture is restricted to the simple diagnostic ladder")
+            # The small ladder measures JSON compliance separately from delivery;
+            # preserve plain-language controls and malformed answers without repair.
+            parsed_object = {"diagnostic_text": content} if raw_diagnostic else json.loads(content)
+            if diagnostic_journal is not None and not raw_diagnostic:
                 diagnostic_journal.event("model_content_json_complete")
             if request.canonical_output_schema is not None:
                 from story_projection_onto.output_wire import RecordTupleCodec
