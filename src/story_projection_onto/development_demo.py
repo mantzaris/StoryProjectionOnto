@@ -303,7 +303,7 @@ def prepare_request(root, kind, tokenizer, manifest, *, previous=None, feedback=
             enable_thinking=False,
         )
     )
-    output = 4096 if previous is None else 3072
+    output = 4096
     max_input = 12288 - output
     decoding = DecodingManifest(
         decoding_pass=DecodingPass.FIRST_PASS if previous is None else DecodingPass.REPAIR,
@@ -366,6 +366,40 @@ def prepare_request(root, kind, tokenizer, manifest, *, previous=None, feedback=
 def adapt_output(parsed, evidence, mapping, upper, execution):
     translated = reference_translation(parsed, {v: k for k, v in mapping.items()})
     return reconstruct_candidate(translated, evidence=evidence, upper=upper, execution=execution)
+
+
+def pending_work(block):
+    """Resume this fixed five-base workload without silently repeating a base."""
+    history = [(p, read(p)) for p in sorted(block.glob("run-*/*/outcome.json"))]
+    observed = {o["attempt_id"] for _, o in history}
+    for reservation in block.glob("attempt-*.json"):
+        if read(reservation)["attempt_id"] not in observed:
+            raise ValueError("Reserved attempt has no terminal outcome; reconcile before resume")
+    feedback_path = block / "prepared-parent-feedback.json"
+    prepared = read(feedback_path) if feedback_path.exists() else {}
+    queue = []
+    accepted_c1_path = None
+    for kind in ("c1", "c2-q1", "c2-q2", "fixed-q1", "fixed-q2"):
+        old = [(p, o) for p, o in history if o["kind"] == kind]
+        if not old:
+            queue.append((kind, None, None))
+            continue
+        if kind == "c1":
+            accepted_c1_path = next((p for p, o in reversed(old) if o["scientific_accepted"]), None)
+        if any(o["repair_parent"] or o["scientific_accepted"] for _, o in old):
+            continue
+        if len(old) != 1:
+            raise ValueError("Multiple base records must not be guessed into a repair lineage")
+        _, parent = old[0]
+        candidate = prepared.get(parent["attempt_id"])
+        if candidate is None:
+            continue
+        if candidate["parent_request_hash"] != parent["request_hash"] or candidate[
+            "parent_response_hash"
+        ] != parent["transport_metadata"].get("response_sha256"):
+            raise ValueError("Prepared repair is not bound to its actual parent response")
+        queue.append((kind, parent["attempt_id"], candidate["diagnostics"]))
+    return queue, accepted_c1_path
 
 
 def phase_policy(root=None):

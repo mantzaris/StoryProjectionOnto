@@ -204,9 +204,7 @@ def graph_elements(graph, anchors):
                 }
             )
             pairs = [
-                (aid, r["object_id"], r["role"])
-                for r in b["roles"]
-                if r["object_id"] in labels
+                (aid, r["object_id"], r["role"]) for r in b["roles"] if r["object_id"] in labels
             ]
         for i, (s, o, label) in enumerate(pairs):
             if a.get("direction") == "inverse":
@@ -286,7 +284,9 @@ def build(root, run, output):
         rows.append(row)
         graphs.append({"row": row, "graph": safe_graph(d.model_dump(mode="json"))})
         restricted.append({"attempt_id": row["attempt_id"], "assessment": assessment})
-    for path in sorted(run.glob("*/outcome.json")):
+    for path in sorted(
+        set(run.glob("*/outcome.json")) | set(run.parent.glob("run-*/*/outcome.json"))
+    ):
         o = read(path)
         folder = path.parent
         assessment = o.get("assessment")
@@ -315,7 +315,12 @@ def build(root, run, output):
             "input_tokens": response.get("prompt_tokens", usage.get("prompt_tokens")),
             "output_tokens": response.get("completion_tokens", usage.get("completion_tokens")),
             "output_allowance": read(folder / "request.json")["max_tokens"],
-            "request_seconds": o["generation_seconds"],
+            "request_seconds": o["generation_seconds"]
+            if o["generation_seconds"] is not None
+            else o["allocated_generation_seconds"],
+            "request_time_source": "client wall clock"
+            if o["generation_seconds"] is not None
+            else "metered generation event; includes client/decoding",
             "failure_stage": (o.get("failure") or {}).get("stage"),
             "failure": (o.get("failure") or {}).get("message", ""),
             "confirmed_source_defects": o.get("source_defects", []),
@@ -332,7 +337,7 @@ def build(root, run, output):
         elif (folder / "decoded.json").exists():
             graph = read(folder / "decoded.json")
         else:
-            graph = complete_record_fragments(streamed_content(run, o["request_hash"]))
+            graph = complete_record_fragments(streamed_content(folder.parent, o["request_hash"]))
         graphs.append({"row": row, "graph": safe_graph(graph)})
         restricted.append({"attempt_id": row["attempt_id"], "assessment": assessment})
     for ordinal in (1, 2):

@@ -1,6 +1,6 @@
 # Run status
 
-Updated: 2026-09-08 UTC — authorized exploratory development phase prepared.
+Updated: 2026-09-08 UTC — three development bases completed; parent repairs prepared.
 
 Current amendment: `docs/PRELIMINARY_DEVELOPMENT_AMENDMENT.md`. Frozen selection:
 easy `dev-unit-01`, contexts 1/2, identical complete 25-record evidence. C1 is
@@ -10,8 +10,17 @@ accepted/sealed C1 and intact packing. No held-out or ordinary study admission.
 Remote CPU preflight passed: effective XGrammar compilation and exact pinned
 tokenizer/template counts 7,603 / 7,839 / 7,827 plus 4,096 output each. Deployment
 source hash `2ff43a7cd2bcad25fabc721546a61e4eb0175dd149240600ca3693b42a435fd6`
-matches locally. 45 focused adapter/controller checks passed; report pipeline
-verification is being completed before launch. No new GPU allocation yet.
+matches the first start's source. All three base outputs ended at 4,096 tokens;
+none reconstructed canonically. Actual partial graphs, stream bytes and failures
+are preserved. First start used 572.116016 s; cumulative actual 7,288.224097 s.
+vLLM stopped and both allocation journals closed. One authorized start remains.
+
+The three parent-linked repairs target demonstrated unsupported holder knowledge,
+intrinsic point validity, citation duplication and inaccurate/excessive construction
+claims. Full input counts 7,880 / 8,127 / 8,115 retain 4,096 output tokens each;
+the smaller, unused CPU repair allocation was superseded before any repair call.
+17 focused workflow/report/resume tests pass; 30 unchanged adapter controls are reused.
+No repeated base or second repair. Complete-run forecast admission is not claimed.
 
 Historical actual 6,716.108081 s is intact. New phase caps: 3,600 additional s,
 two starts, twelve attempts, one targeted repair per base; protected shutdown.

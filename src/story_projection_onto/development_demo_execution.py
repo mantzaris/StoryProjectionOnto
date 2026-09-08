@@ -13,7 +13,14 @@ from jsonschema import Draft202012Validator
 
 from .contracts import ConditionName, ConstructionSeal, canonical_sha256
 from .development_adapter import DevelopmentConstructionConfiguration
-from .development_demo import adapt_output, phase_policy, prepare_request, read, sources
+from .development_demo import (
+    adapt_output,
+    pending_work,
+    phase_policy,
+    prepare_request,
+    read,
+    sources,
+)
 from .gpu_runtime import ResourceWatchdog, capture_gpu_hardware_identity, capture_tokenizer_manifest
 from .manifest import write_json_atomic
 from .semantic_generation import ExecutionFacts
@@ -79,6 +86,14 @@ def execute_workload(root, block, run, *, prepare_only=False):
         kind: prepare_request(root, kind, tokenizer, token_manifest)
         for kind in ("c1", "c2-q1", "c2-q2")
     }
+    queue, accepted_path = pending_work(block)
+    prepared_retries = {
+        parent: prepare_request(
+            root, kind, tokenizer, token_manifest, previous={"parent": parent}, feedback=feedback
+        )
+        for kind, parent, feedback in queue
+        if parent and not kind.startswith("fixed")
+    }
     import xgrammar
 
     compiler = xgrammar.GrammarCompiler(xgrammar.TokenizerInfo.from_huggingface(tokenizer))
@@ -106,6 +121,20 @@ def execute_workload(root, block, run, *, prepare_only=False):
             "input_tokens": q.rendered_input_token_count,
             "output_allowance": q.decoding.maximum_output_tokens,
         }
+    for parent, (q, _, _, _) in prepared_retries.items():
+        if (
+            read(block / "prepared-parent-feedback.json")[parent]["prepared_request_hash"]
+            != q.request_hash
+        ):
+            raise ValueError("Prepared parent repair request changed before allocation")
+        compiler.compile_json_schema(json.dumps(q.output_schema), any_whitespace=False)
+        immutable(run / f"prepared-repair-{parent}.json", q.wire_payload())
+        packing[parent] = {
+            "request_hash": q.request_hash,
+            "input_tokens": q.rendered_input_token_count,
+            "output_allowance": q.decoding.maximum_output_tokens,
+        }
+    immutable(run / "pending-work.json", {"queue": queue, "prepared_before_allocation": True})
     immutable(
         run / "selection.json",
         {
@@ -189,8 +218,14 @@ def execute_workload(root, block, run, *, prepare_only=False):
     stop_reason = "completed"
     accepted_c1 = None
     accepted_seal = None
+    if accepted_path:
+        from .contracts import OntologyDraft
+
+        accepted_c1 = OntologyDraft.model_validate(read(accepted_path.parent / "canonical.json"))
+        accepted_seal = ConstructionSeal.model_validate(
+            read(accepted_path.parent.parent / "c1-seal.json")
+        )
     artifact_store = ArtifactStore(BlobStore(root / "artifacts/blobs/phase1_acceptance"), ledger)
-    queue = [(kind, None, None) for kind in (*variants, "fixed-q1", "fixed-q2")]
     try:
         service.start(
             session_id=session,
@@ -248,7 +283,8 @@ def execute_workload(root, block, run, *, prepare_only=False):
                     q, evidence, mapping, budgets = (
                         variants[kind]
                         if parent is None
-                        else prepare_request(
+                        else prepared_retries.get(parent)
+                        or prepare_request(
                             root,
                             kind,
                             tokenizer,
@@ -406,6 +442,8 @@ def execute_workload(root, block, run, *, prepare_only=False):
                         "message": "Rejected or unresolved development output; see source and component checks",
                     }
             except Exception as exc:
+                if result is None:
+                    generation_seconds = time.monotonic() - tic
                 failure = {
                     "stage": "transport_or_decoding"
                     if result is None

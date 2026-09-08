@@ -25,10 +25,9 @@ completion. Its exact intact-graph packing is checked after C1 exists.
 
 At most one targeted repair per base. Feedback identifies demonstrated defects,
 with the complete original kept in restricted lineage. Base input/output caps are
-8,192/4,096; repair caps 9,216/3,072, identically for C1/C2. Repair requests retain
+8,192/4,096; repair caps 8,192/4,096, identically for C1/C2. Repair requests retain
 all original evidence/instructions and concise actual-defect feedback, not another
-full copy of the previous graph. Reduced repair output capacity is reported as
-such; a length-limited failure is not a model-capability conclusion.
+full copy of the previous graph. A length-limited failure is not a model-capability conclusion.
 Feedback never supplies correct passage-specific bindings or scorer targets. Prior output is untrusted
 and unsupported claims may be retracted. Unresolved matching is not positive
 grounding. Retain every raw output and original failure; report failures even when
@@ -51,3 +50,26 @@ The existing guardian/service/resource monitor supervises this workload. Protect
 60 seconds shutdown plus 5 seconds guard; stop vLLM when useful work is complete.
 The development-only forecast exception does not alter 33,660 scheduled / strictly
 before 36,000 actual global limits or remove any registered mandatory call.
+
+### Within-phase targeted repair, frozen after the three base failures
+
+All three bases ended at 4,096 tokens. Complete received members show unsupported
+holder knowledge, observation-only intrinsic point validity, repeated citation
+lists (C1), and inaccurate construction reporting. C2 context 1 claimed 100 created
+entity IDs against a 10-node ceiling; context 2 claimed mixed record kinds under
+type creation. These are model-authored diagnostics, not scorer targets. Missing
+declarations in a truncated prefix are not retrospectively inferred or repaired.
+
+Use the already authorized second start for exactly one parent-linked repair of
+each base, preserving the original evidence/instructions and the declared
+8,192-input / 4,096-output repair policy. The initial CPU-only proposal reserved
+3,072 output tokens; exact feedback packing (7,880 / 8,127 / 8,115 input tokens)
+shows that all three can retain the full base output allowance. This revision is
+frozen before any repair generation; the unused proposal remains in restricted
+preparation history. Feedback permits retraction and calls for
+supported attribution, intrinsic validity, actual typed operations and compact
+nonduplicated citations. Full-world output capacity remains unproven.
+No repeated base, second repair, budget reset or third service start. C2 repairs
+remain independent. The existing workload now resumes from terminal records and
+hash-bound prepared feedback; transport-complete decoding failures no longer
+silently lose their measured elapsed time in future records.

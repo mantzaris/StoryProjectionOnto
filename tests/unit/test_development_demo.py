@@ -78,7 +78,8 @@ def test_exact_full_request_and_feedback_packing(pinned, kind):
             }
         ],
     )
-    assert repair.rendered_input_token_count + 3072 <= 12288
+    assert repair.decoding.maximum_output_tokens == 4096
+    assert repair.rendered_input_token_count + 4096 <= 12288
     assert "retract unsupported" in repair.messages[-1].content
     assert repair.messages[:2] == q.messages
     Draft202012Validator.check_schema(q.output_schema)
@@ -357,3 +358,40 @@ def test_report_pipeline_actual_c0_and_explicit_unattempted_llm(tmp_path):
     )
     assert len(fragment["instance_graph"]["entities"]) == 1
     assert fragment["partial_records_only"]
+
+
+def test_resume_only_parent_bound_repairs_never_repeats_a_base(tmp_path):
+    from story_projection_onto.development_demo import pending_work
+    from story_projection_onto.manifest import write_json_atomic
+
+    block = tmp_path
+    run = block / "run-original"
+    for i, kind in enumerate(("c1", "c2-q1", "c2-q2"), 1):
+        d = run / f"attempt-{i}"
+        d.mkdir(parents=True)
+        o = {
+            "kind": kind,
+            "attempt_id": f"a{i}",
+            "repair_parent": None,
+            "scientific_accepted": False,
+            "request_hash": str(i) * 64,
+            "transport_metadata": {"response_sha256": "f" * 64},
+        }
+        write_json_atomic(o, d / "outcome.json")
+        write_json_atomic({"attempt_id": f"a{i}"}, block / f"attempt-{i:02d}.json")
+    feedback = {
+        f"a{i}": {
+            "parent_request_hash": str(i) * 64,
+            "parent_response_hash": "f" * 64,
+            "diagnostics": [{"category": "actual_defect"}],
+        }
+        for i in (1, 2, 3)
+    }
+    write_json_atomic(feedback, block / "prepared-parent-feedback.json")
+    queue, _ = pending_work(block)
+    assert [q[1] for q in queue[:3]] == ["a1", "a2", "a3"]
+    assert not any(q[0].startswith(("c1", "c2")) and q[1] is None for q in queue)
+    feedback["a1"]["parent_response_hash"] = "0" * 64
+    write_json_atomic(feedback, block / "prepared-parent-feedback.json")
+    with pytest.raises(ValueError, match="bound"):
+        pending_work(block)
