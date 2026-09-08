@@ -59,7 +59,7 @@ def test_exact_full_request_and_feedback_packing(pinned, kind):
             enable_thinking=False,
         )
     )
-    assert q.rendered_input_token_count + 4096 <= 12288
+    assert q.rendered_input_token_count + q.decoding.maximum_output_tokens <= 12288
     assert ('"context":' in q.messages[1].content) == (kind != "c1")
     assert "intact_c1_graph" not in q.messages[1].content
     for record in e:
@@ -78,8 +78,8 @@ def test_exact_full_request_and_feedback_packing(pinned, kind):
             }
         ],
     )
-    assert repair.decoding.maximum_output_tokens == 4096
-    assert repair.rendered_input_token_count + 4096 <= 12288
+    assert repair.decoding.maximum_output_tokens == 5120
+    assert repair.rendered_input_token_count + 5120 <= 12288
     assert "retract unsupported" in repair.messages[-1].content
     assert repair.messages[:2] == q.messages
     Draft202012Validator.check_schema(q.output_schema)
@@ -111,7 +111,7 @@ def test_factored_enum_preserves_json_language():
 
 @pytest.mark.parametrize(
     "actual,starts,attempts,seconds",
-    [(6716.108080, 0, 0, 1), (6716.108081, 2, 0, 1), (10300, 0, 0, 1), (6716.108081, 0, 12, 1)],
+    [(6716.108080, 0, 0, 1), (6716.108081, 4, 0, 1), (10300, 0, 0, 1), (6716.108081, 0, 12, 1)],
 )
 def test_phase_bounds_preserve_history_and_shutdown(actual, starts, attempts, seconds):
     with pytest.raises((ValueError, TimeoutError)):
@@ -465,3 +465,158 @@ def test_persisted_feedback_key_order_does_not_change_wire_request(pinned):
         feedback=json.loads(json.dumps(feedback, sort_keys=True)),
     )
     assert a.request_hash == b.request_hash and a.wire_payload() == b.wire_payload()
+
+
+def test_existing_budgets_bound_generation_without_new_type_ceiling(pinned):
+    import copy
+
+    from story_projection_onto.development_demo import budget_schema, field_guide
+    from story_projection_onto.nested_semantic_candidate import candidate_schema
+
+    _, _, neutral = sources(ROOT)
+    evidence = tuple(EvidenceRecord.model_validate(e) for e in neutral["evidence"])
+    cfg = DevelopmentConstructionConfiguration.load(
+        ROOT / "configs/study/development_construction.json"
+    )
+    b = cfg.projection_budgets_by_unit["dev-unit-01"]
+    s = budget_schema(candidate_schema(evidence, cfg.upper_ontology), b)
+    for count, branch in enumerate(s["$defs"]["InstanceGraph"]["anyOf"]):
+        graph = branch["properties"]
+        assert graph["entities"]["maxItems"] == graph["entities"]["minItems"] == count
+        assert graph["events"]["maxItems"] + count == b.node_budget
+        assert graph["assertions"]["maxItems"] == b.assertion_budget
+    choices = {
+        x["properties"]["operator"]["const"]: x for x in s["$defs"]["OntologyDecision"]["anyOf"]
+    }
+    merge = choices["merge"]["properties"]["created_object_ids"]
+    validator = Draft202012Validator(merge)
+    assert validator.is_valid([f"nE{i}" for i in range(1, 11)])
+    assert not validator.is_valid([f"nE{i}" for i in range(1, 12)])
+    assert not validator.is_valid(["nV1"])
+    assert not validator.is_valid(["nE1", "nE1"])
+    assert choices["selection"]["properties"]["created_object_ids"]["maxItems"] == 0
+    assert "maxItems" not in choices["contextual_type"]["properties"]["created_object_ids"]
+    unchanged = copy.deepcopy(s)
+    guide = field_guide(s)
+    assert s == unchanged and "content_identity" in guide and "Citations=" in guide
+
+
+def test_nontransmitted_reservation_preserved_without_blocking_one_repair(tmp_path):
+    from story_projection_onto.contracts import canonical_sha256
+    from story_projection_onto.development_demo import pending_work
+    from story_projection_onto.manifest import write_json_atomic
+
+    base = {
+        "kind": "c1",
+        "attempt_id": "a1",
+        "repair_parent": None,
+        "scientific_accepted": False,
+        "request_hash": "1" * 64,
+        "transport_metadata": {"response_sha256": "2" * 64},
+    }
+    write_json_atomic(base, tmp_path / "run-first/a1/outcome.json")
+    reservation = {"attempt_id": "a2", "parent": "a1"}
+    write_json_atomic(reservation, tmp_path / "attempt-02.json")
+    with pytest.raises(ValueError, match="reconcile"):
+        pending_work(tmp_path)
+    write_json_atomic(
+        {
+            "a2": {
+                "reservation_file": "attempt-02.json",
+                "reservation_hash": canonical_sha256(reservation),
+                "transmitted": False,
+                "preserve_reservation_count": True,
+                "original_base_parent": "a1",
+            }
+        },
+        tmp_path / "reservation-reconciliations.json",
+    )
+    write_json_atomic(
+        {
+            "a1": {
+                "parent_request_hash": "1" * 64,
+                "parent_response_hash": "2" * 64,
+                "diagnostics": [{"category": "actual_defect"}],
+            }
+        },
+        tmp_path / "prepared-parent-feedback.json",
+    )
+    queue, _ = pending_work(tmp_path)
+    assert queue[0][0:2] == ("c1", "a1")
+    assert read(tmp_path / "attempt-02.json") == reservation
+    repaired = {**base, "attempt_id": "a3", "repair_parent": "a1"}
+    write_json_atomic(repaired, tmp_path / "run-next/a3/outcome.json")
+    queue, _ = pending_work(tmp_path)
+    assert not any(k == "c1" for k, _, _ in queue)
+
+
+def authored_full_size_capacity():
+    """Ten-node authored stress, never supplied to a model or scored as a result."""
+    import copy
+    import re
+
+    from tests.unit.test_nested_semantic_candidate import authored_candidate
+    from tests.unit.test_small_retry_path import demanding_capacity_wire
+    from tests.unit.test_small_semantic_reconciliation import binary_wire
+
+    parts = []
+    for i, wire in enumerate([demanding_capacity_wire(), demanding_capacity_wire(), binary_wire()]):
+
+        def visit(v, offset=i * 100):
+            if isinstance(v, dict):
+                return {k: visit(x) for k, x in v.items()}
+            if isinstance(v, list):
+                return [visit(x) for x in v]
+            if isinstance(v, str) and re.fullmatch(r"n[STREVAD][0-9]+", v):
+                return v[:2] + str(int(v[2:]) + offset)
+            return v
+
+        parts.append(visit(authored_candidate(wire)))
+    result = copy.deepcopy(parts[0])
+    result["contextual_interpretation"] = (
+        "Authored ten-node packing stress only, not an expected graph or model result."
+    )
+    for p in parts[1:]:
+        for key in ("entities", "events", "assertions", "unasserted_contents"):
+            result["instance_graph"][key] += p["instance_graph"][key]
+        for key in ("contextual_types", "predicates"):
+            result["local_schema"][key] += p["local_schema"][key]
+        result["decisions"] += p["decisions"]
+    return result
+
+
+def test_full_size_authored_serialization_capacity_and_lossless_adapter(pinned):
+    import json
+
+    from story_projection_onto.development_demo import budget_schema
+    from story_projection_onto.nested_semantic_candidate import (
+        candidate_schema,
+        collapse_candidate,
+        expand_candidate,
+        reconstruct_candidate,
+    )
+    from tests.unit.test_semantic_generation import source_fixture
+
+    t, _ = pinned
+    value = authored_full_size_capacity()
+    fixture = source_fixture()
+    cfg = DevelopmentConstructionConfiguration.load(
+        ROOT / "configs/study/development_construction.json"
+    )
+    schema = budget_schema(
+        candidate_schema(fixture.evidence, fixture.upper_ontology),
+        cfg.projection_budgets_by_unit["dev-unit-01"],
+    )
+    Draft202012Validator(schema).validate(value)
+    expanded = expand_candidate(value, evidence=fixture.evidence, upper=fixture.upper_ontology)
+    assert collapse_candidate(expanded) == value
+    reconstruct_candidate(
+        value, evidence=fixture.evidence, upper=fixture.upper_ontology, execution=execution()
+    )
+    assert len(value["instance_graph"]["entities"]) + len(value["instance_graph"]["events"]) == 10
+    assert len(value["instance_graph"]["assertions"]) == 7
+    for separators in [(",", ":"), (", ", ": ")]:
+        assert (
+            len(t.encode(json.dumps(value, separators=separators), add_special_tokens=False))
+            <= 5120
+        )

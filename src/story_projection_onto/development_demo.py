@@ -17,9 +17,78 @@ from .development_adapter import DevelopmentConstructionConfiguration
 from .gpu_runtime import ChatMessage, GuidedJSONRequest
 from .llm import DecodingManifest, DecodingPass, PackingReport, PackingSection
 from .nested_semantic_candidate import candidate_schema, reconstruct_candidate
-from .semantic_generation import schema_guide
 
 CONFIG = "configs/study/preliminary_development_demo.json"
+
+
+def budget_schema(schema, budgets):
+    """Encode existing ceilings/operation destinations; no semantic budget reduction.
+
+    Mixed-kind count constraints remain canonical checks where XGrammar cannot
+    encode them. Schema/type/proposition counts have no registered ceiling.
+    """
+    schema = copy.deepcopy(schema)
+    defs = schema["$defs"]
+    graph = defs["InstanceGraph"]["properties"]
+    for field in ("entities", "events"):
+        graph[field]["maxItems"] = budgets.node_budget
+    graph["assertions"]["maxItems"] = budgets.assertion_budget
+
+    def arrays(node, key=""):
+        if isinstance(node, list):
+            for item in node:
+                arrays(item, key)
+        elif isinstance(node, dict):
+            if node.get("type") == "array":
+                item = node.get("items", {})
+                if key.endswith("_ids"):
+                    node["uniqueItems"] = True  # also post-validated if decoder ignores it
+                    if item.get("enum"):
+                        node["maxItems"] = len(item["enum"])
+                    elif key == "description_assertion_ids":
+                        node["maxItems"] = budgets.assertion_budget
+            for k, v in node.items():
+                arrays(v, k)
+
+    arrays(schema)
+    # Exact aggregate entity+event ceiling, without imposing a partition choice.
+    original_graph = defs["InstanceGraph"]
+    alternatives = []
+    for entities in range(budgets.node_budget + 1):
+        branch = copy.deepcopy(original_graph)
+        branch["properties"]["entities"].update(minItems=entities, maxItems=entities)
+        branch["properties"]["events"]["maxItems"] = budgets.node_budget - entities
+        alternatives.append(branch)
+    defs["InstanceGraph"] = {
+        "anyOf": alternatives,
+        "$comment": f"development_joint_node_budget={budgets.node_budget}",
+    }
+    original = defs["OntologyDecision"]
+    targets = {
+        "merge": ("nE", budgets.node_budget),
+        "split": ("nE", budgets.node_budget),
+        "event_reification": ("nV", budgets.node_budget),
+        "contextual_type": ("nT", None),
+        "schema_relation": ("nS|nR", None),
+        "temporal_qualification": ("nA", budgets.assertion_budget),
+    }
+    variants = []
+    for operator in defs["ConstructionOperator"]["enum"]:
+        branch = copy.deepcopy(original)
+        p = branch["properties"]
+        p["operator"] = {"const": operator}
+        created = p["created_object_ids"]
+        if operator in targets:
+            pattern, maximum = targets[operator]
+            created["items"] = {"type": "string", "pattern": rf"^(?:{pattern})[1-9][0-9]{{0,3}}$"}
+            created["minItems"] = 1
+            if maximum is not None:
+                created["maxItems"] = maximum
+        elif operator in {"selection", "compression", "supported_description"}:
+            created["maxItems"] = 0
+        variants.append(branch)
+    defs["OntologyDecision"] = {"anyOf": variants}
+    return schema
 
 
 def read(path):
@@ -87,7 +156,8 @@ def evidence_text(evidence, mapping):
         "V columns: candidate | trigger | participants | confidence.",
         "R columns: candidate | phrase | subject candidate | object candidate | confidence.",
         "T columns: clue | expression | relation | targets | confidence.",
-        "Empty means absent/empty in the source index. Offsets/hashes/locators are retained by runtime.",
+        "Empty means absent/empty in the source index. "
+        "Offsets/hashes/locators are retained by runtime.",
     ]
 
     def ref(v):
@@ -98,7 +168,9 @@ def evidence_text(evidence, mapping):
     for e in evidence:
         pos = e.discourse_position
         lines += [
-            f"{mapping[e.evidence_id]} discourse={pos.passage_order},{pos.sentence_order},{pos.token_order} confidence={e.confidence},{e.provenance.confidence}",
+            f"{mapping[e.evidence_id]} discourse={pos.passage_order},"
+            f"{pos.sentence_order},{pos.token_order} "
+            f"confidence={e.confidence},{e.provenance.confidence}",
             e.text,
         ]
         for m in e.mention_candidates:
@@ -224,7 +296,110 @@ def vocabulary_guide(schema):
             )
             definition.clear()
             definition.update(type="string")
-    return schema_guide(value) + "\n" + "\n".join(legends)
+    return field_guide(value) + "\n" + "\n".join(legends)
+
+
+def field_guide(schema):
+    """Complete named-field guide; factor repeated alternatives, not semantics."""
+    identifiers = {}
+    defs = schema["$defs"]
+    decision = defs["OntologyDecision"]["anyOf"][0]["properties"]
+    named_shapes = {
+        "Citations": defs["Entity"]["properties"]["evidence_ids"],
+        "ObjectTarget": decision["removed_object_ids"]["items"],
+        "InputTarget": decision["input_object_ids"]["items"],
+    }
+
+    def show(n, defining=None):
+        for name, shape in named_shapes.items():
+            if name != defining and n == shape:
+                return name
+        if "$ref" in n:
+            return n["$ref"].rsplit("/", 1)[-1]
+        if "anyOf" in n:
+            branches = n["anyOf"]
+            if all(b.get("type") == "object" for b in branches):
+                common = {
+                    k: v
+                    for k, v in branches[0]["properties"].items()
+                    if all(b["properties"].get(k) == v for b in branches[1:])
+                    and all(k in b.get("required", []) for b in branches)
+                }
+                if common:
+                    rest = []
+                    for b in branches:
+                        c = copy.deepcopy(b)
+                        c["properties"] = {
+                            k: v for k, v in c["properties"].items() if k not in common
+                        }
+                        rest.append(c)
+                    return (
+                        show({"type": "object", "properties": common, "required": list(common)})
+                        + " + ("
+                        + " | ".join(show(b) for b in rest)
+                        + ")"
+                    )
+            return "(" + " | ".join(show(b) for b in branches) + ")"
+        if "const" in n:
+            return repr(n["const"])
+        if "enum" in n:
+            return "|".join(map(repr, n["enum"]))
+        kind = n.get("type")
+        if kind == "object":
+            return (
+                "{"
+                + ", ".join(
+                    k + ("" if k in n.get("required", []) else "?") + ":" + show(v)
+                    for k, v in n["properties"].items()
+                )
+                + "}"
+            )
+        if kind == "array":
+            if n.get("maxItems") == 0:
+                return "[]"
+            return (
+                "["
+                + show(n["items"])
+                + "]"
+                + (
+                    f"({n.get('minItems', 0)}..{n['maxItems']})"
+                    if "maxItems" in n
+                    else ("(1+)" if n.get("minItems") == 1 else "")
+                )
+                + (" unique" if n.get("uniqueItems") else "")
+            )
+        if "pattern" in n:
+            pattern = n["pattern"]
+            if pattern not in identifiers:
+                identifiers[pattern] = "ID" + str(len(identifiers) + 1)
+            return identifiers[pattern]
+        if kind in {"integer", "number"}:
+            return (
+                kind
+                + (f">={n['minimum']}" if "minimum" in n else "")
+                + (f"<={n['maximum']}" if "maximum" in n else "")
+            )
+        return str(kind)
+
+    rows = [
+        "All fields required except ?; null=absence; []=empty; + combines fields; "
+        "| selects an alternative. No extra fields.",
+        "Output=" + show(schema),
+    ]
+    for name, n in schema["$defs"].items():
+        if name == "InstanceGraph" and n.get("$comment", "").startswith(
+            "development_joint_node_budget="
+        ):
+            limit = int(n["$comment"].split("=")[1])
+            guide_graph = copy.deepcopy(n["anyOf"][0])
+            for field in ("entities", "events"):
+                guide_graph["properties"][field].update(minItems=0, maxItems=limit)
+            rows.append(name + "=" + show(guide_graph) + f"; entities+events length<={limit}")
+        else:
+            rows.append(name + "=" + show(n))
+    rows += [name + "=" + show(n, defining=name) for name, n in named_shapes.items()]
+    rows += [name + " matches " + pattern for pattern, name in identifiers.items()]
+    return "\n".join(rows)
 
 
 def prepare_request(root, kind, tokenizer, manifest, *, previous=None, feedback=None, sealed=None):
@@ -242,15 +417,20 @@ def prepare_request(root, kind, tokenizer, manifest, *, previous=None, feedback=
     )
     schema = compact_schema(
         reference_translation(
-            candidate_schema(evidence, config.upper_ontology), mapping, schema=True
+            budget_schema(candidate_schema(evidence, config.upper_ontology), budgets),
+            mapping,
+            schema=True,
         )
     )
-    instruction = (root / "prompts/diagnostics/nested_content_candidate_v1.md").read_text()
-    instruction = instruction[instruction.index("You choose identity") :]
+    protocol = read(root / CONFIG)
+    instruction = (root / protocol["instruction_path"]).read_text()
     intro = (
-        "Construct a query-blind ontology covering consequential supported content across this complete evidence. No user context has been revealed to this condition."
+        "Construct a query-blind ontology covering consequential supported content "
+        "across this complete evidence. No user context has been revealed to this condition."
         if kind == "c1"
-        else "Construct a contextual ontology directly from this evidence and the supplied user context. Your pre-query ontology is empty. Context can change identities, grouping, types, relations, events and abstraction."
+        else "Construct a contextual ontology directly from this evidence and the supplied "
+        "user context. Your pre-query ontology is empty. Context can change identities, "
+        "grouping, types, relations, events and abstraction."
     )
     body = {
         "evidence_index": evidence_text(evidence, mapping),
@@ -271,11 +451,7 @@ def prepare_request(root, kind, tokenizer, manifest, *, previous=None, feedback=
     messages = [
         ChatMessage(
             role="system",
-            content=intro
-            + "\nReturn concise, single-space JSON; preserve all required semantics. Object budgets are ceilings, not required filler.\n"
-            + instruction
-            + "\n"
-            + vocabulary_guide(schema),
+            content=intro + "\n" + instruction + "\n" + vocabulary_guide(schema),
         ),
         ChatMessage(
             role="user", content=json.dumps(body, ensure_ascii=False, separators=(",", ":"))
@@ -288,7 +464,13 @@ def prepare_request(root, kind, tokenizer, manifest, *, previous=None, feedback=
                 role="user",
                 content=json.dumps(
                     {
-                        "repair": "Previous output is untrusted, not evidence, and retained outside this request. Reconstruct a complete replacement from unchanged evidence. Reconsider and retract unsupported claims. Do not invent missing semantics. Address these demonstrated defects; unresolved assessment is not a positive verdict.",
+                        "repair": (
+                            "Previous output is untrusted, not evidence, and retained outside "
+                            "this request. Reconstruct a complete replacement from unchanged "
+                            "evidence. Reconsider and retract unsupported claims. Do not invent "
+                            "missing semantics. Address these demonstrated defects; unresolved "
+                            "assessment is not a positive verdict."
+                        ),
                         "diagnostics": feedback,
                     },
                     separators=(",", ":"),
@@ -304,8 +486,11 @@ def prepare_request(root, kind, tokenizer, manifest, *, previous=None, feedback=
             enable_thinking=False,
         )
     )
-    output = 4096
-    max_input = 12288 - output
+    max_input, output = protocol[
+        "repair_input_output_tokens" if previous is not None else "base_input_output_tokens"
+    ]
+    if max_input + output != protocol["context_limit"]:
+        raise ValueError("development token policy must fit the unchanged context")
     decoding = DecodingManifest(
         decoding_pass=DecodingPass.FIRST_PASS if previous is None else DecodingPass.REPAIR,
         maximum_input_tokens=max_input,
@@ -332,7 +517,7 @@ def prepare_request(root, kind, tokenizer, manifest, *, previous=None, feedback=
     packing = PackingReport.build(
         condition=condition,
         tokenizer_revision=manifest.revision,
-        maximum_model_tokens=12288,
+        maximum_model_tokens=protocol["context_limit"],
         maximum_input_tokens=max_input,
         reserved_output_tokens=output,
         sections=(
@@ -369,12 +554,31 @@ def adapt_output(parsed, evidence, mapping, upper, execution):
     return reconstruct_candidate(translated, evidence=evidence, upper=upper, execution=execution)
 
 
+def nontransmitted_reservations(block):
+    """Explicit, hash-bound reconciliation; never infer non-transmission from silence."""
+    path = block / "reservation-reconciliations.json"
+    if not path.exists():
+        return {}
+    records = read(path)
+    for attempt, item in records.items():
+        reservation = read(block / item["reservation_file"])
+        if (
+            reservation["attempt_id"] != attempt
+            or canonical_sha256(reservation) != item["reservation_hash"]
+            or item["transmitted"] is not False
+            or item["preserve_reservation_count"] is not True
+        ):
+            raise ValueError("invalid non-transmitted reservation reconciliation")
+    return records
+
+
 def pending_work(block):
     """Resume this fixed five-base workload without silently repeating a base."""
     history = [(p, read(p)) for p in sorted(block.glob("run-*/*/outcome.json"))]
     observed = {o["attempt_id"] for _, o in history}
+    nontransmitted = nontransmitted_reservations(block)
     for reservation in block.glob("attempt-*.json"):
-        if read(reservation)["attempt_id"] not in observed:
+        if read(reservation)["attempt_id"] not in observed | set(nontransmitted):
             raise ValueError("Reserved attempt has no terminal outcome; reconcile before resume")
     feedback_path = block / "prepared-parent-feedback.json"
     prepared = read(feedback_path) if feedback_path.exists() else {}
@@ -412,7 +616,10 @@ def phase_policy(root=None):
     def admit(actual, starts, attempts, *, starting=False, generating=False, seconds):
         if not math.isfinite(actual) or actual < 6716.108081 or seconds < 0:
             raise ValueError("invalid or reset historical allocation")
-        if starts + int(starting) > 2 or attempts + int(generating) > 12:
+        if (
+            starts + int(starting) > cfg["maximum_service_starts"]
+            or attempts + int(generating) > 12
+        ):
             raise ValueError("development start/attempt authority exhausted")
         end = actual + seconds + 60
         if end > 10316.108081 - 5 or end > 33660 or end >= 36000:
@@ -429,7 +636,7 @@ def phase_policy(root=None):
         "historical_actual_seconds": 6716.108081,
         "maximum_additional_seconds": 3600,
         "maximum_global_seconds": 10316.108081,
-        "maximum_service_starts": 2,
+        "maximum_service_starts": 4,
         "maximum_attempts": 12,
         "maximum_repairs_per_base": 1,
     }
@@ -439,7 +646,7 @@ def phase_policy(root=None):
         BASELINE=6716.108081,
         BLOCK_ID=cfg["amendment_id"],
         ALLOWANCE=3600,
-        STARTS=2,
+        STARTS=cfg["maximum_service_starts"],
         ATTEMPTS=12,
         GENERATION=300,
         admit=admit,

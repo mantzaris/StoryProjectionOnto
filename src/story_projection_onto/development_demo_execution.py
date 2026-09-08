@@ -11,10 +11,11 @@ from datetime import UTC, datetime
 
 from jsonschema import Draft202012Validator
 
-from .contracts import ConditionName, ConstructionSeal, canonical_sha256
+from .contracts import ConditionName, ConstructionSeal, canonical_json, canonical_sha256
 from .development_adapter import DevelopmentConstructionConfiguration
 from .development_demo import (
     adapt_output,
+    nontransmitted_reservations,
     pending_work,
     phase_policy,
     prepare_request,
@@ -92,6 +93,16 @@ def execute_workload(root, block, run, *, prepare_only=False):
         for kind in ("c1", "c2-q1", "c2-q2")
     }
     queue, accepted_path = pending_work(block)
+    nontransmitted = nontransmitted_reservations(block)
+    for attempt in nontransmitted:
+        if ledger.gpu_events_with_prefix(attempt):
+            raise ValueError("reconciled reservation has a GPU event or model call")
+        try:
+            ledger.get_model_call(attempt)
+        except KeyError:
+            pass
+        else:
+            raise ValueError("reconciled reservation has a model call")
     prepared_retries = {
         parent: prepare_request(
             root, kind, tokenizer, token_manifest, previous={"parent": parent}, feedback=feedback
@@ -104,7 +115,7 @@ def execute_workload(root, block, run, *, prepare_only=False):
     compiler = xgrammar.GrammarCompiler(xgrammar.TokenizerInfo.from_huggingface(tokenizer))
     packing = {}
     for kind, (q, _, _mapping, _budgets) in variants.items():
-        compiler.compile_json_schema(json.dumps(q.output_schema), any_whitespace=False)
+        compiler.compile_json_schema(canonical_json(q.output_schema), any_whitespace=False)
         immutable(run / f"prepared-{kind}.json", q.wire_payload())
         immutable(run / f"packing-{kind}.json", q.packing.model_dump(mode="json"))
         immutable(
@@ -132,7 +143,7 @@ def execute_workload(root, block, run, *, prepare_only=False):
             != q.request_hash
         ):
             raise ValueError("Prepared parent repair request changed before allocation")
-        compiler.compile_json_schema(json.dumps(q.output_schema), any_whitespace=False)
+        compiler.compile_json_schema(canonical_json(q.output_schema), any_whitespace=False)
         immutable(run / f"prepared-repair-{parent}.json", q.wire_payload())
         packing[parent] = {
             "request_hash": q.request_hash,
@@ -300,7 +311,7 @@ def execute_workload(root, block, run, *, prepare_only=False):
                             feedback=feedback,
                         )
                     )
-                compiler.compile_json_schema(json.dumps(q.output_schema), any_whitespace=False)
+                compiler.compile_json_schema(canonical_json(q.output_schema), any_whitespace=False)
             except Exception as exc:
                 immutable(
                     run / f"{kind}-{'repair' if parent else 'base'}-packing-failure.json",
@@ -349,11 +360,23 @@ def execute_workload(root, block, run, *, prepare_only=False):
                     release_class=ReleaseClass.RESTRICTED,
                 )
             )
+            replacement_parent = (
+                next(
+                    (a for a, r in nontransmitted.items() if r["original_base_parent"] == parent),
+                    None,
+                )
+                if parent
+                else None
+            )
             ledger.record_attempt(
                 attempt_id=attempt_id,
                 job_id=job.job_id,
-                attempt_kind=AttemptKind.REPAIR if parent else AttemptKind.BASE,
-                parent_attempt_id=parent,
+                attempt_kind=AttemptKind.RETRY
+                if replacement_parent
+                else AttemptKind.REPAIR
+                if parent
+                else AttemptKind.BASE,
+                parent_attempt_id=replacement_parent or parent,
                 input_hash=q.request_hash,
                 config_hash=q.decoding.content_hash,
                 seed=q.decoding.seed,
@@ -525,6 +548,8 @@ def execute_workload(root, block, run, *, prepare_only=False):
                 "kind": kind,
                 "condition": q.condition.value,
                 "repair_parent": parent,
+                "replaces_nontransmitted_reservation": replacement_parent,
+                "development_request_revision": cfg.config["repair_policy_revision"],
                 "request_hash": q.request_hash,
                 "response": result.public_manifest() if result else None,
                 "transport_metadata": metadata,

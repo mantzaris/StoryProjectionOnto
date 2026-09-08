@@ -1,5 +1,31 @@
 # Run status
 
+Updated: 2026-09-08 UTC — continuation prepared for the three pending semantic repairs.
+
+User extended the **same phase** to four total starts; 3,600 additional seconds
+and 12 reservations unchanged. Verified ledger: 7,574.672489 cumulative,
+858.564408 phase-used, 2,741.435592 remaining; two starts/four reservations retained.
+Reservation 04 was not transmitted and remains counted. Replacement C1 ledger
+lineage attaches to reservation 04; semantic feedback remains linked to base 01.
+
+Frozen v4 nested requests: 6,895 / 7,142 / 7,130 input + 5,120 output, unchanged
+12,288 context; same C1/C2 policy. Aggregate node, assertion and typed creation
+budgets encoded without changing scientific ceilings. No checker/gold/C0 change.
+23 focused workflow/capacity/adapter tests pass; 30 nested controls reused after
+their passing run earlier in this continuation. Real service repair guard and
+pre-transmission exception preservation exercised through the workload.
+Pod CPU grammar/exact-packing preflight passed, no GPU allocation. Its first
+preflight exposed a module-entrypoint import failure, corrected before allocation;
+both CPU records retained. vLLM is stopped at this checkpoint.
+
+Next authorized command, inside the persistent project session:
+`.venv/bin/python -m scripts.run_capacity_diagnostics --development-demo --execute`
+Three parent repairs only, then conditional intact-C1 FixedSelect. No repeated
+bases; both C2 repairs independent of C1. Shutdown protected by existing guardian.
+The old report remains preserved until actual new outcomes are available.
+
+## Previous handoff (historical; start-count restriction subsequently extended)
+
 Updated: 2026-09-08 UTC — exploratory development phase closed; results delivered.
 
 Report: `reports/PRELIMINARY_DEVELOPMENT_RESULTS.md`; comparison:

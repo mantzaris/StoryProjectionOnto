@@ -952,10 +952,12 @@ class GuidedJSONRequest:
     def __post_init__(self) -> None:
         if (
             (self.decoding.maximum_input_tokens, self.decoding.maximum_output_tokens)
-            == (8192, 4096)
+            in {(8192, 4096), (7168, 5120)}
             and not self.request_id.startswith("development-demo-")
         ):
-            raise RuntimeConfigurationError("8,192/4,096 is exploratory development only")
+            raise RuntimeConfigurationError(
+                "candidate token allocation is exploratory development only"
+            )
         if (
             (self.decoding.maximum_input_tokens, self.decoding.maximum_output_tokens)
             == (8704, 3584)

@@ -1809,7 +1809,13 @@ def guardian(root, *, prepare_only=False, comparison=False, semantic=False):
             "prepared_repairs": prepared_repair_binding(root) if semantic is True else None,
         }
         immutable(run / "binding.json", binding)
-        command = [sys.executable, __file__, "--controller", str(run)]
+        command = [
+            sys.executable,
+            "-m",
+            "scripts.run_capacity_diagnostics",
+            "--controller",
+            str(run),
+        ]
         if prepare_only:
             command.append("--prepare-only")
         if semantic == "development":

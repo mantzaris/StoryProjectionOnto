@@ -457,6 +457,8 @@ class DecodingManifest(RuntimeManifest):
         # Explicit exploratory development allocation, restricted by request ID.
         if (self.maximum_input_tokens, self.maximum_output_tokens) == (8_192, 4_096):
             input_ceiling, output_ceiling = 8_192, 4_096
+        if (self.maximum_input_tokens, self.maximum_output_tokens) == (7_168, 5_120):
+            input_ceiling, output_ceiling = 7_168, 5_120
         # CPU-prepared small retry candidate only. GuidedJSONRequest restricts
         # this pair to its diagnostic request ID; ordinary calls cannot use it.
         if (self.maximum_input_tokens, self.maximum_output_tokens) == (8_704, 3_584):

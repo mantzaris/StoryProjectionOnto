@@ -98,3 +98,47 @@ but not live-tested: the two-start cap is exhausted. Total phase allocation is
 858.564408 s; actual cumulative allocation 7,574.672489 s. The preliminary report
 includes all received graphs, failed bases and unexecuted/blocked comparisons.
 No new diagnostic phase or production adoption follows automatically.
+
+### Authorized continuation: capacity/semantic repairs, v4
+
+The user subsequently increased **this same phase** to four total starts. The
+3,600-second/12-reservation ceilings and 6,716.108081 baseline are unchanged.
+Ledger reconciliation: 7,574.672489 cumulative, 858.564408 phase-used, 2,741.435592
+remaining. Reservation 04 remains failed and counted. Its absence of a model call
+and GPU generation event is verified before resume; no failed reservation is erased.
+The replacement C1 transmission is a ledger `retry` of that untransmitted repair
+reservation (preserving the unique direct repair child), with original base 01
+retained as its semantic feedback parent. Only one transmitted repair/base is allowed.
+
+Request/schema v4 retains named nested content and the same lossless adapter.
+The one development configuration declares **7,168 input / 5,120 output** for
+both C1/C2 bases and repairs. Only repairs are queued; bases will not repeat.
+The complete frozen repair counts are 6,895 / 7,142 / 7,130 template-inclusive
+input tokens. The smallest input slack is 26 tokens; no evidence or essential
+feedback is truncated. Requests exclude the previous graph exactly as the existing
+evidence-first repair policy specifies; full originals remain in restricted lineage.
+
+The existing ceilings are now encoded in schema: entity+event sum, assertions,
+supplied-reference list sizes and description-assertion list size. Node-producing
+merge/split/reification reports cannot list more nodes than their existing ceiling;
+temporal creation reports are assertion-bounded. Operation-specific destinations
+mirror the canonical validator. Selection/compression/descriptions have no newly
+created records. Types, predicates and independent proposition contents have no
+separate registered count limit, so none is invented here. Mixed-kind creation
+counts, actual declaration membership and other cross-fields remain post-checks.
+`uniqueItems` is also post-validated: the pinned decoder's compilation alone does
+not prove it enforces that keyword. All scientific checks remain unchanged.
+
+Field-guide factoring removes duplicate syntax explanations, not semantic fields.
+The original prefixes contained 100 and 50 claimed C2 node IDs against a 10-node
+ceiling, repeated C1 citation entries and unsupported holder/point-validity forms.
+Feedback permits retraction and addresses these actual defects, not scorer answers.
+A ten-node/seven-assertion authored fixture round-trips losslessly and occupies
+3,858 compact or 4,876 single-space tokens. It is a serialization stress check,
+outside all model requests—not evidence of model reliability or worst-case fit.
+
+Keep C1 model-query-blind and timestamp its actual late repair/seal. Run both C2
+repairs independently. FixedSelect is conditional on an actual accepted sealed C1
+and intact packing; its unchanged selection-only allocation is 10,240/2,048.
+No full-study admission, production adoption, model change, held-out execution,
+checker weakening, gold change or extra inference slot is authorized.
