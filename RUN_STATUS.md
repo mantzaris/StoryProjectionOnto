@@ -1,5 +1,27 @@
 # Run status
 
+Updated: 2026-09-08 UTC — bounded C2 continuation prepared; no new allocation yet.
+
+Branch `implementation/query-dependent-temporal-ontology`, baseline `d86199a`.
+Remote ledger reconciled at **8,983.249948 s**, six starts/eleven reservations;
+journals closed and vLLM stopped. Current explicit authority: up to two additional
+starts/eight reservations within **1,332.858133 s**, maximum **10,316.108081 s**.
+C1/FixedSelect remain blocked. Both C2 contexts use the same bounded staged-v3
+auxiliary policy in `configs/study/staged_development.json`; complete source and
+semantic field ownership remain intact. Exploratory usable graphs are displayed
+and scored independently of the unchanged registered acceptance verdict.
+
+Focused CPU controller/adapter/packing tests pass. Effective XGrammar controls
+accept the authored specimen and reject excess types, predicates, references and
+prose. The backend's required default JSON whitespace is included in capacity
+checks; Stage C's repeated annotation guides are factored without omitting records.
+Pending: live two-context A/B/C execution, report regeneration, verified shutdown.
+Run only within existing authority: `python -m scripts.run_capacity_diagnostics
+--staged-development --execute` in the persistent study session, with current
+source/commit binding. Held-out review and production acceptance remain blocked.
+
+## Previous staged execution (historical)
+
 Updated: 2026-09-08 UTC — staged development executed, unsuccessful, service stopped.
 
 Verified pushed baseline `d40f257`; branch

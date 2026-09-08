@@ -44,4 +44,21 @@ def capacity_fixture(root):
                 )
 
     visit(value)
-    return reference_translation(value, references)
+    value = reference_translation(value, references)
+    # Authored capacity specimen only: share its explicitly identical type
+    # definitions. The immutable original fixture is retained. No live output
+    # passes through this function and no semantic equivalence is inferred.
+    import json
+
+    types = []
+    authored_types = {}
+    rename = {}
+    for row in value["local_schema"]["contextual_types"]:
+        key = json.dumps({k: v for k, v in row.items() if k != "type_id"}, sort_keys=True)
+        if key in authored_types:
+            rename[row["type_id"]] = authored_types[key]
+        else:
+            authored_types[key] = row["type_id"]
+            types.append(row)
+    value["local_schema"]["contextual_types"] = types
+    return reference_translation(value, rename)

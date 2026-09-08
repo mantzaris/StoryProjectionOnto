@@ -243,6 +243,83 @@ def public_assessment(assessment):
     }
 
 
+def exploratory_quality(assessment, graph, defects=()):
+    """Separate positive grounding, proven defects and unresolved matching.
+
+    No predictions are removed. Contextual FP/FN counts retain the registered
+    reference universe; they are not automatically assertions of factual falsity.
+    """
+    if not assessment:
+        return {"available": False, "reason": "canonical/component assessment blocked"}
+    assertions = graph["instance_graph"]["assertions"]
+    supported = set(assessment["grounding_supported_assertion_ids"])
+    records = []
+    for i, a in enumerate(assertions):
+        identity = a["assertion_id"]
+        source_errors = [
+            d
+            for d in defects
+            if d.get("path", "").startswith(f"/instance_graph/assertions/{i}/")
+            and d["category"] in {"unsupported_attribution", "unsupported_intrinsic_precision"}
+        ]
+        binding_errors = [
+            d
+            for d in assessment["structure"]["diagnostics"]
+            if d["code"] == "predicate_signature_mismatch" and identity in d.get("related_ids", [])
+        ]
+        status = (
+            "incorrect_binding"
+            if binding_errors
+            else "unsupported_qualification"
+            if source_errors
+            else "supported_direct_reference"
+            if identity in supported
+            else "unresolved"
+        )
+        records.append(
+            {
+                "assertion_id": identity,
+                "status": status,
+                "confirmed_source_checks": source_errors,
+                "binding_checks": [
+                    {k: d[k] for k in ("code", "path", "message")} for d in binding_errors
+                ],
+            }
+        )
+    alignment = assessment.get("contextual_metrics")
+    strict = alignment["alignment"]["strict_assertion_score"] if alignment else None
+    if strict and strict["predicted_count"] != len(assertions):
+        raise ValueError("Exploratory scorer omitted emitted assertions from its denominator")
+    return {
+        "available": True,
+        "assertion_count": len(assertions),
+        "counts": {
+            s: sum(r["status"] == s for r in records)
+            for s in (
+                "supported_direct_reference",
+                "incorrect_binding",
+                "unsupported_qualification",
+                "unresolved",
+            )
+        },
+        "assertions": records,
+        "contextual_counts": {
+            k: strict[k]
+            for k in (
+                "true_positive_count",
+                "false_positive_count",
+                "false_negative_count",
+                "precision_denominator",
+                "recall_denominator",
+            )
+        }
+        if strict
+        else None,
+        "all_predictions_retained": True,
+        "unmatched_is_not_false": True,
+    }
+
+
 def graph_elements(graph, anchors):
     labels, predicates, _ = label_graph(graph)
     g = graph.get("instance_graph", {})
@@ -420,6 +497,8 @@ def build(root, run, output):
             "replaces_nontransmitted_reservation": o.get("replaces_nontransmitted_reservation"),
             **metric_values(assessment),
         }
+        if "mechanically_usable" in o:
+            row["mechanically_usable"] = o["mechanically_usable"]
         # Detailed exception chains stay restricted; concise public failure label.
         if len(row["failure"]) > 450:
             row["failure"] = (
@@ -457,6 +536,15 @@ def build(root, run, output):
             graph = read(folder / "decoded.json")
         else:
             graph = complete_record_fragments(streamed_content(folder.parent, o["request_hash"]))
+        if o.get("construction_stage") == "C" and "mechanically_usable" in o:
+            row["exploratory_quality"] = exploratory_quality(
+                assessment, graph, o.get("source_defects", [])
+            )
+            row["mechanical_blockers"] = (
+                read(folder / "mechanical-status.json")["structural_blockers"]
+                if (folder / "mechanical-status.json").exists()
+                else []
+            )
         if row["json_complete"]:
             instance = graph["instance_graph"]
             budget = (
@@ -734,8 +822,12 @@ def build(root, run, output):
     staged_rows = [r for r in rows if r.get("construction_stage")]
     if staged_rows:
         accounting.update(
-            phase_maximum_starts=6,
-            phase_maximum_reservations=22,
+            phase_maximum_starts=read(root / "configs/study/staged_development.json")[
+                "maximum_service_starts"
+            ],
+            phase_maximum_reservations=read(root / "configs/study/staged_development.json")[
+                "maximum_attempts"
+            ],
             staged_baseline_seconds=8200.425164,
             staged_seconds=round(terminal["actual_allocated_seconds"] - 8200.425164, 6),
             staged_new_reservations=len(staged_rows),
@@ -799,9 +891,15 @@ def build(root, run, output):
     if staged_rows:
         result["staged_development_protocol"] = read(root / "configs/study/staged_development.json")
         constructions = []
-        for condition, ordinal in (("C1", None), ("C2", 1), ("C2", 2)):
+        for protocol, condition, ordinal in sorted(
+            {(r["protocol"], r["condition"], r["context"]) for r in staged_rows}
+        ):
             attempts = [
-                r for r in staged_rows if r["condition"] == condition and r["context"] == ordinal
+                r
+                for r in staged_rows
+                if r["condition"] == condition
+                and r["context"] == ordinal
+                and r["protocol"] == protocol
             ]
             active = {}
             for r in attempts:
@@ -814,9 +912,11 @@ def build(root, run, output):
             constructions.append(
                 {
                     "condition": condition,
+                    "protocol": protocol,
                     "context": ordinal,
                     "stage_validity": {s: s in active for s in "ABC"},
                     "complete_canonical_graph": bool(final.get("canonical_valid")),
+                    "mechanically_usable": bool(final.get("mechanically_usable")),
                     "scientific_accepted": bool(final.get("scientific_accepted")),
                     "calls": len(attempts),
                     "repairs": sum(bool(r.get("repair_parent")) for r in attempts),
@@ -883,6 +983,7 @@ def build(root, run, output):
         "repair_parent",
         "schema_valid",
         "canonical_valid",
+        "mechanically_usable",
         "structure_valid",
         "scientific_accepted",
         "strict_precision",
@@ -1206,8 +1307,9 @@ def build(root, run, output):
         md += [
             "",
             (
-                "No GPU output was scientifically accepted. This development "
-                "configuration failed within the used allowance. Structural "
+                "No GPU output was scientifically accepted. The stricter scientific "
+                "acceptance requirement was not met; this does not suppress mechanically "
+                "usable exploratory graphs or their measured accuracy. Structural "
                 "completion, confirmed semantic errors and unresolved assessments "
                 "are distinguished below. No further diagnostic phase is "
                 "automatically initiated."
@@ -1437,7 +1539,8 @@ def build(root, run, output):
             "A owns schema and graph objects; B owns qualified assertions; C owns descriptions "
             "and construction reporting. Only assembled canonical outputs receive contextual "
             "draft scores. Intermediate completion is not canonical or scientific success. "
-            "C1 stages finish or fail before the new C2 query-bearing transmissions. "
+            "The initial C1 stages terminally failed; C1 and FixedSelect remain blocked "
+            "in the bounded C2-only continuation. "
             "C2 contexts do not inherit C1 or each other's records. No checker changed.",
             "",
             f"New reservations: {len(staged_rows)}. Additional staged allocation: "
@@ -1479,7 +1582,7 @@ def build(root, run, output):
         ]
         for x in result["staged_constructions"]:
             md.append(
-                f"| {x['condition']}/{x['context']} | "
+                f"| {x['condition']}/{x['context']} ({x['protocol']}) | "
                 + " / ".join(str(x["stage_validity"][s]) for s in "ABC")
                 + f" | {x['complete_canonical_graph']} / {x['scientific_accepted']} | "
                 f"{x['calls']} / {x['repairs']} | {x['input_tokens']} / {x['output_tokens']} | "
@@ -1512,10 +1615,87 @@ def build(root, run, output):
         md += [
             "",
             "Repeated predicates are an observed expansion pattern, not proof of an "
-            "additional semantic contradiction or a universal model limitation. No tighter "
-            "schema-object scientific budget was invented to force completion. Removing "
-            "duplicate references alone did not establish complete staged construction.",
+            "additional semantic contradiction or a universal model limitation. The original "
+            "staged attempts did not tighten auxiliary budgets. The later bounded-v3 "
+            "continuation uses explicitly authorized development-only collection and prose "
+            "ceilings; these can reduce coverage and are not the registered protocol.",
         ]
+        current = [r for r in rows if r.get("protocol") == "staged-development-bounded-aux-v3"]
+        finals = [r for r in current if r.get("construction_stage") == "C"]
+        md += [
+            "",
+            "## Bounded C2 continuation: usability versus measured quality",
+            "",
+            "C1 and FixedSelect are blocked and were not retried. Stage A/B semantic "
+            "imperfections do not prevent completion of mechanically usable dependencies. "
+            "Every emitted assertion remains in contextual precision; omissions remain recall "
+            "failures. Unmatched paraphrases remain unresolved, not false or accepted. "
+            "Registered acceptance-gated scores are retained separately.",
+            "",
+            "Development-only ceilings: six types, eight predicates, four references per "
+            "list, three aliases, eight decisions, four omissions/abstentions; 64-character "
+            "labels, 180-character prose, 320-character interpretation. Required scientific "
+            "fields and full evidence remain intact. Coverage effects are reflected in the "
+            "scores below; one world cannot establish a causal effect of these limits.",
+            "",
+            "| Condition/context | Usable / canonical / registered acceptance | P / R / F1 | "
+            "Grounded / wrong binding / unsupported / unresolved |",
+            "|---|---|---|---|",
+        ]
+        for r in [x for x in rows if x["condition"] == "C0"] + finals:
+            counts = r.get("exploratory_quality", {}).get("counts", {})
+            md.append(
+                f"| {r['condition']}/{r['context']} | "
+                f"{r.get('mechanically_usable', r['canonical_valid'])} / "
+                f"{r['canonical_valid']} / {r['scientific_accepted']} | "
+                f"{fmt(r.get('strict_precision'))} / {fmt(r.get('strict_recall'))} / "
+                f"{fmt(r.get('strict_f1'))} | "
+                + (
+                    " / ".join(
+                        str(counts[k])
+                        for k in (
+                            "supported_direct_reference",
+                            "incorrect_binding",
+                            "unsupported_qualification",
+                            "unresolved",
+                        )
+                    )
+                    if counts
+                    else "see existing assessment"
+                )
+                + " |"
+            )
+        for r in finals:
+            md += [
+                "",
+                f"### C2 context {r['context']}: complete authored records",
+                "",
+                "The linked HTML shows every generated assertion beside its evidence and "
+                "qualifications; no error-bearing edge is removed. "
+                f"Mechanical blockers: {json.dumps(r.get('mechanical_blockers', []))}. "
+                "Canonical blocker (if any): "
+                + (r.get("failure") if not r.get("canonical_valid") else "none")
+                + ".",
+                "",
+                "All-prediction contextual counts: `"
+                + json.dumps(r.get("exploratory_quality", {}).get("contextual_counts"))
+                + "`.",
+            ]
+            for item in r.get("exploratory_quality", {}).get("assertions", []):
+                md += [
+                    f"- `{item['assertion_id']}`: {item['status']}; "
+                    + "; ".join(
+                        x.get("constraint", x.get("message", ""))
+                        for x in item["confirmed_source_checks"] + item["binding_checks"]
+                    )
+                ]
+        if not any(r.get("mechanically_usable") for r in finals):
+            md += [
+                "",
+                "No complete mechanically usable C2 ontology was produced in this continuation. "
+                "The received records and exact blockers remain visible; "
+                "prefixes are not complete graphs.",
+            ]
     atomic_text(output / "PRELIMINARY_DEVELOPMENT_RESULTS.md", "\n".join(md) + "\n")
     labels = sorted({label for g in graphs for label in label_graph(g["graph"])[0].values()})
     anchors = {

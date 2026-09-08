@@ -1,5 +1,34 @@
 # Staged exploratory development — pre-generation amendment
 
+## Current bounded C2 continuation (explicit user amendment)
+
+`staged-development-bounded-aux-v3` retains the stages, adapter, evidence and
+scientific validators below. It constructs only C2 contexts 1 and 2; C1 and
+FixedSelect stay blocked. Historical results are not overwritten. Complete,
+mechanically usable graphs are displayed and scored even when scientifically
+wrong or unresolved. All assertions stay in the existing scoring denominators;
+the separate registered acceptance-gated results remain unchanged.
+
+To bound the observed repeated predicates/references: at most six local types,
+eight predicates, four references per list, three aliases, eight decisions,
+four omissions/abstentions; labels at most 64 characters, prose 180, contextual
+interpretation 320. These are development-only auxiliary ceilings, **not** the
+original registered protocol. They may reduce support/coverage; report measured
+recall, rare-pivotal preservation and all omissions. No generated records are
+trimmed. Required semantic fields and complete source evidence remain supplied.
+The same input/output ladder and constraints apply to both contexts. Effective
+grammar positive/overflow controls and installed vLLM validation precede launch.
+
+Semantically imperfect but mechanically usable intermediates continue through C.
+A blocked stage may receive one justified model repair per context; its dependents
+are regenerated if necessary. No CPU semantic repair. This is a versioned
+continuation of the same phase, not an accounting reset: actual 8,983.249948 s,
+six starts/eleven reservations preserved; maximum 10,316.108081 s, eight starts /
+nineteen reservations. Remaining 1,332.858133 s includes protected 60-second
+shutdown and 5-second guard. Existing stage caps and global ceilings are unchanged.
+
+## Historical initial staged amendment
+
 Authorized 2026-09-08. This replaces single-response construction only for the
 existing easy development demonstration, not production acceptance or held-out
 execution. The selected unit remains `dev-unit-01`, context ordinals 1 and 2,

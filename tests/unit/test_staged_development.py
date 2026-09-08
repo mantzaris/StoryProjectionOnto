@@ -87,13 +87,13 @@ def test_exact_stage_packing_grammar_and_reference_controls(stage, pinned):
 
 def test_authority_shutdown_and_stage_repair_owner():
     p = policy(ROOT)
-    p.admit(8200.425164, 4, 7, starting=True, seconds=2050.682917)
+    p.admit(8983.249948, 6, 11, starting=True, seconds=1267.858133)
     with pytest.raises(TimeoutError):
-        p.admit(10300, 5, 10, generating=True, seconds=1)
+        p.admit(10300, 7, 14, generating=True, seconds=1)
     with pytest.raises(ValueError):
-        p.admit(8200.425164, 6, 7, starting=True, seconds=1)
+        p.admit(8983.249948, 8, 11, starting=True, seconds=1)
     with pytest.raises(ValueError):
-        p.admit(8200.425164, 4, 22, generating=True, seconds=1)
+        p.admit(8983.249948, 6, 19, generating=True, seconds=1)
     assert repair_owner("C", [{"category": "unsupported_attribution"}]) == "B"
     assert repair_owner("C", [{"category": "unknown", "paths": ["/"]}]) is None
 
@@ -128,7 +128,7 @@ def test_retained_prefix_repair_is_specific_complete_and_packable(pinned):
             assert q.rendered_input_token_count + q.decoding.maximum_output_tokens <= 12288
             assert q.decoding.maximum_output_tokens == 6144
             old = read(p.parent / "request.json")
-            assert q.output_schema == old["guided_json"]
+            assert q.output_schema != old["guided_json"]  # authorized bounded-v3 amendment
 
 
 @pytest.mark.parametrize("pre_event", [False, True])
@@ -168,8 +168,8 @@ def test_staged_controller_real_guard_transport_and_independent_contexts(
         snapshot_path=ROOT / "artifacts/restricted/pinned-tokenizer-cpu",
         served_model_name="qwen3-8b-awq-fallback",
     )
-    service.meter.actual_allocated_gpu_seconds = 8200.425164
-    service.actual_allocated_service_seconds = 8200.425164
+    service.meter.actual_allocated_gpu_seconds = 8983.249948
+    service.actual_allocated_service_seconds = 8983.249948
     from story_projection_onto.staged_development import split_fixture
     from story_projection_onto.staged_development_fixtures import capacity_fixture
 
@@ -181,7 +181,7 @@ def test_staged_controller_real_guard_transport_and_independent_contexts(
         stage = q.request_id.split("-")[-1]
         stage = q.request_id.split("-")[-2] if stage == "repair" else stage
         payload = {"A": a, "B": b, "C": c}[stage]
-        if q.request_id == "development-demo-staged-c1-B":
+        if q.request_id == "development-demo-staged-c2-q1-B":
             payload = {"broken": True}
         return GenerationResult(
             request_id=q.request_id,
@@ -207,6 +207,10 @@ def test_staged_controller_real_guard_transport_and_independent_contexts(
     monkeypatch.setattr(controller, "source_binding", lambda *_: {"cpu": "control"})
     monkeypatch.setattr(workload, "capture_tokenizer_manifest", lambda *a, **k: m)
     monkeypatch.setattr(workload, "validate_server_schema", Draft202012Validator.check_schema)
+    monkeypatch.setattr(
+        "story_projection_onto.staged_development.verify_auxiliary_grammar",
+        lambda *a: {"local_simulation": True, "remote_backend_required": True},
+    )
     from dataclasses import dataclass
 
     @dataclass
@@ -242,9 +246,9 @@ def test_staged_controller_real_guard_transport_and_independent_contexts(
             put_bytes=lambda *a, **k: SimpleNamespace(content_hash="c" * 64)
         ),
     )
-    for n in range(1, 5):
+    for n in range(1, 7):
         write_json_atomic({"historical": True}, block / f"start-{n:02d}.json")
-    for n in range(1, 8):
+    for n in range(1, 12):
         write_json_atomic({"historical": True}, block / f"attempt-{n:02d}.json")
     workload.execute_workload(ROOT, block, run, staged=True)
     outcomes = read(run / "terminal.json")["outcomes"]
@@ -256,16 +260,49 @@ def test_staged_controller_real_guard_transport_and_independent_contexts(
         service.client.generate.assert_not_called()
         service.shutdown.assert_called_once()
         return
-    assert [x["kind"] for x in outcomes] == ["c1"] * 4 + ["c2-q1"] * 6 + ["c2-q2"] * 5
-    assert [x["construction_stage"] for x in outcomes] == ["A", "B", "B", "C", *"ABCABCABCAB"]
-    assert sum(x["canonical_valid"] for x in outcomes) == 4
+    assert [x["kind"] for x in outcomes] == ["c2-q1"] * 4 + ["c2-q2"] * 3
+    assert [x["construction_stage"] for x in outcomes] == list("ABBCABC")
+    assert sum(x["canonical_valid"] for x in outcomes) == 2
     assert outcomes[3]["stage_dependencies"]["B"] == outcomes[2]["attempt_id"]
     assert outcomes[2]["repair_parent"] == outcomes[1]["attempt_id"]
     assert all(not x["scientific_accepted"] for x in outcomes)
 
     service.shutdown.assert_called_once()
-    assert len(list(block.glob("attempt-*.json"))) == 22
-    assert service.client.generate.call_count == 15
-    assert service.meter.repair.call_count == 3
-    assert read(run / "terminal.json")["stop_reason"] == "attempt_limit"
-    assert outcomes[8]["stage_dependencies"]["A"] == outcomes[7]["attempt_id"]
+    assert len(list(block.glob("attempt-*.json"))) == 18
+    assert service.client.generate.call_count == 7
+    assert service.meter.repair.call_count == 1
+    assert read(run / "terminal.json")["stop_reason"] == "completed"
+    assert outcomes[-1]["mechanically_usable"]
+    assert outcomes[-1]["assessment"]["contextual_metrics"] is not None
+
+
+def test_auxiliary_limits_reject_growth_without_rewriting_output(pinned):
+    from story_projection_onto.staged_development_fixtures import capacity_fixture
+
+    t, m = pinned
+    a, _, _ = split_fixture(capacity_fixture(ROOT))
+    q, *_ = prepare(ROOT, "c2-q1", "A", t, m)
+    for field, count in (("contextual_types", 7), ("predicates", 9)):
+        wrong = copy.deepcopy(a)
+        wrong["local_schema"][field] = [copy.deepcopy(a["local_schema"][field][0])] * count
+        with pytest.raises(ValidationError):
+            validate_stage("A", wrong, q)
+    wrong = copy.deepcopy(a)
+    wrong["entities"][0]["evidence_ids"] = ["e1"] * 5
+    with pytest.raises(ValidationError):
+        validate_stage("A", wrong, q)
+    assert "uniqueItems" not in str(q.output_schema)
+
+
+def test_mechanical_status_does_not_certify_wrong_semantics():
+    from story_projection_onto.staged_development import mechanical_graph_status
+
+    v = authored_full_size_capacity()
+    original = copy.deepcopy(v)
+    assert mechanical_graph_status(v)["mechanically_usable"]
+    # A semantically incompatible but declared endpoint is still inspectable.
+    v["instance_graph"]["assertions"][0]["content"]["subject_id"] = "nV1"
+    assert mechanical_graph_status(v)["mechanically_usable"]
+    v["instance_graph"]["assertions"][0]["content"]["subject_id"] = "nE999"
+    assert not mechanical_graph_status(v)["mechanically_usable"]
+    assert original != v

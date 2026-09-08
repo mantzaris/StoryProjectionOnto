@@ -102,12 +102,11 @@ def execute_workload(root, block, run, *, prepare_only=False, staged=False):
         kind: stages.prepare(root, kind, "A", tokenizer, token_manifest)
         if staged
         else prepare_request(root, kind, tokenizer, token_manifest)
-        for kind in ("c1", "c2-q1", "c2-q2")
+        for kind in (cfg.config["conditions_to_construct"] if staged else ("c1", "c2-q1", "c2-q2"))
     }
     queue, accepted_path = (
         (
-            [(k + ".A", None, None) for k in variants]
-            + [("fixed-q1", None, None), ("fixed-q2", None, None)],
+            [(k + ".A", None, None) for k in variants],
             None,
         )
         if staged
@@ -167,7 +166,6 @@ def execute_workload(root, block, run, *, prepare_only=False, staged=False):
                     ):
                         stage_repairs[k] += 1
                         queue.append((k + ".A", last["attempt_id"], feedback))
-        queue += [("fixed-q1", None, None), ("fixed-q2", None, None)]
     nontransmitted = {} if staged else nontransmitted_reservations(block)
     for attempt in nontransmitted:
         if ledger.gpu_events_with_prefix(attempt):
@@ -254,16 +252,24 @@ def execute_workload(root, block, run, *, prepare_only=False, staged=False):
                 stages.validate_stage(s, {"A": a, "B": b, "C": c}[s], q)
                 validate_server_schema(q.output_schema)
                 compiler.compile_json_schema(canonical_json(q.output_schema), any_whitespace=False)
+                if s == "A":
+                    immutable(
+                        run / f"auxiliary-grammar-{k}.json",
+                        stages.verify_auxiliary_grammar(compiler, q, a),
+                    )
                 packing[k + "." + s + ".authored_capacity"] = {
                     "input_tokens": q.rendered_input_token_count,
                     "output_allowance": q.decoding.maximum_output_tokens,
                     "authored_output_tokens": len(
                         tokenizer.encode(
-                            json.dumps({"A": a, "B": b, "C": c}[s], separators=(",", ":")),
+                            json.dumps({"A": a, "B": b, "C": c}[s]),
                             add_special_tokens=False,
                         )
                     ),
                     "not_model_output_or_live_request": True,
+                    "serialization": (
+                        "default JSON separators required by whitespace-restricted XGrammar"
+                    ),
                 }
                 if (
                     packing[k + "." + s + ".authored_capacity"]["authored_output_tokens"]
@@ -284,7 +290,7 @@ def execute_workload(root, block, run, *, prepare_only=False, staged=False):
             "source_evidence": neutral,
             "selected_before_generation": True,
             "packing": packing,
-            "alias_map": variants["c1"][2],
+            "alias_map": next(iter(variants.values()))[2],
             "authoritative_amendment": cfg.config,
         },
     )
@@ -539,6 +545,7 @@ def execute_workload(root, block, run, *, prepare_only=False, staged=False):
             failure = None
             generation_seconds = None
             stage_valid = False
+            mechanically_usable = False
             started_at = datetime.now(UTC)
             tic = time.monotonic()
             try:
@@ -588,10 +595,12 @@ def execute_workload(root, block, run, *, prepare_only=False, staged=False):
                     )
                 if result.finish_reason != "stop":
                     raise ValueError(f"incomplete generation finish_reason={result.finish_reason}")
-                if schema_errors:
+                if schema_errors and not (
+                    staged and all(e.validator == "uniqueItems" for e in schema_errors)
+                ):
                     raise ValueError("generation schema failed; see full errors")
                 if staged and not fixed:
-                    stages.validate_stage(stage_name, result.parsed_object, q)
+                    stages.validate_stage(stage_name, result.parsed_object, q, mechanical=True)
                     stage_valid = True
                     if stage_name == "B":
                         defects = source_feedback(
@@ -621,6 +630,9 @@ def execute_workload(root, block, run, *, prepare_only=False, staged=False):
                     )
                     if staged and not fixed:
                         immutable(attempt_root / "assembled-nested.json", assembled)
+                        mechanical = stages.mechanical_graph_status(assembled)
+                        immutable(attempt_root / "mechanical-status.json", mechanical)
+                        mechanically_usable = mechanical["mechanically_usable"]
                         defects = source_feedback(assembled, evidence, mapping)
                         chain = [stage_records[stage_attempts[kind][s]][0] for s in "AB"]
                         provenance = {
@@ -779,6 +791,7 @@ def execute_workload(root, block, run, *, prepare_only=False, staged=False):
                 "generation_seconds": generation_seconds,
                 "allocated_generation_seconds": seconds,
                 "canonical_valid": draft is not None,
+                "mechanically_usable": mechanically_usable or draft is not None,
                 "scientific_accepted": failure is None and draft is not None,
                 "source_defects": defects,
                 "failure": failure,
@@ -824,7 +837,10 @@ def execute_workload(root, block, run, *, prepare_only=False, staged=False):
             if staged and not fixed:
                 stage_records[attempt_id] = (outcome, attempt_root)
                 owner = stages.repair_owner(stage_name, retry_feedback) if retry_feedback else None
-                if failure and owner and stage_repairs[kind] < 1:
+                # Complete usable stage chains first; semantic quality remains
+                # measured, never permission to suppress subsequent authoring.
+                # A repair here is only for a mechanically blocked stage.
+                if failure and not stage_valid and owner and stage_repairs[kind] < 1:
                     stage_repairs[kind] += 1
                     repair_parent = (
                         attempt_id if owner == stage_name else stage_attempts[kind][owner]
