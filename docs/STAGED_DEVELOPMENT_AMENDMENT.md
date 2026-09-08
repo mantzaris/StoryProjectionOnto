@@ -99,3 +99,14 @@ prefix or a cut-down prior answer. This input omission is explicit, not truncati
 The repair can retract unsupported content. No gold, desired binding or missing
 semantic field is supplied. One remaining authorized start and at most twelve
 remaining reservations are available within 1,647.172924 s; no new allowance.
+
+## Closed outcome
+
+Both authorized additional starts were used. Four staged generations all stopped
+at their output caps before completing A; B/C were not transmitted. The targeted
+repair removed the observed duplicate reference occurrences but then emitted
+eight identical predicate definitions (different IDs) and truncated. This is a
+failed staged development configuration on these examples, not universal model
+incapability or proof of a particular decoder cause. No further retry series is
+initiated. See the generated preliminary report for measured calls, accounting,
+actual prefixes and unchanged C0 results. Production and held-out gates remain.

@@ -1,26 +1,50 @@
 # Run status
 
-Updated: 2026-09-08 UTC — staged development prepared; live execution next.
+Updated: 2026-09-08 UTC — staged development executed, unsuccessful, service stopped.
 
-Verified pushed baseline `d40f257`, branch
-`implementation/query-dependent-temporal-ontology`, upstream identical before edits.
-Amendment: `docs/STAGED_DEVELOPMENT_AMENDMENT.md`. Same world/evidence/two contexts;
-A schema/objects, B qualifications, C descriptions/reports; model-authored semantics.
-C1 terminally finishes before new C2 transmissions; each C2 starts independently.
+Verified pushed baseline `d40f257`; branch
+`implementation/query-dependent-temporal-ontology`. Execution checkpoints:
+`98ce3ab` (stages), `2fb4de3` (one justified prefix repair).
+Amendment: `docs/STAGED_DEVELOPMENT_AMENDMENT.md`; unchanged evidence/contexts,
+model, 12,288 context and scientific validators. No production adoption.
 
-Remote ledger journals closed, service stopped, four starts/seven reservations.
-Cumulative 8,200.425164 s; remaining 2,115.682917 s; maximum 10,316.108081 s.
-Authorized cumulative caps now six starts/twenty-two reservations, same 3,600 s
-phase allocation. Global 33,660/strictly below 36,000 and review gate unchanged.
-61 focused CPU checks passed (60 stage/nested/repair controls plus report control).
-All nine prepared stage forms passed installed vLLM request validation and pinned
-grammar compilation without starting the service. Authored ten-node fixture fits;
-actual downstream packing remains checked before each transmission, no truncation.
+Four new generations: C1 A and both C2 A bases reached 5,120 tokens; one C2
+context-2 A repair reached 6,144. All finished `length`, incomplete JSON.
+No complete Stage A, assembled canonical ontology, or scientifically accepted
+GPU graph. B/C were unreachable; FixedSelect blocked by absent eligible C1.
+C1 terminal failure preceded both query-bearing calls and was not reopened.
+The repair removed 141 duplicate reference occurrences, but then repeated eight
+identical predicate records (apart from ID) and still truncated. No CPU completion.
 
-Next authorized command in the persistent project session:
-`.venv/bin/python -m scripts.run_capacity_diagnostics --staged-development --execute`
-Production/held-out inference remains unauthorized. Existing reports are preserved
-until real staged outputs are reconciled. C0 complete extraction gate stays passed.
+Report/CSV/JSON: `reports/PRELIMINARY_DEVELOPMENT_RESULTS.md`, `reports/tables/`.
+Readable actual prefixes: `reports/figures/preliminary_development_comparison.html`.
+All 11 previous table rows and their values are preserved; four staged rows added.
+C0 extraction gate remains passed (104/122 P, 104/114 R, 5/5 families, valid
+citations 100%); separate contextual P=54/275, R=54/91, F1=.295082 unchanged.
+
+New staged allocation **782.824784 s**; cumulative **8,983.249948 s**.
+Same-phase used 2,267.141867 / 3,600 s; numeric remainder 1,332.858133 s, but
+all six authorized starts are consumed. Eleven reservations (seven historical,
+four staged) remain counted. No further startup or retry series is authorized.
+vLLM stopped, no GPU processes, allocation/service journals 0/0 open; pod intact.
+Sampled VRAM/RAM/project-storage peaks: 22,793,945,088 / 7,201,918,976 /
+17,042,163,200 bytes. Global 33,660 / strictly below 36,000 limits unchanged.
+
+62 distinct focused checks pass: eight stage/replay controls, 53 unaffected
+nested/repair controls reused, one report control. Backend preflights passed.
+3,388 stable recovered file hashes match; transient empty-WAL/shared-memory
+sidecars are documented separately. All 8,751 prior ledger rows unchanged;
+SQLite integrity/foreign keys pass. Public scan, historical-row preservation,
+CSV/JSON numerics and figure/table hashes pass.
+Browser inspection passed for the evidence view, C0 graph and final staged prefix;
+full node/schema fields remain available in the expandable HTML records.
+
+Remaining registered-work proxy 40,162.013213 s; all-in 49,145.263161 s, **not**
+a valid production forecast or admission. No failed timing credited. The complete
+ontology/scoring target was not met. Held-out work remains human-review-gated.
+
+CPU-only report reproduction (no inference):
+`python -m scripts.report_preliminary_development --run artifacts/restricted/staged-development-backup.q30cWu/nested-development-demonstration-20260908/run-20260908T193045255475 --output reports`
 
 ## Previous single-response continuation (historical)
 

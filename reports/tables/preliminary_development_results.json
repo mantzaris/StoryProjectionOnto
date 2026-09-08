@@ -24,9 +24,21 @@
         "cumulative_seconds": 8200.425164,
         "run_id": "run-20260908T170919981342",
         "stop_reason": "completed"
+      },
+      {
+        "allocated_seconds": 468.509993,
+        "cumulative_seconds": 8668.935157,
+        "run_id": "run-20260908T190755327081",
+        "stop_reason": "completed"
+      },
+      {
+        "allocated_seconds": 314.314791,
+        "cumulative_seconds": 8983.249948,
+        "run_id": "run-20260908T193045255475",
+        "stop_reason": "completed"
       }
     ],
-    "cumulative_seconds": 8200.425164,
+    "cumulative_seconds": 8983.249948,
     "global_hard_seconds": 36000,
     "global_scheduled_seconds": 33660,
     "historical_seconds": 6716.108081,
@@ -34,17 +46,21 @@
     "open_service_journals": 0,
     "peak_sampled_resources": {
       "gpu_vram_bytes": 22793945088,
-      "process_ram_bytes": 7124774912,
-      "project_storage_bytes": 16960844288
+      "process_ram_bytes": 7201918976,
+      "project_storage_bytes": 17042163200
     },
     "phase_cap_seconds": 3600,
-    "phase_maximum_starts": 4,
-    "phase_seconds": 1484.317083,
-    "reserved_attempts": 7,
-    "service_starts": 4,
+    "phase_maximum_reservations": 22,
+    "phase_maximum_starts": 6,
+    "phase_seconds": 2267.141867,
+    "reserved_attempts": 11,
+    "service_starts": 6,
+    "staged_baseline_seconds": 8200.425164,
+    "staged_new_reservations": 4,
+    "staged_seconds": 782.824784,
     "stop_reason": "completed",
-    "transmitted_generations": 5,
-    "transmitted_http_requests": 6
+    "transmitted_generations": 9,
+    "transmitted_http_requests": 10
   },
   "contexts": [
     {
@@ -151,7 +167,7 @@
   },
   "ordinary_admission": false,
   "registered_remaining_work": {
-    "all_in_proxy_seconds": 48362.43837673815,
+    "all_in_proxy_seconds": 49145.26316073815,
     "failed_throughput_credited": false,
     "fallback_gate_unpassed": {
       "accounted_within_reserve_rows_not_added_again": true,
@@ -357,6 +373,7 @@
         "unsupported_attribution"
       ],
       "confirmed_source_defects": [],
+      "construction_stage": null,
       "context": null,
       "development_request_revision": "historical-base",
       "failure": "vLLM response is not one guided JSON choice",
@@ -391,6 +408,7 @@
         }
       ],
       "prepared_input_tokens": 7603,
+      "protocol": "single-response-development",
       "received_construction_claims": [
         {
           "created_id_count": 1,
@@ -409,6 +427,9 @@
       "scientific_accepted": false,
       "semantic_diagnosis_scope": "Offline source-only checks of complete received members; not formal acceptance",
       "source_sha256": "7e80ac84e12a54447d1d8eec2ae8f0621081d161b84b185227d8454c094d91b9",
+      "stage_complete": null,
+      "stage_dependencies": {},
+      "stage_valid": null,
       "structure_valid": null,
       "transport_complete": true
     },
@@ -434,6 +455,7 @@
         "unsupported_intrinsic_precision"
       ],
       "confirmed_source_defects": [],
+      "construction_stage": null,
       "context": 1,
       "development_request_revision": "historical-base",
       "failure": "vLLM response is not one guided JSON choice",
@@ -590,6 +612,7 @@
         }
       ],
       "prepared_input_tokens": 7839,
+      "protocol": "single-response-development",
       "received_construction_claims": [
         {
           "created_id_count": 100,
@@ -608,6 +631,9 @@
       "scientific_accepted": false,
       "semantic_diagnosis_scope": "Offline source-only checks of complete received members; not formal acceptance",
       "source_sha256": "7de764c2d1f2fe0d19454ea9d358d30292b631b1d12433731d6b949f4d90d91b",
+      "stage_complete": null,
+      "stage_dependencies": {},
+      "stage_valid": null,
       "structure_valid": null,
       "transport_complete": true
     },
@@ -633,6 +659,7 @@
         "unsupported_intrinsic_precision"
       ],
       "confirmed_source_defects": [],
+      "construction_stage": null,
       "context": 2,
       "development_request_revision": "historical-base",
       "failure": "vLLM response is not one guided JSON choice",
@@ -772,6 +799,7 @@
         }
       ],
       "prepared_input_tokens": 7827,
+      "protocol": "single-response-development",
       "received_construction_claims": [
         {
           "created_id_count": 125,
@@ -795,6 +823,9 @@
       "scientific_accepted": false,
       "semantic_diagnosis_scope": "Offline source-only checks of complete received members; not formal acceptance",
       "source_sha256": "3102fc4fe285157228b642d1281c2223e35bb3c6f095349a1c991291d2cd80f3",
+      "stage_complete": null,
+      "stage_dependencies": {},
+      "stage_valid": null,
       "structure_valid": null,
       "transport_complete": true
     },
@@ -808,6 +839,7 @@
       "condition": "C1",
       "confirmed_semantic_categories": [],
       "confirmed_source_defects": [],
+      "construction_stage": null,
       "context": null,
       "development_request_revision": "v4-continuation-capacity: same nested representation, bounded generation schema, concise complete guide; freeze measured allocations before repair",
       "failure": "server emitted a streaming error event",
@@ -819,6 +851,7 @@
       "output_allowance": 5120,
       "output_tokens": null,
       "prepared_input_tokens": 6895,
+      "protocol": "single-response-development",
       "repair_parent": "nested-development-demonstration-20260908-attempt-01",
       "replaces_nontransmitted_reservation": "nested-development-demonstration-20260908-attempt-04",
       "request_hash": "29b23891e59004d684f5b3956b1dc842be6d7d2df2cc223ac942989962e2927a",
@@ -829,6 +862,9 @@
       "schema_valid": null,
       "scientific_accepted": false,
       "source_sha256": "1812776bab8817a1161d1afbd3fb6a6305a1f6491835c39cfdffae7b094fd807",
+      "stage_complete": null,
+      "stage_dependencies": {},
+      "stage_valid": null,
       "structure_valid": null,
       "transport_complete": null
     },
@@ -853,6 +889,7 @@
         "unsupported_intrinsic_precision"
       ],
       "confirmed_source_defects": [],
+      "construction_stage": null,
       "context": 1,
       "development_request_revision": "v5-server-compatible: unchanged v4 semantic contract, instructions and tokens; uniqueItems retained in post-validation because vLLM rejects it in guided_json",
       "failure": "vLLM response is not one guided JSON choice",
@@ -948,6 +985,7 @@
         }
       ],
       "prepared_input_tokens": 7142,
+      "protocol": "single-response-development",
       "received_construction_claims": [
         {
           "created_id_count": 25,
@@ -986,6 +1024,9 @@
       "scientific_accepted": false,
       "semantic_diagnosis_scope": "Offline source-only checks of complete received members; not formal acceptance",
       "source_sha256": "003f9d18c7d4220d8ff3f2213ad3421a3d0fe01e34e26d847175cbc9c0935a63",
+      "stage_complete": null,
+      "stage_dependencies": {},
+      "stage_valid": null,
       "structure_valid": null,
       "transport_complete": true
     },
@@ -1010,6 +1051,7 @@
         "unsupported_intrinsic_precision"
       ],
       "confirmed_source_defects": [],
+      "construction_stage": null,
       "context": 2,
       "development_request_revision": "v5-server-compatible: unchanged v4 semantic contract, instructions and tokens; uniqueItems retained in post-validation because vLLM rejects it in guided_json",
       "failure": "vLLM response is not one guided JSON choice",
@@ -1095,6 +1137,7 @@
         }
       ],
       "prepared_input_tokens": 7130,
+      "protocol": "single-response-development",
       "received_construction_claims": [
         {
           "created_id_count": 25,
@@ -1153,6 +1196,278 @@
       "scientific_accepted": false,
       "semantic_diagnosis_scope": "Offline source-only checks of complete received members; not formal acceptance",
       "source_sha256": "766389780d8b1ff5bd70323191ff28053fabf43eea7f200b0e5a319d0c38c012",
+      "stage_complete": null,
+      "stage_dependencies": {},
+      "stage_valid": null,
+      "structure_valid": null,
+      "transport_complete": true
+    },
+    {
+      "assessment": {
+        "assessment_available": false,
+        "reason": "formal assessment unavailable; see canonical status and failure stage"
+      },
+      "attempt_id": "nested-development-demonstration-20260908-attempt-08",
+      "canonical_valid": null,
+      "condition": "C1",
+      "confirmed_semantic_categories": [],
+      "confirmed_source_defects": [],
+      "construction_stage": "A",
+      "context": null,
+      "development_request_revision": "staged-v1: replace one explicitly failed stage; invalidate and regenerate later stages; unchanged semantic validators",
+      "failure": "vLLM response is not one guided JSON choice",
+      "failure_stage": "decoding",
+      "finish_reason": "length",
+      "http_status": 200,
+      "input_tokens": 5996,
+      "json_complete": false,
+      "offline_prefix_observations": {
+        "attributed_assertions": 0,
+        "identical_assertion_groups_except_id": [],
+        "node_budget": 30,
+        "not_canonical_or_scientific_acceptance": true,
+        "unique_claimed_nodes": 0
+      },
+      "output_allowance": 5120,
+      "output_tokens": 5120,
+      "partial_record_counts": {
+        "assertions": 0,
+        "entities": 14,
+        "events": 11
+      },
+      "partial_source_diagnostics": [],
+      "prepared_input_tokens": 5996,
+      "protocol": "staged-development-v1",
+      "received_construction_claims": [],
+      "repair_parent": null,
+      "replaces_nontransmitted_reservation": null,
+      "request_hash": "f6d8cb3090c475330705009ff9f53204b983e3bf9e80f1f41f54aa996741bd2a",
+      "request_seconds": 143.16094819642603,
+      "request_time_source": "client wall clock",
+      "request_transmitted": true,
+      "reused_actual_cpu_output": false,
+      "schema_valid": null,
+      "scientific_accepted": false,
+      "semantic_diagnosis_scope": "Offline source-only checks of complete received members; not formal acceptance",
+      "source_sha256": "f919f8b90195efa59b728a0b35d4d876dce8e0ece73a4a9b275effd5c69f32fb",
+      "stage_complete": false,
+      "stage_dependencies": {},
+      "stage_valid": false,
+      "staged_prefix_observations": {
+        "complete_predicates_received": 0,
+        "complete_types_received": 0,
+        "duplicate_reference_occurrences": 0,
+        "duplicate_reference_paths": [],
+        "identical_predicate_groups_except_id": [],
+        "scope": "complete received members only; no reconstruction or semantic acceptance"
+      },
+      "structure_valid": null,
+      "transport_complete": true
+    },
+    {
+      "assessment": {
+        "assessment_available": false,
+        "reason": "formal assessment unavailable; see canonical status and failure stage"
+      },
+      "attempt_id": "nested-development-demonstration-20260908-attempt-09",
+      "canonical_valid": null,
+      "condition": "C2",
+      "confirmed_semantic_categories": [],
+      "confirmed_source_defects": [],
+      "construction_stage": "A",
+      "context": 1,
+      "development_request_revision": "staged-v1: replace one explicitly failed stage; invalidate and regenerate later stages; unchanged semantic validators",
+      "failure": "vLLM response is not one guided JSON choice",
+      "failure_stage": "decoding",
+      "finish_reason": "length",
+      "http_status": 200,
+      "input_tokens": 5824,
+      "json_complete": false,
+      "offline_prefix_observations": {
+        "attributed_assertions": 0,
+        "identical_assertion_groups_except_id": [],
+        "node_budget": 10,
+        "not_canonical_or_scientific_acceptance": true,
+        "unique_claimed_nodes": 0
+      },
+      "output_allowance": 5120,
+      "output_tokens": 5120,
+      "partial_record_counts": {
+        "assertions": 0,
+        "entities": 10,
+        "events": 0
+      },
+      "partial_source_diagnostics": [],
+      "prepared_input_tokens": 5824,
+      "protocol": "staged-development-v1",
+      "received_construction_claims": [],
+      "repair_parent": null,
+      "replaces_nontransmitted_reservation": null,
+      "request_hash": "09778015ca0b0bf0c2409425fa0ba506086a29b2a2717e2f3111c375e511707c",
+      "request_seconds": 90.64644331205636,
+      "request_time_source": "client wall clock",
+      "request_transmitted": true,
+      "reused_actual_cpu_output": false,
+      "schema_valid": null,
+      "scientific_accepted": false,
+      "semantic_diagnosis_scope": "Offline source-only checks of complete received members; not formal acceptance",
+      "source_sha256": "a95c783fe4e060eae94afd25e217ad70ad09e834053aec4bd3f2d457449b4398",
+      "stage_complete": false,
+      "stage_dependencies": {},
+      "stage_valid": false,
+      "staged_prefix_observations": {
+        "complete_predicates_received": 2,
+        "complete_types_received": 4,
+        "duplicate_reference_occurrences": 0,
+        "duplicate_reference_paths": [],
+        "identical_predicate_groups_except_id": [],
+        "scope": "complete received members only; no reconstruction or semantic acceptance"
+      },
+      "structure_valid": null,
+      "transport_complete": true
+    },
+    {
+      "assessment": {
+        "assessment_available": false,
+        "reason": "formal assessment unavailable; see canonical status and failure stage"
+      },
+      "attempt_id": "nested-development-demonstration-20260908-attempt-10",
+      "canonical_valid": null,
+      "condition": "C2",
+      "confirmed_semantic_categories": [],
+      "confirmed_source_defects": [],
+      "construction_stage": "A",
+      "context": 2,
+      "development_request_revision": "staged-v1: replace one explicitly failed stage; invalidate and regenerate later stages; unchanged semantic validators",
+      "failure": "vLLM response is not one guided JSON choice",
+      "failure_stage": "decoding",
+      "finish_reason": "length",
+      "http_status": 200,
+      "input_tokens": 5795,
+      "json_complete": false,
+      "offline_prefix_observations": {
+        "attributed_assertions": 0,
+        "identical_assertion_groups_except_id": [],
+        "node_budget": 10,
+        "not_canonical_or_scientific_acceptance": true,
+        "unique_claimed_nodes": 0
+      },
+      "output_allowance": 5120,
+      "output_tokens": 5120,
+      "partial_record_counts": {
+        "assertions": 0,
+        "entities": 10,
+        "events": 0
+      },
+      "partial_source_diagnostics": [],
+      "prepared_input_tokens": 5795,
+      "protocol": "staged-development-v1",
+      "received_construction_claims": [],
+      "repair_parent": null,
+      "replaces_nontransmitted_reservation": null,
+      "request_hash": "022aaea9ae80d4e246ef2cdac922925f70d9b9ac984b81ef8f5676dd08c8619e",
+      "request_seconds": 83.58459895569831,
+      "request_time_source": "client wall clock",
+      "request_transmitted": true,
+      "reused_actual_cpu_output": false,
+      "schema_valid": null,
+      "scientific_accepted": false,
+      "semantic_diagnosis_scope": "Offline source-only checks of complete received members; not formal acceptance",
+      "source_sha256": "8fa5d3f9877efaf03b544d334421fcdc8feb419073764db86c156b5bfd17d515",
+      "stage_complete": false,
+      "stage_dependencies": {},
+      "stage_valid": false,
+      "staged_prefix_observations": {
+        "complete_predicates_received": 0,
+        "complete_types_received": 2,
+        "duplicate_reference_occurrences": 141,
+        "duplicate_reference_paths": [
+          "/entities/0/supported_mention_candidate_ids",
+          "/entities/1/supported_mention_candidate_ids",
+          "/entities/2/supported_mention_candidate_ids",
+          "/entities/3/supported_mention_candidate_ids",
+          "/entities/4/supported_mention_candidate_ids",
+          "/entities/5/supported_mention_candidate_ids",
+          "/entities/6/supported_mention_candidate_ids",
+          "/entities/7/supported_mention_candidate_ids",
+          "/entities/9/supported_mention_candidate_ids"
+        ],
+        "identical_predicate_groups_except_id": [],
+        "scope": "complete received members only; no reconstruction or semantic acceptance"
+      },
+      "structure_valid": null,
+      "transport_complete": true
+    },
+    {
+      "assessment": {
+        "assessment_available": false,
+        "reason": "formal assessment unavailable; see canonical status and failure stage"
+      },
+      "attempt_id": "nested-development-demonstration-20260908-attempt-11",
+      "canonical_valid": null,
+      "condition": "C2",
+      "confirmed_semantic_categories": [],
+      "confirmed_source_defects": [],
+      "construction_stage": "A",
+      "context": 2,
+      "development_request_revision": "staged-v2: same fields/validators; factor redundant root-budget guide; source-only duplicate-reference feedback for incomplete prefixes retained in restricted lineage; parsed stage repairs retain previous stage input",
+      "failure": "vLLM response is not one guided JSON choice",
+      "failure_stage": "decoding",
+      "finish_reason": "length",
+      "http_status": 200,
+      "input_tokens": 5863,
+      "json_complete": false,
+      "offline_prefix_observations": {
+        "attributed_assertions": 0,
+        "identical_assertion_groups_except_id": [],
+        "node_budget": 10,
+        "not_canonical_or_scientific_acceptance": true,
+        "unique_claimed_nodes": 0
+      },
+      "output_allowance": 6144,
+      "output_tokens": 6144,
+      "partial_record_counts": {
+        "assertions": 0,
+        "entities": 10,
+        "events": 0
+      },
+      "partial_source_diagnostics": [],
+      "prepared_input_tokens": 5863,
+      "protocol": "staged-development-v1",
+      "received_construction_claims": [],
+      "repair_parent": "nested-development-demonstration-20260908-attempt-10",
+      "replaces_nontransmitted_reservation": null,
+      "request_hash": "eec354ef6b85c07b4395055be143d6bc9bde93e4b09d533a05a6bb8a30d67607",
+      "request_seconds": 147.11445571109653,
+      "request_time_source": "client wall clock",
+      "request_transmitted": true,
+      "reused_actual_cpu_output": false,
+      "schema_valid": null,
+      "scientific_accepted": false,
+      "semantic_diagnosis_scope": "Offline source-only checks of complete received members; not formal acceptance",
+      "source_sha256": "62b40e0cd06913911ac3be75b5d34d9d38719b212b4780612ac99efbac0d8801",
+      "stage_complete": false,
+      "stage_dependencies": {},
+      "stage_valid": false,
+      "staged_prefix_observations": {
+        "complete_predicates_received": 24,
+        "complete_types_received": 10,
+        "duplicate_reference_occurrences": 0,
+        "duplicate_reference_paths": [],
+        "identical_predicate_groups_except_id": [
+          [
+            "nR17",
+            "nR18",
+            "nR19",
+            "nR20",
+            "nR21",
+            "nR22",
+            "nR23",
+            "nR24"
+          ]
+        ],
+        "scope": "complete received members only; no reconstruction or semantic acceptance"
+      },
       "structure_valid": null,
       "transport_complete": true
     },
@@ -1191,6 +1506,130 @@
     }
   ],
   "snapshot_hash": "070f9abcaefa270873527e3d21509f0f8b366596a7a8cae2f1239fefea34d515",
+  "staged_constructions": [
+    {
+      "calls": 1,
+      "complete_canonical_graph": false,
+      "condition": "C1",
+      "context": null,
+      "input_tokens": 5996,
+      "last_attempt": "nested-development-demonstration-20260908-attempt-08",
+      "output_tokens": 5120,
+      "repairs": 0,
+      "request_seconds": 143.16094819642603,
+      "scientific_accepted": false,
+      "stage_validity": {
+        "A": false,
+        "B": false,
+        "C": false
+      },
+      "strict_f1": null,
+      "unreached_stages": [
+        "B",
+        "C"
+      ]
+    },
+    {
+      "calls": 1,
+      "complete_canonical_graph": false,
+      "condition": "C2",
+      "context": 1,
+      "input_tokens": 5824,
+      "last_attempt": "nested-development-demonstration-20260908-attempt-09",
+      "output_tokens": 5120,
+      "repairs": 0,
+      "request_seconds": 90.64644331205636,
+      "scientific_accepted": false,
+      "stage_validity": {
+        "A": false,
+        "B": false,
+        "C": false
+      },
+      "strict_f1": null,
+      "unreached_stages": [
+        "B",
+        "C"
+      ]
+    },
+    {
+      "calls": 2,
+      "complete_canonical_graph": false,
+      "condition": "C2",
+      "context": 2,
+      "input_tokens": 11658,
+      "last_attempt": "nested-development-demonstration-20260908-attempt-11",
+      "output_tokens": 11264,
+      "repairs": 1,
+      "request_seconds": 230.69905466679484,
+      "scientific_accepted": false,
+      "stage_validity": {
+        "A": false,
+        "B": false,
+        "C": false
+      },
+      "strict_f1": null,
+      "unreached_stages": [
+        "B",
+        "C"
+      ]
+    }
+  ],
+  "staged_development_protocol": {
+    "allocation_ladder": [
+      [
+        6144,
+        6144
+      ],
+      [
+        7168,
+        5120
+      ],
+      [
+        8192,
+        4096
+      ],
+      [
+        9216,
+        3072
+      ],
+      [
+        10240,
+        2048
+      ],
+      [
+        10752,
+        1536
+      ]
+    ],
+    "amendment_baseline_actual_seconds": 8200.425164,
+    "amendment_id": "nested-development-demonstration-20260908",
+    "complete_study_forecast_exception": true,
+    "context_limit": 12288,
+    "generation_seconds": 180,
+    "guard_seconds": 5,
+    "held_out_authorized": false,
+    "historical_actual_seconds": 6716.108081,
+    "historical_reservations": 7,
+    "historical_starts": 4,
+    "live_checks_seconds": 20,
+    "maximum_additional_seconds": 3600,
+    "maximum_attempts": 22,
+    "maximum_global_seconds": 10316.108081,
+    "maximum_new_reservations": 15,
+    "maximum_new_starts": 2,
+    "maximum_repairs_per_construction": 1,
+    "maximum_service_starts": 6,
+    "model_revision": "4da05a8edb55c6046cce958586c33b61da07bb79",
+    "production_adoption_authorized": false,
+    "protocol": "staged-development-v1",
+    "repair_policy_revision": "staged-v2: same fields/validators; factor redundant root-budget guide; source-only duplicate-reference feedback for incomplete prefixes retained in restricted lineage; parsed stage repairs retain previous stage input",
+    "scheduled_global_seconds": 33660,
+    "scope": "exploratory_development_only",
+    "shutdown_seconds": 60,
+    "startup_seconds": 420,
+    "strict_hard_global_seconds": 36000,
+    "validation_seconds": 60
+  },
   "unchanged_c0_gate": {
     "contextual": {
       "content_hash": "38ddfb6a08ecb417996340a14fd84e731b0771938dc3a50f1c946fd92b180845",

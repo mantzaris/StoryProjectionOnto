@@ -543,6 +543,36 @@ def build(root, run, output):
                 ],
                 "not_canonical_or_scientific_acceptance": True,
             }
+            if row.get("construction_stage"):
+                from story_projection_onto.staged_development import prefix_duplicate_feedback
+
+                feedback = prefix_duplicate_feedback(
+                    streamed_content(folder.parent, o["request_hash"])
+                )
+                predicate_groups = {}
+                for predicate in graph["local_schema"].get("predicates", []):
+                    signature = json.dumps(
+                        {k: v for k, v in predicate.items() if k != "predicate_id"}, sort_keys=True
+                    )
+                    predicate_groups.setdefault(signature, []).append(predicate["predicate_id"])
+                row["staged_prefix_observations"] = {
+                    "duplicate_reference_occurrences": sum(
+                        x["generated_duplicate_occurrences"] for x in feedback
+                    ),
+                    "duplicate_reference_paths": [p for x in feedback for p in x["paths"]],
+                    "complete_types_received": len(
+                        graph["local_schema"].get("contextual_types", [])
+                    ),
+                    "complete_predicates_received": len(
+                        graph["local_schema"].get("predicates", [])
+                    ),
+                    "identical_predicate_groups_except_id": [
+                        v for v in predicate_groups.values() if len(v) > 1
+                    ],
+                    "scope": (
+                        "complete received members only; no reconstruction or semantic acceptance"
+                    ),
+                }
         graphs.append(
             {"row": row, "graph": safe_graph(graph), "assessment": public_assessment(assessment)}
         )
@@ -667,7 +697,11 @@ def build(root, run, output):
             values = {} if r["scientific_accepted"] else invalid_scores[r["context"]]
             r.update({"acceptance_gated_" + k: v for k, v in values.items()})
     transmitted_repairs = [
-        r for r in rows if r.get("repair_parent") and r.get("request_transmitted")
+        r
+        for r in rows
+        if r.get("repair_parent")
+        and r.get("request_transmitted")
+        and not r.get("construction_stage")
     ]
     samples = terminal.get("resource_samples", [])
     for prior_terminal in run.parent.glob("run-*/terminal.json"):
@@ -764,6 +798,39 @@ def build(root, run, output):
     }
     if staged_rows:
         result["staged_development_protocol"] = read(root / "configs/study/staged_development.json")
+        constructions = []
+        for condition, ordinal in (("C1", None), ("C2", 1), ("C2", 2)):
+            attempts = [
+                r for r in staged_rows if r["condition"] == condition and r["context"] == ordinal
+            ]
+            active = {}
+            for r in attempts:
+                s = r["construction_stage"]
+                for dependent in "ABC"["ABC".index(s) :]:
+                    active.pop(dependent, None)
+                if r.get("stage_valid"):
+                    active[s] = r
+            final = active.get("C", {})
+            constructions.append(
+                {
+                    "condition": condition,
+                    "context": ordinal,
+                    "stage_validity": {s: s in active for s in "ABC"},
+                    "complete_canonical_graph": bool(final.get("canonical_valid")),
+                    "scientific_accepted": bool(final.get("scientific_accepted")),
+                    "calls": len(attempts),
+                    "repairs": sum(bool(r.get("repair_parent")) for r in attempts),
+                    "input_tokens": sum(r.get("input_tokens") or 0 for r in attempts),
+                    "output_tokens": sum(r.get("output_tokens") or 0 for r in attempts),
+                    "request_seconds": sum(r.get("request_seconds") or 0 for r in attempts),
+                    "unreached_stages": [
+                        s for s in "ABC" if not any(r["construction_stage"] == s for r in attempts)
+                    ],
+                    "last_attempt": attempts[-1]["attempt_id"] if attempts else None,
+                    "strict_f1": final.get("strict_f1"),
+                }
+            )
+        result["staged_constructions"] = constructions
     inventory_path = run / "remaining-registered-inventory.json"
     if inventory_path.exists():
         from story_projection_onto.output_capacity_gate import capacity_forecast
@@ -1064,7 +1131,7 @@ def build(root, run, output):
             "vLLM returned HTTP 200 with a streaming rejection of `uniqueItems`, despite "
             "passing standalone XGrammar compilation. No generation occurred. This "
             "preflight coverage gap is an implementation error, not a model-semantic "
-            "failure. C1 was not repeated. The final service start used the actual vLLM "
+            "failure. C1 was not repeated. The last single-response start used the actual vLLM "
             "validator before allocation and removed only that unsupported decoder keyword; "
             "identical post-validation uniqueness constraints remained. Both C2 repairs "
             "were then transmitted on one service, independently of C1, with no blind "
@@ -1383,10 +1450,13 @@ def build(root, run, output):
             "|---|---|---|---|---|",
         ]
         for r in staged_rows:
+            partial = r.get("partial_record_counts", {})
+            nodes = r.get("nodes_received", partial.get("entities", 0) + partial.get("events", 0))
+            assertions = r.get("assertions_received", partial.get("assertions", 0))
             md.append(
                 f"| {r['condition']}/{r.get('context')}/{r['construction_stage']} "
                 f"{'repair' if r.get('repair_parent') else 'base'} | "
-                f"{r.get('nodes_received', '—')}/{r.get('assertions_received', '—')} | "
+                f"{nodes}/{assertions} | "
                 f"{', '.join(r.get('confirmed_semantic_categories', [])) or 'none established'} | "
                 f"{r.get('grounding_unresolved_count', '—')}/"
                 f"{r.get('description_unresolved_count', '—')} | "
@@ -1398,6 +1468,53 @@ def build(root, run, output):
             "available, and each assertion alongside its cited evidence. "
             "Earlier failed rows remain "
             "unchanged evidence; no authored fixture is reported as GPU output.",
+        ]
+        md += [
+            "",
+            "### Construction completion (not just successful HTTP)",
+            "",
+            "| Condition/context | A / B / C valid | Canonical / scientific | Calls / repairs | "
+            "Input / output tokens | Strict F1 |",
+            "|---|---|---|---|---|---|",
+        ]
+        for x in result["staged_constructions"]:
+            md.append(
+                f"| {x['condition']}/{x['context']} | "
+                + " / ".join(str(x["stage_validity"][s]) for s in "ABC")
+                + f" | {x['complete_canonical_graph']} / {x['scientific_accepted']} | "
+                f"{x['calls']} / {x['repairs']} | {x['input_tokens']} / {x['output_tokens']} | "
+                f"{fmt(x['strict_f1'])} |"
+            )
+        md += [
+            "",
+            "Unreached B/C stages are blocked by prerequisite or intact-packing failure, "
+            "not model-authored empty graphs. Prefix node counts describe only complete received "
+            "members. No CPU-created assertions are drawn. Stage-C scores, if present, are "
+            "conditional draft scores and are separate from scientific acceptance.",
+        ]
+        md += [
+            "",
+            "### Observed Stage A expansion",
+            "",
+            "| Context/attempt | Duplicate reference occurrences | Complete types / predicates | "
+            "Exactly repeated predicate records except ID |",
+            "|---|---|---|---|",
+        ]
+        for r in staged_rows:
+            obs = r.get("staged_prefix_observations")
+            if obs:
+                md.append(
+                    f"| {r['context']}/{r['attempt_id'].rsplit('-', 1)[-1]} | "
+                    f"{obs['duplicate_reference_occurrences']} | "
+                    f"{obs['complete_types_received']} / {obs['complete_predicates_received']} | "
+                    f"{json.dumps(obs['identical_predicate_groups_except_id'])} |"
+                )
+        md += [
+            "",
+            "Repeated predicates are an observed expansion pattern, not proof of an "
+            "additional semantic contradiction or a universal model limitation. No tighter "
+            "schema-object scientific budget was invented to force completion. Removing "
+            "duplicate references alone did not establish complete staged construction.",
         ]
     atomic_text(output / "PRELIMINARY_DEVELOPMENT_RESULTS.md", "\n".join(md) + "\n")
     labels = sorted({label for g in graphs for label in label_graph(g["graph"])[0].values()})
