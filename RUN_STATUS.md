@@ -1,5 +1,29 @@
 # Run status
 
+Updated: 2026-09-08 UTC — staged development prepared; live execution next.
+
+Verified pushed baseline `d40f257`, branch
+`implementation/query-dependent-temporal-ontology`, upstream identical before edits.
+Amendment: `docs/STAGED_DEVELOPMENT_AMENDMENT.md`. Same world/evidence/two contexts;
+A schema/objects, B qualifications, C descriptions/reports; model-authored semantics.
+C1 terminally finishes before new C2 transmissions; each C2 starts independently.
+
+Remote ledger journals closed, service stopped, four starts/seven reservations.
+Cumulative 8,200.425164 s; remaining 2,115.682917 s; maximum 10,316.108081 s.
+Authorized cumulative caps now six starts/twenty-two reservations, same 3,600 s
+phase allocation. Global 33,660/strictly below 36,000 and review gate unchanged.
+61 focused CPU checks passed (60 stage/nested/repair controls plus report control).
+All nine prepared stage forms passed installed vLLM request validation and pinned
+grammar compilation without starting the service. Authored ten-node fixture fits;
+actual downstream packing remains checked before each transmission, no truncation.
+
+Next authorized command in the persistent project session:
+`.venv/bin/python -m scripts.run_capacity_diagnostics --staged-development --execute`
+Production/held-out inference remains unauthorized. Existing reports are preserved
+until real staged outputs are reconciled. C0 complete extraction gate stays passed.
+
+## Previous single-response continuation (historical)
+
 Updated: 2026-09-08 UTC — authorized exploratory continuation completed and stopped.
 
 Report: `reports/PRELIMINARY_DEVELOPMENT_RESULTS.md`; CSV/JSON/manifest under

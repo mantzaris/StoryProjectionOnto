@@ -950,19 +950,28 @@ class GuidedJSONRequest:
     unconstrained_diagnostic: bool = False
 
     def __post_init__(self) -> None:
-        if (
-            (self.decoding.maximum_input_tokens, self.decoding.maximum_output_tokens)
-            in {(8192, 4096), (7168, 5120)}
-            and not self.request_id.startswith("development-demo-")
-        ):
+        if (self.decoding.maximum_input_tokens, self.decoding.maximum_output_tokens) in {
+            (8192, 4096),
+            (7168, 5120),
+        } and not self.request_id.startswith("development-demo-"):
             raise RuntimeConfigurationError(
                 "candidate token allocation is exploratory development only"
             )
-        if (
-            (self.decoding.maximum_input_tokens, self.decoding.maximum_output_tokens)
-            == (8704, 3584)
-            and self.request_id != "representation-diagnostic-identifier-contract-retry-v4"
-        ):
+        cross_pass = (
+            self.decoding.decoding_pass is DecodingPass.REPAIR
+            and (self.decoding.maximum_input_tokens, self.decoding.maximum_output_tokens)
+            == (10240, 2048)
+        ) or (
+            self.decoding.decoding_pass is DecodingPass.FIRST_PASS
+            and (self.decoding.maximum_input_tokens, self.decoding.maximum_output_tokens)
+            == (10752, 1536)
+        )
+        if cross_pass and not self.request_id.startswith("development-demo-"):
+            raise RuntimeConfigurationError("cross-pass stage allocation is development only")
+        if (self.decoding.maximum_input_tokens, self.decoding.maximum_output_tokens) == (
+            8704,
+            3584,
+        ) and self.request_id != "representation-diagnostic-identifier-contract-retry-v4":
             raise RuntimeConfigurationError(
                 "8,704/3,584 is a small diagnostic retry candidate only"
             )

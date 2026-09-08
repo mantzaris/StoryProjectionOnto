@@ -51,7 +51,7 @@ def validate_server_schema(schema):
     validate_xgrammar_grammar(SamplingParams(guided_decoding=GuidedDecodingParams(json=schema)))
 
 
-def execute_workload(root, block, run, *, prepare_only=False):
+def execute_workload(root, block, run, *, prepare_only=False, staged=False):
     # No new guardian/process supervisor: these are the same tested lifecycle
     # helpers and stage-state contract used by the preceding bounded sessions.
     from transformers import AutoTokenizer
@@ -67,6 +67,7 @@ def execute_workload(root, block, run, *, prepare_only=False):
         stage_deadline,
     )
 
+    from . import staged_development as stages
     from .conditions.base import preontology_semantic_hash, sealed_semantic_ids
     from .development_demo_fixed import adapt_fixed, prepare_fixed
     from .model_gate import FallbackModelPolicy
@@ -77,7 +78,7 @@ def execute_workload(root, block, run, *, prepare_only=False):
         source_feedback,
     )
 
-    cfg = phase_policy(root)
+    cfg = stages.policy(root) if staged else phase_policy(root)
     ledger, sampler, service = setup(root, run)
     sampler.prepare()
     binding = read(run / "binding.json")
@@ -98,11 +99,62 @@ def execute_workload(root, block, run, *, prepare_only=False):
     )
     _, unit, neutral = sources(root)
     variants = {
-        kind: prepare_request(root, kind, tokenizer, token_manifest)
+        kind: stages.prepare(root, kind, "A", tokenizer, token_manifest)
+        if staged
+        else prepare_request(root, kind, tokenizer, token_manifest)
         for kind in ("c1", "c2-q1", "c2-q2")
     }
-    queue, accepted_path = pending_work(block)
-    nontransmitted = nontransmitted_reservations(block)
+    queue, accepted_path = (
+        (
+            [(k + ".A", None, None) for k in variants]
+            + [("fixed-q1", None, None), ("fixed-q2", None, None)],
+            None,
+        )
+        if staged
+        else pending_work(block)
+    )
+    stage_values = {k: {} for k in variants}
+    stage_attempts = {k: {} for k in variants}
+    stage_repairs = {k: 0 for k in variants}
+    stage_records = {}
+    # Resume completed stage records only; never reuse another condition's graph.
+    if staged:
+        for f in sorted(block.glob("run-*/*/outcome.json")):
+            old = read(f)
+            if old.get("protocol") != stages.PROTOCOL:
+                continue
+            k = old["kind"]
+            s = old.get("construction_stage")
+            if not s:
+                continue
+            stage_records[old["attempt_id"]] = (old, f.parent)
+            if old.get("repair_parent"):
+                stage_repairs[k] += 1
+            if s and old.get("stage_valid"):
+                for later in "ABC"["ABC".index(s) :]:
+                    stage_values[k].pop(later, None)
+                    stage_attempts[k].pop(later, None)
+                stage_values[k][s] = read(f.parent / "decoded.json")
+                stage_attempts[k][s] = old["attempt_id"]
+            if k == "c1" and old.get("scientific_accepted"):
+                accepted_path = f
+        queue = []
+        for k in variants:
+            prior_outcomes = [
+                read(f)
+                for f in block.glob("run-*/*/outcome.json")
+                if read(f).get("protocol") == stages.PROTOCOL and read(f)["kind"] == k
+            ]
+            if prior_outcomes and any(o.get("construction_stage") == "C" for o in prior_outcomes):
+                continue
+            missing = next((s for s in "ABC" if s not in stage_values[k]), None)
+            if missing:
+                failed = [o for o in prior_outcomes if o.get("construction_stage") == missing]
+                if not failed:
+                    queue.append((k + "." + missing, None, None))
+                # A terminal invalid stage is not blindly repeated on restart.
+        queue += [("fixed-q1", None, None), ("fixed-q2", None, None)]
+    nontransmitted = {} if staged else nontransmitted_reservations(block)
     for attempt in nontransmitted:
         if ledger.gpu_events_with_prefix(attempt):
             raise ValueError("reconciled reservation has a GPU event or model call")
@@ -117,7 +169,7 @@ def execute_workload(root, block, run, *, prepare_only=False):
             root, kind, tokenizer, token_manifest, previous={"parent": parent}, feedback=feedback
         )
         for kind, parent, feedback in queue
-        if parent and not kind.startswith("fixed")
+        if parent and not kind.startswith("fixed") and not staged
     }
     import xgrammar
 
@@ -161,6 +213,38 @@ def execute_workload(root, block, run, *, prepare_only=False):
             "input_tokens": q.rendered_input_token_count,
             "output_allowance": q.decoding.maximum_output_tokens,
         }
+    if staged:
+        # CPU-only authored capacity fixtures, never supplied to a live request.
+        from .staged_development_fixtures import capacity_fixture
+
+        for k in variants:
+            authored = capacity_fixture(root)
+            a, b, c = stages.split_fixture(authored)
+            for s, prior_stage in (("A", {}), ("B", {"A": a}), ("C", {"A": a, "B": b})):
+                q, *_ = stages.prepare(root, k, s, tokenizer, token_manifest, prior=prior_stage)
+                stages.validate_stage(s, {"A": a, "B": b, "C": c}[s], q)
+                validate_server_schema(q.output_schema)
+                compiler.compile_json_schema(canonical_json(q.output_schema), any_whitespace=False)
+                packing[k + "." + s + ".authored_capacity"] = {
+                    "input_tokens": q.rendered_input_token_count,
+                    "output_allowance": q.decoding.maximum_output_tokens,
+                    "authored_output_tokens": len(
+                        tokenizer.encode(
+                            json.dumps({"A": a, "B": b, "C": c}[s], separators=(",", ":")),
+                            add_special_tokens=False,
+                        )
+                    ),
+                    "not_model_output_or_live_request": True,
+                }
+                if (
+                    packing[k + "." + s + ".authored_capacity"]["authored_output_tokens"]
+                    > q.decoding.maximum_output_tokens
+                ):
+                    raise ValueError("authored stage capacity exceeds selected output allowance")
+                immutable(
+                    run / f"authored-capacity-{k}-{s}.json",
+                    packing[k + "." + s + ".authored_capacity"],
+                )
     immutable(run / "pending-work.json", {"queue": queue, "prepared_before_allocation": True})
     immutable(
         run / "selection.json",
@@ -228,7 +312,7 @@ def execute_workload(root, block, run, *, prepare_only=False):
             prior_block_seconds=prior,
             stage_seconds=seconds,
             comparison=True,
-            semantic="development",
+            semantic="staged-development" if staged else "development",
         )
         state.update(
             stage=name,
@@ -273,7 +357,10 @@ def execute_workload(root, block, run, *, prepare_only=False):
         )
         sampler.sample(sample_id=run.name + "-ready", root_pid=service.pid)
         while queue:
-            kind, parent, feedback = queue.pop(0)
+            stage_key, parent, feedback = queue.pop(0)
+            kind, stage_name = (
+                stage_key.split(".") if staged and "." in stage_key else (stage_key, None)
+            )
             fixed = kind.startswith("fixed")
             if fixed and accepted_c1 is None:
                 immutable(
@@ -286,7 +373,7 @@ def execute_workload(root, block, run, *, prepare_only=False):
                 )
                 continue
             attempts = count_reservations(block, "attempt")
-            if attempts >= 12:
+            if attempts >= cfg.ATTEMPTS:
                 stop_reason = "attempt_limit"
                 break
             if state["whole_deadline_monotonic"] - time.monotonic() < 125:
@@ -308,6 +395,20 @@ def execute_workload(root, block, run, *, prepare_only=False):
                         config=construction,
                         feedback=feedback,
                     )
+                elif staged:
+                    q, evidence, mapping, budgets = stages.prepare(
+                        root,
+                        kind,
+                        stage_name,
+                        tokenizer,
+                        token_manifest,
+                        prior=stage_values[kind],
+                        feedback=feedback,
+                        previous=read(stage_records[parent][1] / "decoded.json")
+                        if parent
+                        else None,
+                    )
+                    validate_server_schema(q.output_schema)
                 else:
                     q, evidence, mapping, budgets = (
                         variants[kind]
@@ -325,7 +426,7 @@ def execute_workload(root, block, run, *, prepare_only=False):
                 compiler.compile_json_schema(canonical_json(q.output_schema), any_whitespace=False)
             except Exception as exc:
                 immutable(
-                    run / f"{kind}-{'repair' if parent else 'base'}-packing-failure.json",
+                    run / f"{stage_key}-{'repair' if parent else 'base'}-packing-failure.json",
                     {
                         "parent": parent,
                         "exception": str(exc),
@@ -335,7 +436,7 @@ def execute_workload(root, block, run, *, prepare_only=False):
                 )
                 continue
             remaining = state["whole_deadline_monotonic"] - time.monotonic() - 60
-            generation_limit = min(300, max(1, remaining - 65))
+            generation_limit = min(cfg.GENERATION, max(1, remaining - 65))
             cfg.admit(
                 service.actual_allocated_service_seconds,
                 count_reservations(block, "start"),
@@ -355,6 +456,8 @@ def execute_workload(root, block, run, *, prepare_only=False):
                     "request_hash": q.request_hash,
                     "parent": parent,
                     "kind": kind,
+                    "protocol": stages.PROTOCOL if staged else "single-response-development",
+                    "construction_stage": stage_name,
                     "reserved_at": now(),
                     "run": run.name,
                 },
@@ -366,6 +469,9 @@ def execute_workload(root, block, run, *, prepare_only=False):
                     {
                         "development_demo": cfg.BLOCK_ID,
                         "kind": kind,
+                        "protocol": stages.PROTOCOL if staged else "single-response-development",
+                        "construction_stage": stage_name,
+                        "dependencies": dict(stage_attempts.get(kind, {})) if staged else {},
                         "source_hash": neutral["snapshot"]["content_hash"],
                     },
                     release_class=ReleaseClass.RESTRICTED,
@@ -398,6 +504,7 @@ def execute_workload(root, block, run, *, prepare_only=False):
             defects = []
             failure = None
             generation_seconds = None
+            stage_valid = False
             started_at = datetime.now(UTC)
             tic = time.monotonic()
             try:
@@ -422,7 +529,11 @@ def execute_workload(root, block, run, *, prepare_only=False):
                 completed_at = datetime.now(UTC)
                 stage("validation", 60)
                 immutable(attempt_root / "decoded.json", result.parsed_object)
-                defects = [] if fixed else source_feedback(result.parsed_object, evidence, mapping)
+                defects = (
+                    []
+                    if fixed or staged
+                    else source_feedback(result.parsed_object, evidence, mapping)
+                )
                 schema_errors = list(
                     Draft202012Validator(
                         q.output_schema if fixed else development_validation_schema(q.output_schema)
@@ -445,6 +556,13 @@ def execute_workload(root, block, run, *, prepare_only=False):
                     raise ValueError(f"incomplete generation finish_reason={result.finish_reason}")
                 if schema_errors:
                     raise ValueError("generation schema failed; see full errors")
+                if staged and not fixed:
+                    stages.validate_stage(stage_name, result.parsed_object, q)
+                    stage_valid = True
+                    if stage_name == "B":
+                        defects = source_feedback(
+                            {"instance_graph": result.parsed_object}, evidence, mapping
+                        )
                 facts = ExecutionFacts(
                     q.request_hash,
                     result.response_sha256,
@@ -453,41 +571,94 @@ def execute_workload(root, block, run, *, prepare_only=False):
                     result.prompt_tokens,
                     result.completion_tokens,
                 )
-                adapted = (
-                    adapt_fixed(
-                        result.parsed_object,
-                        c1=accepted_c1,
-                        seal=accepted_seal,
+                if staged and not fixed and stage_name in ("A", "B"):
+                    if defects:
+                        failure = {
+                            "stage": "stage_semantic_validation",
+                            "message": "Confirmed source defects in intermediate stage",
+                        }
+                else:
+                    assembled = (
+                        stages.assemble(
+                            stage_values[kind]["A"], stage_values[kind]["B"], result.parsed_object
+                        )
+                        if staged and not fixed
+                        else result.parsed_object
+                    )
+                    if staged and not fixed:
+                        immutable(attempt_root / "assembled-nested.json", assembled)
+                        defects = source_feedback(assembled, evidence, mapping)
+                        chain = [stage_records[stage_attempts[kind][s]][0] for s in "AB"]
+                        provenance = {
+                            "protocol": stages.PROTOCOL,
+                            "stages": [
+                                {
+                                    "stage": o["construction_stage"],
+                                    "attempt_id": o["attempt_id"],
+                                    "request_hash": o["request_hash"],
+                                    "response_hash": o["response"]["response_sha256"],
+                                }
+                                for o in chain
+                            ]
+                            + [
+                                {
+                                    "stage": "C",
+                                    "attempt_id": attempt_id,
+                                    "request_hash": q.request_hash,
+                                    "response_hash": result.response_sha256,
+                                }
+                            ],
+                            "assembly": (
+                                "exact stage-field copying; administrative hashes "
+                                "bind the complete chain"
+                            ),
+                        }
+                        immutable(attempt_root / "stage-provenance.json", provenance)
+                        facts = ExecutionFacts(
+                            canonical_sha256([x["request_hash"] for x in provenance["stages"]]),
+                            canonical_sha256([x["response_hash"] for x in provenance["stages"]]),
+                            datetime.fromisoformat(chain[0]["started_at"]),
+                            completed_at,
+                            sum(o["response"]["prompt_tokens"] for o in chain)
+                            + result.prompt_tokens,
+                            sum(o["response"]["completion_tokens"] for o in chain)
+                            + result.completion_tokens,
+                        )
+                    adapted = (
+                        adapt_fixed(
+                            result.parsed_object,
+                            c1=accepted_c1,
+                            seal=accepted_seal,
+                            upper=construction.upper_ontology,
+                            execution=facts,
+                        )
+                        if fixed
+                        else adapt_output(
+                            assembled, evidence, mapping, construction.upper_ontology, facts
+                        )
+                    )
+                    draft = adapted.draft
+                    immutable(attempt_root / "canonical.json", draft.model_dump(mode="json"))
+                    immutable(attempt_root / "adapter-provenance.json", adapted.provenance)
+                    assessment = assess(
+                        draft,
+                        evidence=evidence,
                         upper=construction.upper_ontology,
-                        execution=facts,
+                        horizon=neutral["snapshot"]["horizon"],
+                        budgets=budgets,
+                        root=root,
+                        ordinal=None if kind == "c1" else int(kind[-1]),
+                        fixed=fixed,
                     )
-                    if fixed
-                    else adapt_output(
-                        result.parsed_object, evidence, mapping, construction.upper_ontology, facts
-                    )
-                )
-                draft = adapted.draft
-                immutable(attempt_root / "canonical.json", draft.model_dump(mode="json"))
-                immutable(attempt_root / "adapter-provenance.json", adapted.provenance)
-                assessment = assess(
-                    draft,
-                    evidence=evidence,
-                    upper=construction.upper_ontology,
-                    horizon=neutral["snapshot"]["horizon"],
-                    budgets=budgets,
-                    root=root,
-                    ordinal=None if kind == "c1" else int(kind[-1]),
-                    fixed=fixed,
-                )
-                immutable(attempt_root / "assessment.json", assessment)
-                if defects or not assessment["scientific_accepted"]:
-                    failure = {
-                        "stage": "scientific_or_structural_validation",
-                        "message": (
-                            "Rejected or unresolved development output; see source and component "
-                            "checks"
-                        ),
-                    }
+                    immutable(attempt_root / "assessment.json", assessment)
+                    if defects or not assessment["scientific_accepted"]:
+                        failure = {
+                            "stage": "scientific_or_structural_validation",
+                            "message": (
+                                "Rejected or unresolved development output; "
+                                "see source and component checks"
+                            ),
+                        }
             except Exception as exc:
                 if result is None:
                     generation_seconds = time.monotonic() - tic
@@ -559,6 +730,11 @@ def execute_workload(root, block, run, *, prepare_only=False):
             outcome = {
                 "attempt_id": attempt_id,
                 "kind": kind,
+                "protocol": stages.PROTOCOL if staged else "single-response-development",
+                "construction_stage": stage_name,
+                "stage_valid": stage_valid,
+                "stage_complete": bool(result is not None and result.finish_reason == "stop"),
+                "stage_dependencies": dict(stage_attempts.get(kind, {})) if staged else {},
                 "condition": q.condition.value,
                 "repair_parent": parent,
                 "replaces_nontransmitted_reservation": replacement_parent,
@@ -569,11 +745,12 @@ def execute_workload(root, block, run, *, prepare_only=False):
                 "generation_seconds": generation_seconds,
                 "allocated_generation_seconds": seconds,
                 "canonical_valid": draft is not None,
-                "scientific_accepted": failure is None,
+                "scientific_accepted": failure is None and draft is not None,
                 "source_defects": defects,
                 "failure": failure,
                 "assessment": assessment,
                 "completed_at": now(),
+                "started_at": started_at.isoformat(),
             }
             immutable(attempt_root / "outcome.json", outcome)
             outcomes.append(outcome)
@@ -583,7 +760,9 @@ def execute_workload(root, block, run, *, prepare_only=False):
                         "attempt": attempt_id,
                         "kind": kind,
                         "canonical": draft is not None,
-                        "accepted": failure is None,
+                        "accepted": failure is None and draft is not None,
+                        "stage": stage_name,
+                        "stage_valid": stage_valid,
                         "seconds": seconds,
                     }
                 ),
@@ -596,7 +775,7 @@ def execute_workload(root, block, run, *, prepare_only=False):
             ):
                 stop_reason = "unsafe_or_unresolved_transport"
                 break
-            if failure is None and kind == "c1":
+            if failure is None and draft is not None and kind == "c1":
                 accepted_c1 = draft
                 accepted_seal = ConstructionSeal(
                     seal_id=cfg.BLOCK_ID + "-c1-seal",
@@ -608,6 +787,38 @@ def execute_workload(root, block, run, *, prepare_only=False):
                     sealed_object_ids=sealed_semantic_ids(draft),
                 )
                 immutable(run / "c1-seal.json", accepted_seal.model_dump(mode="json"))
+            if staged and not fixed:
+                stage_records[attempt_id] = (outcome, attempt_root)
+                owner = stages.repair_owner(stage_name, retry_feedback) if retry_feedback else None
+                if failure and owner and stage_repairs[kind] < 1:
+                    stage_repairs[kind] += 1
+                    repair_parent = (
+                        attempt_id if owner == stage_name else stage_attempts[kind][owner]
+                    )
+                    for dependent in "ABC"["ABC".index(owner) :]:
+                        stage_values[kind].pop(dependent, None)
+                        stage_attempts[kind].pop(dependent, None)
+                    immutable(
+                        attempt_root / "repair-routing.json",
+                        {
+                            "owner": owner,
+                            "parent": repair_parent,
+                            "invalidated_dependents": list("ABC"["ABC".index(owner) + 1 :]),
+                            "regenerate_dependents": True,
+                        },
+                    )
+                    queue.insert(0, (kind + "." + owner, repair_parent, retry_feedback))
+                elif stage_valid:
+                    # Even a semantically failed intermediate is retained for a
+                    # complete inspectable graph after its bounded repair fails.
+                    # It is never called scientifically accepted.
+                    stage_values[kind][stage_name] = result.parsed_object
+                    stage_attempts[kind][stage_name] = attempt_id
+                    if stage_name != "C":
+                        queue.insert(
+                            0, (kind + "." + "ABC"["ABC".index(stage_name) + 1], None, None)
+                        )
+                continue
             if failure and parent is None and retry_feedback:
                 queue.insert(0, (kind, attempt_id, retry_feedback))
         if accepted_c1 is None:

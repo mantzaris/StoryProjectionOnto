@@ -84,15 +84,11 @@ _ALL_CAPABILITIES = frozenset(ConstructionOperator)
 # keywords can instead fail during the intermediate EBNF conversion.  They are
 # therefore removed only from the decoder-facing copy.  The canonical Pydantic
 # validation schema and post-generation validation remain unchanged.
-VLLM_XGRAMMAR_IGNORED_STRING_KEYWORDS = frozenset(
-    {"format", "maxLength", "minLength", "pattern"}
-)
+VLLM_XGRAMMAR_IGNORED_STRING_KEYWORDS = frozenset({"format", "maxLength", "minLength", "pattern"})
 _JSON_SCHEMA_MAP_OF_SCHEMAS = frozenset(
     {"$defs", "definitions", "dependentSchemas", "patternProperties", "properties"}
 )
-_JSON_SCHEMA_ARRAY_OF_SCHEMAS = frozenset(
-    {"allOf", "anyOf", "oneOf", "prefixItems"}
-)
+_JSON_SCHEMA_ARRAY_OF_SCHEMAS = frozenset({"allOf", "anyOf", "oneOf", "prefixItems"})
 _JSON_SCHEMA_SINGLE_SCHEMA = frozenset(
     {
         "additionalProperties",
@@ -109,9 +105,7 @@ _JSON_SCHEMA_SINGLE_SCHEMA = frozenset(
     }
 )
 
-ABLATION_QUALIFICATION_REASON = (
-    "qualification deliberately absent under A-NoTemporalEpistemic"
-)
+ABLATION_QUALIFICATION_REASON = "qualification deliberately absent under A-NoTemporalEpistemic"
 
 _NO_RARE_GUARD_PARAGRAPH = (
     "8. inspect every low-frequency item in the packet for answer necessity, state change,\n"
@@ -463,6 +457,13 @@ class DecodingManifest(RuntimeManifest):
         # this pair to its diagnostic request ID; ordinary calls cannot use it.
         if (self.maximum_input_tokens, self.maximum_output_tokens) == (8_704, 3_584):
             input_ceiling, output_ceiling = 8_704, 3_584
+        # Staged development may choose these existing-sized allocations on
+        # either pass. GuidedJSONRequest restricts cross-pass use to development.
+        if (self.maximum_input_tokens, self.maximum_output_tokens) in {
+            (10_240, 2_048),
+            (10_752, 1_536),
+        }:
+            input_ceiling, output_ceiling = self.maximum_input_tokens, self.maximum_output_tokens
         if self.maximum_input_tokens > input_ceiling:
             raise ValueError(
                 f"{self.decoding_pass.value} input cap exceeds registered {input_ceiling}"

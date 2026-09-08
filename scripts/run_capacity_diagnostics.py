@@ -129,6 +129,10 @@ def semantic_session_admit(actual, starts, attempts, *, starting=False, generati
 
 
 def diagnostic_policy(semantic):
+    if semantic == "staged-development":
+        from story_projection_onto.staged_development import policy
+
+        return policy()
     if semantic == "development":
         from story_projection_onto.development_demo import phase_policy
 
@@ -911,10 +915,12 @@ def advance_small_semantic(
 
 
 def controller(root, block, run, *, prepare_only=False, comparison=False, semantic=False):
-    if semantic == "development":
+    if semantic in ("development", "staged-development"):
         from story_projection_onto.development_demo_execution import execute_workload
 
-        return execute_workload(root, block, run, prepare_only=prepare_only)
+        return execute_workload(
+            root, block, run, prepare_only=prepare_only, staged=semantic == "staged-development"
+        )
     policy_mode = diagnostic_policy(semantic)
     comparison = comparison or semantic
     shutdown_seconds = 60 if semantic else SHUTDOWN_SECONDS
@@ -1741,7 +1747,7 @@ def guardian(root, *, prepare_only=False, comparison=False, semantic=False):
                 "fifth-start-only authorization requires four historical starts and three attempts"
             )
         authorization = read(root / "configs/study/output_capacity_recovery.json")
-        if semantic == "development":
+        if semantic in ("development", "staged-development"):
             authorization = {**authorization, "preliminary_development_demo": policy_mode.config}
         if authorization["activation_scope"] != "bounded_feasibility_diagnostics_only":
             raise ValueError("missing narrow diagnostic authorization")
@@ -1776,14 +1782,14 @@ def guardian(root, *, prepare_only=False, comparison=False, semantic=False):
             # actual global ledger must include its terminal consumption.
             current = authorization[
                 "preliminary_development_demo"
-                if semantic == "development"
+                if semantic in ("development", "staged-development")
                 else "parent_linked_small_repairs"
                 if semantic
                 else "representation_comparison"
             ]
             expected_comparison = (
                 policy_mode.config
-                if semantic == "development"
+                if semantic in ("development", "staged-development")
                 else SEMANTIC_SESSION
                 if semantic
                 else {
@@ -1818,7 +1824,9 @@ def guardian(root, *, prepare_only=False, comparison=False, semantic=False):
         ]
         if prepare_only:
             command.append("--prepare-only")
-        if semantic == "development":
+        if semantic == "staged-development":
+            command.append("--staged-development")
+        elif semantic == "development":
             command.append("--development-demo")
         elif semantic:
             command.append("--semantic")
@@ -1914,6 +1922,7 @@ if __name__ == "__main__":
     parser.add_argument("--comparison", action="store_true")
     parser.add_argument("--semantic", action="store_true")
     parser.add_argument("--development-demo", action="store_true")
+    parser.add_argument("--staged-development", action="store_true")
     args = parser.parse_args()
     root = Path.cwd()
     if args.controller:
@@ -1923,20 +1932,32 @@ if __name__ == "__main__":
             args.controller,
             prepare_only=args.prepare_only,
             comparison=args.comparison,
-            semantic="development" if args.development_demo else args.semantic,
+            semantic="staged-development"
+            if args.staged_development
+            else "development"
+            if args.development_demo
+            else args.semantic,
         )
     elif args.prepare_only:
         guardian(
             root,
             prepare_only=True,
             comparison=args.comparison,
-            semantic="development" if args.development_demo else args.semantic,
+            semantic="staged-development"
+            if args.staged_development
+            else "development"
+            if args.development_demo
+            else args.semantic,
         )
     elif args.execute:
         guardian(
             root,
             comparison=args.comparison,
-            semantic="development" if args.development_demo else args.semantic,
+            semantic="staged-development"
+            if args.staged_development
+            else "development"
+            if args.development_demo
+            else args.semantic,
         )
     else:
         parser.error("--execute is required; no service is started by importing")

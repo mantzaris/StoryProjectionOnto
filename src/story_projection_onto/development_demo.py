@@ -330,12 +330,15 @@ def field_guide(schema):
     """Complete named-field guide; factor repeated alternatives, not semantics."""
     identifiers = {}
     defs = schema["$defs"]
-    decision = defs["OntologyDecision"]["anyOf"][0]["properties"]
-    named_shapes = {
-        "Citations": defs["Entity"]["properties"]["evidence_ids"],
-        "ObjectTarget": decision["removed_object_ids"]["items"],
-        "InputTarget": decision["input_object_ids"]["items"],
-    }
+    named_shapes = {}
+    if "Entity" in defs:
+        named_shapes["Citations"] = defs["Entity"]["properties"]["evidence_ids"]
+    if "OntologyDecision" in defs:
+        decision = defs["OntologyDecision"]["anyOf"][0]["properties"]
+        named_shapes.update(
+            ObjectTarget=decision["removed_object_ids"]["items"],
+            InputTarget=decision["input_object_ids"]["items"],
+        )
 
     def show(n, defining=None):
         for name, shape in named_shapes.items():

@@ -357,9 +357,11 @@ def build(root, run, output):
             }
         )
         restricted.append({"attempt_id": row["attempt_id"], "assessment": assessment})
-    for path in sorted(
+    outcome_paths = sorted(
         set(run.glob("*/outcome.json")) | set(run.parent.glob("run-*/*/outcome.json"))
-    ):
+    )
+    by_attempt = {p.parent.name: p.parent for p in outcome_paths}
+    for path in outcome_paths:
         o = read(path)
         folder = path.parent
         assessment = o.get("assessment")
@@ -373,6 +375,11 @@ def build(root, run, output):
             else None
         )
         row = {
+            "protocol": o.get("protocol", "single-response-development"),
+            "construction_stage": o.get("construction_stage"),
+            "stage_valid": o.get("stage_valid"),
+            "stage_complete": o.get("stage_complete"),
+            "stage_dependencies": o.get("stage_dependencies", {}),
             "condition": o["condition"],
             "context": ordinal,
             "attempt_id": o["attempt_id"],
@@ -421,6 +428,31 @@ def build(root, run, output):
         rows.append(row)
         if (folder / "canonical.json").exists():
             graph = read(folder / "canonical.json")
+        elif (folder / "assembled-nested.json").exists():
+            graph = read(folder / "assembled-nested.json")
+        elif o.get("construction_stage") and (folder / "decoded.json").exists():
+            s = o["construction_stage"]
+            raw = read(folder / "decoded.json")
+            dependencies = o.get("stage_dependencies", {})
+            a = raw if s == "A" else read(by_attempt[dependencies["A"]] / "decoded.json")
+            b = (
+                raw
+                if s == "B"
+                else read(by_attempt[dependencies["B"]] / "decoded.json")
+                if s == "C"
+                else {}
+            )
+            graph = {
+                "contextual_interpretation": a.get("contextual_interpretation"),
+                "local_schema": a.get("local_schema", {}),
+                "instance_graph": {
+                    "entities": a.get("entities", []),
+                    "events": a.get("events", []),
+                    "assertions": b.get("assertions", []),
+                },
+                "decisions": raw.get("decisions", []) if s == "C" else [],
+                "intermediate_stage": s,
+            }
         elif (folder / "decoded.json").exists():
             graph = read(folder / "decoded.json")
         else:
@@ -626,7 +658,12 @@ def build(root, run, output):
     ]
     invalid_scores = {i: invalid_context_metrics(root, i) for i in (1, 2)}
     for r in rows:
-        if r.get("context") and r.get("attempt_id") and r["condition"] != "C0":
+        if (
+            r.get("context")
+            and r.get("attempt_id")
+            and r["condition"] != "C0"
+            and r.get("construction_stage") not in ("A", "B")
+        ):
             values = {} if r["scientific_accepted"] else invalid_scores[r["context"]]
             r.update({"acceptance_gated_" + k: v for k, v in values.items()})
     transmitted_repairs = [
@@ -660,6 +697,15 @@ def build(root, run, output):
             for k in ("process_ram_bytes", "gpu_vram_bytes", "project_storage_bytes")
         },
     }
+    staged_rows = [r for r in rows if r.get("construction_stage")]
+    if staged_rows:
+        accounting.update(
+            phase_maximum_starts=6,
+            phase_maximum_reservations=22,
+            staged_baseline_seconds=8200.425164,
+            staged_seconds=round(terminal["actual_allocated_seconds"] - 8200.425164, 6),
+            staged_new_reservations=len(staged_rows),
+        )
     previous_actual = accounting["historical_seconds"]
     allocation_sessions = []
     for p in sorted(run.parent.glob("run-*/terminal.json")):
@@ -716,6 +762,8 @@ def build(root, run, output):
             "repair_previous_response_policy",
         )
     }
+    if staged_rows:
+        result["staged_development_protocol"] = read(root / "configs/study/staged_development.json")
     inventory_path = run / "remaining-registered-inventory.json"
     if inventory_path.exists():
         from story_projection_onto.output_capacity_gate import capacity_forecast
@@ -758,6 +806,10 @@ def build(root, run, output):
     write_json_atomic(graphs, output / "tables/preliminary_development_graphs.json")
     write_json_atomic(restricted, run / "offline-report-assessments.json")
     columns = [
+        "protocol",
+        "construction_stage",
+        "stage_valid",
+        "stage_complete",
         "condition",
         "context",
         "attempt_id",
@@ -836,11 +888,18 @@ def build(root, run, output):
             + " | ".join(
                 [
                     r["condition"] + " / " + str(r.get("context") or "query-blind"),
-                    "repair"
-                    if r.get("repair_parent")
-                    else "base"
-                    if r.get("attempt_id")
-                    else "blocked",
+                    (
+                        "stage " + r["construction_stage"] + " "
+                        if r.get("construction_stage")
+                        else ""
+                    )
+                    + (
+                        "repair"
+                        if r.get("repair_parent")
+                        else "base"
+                        if r.get("attempt_id")
+                        else "blocked"
+                    ),
                     " / ".join(
                         fmt(r.get(k))
                         for k in ("schema_valid", "canonical_valid", "structure_valid")
@@ -1036,8 +1095,9 @@ def build(root, run, output):
         "",
         f"Pinned model: {result['model']['repository']} at `{result['model']['revision']}`, "
         f"{result['model']['context_limit']:,} total tokens; {result['model']['backend']}. "
-        "No model change or multi-call graph construction. Each repair replaces one "
-        "failed base; no semantic merging across outputs.",
+        "No model change. Historical rows used single-response construction. "
+        "Separately labeled staged rows use the explicitly amended A/B/C protocol, "
+        "not successful execution of the original protocol.",
         "",
         (
             "C1 repair requests remain model-query-blind. A late repair/seal cannot "
@@ -1226,7 +1286,9 @@ def build(root, run, output):
     received_repairs = [
         g
         for g in graphs
-        if g["row"].get("repair_parent") and g["row"].get("offline_prefix_observations")
+        if g["row"].get("repair_parent")
+        and g["row"].get("offline_prefix_observations")
+        and not g["row"].get("construction_stage")
     ]
     if received_repairs:
         md += [
@@ -1300,6 +1362,43 @@ def build(root, run, output):
             "from prose. Unmatched descriptions are not automatically false, but neither "
             "are they positively grounded by absence of a known contradiction."
         ]
+    if staged_rows:
+        md += [
+            "",
+            "## Staged exploratory development",
+            "",
+            "A owns schema and graph objects; B owns qualified assertions; C owns descriptions "
+            "and construction reporting. Only assembled canonical outputs receive contextual "
+            "draft scores. Intermediate completion is not canonical or scientific success. "
+            "C1 stages finish or fail before the new C2 query-bearing transmissions. "
+            "C2 contexts do not inherit C1 or each other's records. No checker changed.",
+            "",
+            f"New reservations: {len(staged_rows)}. Additional staged allocation: "
+            f"{accounting['staged_seconds']:.6f} s. Complete canonical stage-C outputs: "
+            f"{sum(bool(r.get('canonical_valid')) for r in staged_rows)}; scientific accepts: "
+            f"{sum(bool(r.get('scientific_accepted')) for r in staged_rows)}.",
+            "",
+            "| Condition/context/stage | Nodes/assertions available | Confirmed source defects | "
+            "Grounding/description unresolved | Failure stage |",
+            "|---|---|---|---|---|",
+        ]
+        for r in staged_rows:
+            md.append(
+                f"| {r['condition']}/{r.get('context')}/{r['construction_stage']} "
+                f"{'repair' if r.get('repair_parent') else 'base'} | "
+                f"{r.get('nodes_received', '—')}/{r.get('assertions_received', '—')} | "
+                f"{', '.join(r.get('confirmed_semantic_categories', [])) or 'none established'} | "
+                f"{r.get('grounding_unresolved_count', '—')}/"
+                f"{r.get('description_unresolved_count', '—')} | "
+                f"{r.get('failure_stage') or 'none at this stage'} |"
+            )
+        md += [
+            "",
+            "The HTML provides the actual stage inventories, full assembled graphs where "
+            "available, and each assertion alongside its cited evidence. "
+            "Earlier failed rows remain "
+            "unchanged evidence; no authored fixture is reported as GPU output.",
+        ]
     atomic_text(output / "PRELIMINARY_DEVELOPMENT_RESULTS.md", "\n".join(md) + "\n")
     labels = sorted({label for g in graphs for label in label_graph(g["graph"])[0].values()})
     anchors = {
@@ -1343,6 +1442,11 @@ def build(root, run, output):
                 + " / "
                 + str(g["row"].get("context") or "query-blind")
                 + (" / repair" if g["row"].get("repair_parent") else " / base")
+                + (
+                    " / stage " + g["row"]["construction_stage"]
+                    if g["row"].get("construction_stage")
+                    else ""
+                )
             )
             + "</a>"
             for i, g in enumerate(graphs)
@@ -1372,6 +1476,7 @@ def build(root, run, output):
             + " / "
             + str(r.get("context") or "query-blind")
             + (" / repair" if r.get("repair_parent") else " / base")
+            + (" / stage " + r["construction_stage"] if r.get("construction_stage") else "")
         )
         parts.append(
             '<section id="view'
