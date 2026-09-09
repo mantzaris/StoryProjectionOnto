@@ -1,5 +1,57 @@
 # Run status
 
+Updated: 2026-09-09 UTC — published-prose proof of concept completed; vLLM stopped.
+
+Branch `implementation/query-dependent-temporal-ontology`; pushed baseline
+`59bcc994`, frozen execution checkpoint `456712a`. Three exact public-domain
+Gutenberg excerpts, two questions each, and the Codex-authored references/rubric
+were frozen before inference. All three actual query-blind outputs were sealed
+before the six independent contextual calls. One service start, nine single
+attempts, no retries. This is exploratory extraction, not registered C1/C2.
+
+Seven responses are strict JSON and usable. The Holmes query-blind and contextual
+action responses finish with an extra closing brace, outside permitted comma-only
+recovery; their original failures and raw text are displayed, with metrics marked
+unavailable rather than treating them as empty correct graphs. All calls finish
+`stop` below the common 2,048-token allowance. Total tokens: 6,802 input / 2,927
+output. No output or scorer was repaired after inference.
+
+Action strict qualified F1, A/B: fable .625/.307692; Alice .285714/.400000.
+All usable dialogue/thought answers have strict F1=0, but Codex source-based review
+recognizes meaningful alternatives: Alice contextual claims preserve 3/4 target
+concepts, while a fable baseline speech record preserves 2/5. These are separately
+reported manual component assessments, not independent review or new strict
+matches. Unsupported reading roles, lost conditionality, ambiguous attribution,
+missing fields and selector limitations remain visible. No general reliability,
+ontology-construction or production-acceptance claim.
+
+New allocation **205.365216 s**, cumulative **10,717.909776 s**; one-start/nine-call
+authority exhausted. This session stayed within 450 s. The exploratory ceiling
+remains 10,970.219657 s (252.309881 s unused, not new execution authority); global
+scheduled 33,660 / strict actual <36,000 and all historical charges remain intact.
+Journals 0/0 open; no GPU compute processes; pod preserved. Sampled VRAM/RAM/storage
+peaks: 22,686,990,336 / 7,180,615,680 / 17,397,168,640 bytes; 8 CPU workers; no observed
+resource violations. Sampled peaks do not establish between-sample maxima or p95.
+
+13 focused tests passed: eight source/packing/controller checks plus five actual
+response/report checks. Exact local/remote requests and installed vLLM validation
+passed before launch. All 913 recovered durable hashes match; SQLite integrity
+and foreign keys pass; every pre-batch ledger row is preserved. All four historical
+ladder/compact report manifests remain unchanged. Manual annotations are separately
+response-hash-bound. Representative HTML graphs were rendered and inspected.
+
+Results: `reports/REAL_TEXT_PROOF_OF_CONCEPT.md`,
+`reports/tables/real_text_proof_of_concept.csv` (canonical JSON and manifest alongside),
+`reports/figures/real_text_proof_of_concept.html`.
+CPU-only reproduction:
+`python -m scripts.report_real_text_poc --run artifacts/restricted/real-text-poc-backup.leI8Rf/run-20260909T140211537585 --output reports`
+
+Original synthetic/C0 results are unchanged. Registered full-study admission,
+production adoption, independent held-out review and the full-novel phase remain
+gated. No automatic GPU follow-up is authorized.
+
+## Corrected compact-story v2 demonstration (historical)
+
 Updated: 2026-09-09 UTC — corrected three-story compact v2 batch completed; vLLM stopped.
 
 Branch `implementation/query-dependent-temporal-ontology`; verified pushed baseline

@@ -28,7 +28,7 @@ def fact_text(fact):
     return text + "; evidence=" + json.dumps(fact.get("evidence_ids", "MISSING"))
 
 
-def graph(facts, anchors, evaluation=None):
+def graph(facts, anchors, evaluation=None, *, max_label_lines=None):
     """Exact endpoint strings only; common question-level anchors across A/B/reference."""
     e = html.escape
     status = {r["index"]: r["status"] for r in (evaluation or {}).get("rows", [])}
@@ -71,9 +71,13 @@ def graph(facts, anchors, evaluation=None):
     for name in sorted(active):
         x, y = anchors[name]
         lines = textwrap.wrap(name, 20)
+        if max_label_lines is not None and len(lines) > max_label_lines:
+            lines = lines[:max_label_lines]
+            lines[-1] = lines[-1][:17] + "…"
         height = max(42, 18 * len(lines) + 12)
         pieces.append(
             f'<rect x="{x - 75}" y="{y - height / 2}" width="150" height="{height}" rx="8" fill="#e9f4ff" stroke="#4d7795"/><text x="{x}" y="{y - (len(lines) - 1) * 9 + 5}" text-anchor="middle">'
+            + ("<title>" + e(name) + "</title>" if max_label_lines else "")
             + "".join(
                 f'<tspan x="{x}" dy="{0 if j == 0 else 18}">{e(line)}</tspan>'
                 for j, line in enumerate(lines)
