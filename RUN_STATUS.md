@@ -1,5 +1,33 @@
 # Run status
 
+## Paper visualization assets (CPU-only)
+
+Retained-result checkpoint: `9e347524`; existing branch
+`implementation/query-dependent-temporal-ontology`. Three main visual stories
+and the Holmes failure figure are split into eight readable companion plates,
+each 178 mm wide with text at least 8.5 pt. PDF/SVG/400-dpi PNG assets, an eight-page
+captioned review PDF, full-output supplement, interactive evidence inspector,
+captions and a hash-bound selection/generation manifest are complete.
+
+Regenerate: `python -m scripts.build_paper_figures`.
+Start at `reports/PAPER_FIGURES.pdf` or `reports/figures/paper/index.html`.
+Thirteen focused tests pass. Clean regeneration reproduces all 29 generated assets
+and the manifest byte-for-byte. Browser checks cover all 52 displayed assertions,
+exact cited-span highlighting, keyboard selection and 16 embedded font faces.
+All eight paper plates and eight captioned review pages were rasterized and
+visually inspected; edge routing and caption wrapping were corrected. All fifteen
+full-output supplement pages were also rasterized, with long-record and raw-failure
+pages inspected. PDF fonts are embedded and text remains searchable.
+Source report hashes, graph records, original scores and denominators are unchanged.
+Unsupported, partial, unresolved and irrelevant records remain visible; no new
+scientific assessments, semantic repairs or model outputs were produced.
+
+No GPU/service or pod commands were used for this task. Historical allocation
+remains **10,717.909776 s**; the last recorded service state below remains stopped.
+Registered acceptance, held-out review and all resource gates remain unchanged.
+
+## Published-prose proof of concept (historical)
+
 Updated: 2026-09-09 UTC — published-prose proof of concept completed; vLLM stopped.
 
 Branch `implementation/query-dependent-temporal-ontology`; pushed baseline
