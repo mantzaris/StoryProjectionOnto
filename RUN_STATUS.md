@@ -1,5 +1,58 @@
 # Run status
 
+Updated: 2026-09-09 UTC — corrected three-story compact v2 batch completed; vLLM stopped.
+
+Branch `implementation/query-dependent-temporal-ontology`; verified pushed baseline
+`7faf8cb`, frozen execution checkpoint `90f4b8b`. All twelve single-attempt requests
+completed with finish `stop`, strict JSON, and no new syntax recovery. All three
+actual query-blind pre-extractions were sealed before contextual transmission.
+No adaptive repair, extra startup, production inference or held-out execution.
+
+Pre-extraction complete matches: Harbor 12/14, Orchard 14/14, Museum 12/14.
+Record-only selection yields ownership and interval-location P/R/F1=1 in every
+story; belief F1 is 0/1/0. Mean question-level qualified F1, A/B: Harbor
+.666667/.562963; Orchard 1/.496732; Museum .666667/.555556. All nine contextual
+answers over-select source-supported facts. All 79 emitted, source-identifiable
+timed facts retain their full intervals; the Orchard contextual location answer
+still omits a required fact. Belief sentences are inconsistently decomposed.
+Frozen unresolved matching, manually confirmed format failures, and incorrect
+attribution are distinguished; no matcher expansion or semantic repair occurred.
+
+The original two possession responses remain strict-parser failures. Separately
+derived removal of one trailing comma in each yields 3 qualified matches / 10
+predictions / 5 references: P=.3, R=.6, F1=.4. Exact UTF-8 edit positions, raw
+responses, historical scores and all recovered predictions are preserved.
+
+New allocation **249.452431 s**, cumulative **10,512.544560 s**. This batch used
+one start / twelve requests, below its 700-second ceiling. Its 450.547569 s unused
+time is not new start/call authority. Existing exploratory ceiling 10,970.219657,
+global scheduled 33,660 / strict actual <36,000, and all historical charges remain.
+Journals 0/0 open; no GPU processes; pod preserved. Unique calls used 8,088 input /
+5,860 completion tokens, 104.720401 request seconds. Sampled VRAM/RAM/project-storage
+peaks: 22,636,658,688 / 7,185,870,848 / 17,337,667,072 bytes. These are sampled peaks,
+not between-sample guarantees or production-p95 timing evidence.
+
+43 focused preallocation tests passed; six post-run checks pass, including four
+new actual-output/report checks and two reused historical checks. Installed vLLM
+request validation, exact local/remote template-inclusive packing and the real
+service guard with simulated transport passed before startup. All 1,278 recovered
+durable hashes match; SQLite integrity/foreign keys pass and every pre-batch row
+is preserved. Manual notes are separately response-hash-bound. Representative
+graph panels were rendered and inspected; all errors remain visible.
+
+Results: `reports/COMPACT_STORY_V2_RESULTS.md`,
+`reports/tables/compact_story_v2_results.csv` (canonical JSON and manifest alongside),
+`reports/figures/compact_story_v2_comparison.html`.
+CPU-only reproduction:
+`python -m scripts.report_compact_story_v2 --run artifacts/restricted/compact-story-v2-backup.vxnmOm/run-20260909T063738739103 --output reports`
+
+These are exploratory extraction results, not registered C1/C2 acceptance or
+ontology-construction evidence. Full-study admission, production adoption and
+independent held-out review remain gated. C0's passed extraction competence and
+separate contextual scores are unchanged. No automatic follow-up GPU phase.
+
+## Original compact-story demonstration (historical)
+
 Updated: 2026-09-09 UTC — compact two-story demonstration completed; vLLM stopped.
 
 Branch `implementation/query-dependent-temporal-ontology`; frozen execution

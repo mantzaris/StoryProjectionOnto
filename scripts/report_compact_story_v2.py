@@ -42,6 +42,7 @@ def historical(path):
     return {
         "original_report_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
         "original_results": data["results"],
+        "original_calls": data["calls"],
         "derived": derived,
     }
 
@@ -49,18 +50,34 @@ def historical(path):
 def facts_list(facts, evaluation=None):
     e = html.escape
     rows = (evaluation or {}).get("rows", [])
-    return (
-        "<ol>"
-        + "".join(
-            "<li><code>"
-            + e(json.dumps(f, ensure_ascii=False))
-            + "</code>"
-            + ("<br>" + e(rows[i]["status"] + "; " + "; ".join(rows[i]["issues"])) if rows else "")
-            + "</li>"
-            for i, f in enumerate(facts)
+    rendered = ["<ol>"]
+    for i, f in enumerate(facts):
+        raw = e(json.dumps(f, ensure_ascii=False))
+        if not isinstance(f, dict):
+            rendered.append("<li><code>" + raw + "</code></li>")
+            continue
+        bounds = (f.get("valid_from"), f.get("valid_until"))
+        validity = (
+            "Validity unspecified"
+            if bounds == (None, None)
+            else f"Validity [{bounds[0] if bounds[0] is not None else '?'}, {bounds[1] if bounds[1] is not None else '?'})"
         )
-        + "</ol>"
-    )
+        attribution = (
+            "not attributed"
+            if f.get("holder") is None and f.get("attitude") is None
+            else f"holder={f.get('holder')!r}, attitude={f.get('attitude')!r}"
+        )
+        rendered += [
+            "<li><strong>"
+            + e(f"{f.get('subject', '?')} — {f.get('relation', '?')} → {f.get('object', '?')}")
+            + "</strong><br>"
+            + e(validity + "; " + attribution + "; evidence=" + json.dumps(f.get("evidence_ids")))
+            + ("<br>" + e(rows[i]["status"] + "; " + "; ".join(rows[i]["issues"])) if rows else "")
+            + "<details><summary>Exact record</summary><code>"
+            + raw
+            + "</code></details></li>"
+        ]
+    return "".join([*rendered, "</ol>"])
 
 
 def render(run, output, history_path=Path("reports/tables/compact_story_results.json")):
@@ -98,6 +115,11 @@ def render(run, output, history_path=Path("reports/tables/compact_story_results.
             ),
             temporal_errors=sum(r["temporal_correct"] is False for r in ev["rows"]),
             attribution_errors=sum(r["epistemic_correct"] is False for r in ev["rows"]),
+            unpaired_attribution=sum(
+                isinstance(r["fact"], dict)
+                and ((r["fact"].get("holder") is None) != (r["fact"].get("attitude") is None))
+                for r in ev["rows"]
+            ),
             unsupported_relationships=sum(
                 r["status"] == "unsupported_explicit_relationship" for r in ev["rows"]
             ),
@@ -114,6 +136,22 @@ def render(run, output, history_path=Path("reports/tables/compact_story_results.
     rows += [table_row(r, "historical_raw") for r in data["historical"]["original_results"]]
     rows += [table_row(r, "historical_syntax_recovered") for r in data["historical"]["derived"]]
     rows += [table_row(r, "new_model") for r in data["results"]]
+    new_rows = [r for r in rows if r["category"] == "new_model"]
+    contextual = [r for r in new_rows if r["approach"].startswith("B")]
+    call_rows = [r for c in data["calls"] for r in c["evaluation"]["rows"]]
+    timed_rows = [
+        r
+        for r in call_rows
+        if r["source_reference"] is not None and r["source_reference"].get("valid_from") is not None
+    ]
+    findings = [
+        f"The corrected batch produced {sum(c['syntax_recovery']['strict_parseable'] for c in data['calls'])}/{len(data['calls'])} strict-JSON responses, with {sum(c['syntax_recovery']['applied'] for c in data['calls'])} syntax recoveries. All graphs are displayed regardless of accuracy.",
+        f"Source-interval handling improved: {sum(r['temporal_correct'] is True for r in timed_rows)}/{len(timed_rows)} emitted facts with an identifiable explicitly timed source retain its full interval. This counts unique call outputs, including irrelevant predictions, not reused selections. Missing facts still count against recall.",
+        f"Contextual relevance remains weak: {sum(r['irrelevant'] > 0 for r in contextual)}/{len(contextual)} contextual answers contain source-supported but irrelevant predictions. Higher new F1 is not proof of improved selection: repaired format and qualifications also change the measured outcome. There was no adaptive tuning, matched replication or causal attribution of the gain to an individual prompt change.",
+    ]
+    if data["manual_diagnosis"].get("overview"):
+        findings.append(data["manual_diagnosis"]["overview"])
+    data["findings"] = findings
     output.mkdir(parents=True, exist_ok=True)
     for folder in ("tables", "figures"):
         (output / folder).mkdir(exist_ok=True)
@@ -129,6 +167,7 @@ def render(run, output, history_path=Path("reports/tables/compact_story_results.
         "",
         "## Results and comparison",
         "",
+        *(line for text in findings for line in (text, "")),
         "| Story / version | Mean qualified F1 A | Mean qualified F1 B |",
         "|---|---|---|",
     ]
@@ -147,6 +186,39 @@ def render(run, output, history_path=Path("reports/tables/compact_story_results.
         "",
         "Null and omitted optional values are both unspecified/not attributed for semantic comparison; missing required keys are separately reported as format failures. Neither null nor omission supplies a missing known interval or believer. References, normalization and examples were frozen before inference.",
         "",
+        "## Inspectable examples and error interpretation",
+        "",
+        "The examples below are an exhaustive view of the main failure types, not extra model attempts. Manual belief-format findings are response-hash-bound and do not alter frozen scores. An unresolved sentence-valued object is not automatically false: it fails the requested decomposition even when its prose states the supplied belief correctly.",
+        "",
+        "| Story | Pre-extraction complete matches / emitted | Pre-extraction qualification example |",
+        "|---|---|---|",
+    ]
+    for c in data["calls"]:
+        case = p.cases()[c["case_id"]]
+        if case["task"] == "all":
+            ev = c["evaluation"]
+            facts = (c["parsed"] or {}).get("facts", [])
+            example = next((r for r in facts if r.get("attitude") is not None), {})
+            md.append(
+                f"| {case['story_id']} | {ev['full']['true_positive']}/{ev['full']['predicted']} | `{json.dumps(example)}` |"
+            )
+    md += [
+        "",
+        "Fixed selection only selects the supplied records. When the model uses the believer as subject instead of the believed object, the belief filter selects that person's locations and misses the intended object realities; it does not repair the representation. All selected errors remain in precision denominators.",
+        "",
+        "## Error counts (new outputs after selection)",
+        "",
+        "Temporal/attribution mismatches require a recognized source triple. Zero does not certify unresolved rows. Unpaired attribution means exactly one of holder/attitude is null; it is separate from an invented holder. Bare scores ignore qualifications and citations; qualified scores require their correct values. Supplied-ID validity alone does not establish citation support.",
+        "",
+        "| Story/task | Method | Key/value format | Valid citations | Missing intervals | Temporal mismatches | Attribution mismatches / unpaired | Unsupported relations | Irrelevant | Unresolved |",
+        "|---|---|---|---|---|---|---|---|---|---|",
+    ]
+    for r in new_rows:
+        md.append(
+            f"| {r['story']}/{r['task']} | {r['approach'][0]} | {r['required_field_compliant']}/{r['predictions']} | {r['citations_valid']}/{r['predictions']} | {r['missing_intervals']} | {r['temporal_errors']} | {r['attribution_errors']} / {r['unpaired_attribution']} | {r['unsupported_relationships']} | {r['irrelevant']} | {r['unresolved']} |"
+        )
+    md += [
+        "",
         "## Every question and approach",
         "",
         "| Category | Story / task | Approach | Strict / recovered parse | Bare P/R/F1 | Qualified P/R/F1 | Citations |",
@@ -164,6 +236,7 @@ def render(run, output, history_path=Path("reports/tables/compact_story_results.
     body = [
         '<!doctype html><meta charset="utf-8"><title>Compact story v2</title><style>body{font:16px system-ui;margin:24px;color:#192b3c}.compare{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.panel{border:1px solid #b8c4d0;padding:10px}svg{width:100%;font:14px system-ui}svg:fullscreen{background:white;width:100vw;height:100vh}pre,code{white-space:pre-wrap;overflow-wrap:anywhere}li{margin:12px 0}button{padding:8px}h2{border-top:2px solid #496c88;padding-top:15px}@media(max-width:1200px){.compare{grid-template-columns:1fr}}</style><h1>Compact story v2</h1><p>Reference, A selection, and B contextual answers share exact-name anchors. Enlarge graphs for labels. Edges: green complete target match; amber unresolved; red error/irrelevant. Null means unspecified/not attributed, not false or timeless.</p>'
     ]
+    body += ["<p>" + e(text) + "</p>" for text in findings]
     for sid, story in p.stories().items():
         md += (
             ["", "## " + story["title"], ""]
@@ -202,6 +275,7 @@ def render(run, output, history_path=Path("reports/tables/compact_story_results.
                 facts = (r["parsed"] or {}).get("facts", [])
                 call = call_map.get(r["source_case_id"], {})
                 recovery = call.get("syntax_recovery", {})
+                note = data["manual_diagnosis"].get("cases", {}).get(r["source_case_id"], {})
                 md += [
                     r["approach"] + ":",
                     "",
@@ -218,6 +292,11 @@ def render(run, output, history_path=Path("reports/tables/compact_story_results.
                         + "; ".join(row["issues"])
                     ]
                 md += ["", "Missing: `" + json.dumps(ev["full"]["missing"]) + "`.", ""]
+                if note:
+                    md += [
+                        "Manual diagnosis of source output (not rescoring): " + note["finding"],
+                        "",
+                    ]
                 if not r["parseable"]:
                     md += [
                         "Raw response (not completed or repaired semantically):",
@@ -233,6 +312,13 @@ def render(run, output, history_path=Path("reports/tables/compact_story_results.
                     "<p>"
                     + e(
                         f"Qualified P/R/F1 {ev['full']['precision']:.3f}/{ev['full']['recall']:.3f}/{ev['full']['f1']:.3f}; strict JSON {recovery.get('strict_parseable', False)}; usable after recovery {r['parseable']}"
+                    )
+                    + "</p>",
+                    "<p><strong>Manual source-output diagnosis, not rescoring:</strong> "
+                    + e(
+                        note.get(
+                            "finding", "No additional manual finding; see frozen row-level checks."
+                        )
                     )
                     + "</p>",
                     "<details><summary>Raw source, exact recovery edits, missing facts and selection trace</summary><pre>"
@@ -305,11 +391,19 @@ def render(run, output, history_path=Path("reports/tables/compact_story_results.
             f"| {c['case_id']} | {cfg['story_id']}/{cfg['task']} | {rec['strict_parseable']} / {rec['recovered_parseable']} | {resp.get('finish_reason')} | {resp.get('prompt_tokens', 0)}/{resp.get('completion_tokens', 0)} | {c['request_seconds']:.3f} |"
         )
     a = data["allocation"]
+    peaks = {
+        k: max(s[k] for s in data["resource_samples"])
+        for k in ("gpu_vram_bytes", "process_ram_bytes", "project_storage_bytes")
+    }
     md += [
         "",
         f"Executed {len(data['calls'])}/12 single attempts; no adaptive tuning. New allocation {a['new_allocated_seconds']:.6f}s; cumulative {a['actual_allocated_seconds']:.6f}s. Open allocation/service journals {a['open_allocations']}/{a['open_service_journals']}. Stop reason: {a['stop_reason']}.",
         "",
         "Three query-blind calls precede all contextual transmissions. Baseline call costs are shared across its three selections, not counted three times. Per-call raw responses, token counts and request times are in the canonical JSON. One pinned model, nonthinking sampling, 12,288 context, 2,048 output tokens for both approaches; no production-p95 inference from this batch.",
+        "",
+        f"Unique calls used {sum((c.get('response') or {}).get('prompt_tokens', 0) for c in data['calls'])} input / {sum((c.get('response') or {}).get('completion_tokens', 0) for c in data['calls'])} completion tokens and {sum(c['request_seconds'] for c in data['calls']):.6f} request seconds. Sampled VRAM/RAM/project-storage peaks (bytes): {peaks['gpu_vram_bytes']} / {peaks['process_ram_bytes']} / {peaks['project_storage_bytes']}. Sampling is not a guarantee that no between-sample peak occurred.",
+        "",
+        "Pinned Qwen/Qwen3-8B-AWQ revision `4da05a8edb55c6046cce958586c33b61da07bb79`; vLLM 0.10.2, unchanged nonthinking template and sampling. Actual input tokens span the counts above and remain within context with the output reserve. The authored complete-output capacity check was not model output or a throughput estimate.",
         "",
         "This small exploratory batch has no minimum score for display/completion. Harbor and Orchard are repeatedly developed material; Museum is fresh development evidence, not held-out generalization. Original scores, registered metrics, C0 competence and independent-review gates remain unchanged. No automatic follow-up service start.",
         "",
