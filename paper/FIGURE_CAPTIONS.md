@@ -1,4 +1,14 @@
-# Compact main-paper captions
+# Figure captions and exact-question notes
+
+## Main-paper captions
+
+Figure 1. Fable actions: A selects from a pre-extraction; B independently answers from text and question. Both capture the later rescue. B omits the earlier capture/release; A's spare relation loses conditional scope. Six of eight A records and all five B records are drawn; A's waking and binding records remain in the full output. Exact question and display notes: Supplement S6.
+
+Figure 2. Harbor locations: full generated intervals are distinct from the shaded query window. All four A location records and the four corresponding B records are drawn; B's two irrelevant carrying records appear in the callout and remain scored. A is fixed selection; B is independent extraction. Source display is S5–S8 of the complete story supplied. Exact question: Supplement S6.
+
+Figure 3. Alice's actions and thoughts, independently extracted by B from the same passage. Reading is assigned to the wrong participant; a literal sentence-valued thought preserves rhetorical meaning, while the daisy-chain interpretation remains unresolved. Three of five action records and all three claims records are drawn; the two sitting records remain in the full output and score. Exact questions and display notes: Supplement S6.
+
+## Complete questions and display accounting (Supplement S6)
 
 Figure 1. Aesop's The Lion and the Mouse (Townsend translation). Exact executed question: “Which physical running/waking, capture, binding, rope-gnawing and release relationships involve the Lion, Mouse, hunters and ropes? Exclude dialogue, intentions, laughter and the moral.” A selects from an actual pre-extraction; B is generated independently. All B action records and the A capture, conditional-spare, release, hunter-capture, gnawing and rescue records are shown. A's waking and rope-binding records are omitted only from display (two of eight); full graphs and all scores remain in the supplement. B preserves the later rescue but omits the earlier capture and release; its running relation loses the face-specific endpoint. A's spare claim loses conditional scope. S6, the final speech, is not displayed but was supplied. Faceted arrows reproduce exact generated endpoint strings; repeated names denote the same exact-string node. Undisplayed qualification values are null except the explicitly noted missing key. Colours/symbols reproduce Codex-authored assessments, not independent verification.
 

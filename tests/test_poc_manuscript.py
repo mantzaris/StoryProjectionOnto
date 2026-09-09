@@ -149,6 +149,8 @@ def test_resolved_numbers_and_citations():
     )
     refs = read(OUT / "reference_sources.json")
     assert set(re.findall(r"\[@(\w+)\]", source)) == {r["id"] for r in refs}
+    bib = (OUT / "references.bib").read_text()
+    assert set(re.findall(r"@\w+\{(\w+),", bib)) == {r["id"] for r in refs}
     for r in refs:
         assert r["url"] in text and r["supports"]
     assert "12 parseable outputs from 12 calls" in text and "7 of 9 calls" in text
@@ -203,8 +205,57 @@ def test_pdf_figures_are_vector_forms_not_raster_images():
 
 def test_review_word_count_and_scope():
     m = read(OUT / "manuscript_manifest.json")
-    assert 3000 <= m["body_word_count_excluding_tables_figures_references_and_code"] <= 4000
+    # Editorial revision explicitly removes the earlier 3,000-word minimum.
+    assert m["body_word_count_excluding_tables_figures_references_and_code"] > 0
     source = (OUT / "PROOF_OF_CONCEPT.md").read_text()
-    assert "No new inference was performed" in source
+    supplement = (OUT / "SUPPLEMENTARY_MATERIAL.md").read_text()
+    assert "No new inference was performed" in supplement
     assert "not by independent human reviewers" in source
     assert "no new inference" in m["scope"]
+
+
+def test_author_review_quotes_retained_records_and_judgments_without_reassessment(data):
+    sheet = (OUT / "AUTHOR_REVIEW.md").read_text()
+
+    def pointer(path):
+        value = data["prose"]
+        for key in path.strip("/").split("/"):
+            value = value[int(key)] if isinstance(value, list) else value[key]
+        return value
+
+    facts = re.findall(r"<!-- retained-fact (\S+) -->\s+```json\n(.*?)\n```", sheet, re.S)
+    assert len(facts) == 8
+    for path, record in facts:
+        assert json.loads(record) == pointer(path)
+    evidence = re.findall(r"<!-- retained-evidence (\S+) -->\s+S\d+:\s+> ([^\n]+)", sheet)
+    assert len(evidence) == 13
+    for path, quote in evidence:
+        assert quote == " ".join(pointer(path).split())
+    for path, quote in re.findall(r"<!-- retained-assessment (\S+) -->\s+> ([^\n]+)", sheet):
+        assert any(
+            a["fact"] == pointer(path) and a["note"] == quote
+            for result in data["prose"]["results"]
+            for a in result.get("semantic_assessments", [])
+        )
+    raw = re.findall(r"<!-- retained-raw (\S+) -->\s+```text\n(.*?)\n```", sheet, re.S)
+    assert len(raw) == 2
+    for path, fragment in raw:
+        assert fragment in pointer(path)
+    assert "not completed human review" in sheet and "not overwritten by regeneration" in sheet
+
+
+def test_short_captions_and_readable_bibliography_keep_complete_notes():
+    source = (OUT / "manuscript_source.md").read_text()
+    assert "!TABLE:main_cost" in source
+    for caption in paper.main_captions().values():
+        assert len(caption.split()) < 90 and "Supplement S6" in caption
+    supplement = (OUT / "SUPPLEMENTARY_MATERIAL.md").read_text()
+    _, _, panels, _ = old.load_inputs()
+    for caption in paper.captions(panels).values():
+        assert caption in supplement
+    text = (OUT / "PROOF_OF_CONCEPT.md").read_text().split("## References", 1)[1]
+    assert ". ." not in text
+    assert "Simon Cox; Chris Little (eds.)" in text
+    assert "translated by George Fyler Townsend" in text
+    assert "Michele Banko; Michael J. Cafarella" in text
+    assert "type = {W3C Recommendation, 19 October 2017}" in (OUT / "references.bib").read_text()

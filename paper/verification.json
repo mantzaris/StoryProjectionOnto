@@ -1,32 +1,82 @@
 {
-  "scope": "CPU-only publishing verification, not model evaluation or independent scientific review",
+  "scope": "CPU-only editorial and publishing verification; no model evaluation or independent scientific review",
   "date": "2026-09-09",
-  "test_command": "/tmp/spo-refresh-venv/bin/python -m pytest -q tests/test_poc_manuscript.py",
-  "focused_tests_passed": 15,
+  "editorial_parent": "3329a6e3ba8d8538d69c7e701a630932bfcf129e",
+  "previous_verification": "Preserved in the parent commit at paper/verification.json",
+  "test_command": "python -m pytest -q tests/test_poc_manuscript.py",
+  "test_environment": "Existing /tmp/spo-refresh-venv Python environment; declared publishing dependencies",
+  "focused_tests_passed": 17,
   "focused_tests_failed": 0,
   "ruff": "passed for manuscript builder and focused tests",
-  "byte_reproducibility": "all generated output hashes identical on two consecutive final builds",
+  "byte_reproducibility": "All 39 non-verification paper file hashes identical on two consecutive final builds",
   "visual_inspection": {
     "reviewer": "Codex",
     "independent_human_review": false,
-    "manuscript_pages_inspected": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-    "new_supplement_front_pages_inspected": [1, 2, 3, 4, 5],
-    "native_figures_inspected": ["figure_1_fable", "figure_2_harbor", "figure_3_alice"],
-    "method": "Poppler rasterization of every page; full-page inspection and contact-sheet review; native 178-mm figure exports also inspected at high resolution",
-    "checks": ["clipping", "searchable text", "readable labels", "arrow direction", "citation/evidence identifiers", "error statuses", "page breaks", "table headers", "literal sentence-valued objects", "native-size vector embedding"],
-    "corrections": ["fixed exporter strict-parse count to read strict_parseable, not dictionary truthiness", "kept formatting example intact with its introduction", "used parenthetical linked citations", "kept supplementary tables with headings and widened task-label columns"],
+    "manuscript_pages_inspected": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "new_supplement_front_pages_inspected": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "native_figures_inspected": [
+      "figure_1_fable",
+      "figure_2_harbor",
+      "figure_3_alice"
+    ],
+    "method": "Every manuscript page rasterized at 120 dpi and inspected full-page, including native 178-mm vector figures; every revised supplement-front page inspected at 110 dpi. Final rerenders match all inspected page images byte-for-byte.",
+    "checks": [
+      "clipping",
+      "readable source and graph labels",
+      "actual edge directions and status symbols",
+      "captions and exact-question cross-references",
+      "table columns and denominators",
+      "page breaks",
+      "bibliography formatting and correspondence",
+      "searchable text and font embedding"
+    ],
+    "editorial_changes": [
+      "Shortened main captions with full questions and display accounting retained in S6",
+      "Moved development history, snapshot and seed to supplement",
+      "Main cost table displays only the two principal batches",
+      "Cleaned readable author/editor/translator formatting and empty-venue punctuation"
+    ],
     "unresolved_rendering_defects": []
   },
-  "manuscript_pages": 12,
-  "supplement_pages": 28,
-  "manuscript_sha256": "992231fa993ef1b0369e6005f00901bdcd98725988ad65d376ab57564226b206",
-  "supplement_sha256": "e3cf77be74744de57c51532ee55b97da32fc61925233386f39ad001f2166ebb2",
+  "manuscript_body_words": 2577,
+  "previous_manuscript_body_words": 3424,
+  "manuscript_pages": 11,
+  "supplement_pages": 29,
+  "manuscript_sha256": "0aaa86d3a066bbe0cbcbb141ae25d5657f80bb179dc7a5ad720dd5637081c0d0",
+  "supplement_sha256": "c6cfbb49887e03f8e3d15c857ceec6d18051aa575928050d5562be25be5bdd2f",
   "figure_pdf_sha256": {
     "figure_1_fable.pdf": "85b6076f202bf15f0ee767591f91a41225a7e8bdf97272f36256e8a477c5606b",
     "figure_2_harbor.pdf": "4103d811039d2eb6b74e4f94b3f6dce4b38b815edcd5a751136dee82686e4bf7",
     "figure_3_alice.pdf": "60b54c2929f2773dc69cdf72c95d194713a93695c6734b42c04355bd0b852047"
   },
-  "preservation": "Existing reports, all eight original plates, full-output appendix, model outputs, metrics and allocation history unchanged; appended PDF page streams verified identical",
-  "new_gpu_seconds": 0,
-  "author_review": ["publication name and affiliation", "funding/conflict declarations", "AI-assistance statement", "Codex-authored annotations and semantic judgments", "venue and applicable excerpt-rights requirements"]
+  "preservation": {
+    "source_result_hashes_unchanged": true,
+    "numerical_registry_byte_identical_to_parent": true,
+    "all_paper_tables_unchanged": true,
+    "all_nine_compact_figure_assets_byte_identical_to_parent": true,
+    "original_eight_plates_and_full_output_appendix": "Unchanged; appended PDF page streams and page boxes checked against originals",
+    "historical_outputs_assessments_scores_and_allocation": "Unchanged"
+  },
+  "reference_check": "Retained primary-source metadata reused; W3C Recommendation and author-lab CACM bibliographic record rechecked. The cross-edition DOI discrepancy remains documented and the DOI remains omitted.",
+  "author_review": "AUTHOR_REVIEW.md contains the pending judgments and single unresolved publication checklist; no author decisions have been supplied or applied.",
+  "new_gpu_seconds": 0
 }

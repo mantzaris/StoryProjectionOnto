@@ -1,5 +1,5 @@
 {
-  "body_word_count_excluding_tables_figures_references_and_code": 3424,
+  "body_word_count_excluding_tables_figures_references_and_code": 2577,
   "display_transformations": [
     "Whitespace reflow of source only; selected evidence IDs and omissions explicitly labelled",
     "Exact endpoint strings; no alias merging, semantic repair or record aggregation",
@@ -7,9 +7,12 @@
     "Faceted arrows repeat exact identities; native 178-mm artwork, at least 8.5-point labels",
     "Harbor B carrying extras shown in a labelled callout; all denominators unchanged"
   ],
+  "editorial_note": "Tighter narrative and captions; unchanged figure artwork, retained outputs, tables, assessments and scoring. Main cost display selects the two comparison batches; supplement retains all batch costs. No minimum word-count target.",
+  "editorial_parent_checkpoint": "3329a6e3ba8d8538d69c7e701a630932bfcf129e",
   "figures": [
     {
-      "caption": "Figure 1. Aesop's The Lion and the Mouse (Townsend translation). Exact executed question: “Which physical running/waking, capture, binding, rope-gnawing and release relationships involve the Lion, Mouse, hunters and ropes? Exclude dialogue, intentions, laughter and the moral.” A selects from an actual pre-extraction; B is generated independently. All B action records and the A capture, conditional-spare, release, hunter-capture, gnawing and rescue records are shown. A's waking and rope-binding records are omitted only from display (two of eight); full graphs and all scores remain in the supplement. B preserves the later rescue but omits the earlier capture and release; its running relation loses the face-specific endpoint. A's spare claim loses conditional scope. S6, the final speech, is not displayed but was supplied. Faceted arrows reproduce exact generated endpoint strings; repeated names denote the same exact-string node. Undisplayed qualification values are null except the explicitly noted missing key. Colours/symbols reproduce Codex-authored assessments, not independent verification.",
+      "caption": "Figure 1. Fable actions: A selects from a pre-extraction; B independently answers from text and question. Both capture the later rescue. B omits the earlier capture/release; A's spare relation loses conditional scope. Six of eight A records and all five B records are drawn; A's waking and binding records remain in the full output. Exact question and display notes: Supplement S6.",
+      "detailed_caption": "Figure 1. Aesop's The Lion and the Mouse (Townsend translation). Exact executed question: “Which physical running/waking, capture, binding, rope-gnawing and release relationships involve the Lion, Mouse, hunters and ropes? Exclude dialogue, intentions, laughter and the moral.” A selects from an actual pre-extraction; B is generated independently. All B action records and the A capture, conditional-spare, release, hunter-capture, gnawing and rescue records are shown. A's waking and rope-binding records are omitted only from display (two of eight); full graphs and all scores remain in the supplement. B preserves the later rescue but omits the earlier capture and release; its running relation loses the face-specific endpoint. A's spare claim loses conditional scope. S6, the final speech, is not displayed but was supplied. Faceted arrows reproduce exact generated endpoint strings; repeated names denote the same exact-string node. Undisplayed qualification values are null except the explicitly noted missing key. Colours/symbols reproduce Codex-authored assessments, not independent verification.",
       "display_callouts": [],
       "displayed_edges": [
         {
@@ -313,7 +316,8 @@
       "width_mm": 178
     },
     {
-      "caption": "Figure 2. Harbor location comparison. Exact executed question: “Which directly narrated location relationships have an explicitly stated interval overlapping day 2 up to but not including day 4? Return all of them with their full evidence-stated intervals, not clipped to the question window. Exclude undated locations and beliefs.” All four A location records and the four corresponding B records are displayed. B's other two records are reproduced in the labelled carrying callout and remain in its six-prediction denominator. Both methods preserve source intervals; the shaded question window selects overlap and does not redefine validity. Circles distinguish included starts from excluded ends. Only S5–S8 are printed; the model received the same complete fourteen-sentence story in every call. A is fixed selection; B is independent generation. All generated holder/attitude values in these records are null. This is an extraction/relevance comparison, not ontology construction.",
+      "caption": "Figure 2. Harbor locations: full generated intervals are distinct from the shaded query window. All four A location records and the four corresponding B records are drawn; B's two irrelevant carrying records appear in the callout and remain scored. A is fixed selection; B is independent extraction. Source display is S5–S8 of the complete story supplied. Exact question: Supplement S6.",
+      "detailed_caption": "Figure 2. Harbor location comparison. Exact executed question: “Which directly narrated location relationships have an explicitly stated interval overlapping day 2 up to but not including day 4? Return all of them with their full evidence-stated intervals, not clipped to the question window. Exclude undated locations and beliefs.” All four A location records and the four corresponding B records are displayed. B's other two records are reproduced in the labelled carrying callout and remain in its six-prediction denominator. Both methods preserve source intervals; the shaded question window selects overlap and does not redefine validity. Circles distinguish included starts from excluded ends. Only S5–S8 are printed; the model received the same complete fourteen-sentence story in every call. A is fixed selection; B is independent generation. All generated holder/attitude values in these records are null. This is an extraction/relevance comparison, not ontology construction.",
       "display_callouts": [
         {
           "fact": {
@@ -574,7 +578,8 @@
       "width_mm": 178
     },
     {
-      "caption": "Figure 3. Carroll's Alice opening passage, supplied unchanged to both B requests. Exact action question: “Which sitting/location, reading/inspection and running relationships involve Alice, her sister, the book, bank and Rabbit? Exclude thoughts, feelings, appearance and book-content properties.” Exact claims question: “What does the passage say about the book's absent content and Alice's thoughts about the usefulness of such books and making a daisy-chain? Exclude physical actions, locations, appearance and the Rabbit; preserve questions and consideration without treating them as decisions.” Three of five action records show inspection, incorrect assignment of reading to Alice, and the Rabbit's literal object ‘close by her’; the two sitting records remain in the full graph and score. All three claims records are shown. The sentence-valued thinks object preserves rhetorical meaning but not the requested decomposed attribution structure; it is not redrawn as a corrected proposition. The daisy-chain record lacks attitude alongside holder Alice and may turn consideration into a judgment. All generated bounds are null; other holder/attitude fields are null. Display line breaks and underscore-to-space predicate typography do not change identities, meanings or evaluations. Status labels reproduce the retained Codex assessment.",
+      "caption": "Figure 3. Alice's actions and thoughts, independently extracted by B from the same passage. Reading is assigned to the wrong participant; a literal sentence-valued thought preserves rhetorical meaning, while the daisy-chain interpretation remains unresolved. Three of five action records and all three claims records are drawn; the two sitting records remain in the full output and score. Exact questions and display notes: Supplement S6.",
+      "detailed_caption": "Figure 3. Carroll's Alice opening passage, supplied unchanged to both B requests. Exact action question: “Which sitting/location, reading/inspection and running relationships involve Alice, her sister, the book, bank and Rabbit? Exclude thoughts, feelings, appearance and book-content properties.” Exact claims question: “What does the passage say about the book's absent content and Alice's thoughts about the usefulness of such books and making a daisy-chain? Exclude physical actions, locations, appearance and the Rabbit; preserve questions and consideration without treating them as decisions.” Three of five action records show inspection, incorrect assignment of reading to Alice, and the Rabbit's literal object ‘close by her’; the two sitting records remain in the full graph and score. All three claims records are shown. The sentence-valued thinks object preserves rhetorical meaning but not the requested decomposed attribution structure; it is not redrawn as a corrected proposition. The daisy-chain record lacks attitude alongside holder Alice and may turn consideration into a judgment. All generated bounds are null; other holder/attitude fields are null. Display line breaks and underscore-to-space predicate typography do not change identities, meanings or evaluations. Status labels reproduce the retained Codex assessment.",
       "display_callouts": [],
       "displayed_edges": [
         {
@@ -751,23 +756,25 @@
   "generator": "python -m scripts.build_poc_manuscript",
   "inputs": {
     "configs/study/decoding.json": "30fb9c6f22bd9cacf4cb5c97651b58608ca29c636a2ebebcdf05b9a2aa474a8a",
-    "paper/README.md": "dac2e90586c7fa6fe7bf3701c95ed0f18f723fcdc7712e3b92ac9048eed94be2",
-    "paper/manuscript_source.md": "9861803d98bed50230b9be41b13c58747db46005b37c022b34cd6d29725e624e",
+    "paper/AUTHOR_REVIEW.md": "64cab542db2680dd557b69d76e9f474edbbc50308bbc23245981696b68e6d44b",
+    "paper/README.md": "fa2b9f91285cd8a5a15ac7e67b708b5072f01879ee3027838c70b88d6c00dece",
+    "paper/manuscript_source.md": "6f8fe89f7fa16b297d52fa2f3b9ffac7cbafee8c1dde8e97d0607f141f7f8393",
     "paper/reference_sources.json": "a16c16b307bee79b76a37fdb90dac42302c3eff10cd6bb8dffaf2bc550d2e07d",
     "paper/requirements.txt": "0024a724e8f3e85d743229df4b35a0a6c6c0dbf37151dbe8b97be9ef7ca26ab8",
     "reports/PAPER_FIGURES.pdf": "f9cba0063e07c4f86f14fc58d7b04e0ea479132d94a2df181b278c7d91e581df",
     "reports/figures/paper/FULL_OUTPUT_SUPPLEMENT.pdf": "fcc8675d6210a54d2f722d365f3afb4cdeb64060121dd46dd72d74ab42fb23b5",
     "scripts/build_paper_figures.py": "be09667876aaee27b6b7130586dc08132f561c0e30c924418209158e39246631",
-    "scripts/build_poc_manuscript.py": "7356228810733d38117852dd858f386f841af2862398a319942a1dec8ced807d"
+    "scripts/build_poc_manuscript.py": "f3e621e3a7c87b8345d9f46767160044d887b06dd675798af066a17ce6485d2e"
   },
   "numerical_registry": "tables/numerical_registry.json",
   "outputs": {
-    "FIGURE_CAPTIONS.md": "07519ce91e1ab4b212d089e7b7e11391bf0a54af2c916b793fd3ab9abea73125",
-    "PROOF_OF_CONCEPT.md": "e62a08d12c8251830703bbaf9200d0c66d5445054ecdc27be185f0c800cc18b9",
-    "PROOF_OF_CONCEPT.pdf": "992231fa993ef1b0369e6005f00901bdcd98725988ad65d376ab57564226b206",
-    "README.md": "dac2e90586c7fa6fe7bf3701c95ed0f18f723fcdc7712e3b92ac9048eed94be2",
-    "SUPPLEMENTARY_MATERIAL.md": "82e9f17e5a5216233f3f0997f42e719d83a8439c274398bcd8fd895cb83c0a76",
-    "SUPPLEMENTARY_MATERIAL.pdf": "e3cf77be74744de57c51532ee55b97da32fc61925233386f39ad001f2166ebb2",
+    "AUTHOR_REVIEW.md": "64cab542db2680dd557b69d76e9f474edbbc50308bbc23245981696b68e6d44b",
+    "FIGURE_CAPTIONS.md": "af624f8b1cb89c19516f0847f61df2d79a4d05508168bc102658f81412bca4ff",
+    "PROOF_OF_CONCEPT.md": "711439f5e418f0c85c4047f142e40b11876b6571cdf52b295d387d7a96818229",
+    "PROOF_OF_CONCEPT.pdf": "0aaa86d3a066bbe0cbcbb141ae25d5657f80bb179dc7a5ad720dd5637081c0d0",
+    "README.md": "fa2b9f91285cd8a5a15ac7e67b708b5072f01879ee3027838c70b88d6c00dece",
+    "SUPPLEMENTARY_MATERIAL.md": "85761835a23bb835f14be152a7408fd8ab155a01a63f5acdca717ec956221ea8",
+    "SUPPLEMENTARY_MATERIAL.pdf": "c6cfbb49887e03f8e3d15c857ceec6d18051aa575928050d5562be25be5bdd2f",
     "figures/DEJAVU_FONT_LICENSE.txt": "7fc25cbf33ef7f294d7599b9bd6e973fd6358a2e89a49b026b5ee6e4551b2a56",
     "figures/figure_1_fable.pdf": "85b6076f202bf15f0ee767591f91a41225a7e8bdf97272f36256e8a477c5606b",
     "figures/figure_1_fable.png": "88967a711be66a1f6acff1938cb977f7a4f15d0bef4db7be25f42cdd58e41f18",
@@ -778,12 +785,12 @@
     "figures/figure_3_alice.pdf": "60b54c2929f2773dc69cdf72c95d194713a93695c6734b42c04355bd0b852047",
     "figures/figure_3_alice.png": "d5ab4a295864ea86d7a6a922cdb6d2dd436b5a85900c8cd69d5a4c9c605be7d6",
     "figures/figure_3_alice.svg": "6889ee6563bac1676626340976888ee65c7c9ae406fcd6d37d5c88f0f4a27232",
-    "figures/index.html": "9710728a04da00f0eb3df25134044034f704a7af75869ce8be14bd22971e9f65",
-    "manuscript_source.md": "9861803d98bed50230b9be41b13c58747db46005b37c022b34cd6d29725e624e",
+    "figures/index.html": "3ed6ea01d0ceaaedfa55e3e5378f9b1d99f3b35e2b168a11e29923ef2b86a075",
+    "manuscript_source.md": "6f8fe89f7fa16b297d52fa2f3b9ffac7cbafee8c1dde8e97d0607f141f7f8393",
     "reference_sources.json": "a16c16b307bee79b76a37fdb90dac42302c3eff10cd6bb8dffaf2bc550d2e07d",
-    "references.bib": "4bac20c3d9f389a3088518613ed5518506ed0eaefd24292c4061ef4aa0b79564",
+    "references.bib": "306b2650f0255b535c4a6e977aa92e14cadb7c3e7f44b7b428eb7eb0009cd00d",
     "requirements.txt": "0024a724e8f3e85d743229df4b35a0a6c6c0dbf37151dbe8b97be9ef7ca26ab8",
-    "supplement_front.pdf": "e8f6329021eaa422930c730b03995bb2a236a1a9f8bee5459503ee104d3c1613",
+    "supplement_front.pdf": "3648a36985cefda0500149b706e0b693b962e690eb03ab5366726a544d66df1c",
     "tables/allocation.csv": "abd8f93899f822c681cbb131e13bf693af8110c68bea79415b94d23309c74f92",
     "tables/allocation.json": "d31af4d90c5bc29134cece521a8f89bd7ea740ee5d4e7cd9abe531ff53dd0947",
     "tables/compact_assertion_assessments.json": "25ab394f82f358b6ba74d71ca3358cfa1dbbc5fb50af5e1ead5caf13aa2d79ac",
@@ -964,6 +971,6 @@
     "reports/tables/simple_synthetic_v2_results.json": "29a1b52aa285eec3b943e2351c99a57119e59afbebd93901bee568447b320de6"
   },
   "source_checkpoint": "e76d52807ab2004d1e644c6f25a49b8b41fd214a",
-  "version": "exploratory-manuscript-v1",
+  "version": "exploratory-manuscript-v2-editorial",
   "word_count_note": "Approximate whitespace/punctuation-tokenized prose count; table captions also excluded; headings and AI-assistance declaration included."
 }

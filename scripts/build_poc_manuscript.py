@@ -235,6 +235,9 @@ def collect_tables(data):
             for x in costs
         ],
     )
+    # Main text shows only the two comparison batches; S3 retains all four rows.
+    cost_lines = tables["cost"].splitlines()
+    tables["main_cost"] = "\n".join(cost_lines[:2] + cost_lines[-2:])
     number(
         "main_cost",
         sum(x["allocated_seconds"] for x in costs[2:]),
@@ -577,6 +580,15 @@ def captions(panels):
     }
 
 
+def main_captions():
+    """Short review captions; exact questions and full display notes stay in S6."""
+    return {
+        "figure_1_fable": "Figure 1. Fable actions: A selects from a pre-extraction; B independently answers from text and question. Both capture the later rescue. B omits the earlier capture/release; A's spare relation loses conditional scope. Six of eight A records and all five B records are drawn; A's waking and binding records remain in the full output. Exact question and display notes: Supplement S6.",
+        "figure_2_harbor": "Figure 2. Harbor locations: full generated intervals are distinct from the shaded query window. All four A location records and the four corresponding B records are drawn; B's two irrelevant carrying records appear in the callout and remain scored. A is fixed selection; B is independent extraction. Source display is S5–S8 of the complete story supplied. Exact question: Supplement S6.",
+        "figure_3_alice": "Figure 3. Alice's actions and thoughts, independently extracted by B from the same passage. Reading is assigned to the wrong participant; a literal sentence-valued thought preserves rhetorical meaning, while the daisy-chain interpretation remains unresolved. Three of five action records and all three claims records are drawn; the two sitting records remain in the full output and score. Exact questions and display notes: Supplement S6.",
+    }
+
+
 class VectorFigure(Flowable):
     def __init__(self, path):
         super().__init__()
@@ -799,15 +811,28 @@ def bibliography(refs):
     md = []
     for r in refs:
         fields = [f"  {k} = {{{v}}}" for k, v in r.items() if k not in excluded]
+        if r.get("type_label"):
+            fields.append(f"  type = {{{r['type_label']}}}")
         bib.append("@" + r["type"] + "{" + r["id"] + ",\n" + ",\n".join(fields) + "\n}")
-        author = (
-            r.get("author", r.get("editor", ""))
-            .replace("{", "")
-            .replace("}", "")
-            .replace(" and others", "; et al.")
-        )
+
+        def names(value):
+            # BibTeX keeps family/given order; readable bibliography uses given family.
+            parts = []
+            for name in value.replace("{", "").replace("}", "").split(" and "):
+                if name == "others":
+                    parts.append("et al.")
+                elif ", " in name:
+                    family, given = name.split(", ", 1)
+                    parts.append(given + " " + family)
+                else:
+                    parts.append(name)
+            return "; ".join(parts)
+
+        author = names(r.get("author", r.get("editor", "")))
+        if "editor" in r and "author" not in r:
+            author += " (eds.)"
         if r.get("translator"):
-            author += "; translated by " + r["translator"]
+            author += "; translated by " + names(r["translator"])
         venue = r.get(
             "journal",
             r.get(
@@ -821,10 +846,13 @@ def bibliography(refs):
                 f": {r['pages'].replace('--', '–')}" if "pages" in r else "",
             ]
         )
-        md.append(
-            f"{author} ({r.get('year', 'n.d.; edition accessed 2026')}). [{r['title']}]({r['url']}). {venue}{detail}. "
-            + r.get("note", "")
-        )
+        sentences = [
+            f"{author} ({r.get('year', 'n.d.')}). [{r['title']}]({r['url']})",
+            venue + detail,
+            r.get("type_label", ""),
+            r.get("note", ""),
+        ]
+        md.append(". ".join(s.rstrip(". ") for s in sentences if s.strip()) + ".")
     (OUT / "references.bib").write_text("\n\n".join(bib) + "\n")
     return "\n\n".join(x.rstrip() for x in md)
 
@@ -843,7 +871,8 @@ def build():
     tables = collect_tables(data)
     refs = old.read(OUT / "reference_sources.json")
     reference_md = bibliography(refs)
-    caps = captions(panels)
+    caps = main_captions()
+    full_caps = captions(panels)
     plates = compact_figures(figdata, panels)
     figure_manifest = []
     for p in plates:
@@ -882,6 +911,7 @@ def build():
                 panels=p.panels,
                 font_hashes=fonts,
                 caption=caps[p.name],
+                detailed_caption=full_caps[p.name],
             )
         )
         old.plt.close(p.fig)
@@ -916,7 +946,11 @@ def build():
         markdown = markdown.replace("!FIGURE:" + name, f"![{name}](figures/{name}.png)\n\n" + cap)
     (OUT / "PROOF_OF_CONCEPT.md").write_text(markdown)
     (OUT / "FIGURE_CAPTIONS.md").write_text(
-        "# Compact main-paper captions\n\n" + "\n\n".join(caps.values()) + "\n"
+        "# Figure captions and exact-question notes\n\n## Main-paper captions\n\n"
+        + "\n\n".join(caps.values())
+        + "\n\n## Complete questions and display accounting (Supplement S6)\n\n"
+        + "\n\n".join(full_caps.values())
+        + "\n"
     )
     make_pdf(rendered, OUT / "PROOF_OF_CONCEPT.pdf", figure_captions=caps)
     supplementary(data, tables, panels)
@@ -927,13 +961,14 @@ def build():
     prose_only = re.sub(r"^Table \d+\..*$", "", prose_only, flags=re.M)
     prose_only = re.sub(r"\{\{(\w+)\}\}", lambda m: METRIC_REGISTRY[m[1]]["display"], prose_only)
     word_count = len(re.findall(r"\b[\w’'-]+\b", prose_only))
-    assert 3000 <= word_count <= 4000, word_count
     manifest = dict(
-        version="exploratory-manuscript-v1",
+        version="exploratory-manuscript-v2-editorial",
         scope="Retained outputs only; no new inference, scoring changes or registered-study acceptance",
         generator="python -m scripts.build_poc_manuscript",
         source_artifacts=source_hashes,
         source_checkpoint="e76d52807ab2004d1e644c6f25a49b8b41fd214a",
+        editorial_parent_checkpoint="3329a6e3ba8d8538d69c7e701a630932bfcf129e",
+        editorial_note="Tighter narrative and captions; unchanged figure artwork, retained outputs, tables, assessments and scoring. Main cost display selects the two comparison batches; supplement retains all batch costs. No minimum word-count target.",
         body_word_count_excluding_tables_figures_references_and_code=word_count,
         word_count_note="Approximate whitespace/punctuation-tokenized prose count; table captions also excluded; headings and AI-assistance declaration included.",
         reference_verification_date="2026-09-09",
@@ -969,6 +1004,7 @@ def build():
             OUT / "README.md",
             OUT / "requirements.txt",
             OUT / "reference_sources.json",
+            OUT / "AUTHOR_REVIEW.md",
             ROOT / "configs/study/decoding.json",
             ROOT / "scripts/build_paper_figures.py",
             ROOT / "reports/PAPER_FIGURES.pdf",
@@ -1008,11 +1044,17 @@ def supplementary(data, tables, panels):
         + tables["prose"]
         + "\n\n## S3. Distinct batch costs\n\nService allocation includes loading, checks, inference and shutdown. Request times alone exclude those costs. Costs may be added; accuracy across incompatible versions may not.\n\n"
         + tables["cost"]
+        + "\n\nThe two main comparison batches used "
+        + METRIC_REGISTRY["main_cost"]["display"]
+        + " allocated seconds. Historical whole-project allocation at their conclusion was "
+        + METRIC_REGISTRY["project_cost"]["display"]
+        + " seconds, including earlier attempts and failures. No new inference was performed for this manuscript. Small-batch timing does not establish production-tail latency or feasibility of the larger registered study.\n\n"
+        + "## S4. Development context\n\nThe original simple ladder recovered its tested direct facts, contextual selections and explicit intervals before encountering belief decomposition and citation/interval failures. The revised ladder retained its regression successes and handled original and fresh simple beliefs; office examples remained imperfect. The office questions permit the same office-mediated organization and do not establish an ontology-construction contrast. Earlier unsuccessful comprehensive-interface attempts motivated simplification but are not compact-interface results. Scores below remain separate by version.\n\n"
     )
     for key in ["ladder", "ladder_v2"]:
         rows = data[key]["rows"]
         text += (
-            "\n\n## S4. "
+            "\n\n### "
             + key.replace("_", " ")
             + " — unchanged development scores\n\n"
             + md_table(
@@ -1045,9 +1087,9 @@ def supplementary(data, tables, panels):
             for x in data["compact"]["historical"]["derived"]
         ],
     )
-    text += "\n\n## S6. Exact requests and source attribution\n"
-    for key in ["fable_A", "harbor_A_locations", "alice_B_actions", "alice_B_claims"]:
-        text += "\n\n### " + key + "\n\n" + panels[key]["result"]["question"]
+    text += "\n\n## S6. Exact requests, display notes and source attribution\n\nQuestion headlines in the artwork abbreviate the executed requests below. A means fixed selection from an actual query-blind extraction; B is independently generated from text plus question. These are comparisons, not a transformation from A into B.\n"
+    for i, cap in enumerate(captions(panels).values(), 1):
+        text += f"\n\n### Figure {i}: complete question and display notes\n\n" + cap
     for story in data["prose"]["stories"].values():
         text += (
             "\n\n### "
@@ -1071,7 +1113,16 @@ def supplementary(data, tables, panels):
         )
         for eid, span in story["evidence"].items():
             text += "**" + eid + "** " + " ".join(span.split()) + "\n\n"
-    text += "\n\n## S7. Reproducibility and author review\n\nAll model outputs, timestamps, request hashes and assessments originate in the retained result artifacts listed in manuscript_manifest.json. This build runs no inference or evaluator. Figure edge manifests preserve original record dictionaries and statuses. Reference details were verified against primary sources on 9 September 2026. The prior visual review pages follow unchanged. Full author name, affiliation, funding/conflict declarations and publication readiness of the AI-authored annotations require author confirmation.\n\n"
+    text += (
+        "\n\n## S7. Reproducibility and author review\n\nThe pinned model is "
+        + METRIC_REGISTRY["model_repository"]["display"]
+        + ", revision "
+        + METRIC_REGISTRY["model_revision"]["display"]
+        + ", seed "
+        + METRIC_REGISTRY["model_seed"]["display"]
+        + ". Full model/template metadata and call settings originate in the frozen manifests. All outputs, timestamps, request hashes and assessments are linked by manuscript_manifest.json. Figure edge manifests preserve original record dictionaries and statuses. Reference details were checked against primary sources on 9 September 2026.\n\n"
+        + "[AUTHOR_REVIEW.md](AUTHOR_REVIEW.md) provides the prioritized evidence-linked judgment questions and the single list of unresolved publication details. It is a request for author decisions, not a completed human review. Any subsequent annotation or score change must be separately versioned. [README.md](README.md) gives the portable regeneration command. The original visual-review and full-output pages follow unchanged.\n\n"
+    )
     (OUT / "SUPPLEMENTARY_MATERIAL.md").write_text(text.rstrip() + "\n")
     front = OUT / "supplement_front.pdf"
     make_pdf(text, front)
