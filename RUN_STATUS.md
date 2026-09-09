@@ -1,5 +1,52 @@
 # Run status
 
+Updated: 2026-09-09 UTC — compact two-story demonstration completed; vLLM stopped.
+
+Branch `implementation/query-dependent-temporal-ontology`; frozen execution
+checkpoint `034dabf`. Two fresh 14-sentence stories, three questions each; both
+query-blind pre-extractions sealed before any contextual transmission. Eight
+single-attempt requests completed with finish `stop`, all below the common
+2,048-output allowance. Six responses parse; both contextual possession responses
+contain trailing commas and remain unrepaired. No extra call or restart.
+
+Each pre-extraction has 14 records: 12 bare matches but only 5 complete qualified
+matches, with every explicit interval omitted and belief format incorrect.
+Pre-extract/select ownership F1=.600 in both stories; its location/belief F1=0.
+Contextual possession answers retain zero-score parse failures; contextual
+location F1=0/.133333 and belief F1=.222222/.222222. Mean question-level F1:
+A=.200/.200, B=.074074/.118519. All parseable graphs and actual error records are
+displayed. Unresolved belief wording remains distinct from manually observed
+format failures; one contextual answer demonstrably changes the stated owner.
+No question/approach passes the exploratory .8 complete-fact P/R criterion.
+
+New allocation **192.872472 s**; cumulative **10,263.092129 s**. This new batch's
+900-second envelope has **707.127528 s** unused, but its one-start/eight-request
+authority is exhausted. Global scheduled 33,660 / strict actual <36,000 ceilings
+and every historical charge remain unchanged. Journals 0/0 open; no GPU processes;
+pod preserved. Sampled VRAM/RAM/project-storage peaks: 22,598,909,952 /
+7,074,017,280 / 17,266,616,320 bytes. Eight unique calls used 4,022 input and 2,334
+completion tokens; request times total 47.443004 s, not production p95 evidence.
+
+50 focused tests pass. Checks cover pinned-tokenizer packing, installed vLLM request validation,
+actual workload/service guards with simulated streaming, record-only selection,
+qualification/identity negatives, actual-output replay, report consistency and
+unchanged original ladders. All 707 durable recovered files match their hashes;
+two vanished SQLite reader-side `-shm`/`-wal` files are explicitly excluded, not
+scientific artifacts. Both closed database snapshots match; integrity and foreign
+keys pass, and every pre-batch ledger row is preserved.
+
+Results: `reports/COMPACT_STORY_RESULTS.md`,
+`reports/tables/compact_story_results.csv` (canonical JSON and manifest alongside),
+`reports/figures/compact_story_comparison.html`.
+CPU-only reproduction:
+`python -m scripts.report_compact_story --run artifacts/restricted/compact-story-backup.YsPbSl/run-20260909T020729896790 --output reports`
+
+This is compact exploratory extraction, not registered C1/C2 acceptance or
+ontology-construction evidence. Original ladder results, C0 scores, benchmark,
+registered gates and mandatory held-out human review remain unchanged.
+
+## Compact v2 ladder (historical)
+
 Updated: 2026-09-09 UTC — compact v2 batch completed; vLLM stopped.
 
 Branch `implementation/query-dependent-temporal-ontology`; verified pushed baseline

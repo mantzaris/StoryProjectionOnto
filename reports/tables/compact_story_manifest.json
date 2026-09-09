@@ -1,0 +1,10 @@
+{
+  "calls": 8,
+  "files": {
+    "COMPACT_STORY_RESULTS.md": "89ff3bc257bfa26245346fe1fc91d2dbcc60156976b4b3fc0efa3e105280f70e",
+    "figures/compact_story_comparison.html": "e2731181ed72e026c3dc51c41ac1987d57a65d85b3751d4ed8dd7232af93c0b5",
+    "tables/compact_story_results.csv": "8085569b661990a71cfaeb2d8bbf15bb59ee57353c913721a690667792232072",
+    "tables/compact_story_results.json": "5fd57c6cb5623f6bdcfc8022355c268511b8f8bdfaf7f265be44a33d64fd39aa"
+  },
+  "frozen_rules_hash": "09fb1ae467124daeb106ebf9b6141efbd870ebd487a445d44c00ffe7458775ae"
+}

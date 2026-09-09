@@ -8,6 +8,7 @@ import hashlib
 import html
 import json
 import math
+import textwrap
 from pathlib import Path
 
 from story_projection_onto import compact_story as p
@@ -69,11 +70,23 @@ def graph(facts, anchors, evaluation=None):
         )
     for name in sorted(active):
         x, y = anchors[name]
+        lines = textwrap.wrap(name, 20)
+        height = max(42, 18 * len(lines) + 12)
         pieces.append(
-            f'<rect x="{x - 75}" y="{y - 21}" width="150" height="42" rx="8" fill="#e9f4ff" stroke="#4d7795"/><text x="{x}" y="{y + 5}" text-anchor="middle">{e(name)}</text>'
+            f'<rect x="{x - 75}" y="{y - height / 2}" width="150" height="{height}" rx="8" fill="#e9f4ff" stroke="#4d7795"/><text x="{x}" y="{y - (len(lines) - 1) * 9 + 5}" text-anchor="middle">'
+            + "".join(
+                f'<tspan x="{x}" dy="{0 if j == 0 else 18}">{e(line)}</tspan>'
+                for j, line in enumerate(lines)
+            )
+            + "</text>"
         )
     pieces.append("</svg>")
-    return "".join(pieces) if active else "<p>No mechanically displayable endpoint records.</p>"
+    return (
+        '<button onclick="this.nextElementSibling.requestFullscreen()">Enlarge graph (Esc to return)</button>'
+        + "".join(pieces)
+        if active
+        else "<p>No mechanically displayable endpoint records.</p>"
+    )
 
 
 def anchors_for(collections):
@@ -109,6 +122,10 @@ def build(run):
     if cases != p.cases() or frozen_refs != scorer.references() or rules != scorer.frozen_rules():
         raise ValueError("report code differs from frozen evaluation/request artifacts")
     calls = {o["case_id"]: o for o in terminal["outcomes"]}
+    diagnosis = read("manual-diagnosis.json") if (run / "manual-diagnosis.json").exists() else {}
+    for k, item in diagnosis.get("cases", {}).items():
+        if item["response_sha256"] != (calls[k]["response"] or {}).get("response_sha256"):
+            raise ValueError("manual diagnostic note does not match retained response")
     records = []
     for story_id in p.stories():
         base_id = next(
@@ -169,6 +186,7 @@ def build(run):
         "references": frozen_refs,
         "packing": read("packing.json"),
         "calls": list(calls.values()),
+        "manual_diagnosis": diagnosis,
         "results": records,
         "allocation": {
             k: terminal[k]
@@ -244,6 +262,12 @@ def render(run, output):
             f"| {r['story_id']} / {r['task']} | {r['approach']} | {r['transport_complete']} / {r['parseable']} | {r['citation_valid']}/{r['predictions']} | {measures[0]} | {measures[1]} |"
         )
     md += ["", "## What the comparison shows", ""]
+    md += [
+        data["manual_diagnosis"].get("summary", ""),
+        "",
+        "Unparseable answers retain the frozen zero-score answer-failure convention. Their per-fact denominator is not measurable; zero parsed records does not mean no candidate text was emitted. No trailing-comma removal or semantic repair was applied. Empty CPU selections are separate: their omission/zero-recall scores are measured outputs of the frozen filter.",
+        "",
+    ]
     for story_id in p.stories():
         means = {
             a: sum(
@@ -267,9 +291,24 @@ def render(run, output):
         "## Readable stories and answers",
         "",
     ]
+    examples = data["manual_diagnosis"].get("examples", [])
+    if examples:
+        # Put concrete examples immediately after the results, before the full inventory.
+        position = md.index("## Readable stories and answers")
+        lines = ["## Three readable examples", ""]
+        for example in examples:
+            lines += [
+                f"- Evidence: {example['source']}\n  Generated: {example['actual']}\n  Assessment: {example['interpretation']}",
+                "",
+            ]
+        md[position:position] = lines
     e = html.escape
     body = [
         '<!doctype html><meta charset="utf-8"><title>Compact story comparison</title><style>body{font:16px system-ui;margin:24px;color:#192b3c}table{border-collapse:collapse;width:100%;table-layout:fixed}td,th{border:1px solid #b8c4d0;padding:9px;vertical-align:top;overflow-wrap:anywhere}.compare{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.panel{border:1px solid #bbc8d3;padding:10px}svg{width:100%;font:14px system-ui}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px}li{margin-bottom:12px}h2{border-top:2px solid #496c88;padding-top:20px}@media(max-width:1200px){.compare{grid-template-columns:1fr}}</style><h1>Compact story comparison</h1><p>Exploratory development; not registered ontology acceptance. Green edges: complete target match; amber: unresolved wording; red: error or irrelevant. Numbered edges map to every actual assertion below. Exact names share fixed anchors across each comparison.</p>'
+    ]
+    body += ["<p>" + e(data["manual_diagnosis"].get("summary", "")) + "</p>"]
+    body += [
+        "<style>svg:fullscreen{width:100vw;height:100vh;background:white}button{padding:6px 12px;cursor:pointer}svg text{paint-order:stroke;stroke:white;stroke-width:1px}</style>"
     ]
     for story_id, story in p.stories().items():
         md += (
@@ -307,6 +346,14 @@ def render(run, output):
             for r in pair:
                 ev = r["evaluation"]
                 md += [r["approach"] + ":", ""]
+                note = (
+                    data["manual_diagnosis"]
+                    .get("cases", {})
+                    .get(r["source_case_id"], {})
+                    .get("finding")
+                )
+                if note:
+                    md += ["Manual source-output diagnosis (not rescoring): " + note, ""]
                 body += [
                     f'<section class="panel" id="{story_id}-{task}-{r["approach"][0]}"><h4>{e(r["approach"])}</h4>',
                     graph((r["parsed"] or {}).get("facts", []), anchors, ev),
@@ -326,9 +373,19 @@ def render(run, output):
                         "```",
                     ]
                 md += ["", "Missing complete facts: " + json.dumps(ev["full"]["missing"]), ""]
-                metrics = f"Qualified P/R/F1: {ev['full']['precision']:.3f}/{ev['full']['recall']:.3f}/{ev['full']['f1']:.3f}; tokens {r['input_tokens']}/{r['output_tokens']}; time {r['request_seconds']}; finish {r['finish_reason']}."
+                seconds = (
+                    f"{r['request_seconds']:.3f}s"
+                    if r["request_seconds"] is not None
+                    else "not executed"
+                )
+                metrics = f"Qualified P/R/F1: {ev['full']['precision']:.3f}/{ev['full']['recall']:.3f}/{ev['full']['f1']:.3f}; tokens {r['input_tokens']}/{r['output_tokens']}; time {seconds}; finish {r['finish_reason']}."
                 body += [
                     "</ol>",
+                    "<p><em>Manual source-output diagnosis (not rescoring): "
+                    + e(note)
+                    + "</em></p>"
+                    if note
+                    else "",
                     f"<p>{e(metrics)}</p>",
                     "<details><summary>Missing facts / raw source response / full evaluation and selection trace</summary><pre>"
                     + e(
@@ -349,6 +406,14 @@ def render(run, output):
             k for k, c in p.cases().items() if c["story_id"] == story_id and c["task"] == "all"
         )
         base = next((o for o in data["calls"] if o["case_id"] == base_id), None)
+        base_facts = ((base or {}).get("parsed") or {}).get("facts", [])
+        body += [
+            f'<h3>Complete query-blind source graph: {e(story["title"])}</h3><section class="panel" id="{story_id}-preextract">',
+            graph(base_facts, anchors_for([base_facts]), (base or {}).get("evaluation")),
+            "<ol>",
+        ]
+        body += [f"<li>{e(fact_text(row))}</li>" for row in base_facts]
+        body += ["</ol></section>"]
         md += [
             "Query-blind source collection (actual, before CPU selection):",
             "```json",
@@ -366,11 +431,41 @@ def render(run, output):
         (c.get("response") or {}).get("completion_tokens", 0) for c in data["calls"]
     )
     md += [
+        "## Unique model calls",
+        "",
+        "| Call | Story/task | Completed / parseable | Finish | Tokens in/out | Request seconds |",
+        "|---|---|---|---|---|---|",
+    ]
+    for call in data["calls"]:
+        response = call.get("response") or {}
+        case = p.cases()[call["case_id"]]
+        md.append(
+            f"| {call['case_id']} | {case['story_id']}/{case['task']} | {call['transport_complete']} / {call['parsed'] is not None} | {response.get('finish_reason')} | {response.get('prompt_tokens', 0)}/{response.get('completion_tokens', 0)} | {call['request_seconds']:.3f} |"
+        )
+    md += ["", "Query-blind extraction scores before selection:", ""]
+    for call in data["calls"]:
+        if p.cases()[call["case_id"]]["task"] == "all":
+            ev = call["evaluation"]
+            md.append(
+                f"- Call {call['case_id']}: bare {ev['underlying']['true_positive']}/{ev['underlying']['predicted']}; complete qualified {ev['full']['true_positive']}/{ev['full']['predicted']}; valid citations {ev['citation_valid']}/{ev['full']['predicted']}."
+            )
+    passes = sum(r["complete_precision"] >= 0.8 and r["complete_recall"] >= 0.8 for r in table)
+    md += [
+        "",
+        f"Complete qualified facts meet the exploratory 80% precision-and-recall criterion in {passes}/{len(table)} question/approach rows. Parseability, bare extraction and qualification are distinct outcomes; this small sample does not establish dependable temporal/epistemic formatting or contextual selection.",
+        "",
+    ]
+    peaks = {
+        k: max((sample[k] for sample in data["resource_samples"]), default=0)
+        for k in ("gpu_vram_bytes", "process_ram_bytes", "project_storage_bytes")
+    }
+    md += ["Sampled resource peaks (bytes): `" + json.dumps(peaks, sort_keys=True) + "`.", ""]
+    md += [
         "## Execution and boundaries",
         "",
         f"Executed calls: {len(data['calls'])}/8, one attempt each; no repairs. Unique-call input/output tokens: {input_tokens}/{output_tokens}. Baseline request costs shown on each of its three selections are shared, not three additional calls.",
         "",
-        "Allocation and terminal state: `" + json.dumps(data["allocation"], sort_keys=True) + "`.",
+        f"Additional allocated service time: {data['allocation']['new_allocated_seconds']:.6f} seconds; cumulative: {data['allocation']['actual_allocated_seconds']:.6f} seconds. Open allocation/service journals: {data['allocation']['open_allocations']}/{data['allocation']['open_service_journals']}. Stop reason: {data['allocation']['stop_reason']}. Exact retained values are in the JSON table.",
         "",
         "One 900-second envelope including loading and shutdown; all historical allocation retained. Same pinned Qwen3-8B-AWQ revision 4da05a8edb55c6046cce958586c33b61da07bb79, nonthinking, 12,288 context, seed 1988649846, temperature .7/top-p .8/top-k 20. Unconstrained JSON and a common 2,048-output allowance. Exact rendered packing and raw call timings are in the JSON table.",
         "",
