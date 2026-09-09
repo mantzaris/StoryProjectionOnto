@@ -1,0 +1,34 @@
+[
+  {
+    "allocated_seconds": 157.34785499999998,
+    "batch": "Simple ladder",
+    "calls": 8,
+    "input_tokens": 1344,
+    "output_tokens": 848,
+    "request_seconds": 20.034208023920655
+  },
+  {
+    "allocated_seconds": 171.37171300000045,
+    "batch": "Simple ladder v2",
+    "calls": 8,
+    "input_tokens": 2594,
+    "output_tokens": 997,
+    "request_seconds": 22.451166632585227
+  },
+  {
+    "allocated_seconds": 249.4524309999997,
+    "batch": "Compact stories v2",
+    "calls": 12,
+    "input_tokens": 8088,
+    "output_tokens": 5860,
+    "request_seconds": 104.72040081117302
+  },
+  {
+    "allocated_seconds": 205.36521600000015,
+    "batch": "Published prose",
+    "calls": 9,
+    "input_tokens": 6802,
+    "output_tokens": 2927,
+    "request_seconds": 57.23926058784127
+  }
+]

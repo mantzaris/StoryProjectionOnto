@@ -1,0 +1,1977 @@
+{
+  "alice_actions_A_citations_valid": {
+    "display": "2",
+    "source": "prose/table/alice_actions_A/citations_valid",
+    "value": 2
+  },
+  "alice_actions_A_contradicted": {
+    "display": "0",
+    "source": "prose/table/alice_actions_A/contradicted",
+    "value": 0
+  },
+  "alice_actions_A_format_compliant": {
+    "display": "2",
+    "source": "prose/table/alice_actions_A/format_compliant",
+    "value": 2
+  },
+  "alice_actions_A_partially_supported": {
+    "display": "0",
+    "source": "prose/table/alice_actions_A/partially_supported",
+    "value": 0
+  },
+  "alice_actions_A_predictions": {
+    "display": "2",
+    "source": "prose/table/alice_actions_A/predictions",
+    "value": 2
+  },
+  "alice_actions_A_qualification_errors": {
+    "display": "0",
+    "source": "prose/table/alice_actions_A/qualification_errors",
+    "value": 0
+  },
+  "alice_actions_A_references": {
+    "display": "5",
+    "source": "prose/table/alice_actions_A/references",
+    "value": 5
+  },
+  "alice_actions_A_relationship_f1": {
+    "display": "0.286",
+    "source": "prose/table/alice_actions_A/relationship_f1",
+    "value": 0.28571428571428575
+  },
+  "alice_actions_A_relationship_precision": {
+    "display": "0.500",
+    "source": "prose/table/alice_actions_A/relationship_precision",
+    "value": 0.5
+  },
+  "alice_actions_A_relationship_recall": {
+    "display": "0.200",
+    "source": "prose/table/alice_actions_A/relationship_recall",
+    "value": 0.2
+  },
+  "alice_actions_A_semantic_coverage": {
+    "display": "0.600",
+    "source": "prose/table/alice_actions_A/semantic_coverage",
+    "value": 0.6
+  },
+  "alice_actions_A_semantic_targets_covered": {
+    "display": "3",
+    "source": "prose/table/alice_actions_A/semantic_targets_covered",
+    "value": 3
+  },
+  "alice_actions_A_semantically_supported": {
+    "display": "2",
+    "source": "prose/table/alice_actions_A/semantically_supported",
+    "value": 2
+  },
+  "alice_actions_A_source_input_tokens": {
+    "display": "701",
+    "source": "prose/table/alice_actions_A/source_input_tokens",
+    "value": 701
+  },
+  "alice_actions_A_source_output_tokens": {
+    "display": "381",
+    "source": "prose/table/alice_actions_A/source_output_tokens",
+    "value": 381
+  },
+  "alice_actions_A_source_request_seconds": {
+    "display": "7.268",
+    "source": "prose/table/alice_actions_A/source_request_seconds",
+    "value": 7.268172011710703
+  },
+  "alice_actions_A_strict_qualified_f1": {
+    "display": "0.286",
+    "source": "prose/table/alice_actions_A/strict_qualified_f1",
+    "value": 0.28571428571428575
+  },
+  "alice_actions_A_strict_qualified_precision": {
+    "display": "0.500",
+    "source": "prose/table/alice_actions_A/strict_qualified_precision",
+    "value": 0.5
+  },
+  "alice_actions_A_strict_qualified_recall": {
+    "display": "0.200",
+    "source": "prose/table/alice_actions_A/strict_qualified_recall",
+    "value": 0.2
+  },
+  "alice_actions_A_supported_irrelevant": {
+    "display": "0",
+    "source": "prose/table/alice_actions_A/supported_irrelevant",
+    "value": 0
+  },
+  "alice_actions_A_unresolved": {
+    "display": "0",
+    "source": "prose/table/alice_actions_A/unresolved",
+    "value": 0
+  },
+  "alice_actions_A_unsupported": {
+    "display": "0",
+    "source": "prose/table/alice_actions_A/unsupported",
+    "value": 0
+  },
+  "alice_actions_B_citations_valid": {
+    "display": "5",
+    "source": "prose/table/alice_actions_B/citations_valid",
+    "value": 5
+  },
+  "alice_actions_B_contradicted": {
+    "display": "0",
+    "source": "prose/table/alice_actions_B/contradicted",
+    "value": 0
+  },
+  "alice_actions_B_format_compliant": {
+    "display": "5",
+    "source": "prose/table/alice_actions_B/format_compliant",
+    "value": 5
+  },
+  "alice_actions_B_partially_supported": {
+    "display": "1",
+    "source": "prose/table/alice_actions_B/partially_supported",
+    "value": 1
+  },
+  "alice_actions_B_predictions": {
+    "display": "5",
+    "source": "prose/table/alice_actions_B/predictions",
+    "value": 5
+  },
+  "alice_actions_B_qualification_errors": {
+    "display": "0",
+    "source": "prose/table/alice_actions_B/qualification_errors",
+    "value": 0
+  },
+  "alice_actions_B_references": {
+    "display": "5",
+    "source": "prose/table/alice_actions_B/references",
+    "value": 5
+  },
+  "alice_actions_B_relationship_f1": {
+    "display": "0.400",
+    "source": "prose/table/alice_actions_B/relationship_f1",
+    "value": 0.4000000000000001
+  },
+  "alice_actions_B_relationship_precision": {
+    "display": "0.400",
+    "source": "prose/table/alice_actions_B/relationship_precision",
+    "value": 0.4
+  },
+  "alice_actions_B_relationship_recall": {
+    "display": "0.400",
+    "source": "prose/table/alice_actions_B/relationship_recall",
+    "value": 0.4
+  },
+  "alice_actions_B_semantic_coverage": {
+    "display": "0.600",
+    "source": "prose/table/alice_actions_B/semantic_coverage",
+    "value": 0.6
+  },
+  "alice_actions_B_semantic_targets_covered": {
+    "display": "3",
+    "source": "prose/table/alice_actions_B/semantic_targets_covered",
+    "value": 3
+  },
+  "alice_actions_B_semantically_supported": {
+    "display": "3",
+    "source": "prose/table/alice_actions_B/semantically_supported",
+    "value": 3
+  },
+  "alice_actions_B_source_input_tokens": {
+    "display": "711",
+    "source": "prose/table/alice_actions_B/source_input_tokens",
+    "value": 711
+  },
+  "alice_actions_B_source_output_tokens": {
+    "display": "208",
+    "source": "prose/table/alice_actions_B/source_output_tokens",
+    "value": 208
+  },
+  "alice_actions_B_source_request_seconds": {
+    "display": "3.837",
+    "source": "prose/table/alice_actions_B/source_request_seconds",
+    "value": 3.8374315928667784
+  },
+  "alice_actions_B_strict_qualified_f1": {
+    "display": "0.400",
+    "source": "prose/table/alice_actions_B/strict_qualified_f1",
+    "value": 0.4000000000000001
+  },
+  "alice_actions_B_strict_qualified_precision": {
+    "display": "0.400",
+    "source": "prose/table/alice_actions_B/strict_qualified_precision",
+    "value": 0.4
+  },
+  "alice_actions_B_strict_qualified_recall": {
+    "display": "0.400",
+    "source": "prose/table/alice_actions_B/strict_qualified_recall",
+    "value": 0.4
+  },
+  "alice_actions_B_supported_irrelevant": {
+    "display": "0",
+    "source": "prose/table/alice_actions_B/supported_irrelevant",
+    "value": 0
+  },
+  "alice_actions_B_unresolved": {
+    "display": "0",
+    "source": "prose/table/alice_actions_B/unresolved",
+    "value": 0
+  },
+  "alice_actions_B_unsupported": {
+    "display": "1",
+    "source": "prose/table/alice_actions_B/unsupported",
+    "value": 1
+  },
+  "alice_claims_A_citations_valid": {
+    "display": "4",
+    "source": "prose/table/alice_claims_A/citations_valid",
+    "value": 4
+  },
+  "alice_claims_A_contradicted": {
+    "display": "0",
+    "source": "prose/table/alice_claims_A/contradicted",
+    "value": 0
+  },
+  "alice_claims_A_format_compliant": {
+    "display": "4",
+    "source": "prose/table/alice_claims_A/format_compliant",
+    "value": 4
+  },
+  "alice_claims_A_partially_supported": {
+    "display": "2",
+    "source": "prose/table/alice_claims_A/partially_supported",
+    "value": 2
+  },
+  "alice_claims_A_predictions": {
+    "display": "4",
+    "source": "prose/table/alice_claims_A/predictions",
+    "value": 4
+  },
+  "alice_claims_A_qualification_errors": {
+    "display": "0",
+    "source": "prose/table/alice_claims_A/qualification_errors",
+    "value": 0
+  },
+  "alice_claims_A_references": {
+    "display": "4",
+    "source": "prose/table/alice_claims_A/references",
+    "value": 4
+  },
+  "alice_claims_A_relationship_f1": {
+    "display": "0",
+    "source": "prose/table/alice_claims_A/relationship_f1",
+    "value": 0
+  },
+  "alice_claims_A_relationship_precision": {
+    "display": "0.000",
+    "source": "prose/table/alice_claims_A/relationship_precision",
+    "value": 0.0
+  },
+  "alice_claims_A_relationship_recall": {
+    "display": "0.000",
+    "source": "prose/table/alice_claims_A/relationship_recall",
+    "value": 0.0
+  },
+  "alice_claims_A_semantic_coverage": {
+    "display": "0.250",
+    "source": "prose/table/alice_claims_A/semantic_coverage",
+    "value": 0.25
+  },
+  "alice_claims_A_semantic_targets_covered": {
+    "display": "1",
+    "source": "prose/table/alice_claims_A/semantic_targets_covered",
+    "value": 1
+  },
+  "alice_claims_A_semantically_supported": {
+    "display": "2",
+    "source": "prose/table/alice_claims_A/semantically_supported",
+    "value": 2
+  },
+  "alice_claims_A_source_input_tokens": {
+    "display": "701",
+    "source": "prose/table/alice_claims_A/source_input_tokens",
+    "value": 701
+  },
+  "alice_claims_A_source_output_tokens": {
+    "display": "381",
+    "source": "prose/table/alice_claims_A/source_output_tokens",
+    "value": 381
+  },
+  "alice_claims_A_source_request_seconds": {
+    "display": "7.268",
+    "source": "prose/table/alice_claims_A/source_request_seconds",
+    "value": 7.268172011710703
+  },
+  "alice_claims_A_strict_qualified_f1": {
+    "display": "0",
+    "source": "prose/table/alice_claims_A/strict_qualified_f1",
+    "value": 0
+  },
+  "alice_claims_A_strict_qualified_precision": {
+    "display": "0.000",
+    "source": "prose/table/alice_claims_A/strict_qualified_precision",
+    "value": 0.0
+  },
+  "alice_claims_A_strict_qualified_recall": {
+    "display": "0.000",
+    "source": "prose/table/alice_claims_A/strict_qualified_recall",
+    "value": 0.0
+  },
+  "alice_claims_A_supported_irrelevant": {
+    "display": "0",
+    "source": "prose/table/alice_claims_A/supported_irrelevant",
+    "value": 0
+  },
+  "alice_claims_A_unresolved": {
+    "display": "0",
+    "source": "prose/table/alice_claims_A/unresolved",
+    "value": 0
+  },
+  "alice_claims_A_unsupported": {
+    "display": "0",
+    "source": "prose/table/alice_claims_A/unsupported",
+    "value": 0
+  },
+  "alice_claims_B_citations_valid": {
+    "display": "3",
+    "source": "prose/table/alice_claims_B/citations_valid",
+    "value": 3
+  },
+  "alice_claims_B_contradicted": {
+    "display": "0",
+    "source": "prose/table/alice_claims_B/contradicted",
+    "value": 0
+  },
+  "alice_claims_B_format_compliant": {
+    "display": "2",
+    "source": "prose/table/alice_claims_B/format_compliant",
+    "value": 2
+  },
+  "alice_claims_B_partially_supported": {
+    "display": "0",
+    "source": "prose/table/alice_claims_B/partially_supported",
+    "value": 0
+  },
+  "alice_claims_B_predictions": {
+    "display": "3",
+    "source": "prose/table/alice_claims_B/predictions",
+    "value": 3
+  },
+  "alice_claims_B_qualification_errors": {
+    "display": "1",
+    "source": "prose/table/alice_claims_B/qualification_errors",
+    "value": 1
+  },
+  "alice_claims_B_references": {
+    "display": "4",
+    "source": "prose/table/alice_claims_B/references",
+    "value": 4
+  },
+  "alice_claims_B_relationship_f1": {
+    "display": "0",
+    "source": "prose/table/alice_claims_B/relationship_f1",
+    "value": 0
+  },
+  "alice_claims_B_relationship_precision": {
+    "display": "0.000",
+    "source": "prose/table/alice_claims_B/relationship_precision",
+    "value": 0.0
+  },
+  "alice_claims_B_relationship_recall": {
+    "display": "0.000",
+    "source": "prose/table/alice_claims_B/relationship_recall",
+    "value": 0.0
+  },
+  "alice_claims_B_semantic_coverage": {
+    "display": "0.750",
+    "source": "prose/table/alice_claims_B/semantic_coverage",
+    "value": 0.75
+  },
+  "alice_claims_B_semantic_targets_covered": {
+    "display": "3",
+    "source": "prose/table/alice_claims_B/semantic_targets_covered",
+    "value": 3
+  },
+  "alice_claims_B_semantically_supported": {
+    "display": "2",
+    "source": "prose/table/alice_claims_B/semantically_supported",
+    "value": 2
+  },
+  "alice_claims_B_source_input_tokens": {
+    "display": "726",
+    "source": "prose/table/alice_claims_B/source_input_tokens",
+    "value": 726
+  },
+  "alice_claims_B_source_output_tokens": {
+    "display": "148",
+    "source": "prose/table/alice_claims_B/source_output_tokens",
+    "value": 148
+  },
+  "alice_claims_B_source_request_seconds": {
+    "display": "3.673",
+    "source": "prose/table/alice_claims_B/source_request_seconds",
+    "value": 3.673451028764248
+  },
+  "alice_claims_B_strict_qualified_f1": {
+    "display": "0",
+    "source": "prose/table/alice_claims_B/strict_qualified_f1",
+    "value": 0
+  },
+  "alice_claims_B_strict_qualified_precision": {
+    "display": "0.000",
+    "source": "prose/table/alice_claims_B/strict_qualified_precision",
+    "value": 0.0
+  },
+  "alice_claims_B_strict_qualified_recall": {
+    "display": "0.000",
+    "source": "prose/table/alice_claims_B/strict_qualified_recall",
+    "value": 0.0
+  },
+  "alice_claims_B_supported_irrelevant": {
+    "display": "0",
+    "source": "prose/table/alice_claims_B/supported_irrelevant",
+    "value": 0
+  },
+  "alice_claims_B_unresolved": {
+    "display": "1",
+    "source": "prose/table/alice_claims_B/unresolved",
+    "value": 1
+  },
+  "alice_claims_B_unsupported": {
+    "display": "0",
+    "source": "prose/table/alice_claims_B/unsupported",
+    "value": 0
+  },
+  "alice_sentences": {
+    "display": "2",
+    "source": "prose/stories/alice/evidence count",
+    "value": 2
+  },
+  "alice_words": {
+    "display": "112",
+    "source": "prose/stories/alice/word_count",
+    "value": 112
+  },
+  "compact_allocated_seconds": {
+    "display": "249.45",
+    "source": "compact/unique calls and allocation/new_allocated_seconds",
+    "value": 249.4524309999997
+  },
+  "compact_calls": {
+    "display": "12",
+    "source": "compact/unique calls and allocation/new_allocated_seconds",
+    "value": 12
+  },
+  "compact_input_tokens": {
+    "display": "8088",
+    "source": "compact/unique calls and allocation/new_allocated_seconds",
+    "value": 8088
+  },
+  "compact_irrelevant_answers": {
+    "display": "9",
+    "source": "compact B evaluation rows containing supported_but_irrelevant",
+    "value": 9
+  },
+  "compact_output_tokens": {
+    "display": "5860",
+    "source": "compact/unique calls and allocation/new_allocated_seconds",
+    "value": 5860
+  },
+  "compact_request_seconds": {
+    "display": "104.72",
+    "source": "compact/unique calls and allocation/new_allocated_seconds",
+    "value": 104.72040081117302
+  },
+  "compact_strict_json": {
+    "display": "12",
+    "source": "compact/calls/syntax_recovery/strict_parseable",
+    "value": 12
+  },
+  "fable_actions_A_citations_valid": {
+    "display": "8",
+    "source": "prose/table/fable_actions_A/citations_valid",
+    "value": 8
+  },
+  "fable_actions_A_contradicted": {
+    "display": "0",
+    "source": "prose/table/fable_actions_A/contradicted",
+    "value": 0
+  },
+  "fable_actions_A_format_compliant": {
+    "display": "7",
+    "source": "prose/table/fable_actions_A/format_compliant",
+    "value": 7
+  },
+  "fable_actions_A_partially_supported": {
+    "display": "1",
+    "source": "prose/table/fable_actions_A/partially_supported",
+    "value": 1
+  },
+  "fable_actions_A_predictions": {
+    "display": "8",
+    "source": "prose/table/fable_actions_A/predictions",
+    "value": 8
+  },
+  "fable_actions_A_qualification_errors": {
+    "display": "1",
+    "source": "prose/table/fable_actions_A/qualification_errors",
+    "value": 1
+  },
+  "fable_actions_A_references": {
+    "display": "8",
+    "source": "prose/table/fable_actions_A/references",
+    "value": 8
+  },
+  "fable_actions_A_relationship_f1": {
+    "display": "0.625",
+    "source": "prose/table/fable_actions_A/relationship_f1",
+    "value": 0.625
+  },
+  "fable_actions_A_relationship_precision": {
+    "display": "0.625",
+    "source": "prose/table/fable_actions_A/relationship_precision",
+    "value": 0.625
+  },
+  "fable_actions_A_relationship_recall": {
+    "display": "0.625",
+    "source": "prose/table/fable_actions_A/relationship_recall",
+    "value": 0.625
+  },
+  "fable_actions_A_semantic_coverage": {
+    "display": "0.750",
+    "source": "prose/table/fable_actions_A/semantic_coverage",
+    "value": 0.75
+  },
+  "fable_actions_A_semantic_targets_covered": {
+    "display": "6",
+    "source": "prose/table/fable_actions_A/semantic_targets_covered",
+    "value": 6
+  },
+  "fable_actions_A_semantically_supported": {
+    "display": "6",
+    "source": "prose/table/fable_actions_A/semantically_supported",
+    "value": 6
+  },
+  "fable_actions_A_source_input_tokens": {
+    "display": "747",
+    "source": "prose/table/fable_actions_A/source_input_tokens",
+    "value": 747
+  },
+  "fable_actions_A_source_output_tokens": {
+    "display": "554",
+    "source": "prose/table/fable_actions_A/source_output_tokens",
+    "value": 554
+  },
+  "fable_actions_A_source_request_seconds": {
+    "display": "10.233",
+    "source": "prose/table/fable_actions_A/source_request_seconds",
+    "value": 10.233250940218568
+  },
+  "fable_actions_A_strict_qualified_f1": {
+    "display": "0.625",
+    "source": "prose/table/fable_actions_A/strict_qualified_f1",
+    "value": 0.625
+  },
+  "fable_actions_A_strict_qualified_precision": {
+    "display": "0.625",
+    "source": "prose/table/fable_actions_A/strict_qualified_precision",
+    "value": 0.625
+  },
+  "fable_actions_A_strict_qualified_recall": {
+    "display": "0.625",
+    "source": "prose/table/fable_actions_A/strict_qualified_recall",
+    "value": 0.625
+  },
+  "fable_actions_A_supported_irrelevant": {
+    "display": "0",
+    "source": "prose/table/fable_actions_A/supported_irrelevant",
+    "value": 0
+  },
+  "fable_actions_A_unresolved": {
+    "display": "1",
+    "source": "prose/table/fable_actions_A/unresolved",
+    "value": 1
+  },
+  "fable_actions_A_unsupported": {
+    "display": "0",
+    "source": "prose/table/fable_actions_A/unsupported",
+    "value": 0
+  },
+  "fable_actions_B_citations_valid": {
+    "display": "5",
+    "source": "prose/table/fable_actions_B/citations_valid",
+    "value": 5
+  },
+  "fable_actions_B_contradicted": {
+    "display": "0",
+    "source": "prose/table/fable_actions_B/contradicted",
+    "value": 0
+  },
+  "fable_actions_B_format_compliant": {
+    "display": "5",
+    "source": "prose/table/fable_actions_B/format_compliant",
+    "value": 5
+  },
+  "fable_actions_B_partially_supported": {
+    "display": "1",
+    "source": "prose/table/fable_actions_B/partially_supported",
+    "value": 1
+  },
+  "fable_actions_B_predictions": {
+    "display": "5",
+    "source": "prose/table/fable_actions_B/predictions",
+    "value": 5
+  },
+  "fable_actions_B_qualification_errors": {
+    "display": "0",
+    "source": "prose/table/fable_actions_B/qualification_errors",
+    "value": 0
+  },
+  "fable_actions_B_references": {
+    "display": "8",
+    "source": "prose/table/fable_actions_B/references",
+    "value": 8
+  },
+  "fable_actions_B_relationship_f1": {
+    "display": "0.308",
+    "source": "prose/table/fable_actions_B/relationship_f1",
+    "value": 0.3076923076923077
+  },
+  "fable_actions_B_relationship_precision": {
+    "display": "0.400",
+    "source": "prose/table/fable_actions_B/relationship_precision",
+    "value": 0.4
+  },
+  "fable_actions_B_relationship_recall": {
+    "display": "0.250",
+    "source": "prose/table/fable_actions_B/relationship_recall",
+    "value": 0.25
+  },
+  "fable_actions_B_semantic_coverage": {
+    "display": "0.500",
+    "source": "prose/table/fable_actions_B/semantic_coverage",
+    "value": 0.5
+  },
+  "fable_actions_B_semantic_targets_covered": {
+    "display": "4",
+    "source": "prose/table/fable_actions_B/semantic_targets_covered",
+    "value": 4
+  },
+  "fable_actions_B_semantically_supported": {
+    "display": "4",
+    "source": "prose/table/fable_actions_B/semantically_supported",
+    "value": 4
+  },
+  "fable_actions_B_source_input_tokens": {
+    "display": "761",
+    "source": "prose/table/fable_actions_B/source_input_tokens",
+    "value": 761
+  },
+  "fable_actions_B_source_output_tokens": {
+    "display": "209",
+    "source": "prose/table/fable_actions_B/source_output_tokens",
+    "value": 209
+  },
+  "fable_actions_B_source_request_seconds": {
+    "display": "3.883",
+    "source": "prose/table/fable_actions_B/source_request_seconds",
+    "value": 3.8829634031280875
+  },
+  "fable_actions_B_strict_qualified_f1": {
+    "display": "0.308",
+    "source": "prose/table/fable_actions_B/strict_qualified_f1",
+    "value": 0.3076923076923077
+  },
+  "fable_actions_B_strict_qualified_precision": {
+    "display": "0.400",
+    "source": "prose/table/fable_actions_B/strict_qualified_precision",
+    "value": 0.4
+  },
+  "fable_actions_B_strict_qualified_recall": {
+    "display": "0.250",
+    "source": "prose/table/fable_actions_B/strict_qualified_recall",
+    "value": 0.25
+  },
+  "fable_actions_B_supported_irrelevant": {
+    "display": "0",
+    "source": "prose/table/fable_actions_B/supported_irrelevant",
+    "value": 0
+  },
+  "fable_actions_B_unresolved": {
+    "display": "0",
+    "source": "prose/table/fable_actions_B/unresolved",
+    "value": 0
+  },
+  "fable_actions_B_unsupported": {
+    "display": "0",
+    "source": "prose/table/fable_actions_B/unsupported",
+    "value": 0
+  },
+  "fable_claims_A_citations_valid": {
+    "display": "1",
+    "source": "prose/table/fable_claims_A/citations_valid",
+    "value": 1
+  },
+  "fable_claims_A_contradicted": {
+    "display": "0",
+    "source": "prose/table/fable_claims_A/contradicted",
+    "value": 0
+  },
+  "fable_claims_A_format_compliant": {
+    "display": "1",
+    "source": "prose/table/fable_claims_A/format_compliant",
+    "value": 1
+  },
+  "fable_claims_A_partially_supported": {
+    "display": "0",
+    "source": "prose/table/fable_claims_A/partially_supported",
+    "value": 0
+  },
+  "fable_claims_A_predictions": {
+    "display": "1",
+    "source": "prose/table/fable_claims_A/predictions",
+    "value": 1
+  },
+  "fable_claims_A_qualification_errors": {
+    "display": "0",
+    "source": "prose/table/fable_claims_A/qualification_errors",
+    "value": 0
+  },
+  "fable_claims_A_references": {
+    "display": "5",
+    "source": "prose/table/fable_claims_A/references",
+    "value": 5
+  },
+  "fable_claims_A_relationship_f1": {
+    "display": "0",
+    "source": "prose/table/fable_claims_A/relationship_f1",
+    "value": 0
+  },
+  "fable_claims_A_relationship_precision": {
+    "display": "0.000",
+    "source": "prose/table/fable_claims_A/relationship_precision",
+    "value": 0.0
+  },
+  "fable_claims_A_relationship_recall": {
+    "display": "0.000",
+    "source": "prose/table/fable_claims_A/relationship_recall",
+    "value": 0.0
+  },
+  "fable_claims_A_semantic_coverage": {
+    "display": "0.400",
+    "source": "prose/table/fable_claims_A/semantic_coverage",
+    "value": 0.4
+  },
+  "fable_claims_A_semantic_targets_covered": {
+    "display": "2",
+    "source": "prose/table/fable_claims_A/semantic_targets_covered",
+    "value": 2
+  },
+  "fable_claims_A_semantically_supported": {
+    "display": "1",
+    "source": "prose/table/fable_claims_A/semantically_supported",
+    "value": 1
+  },
+  "fable_claims_A_source_input_tokens": {
+    "display": "747",
+    "source": "prose/table/fable_claims_A/source_input_tokens",
+    "value": 747
+  },
+  "fable_claims_A_source_output_tokens": {
+    "display": "554",
+    "source": "prose/table/fable_claims_A/source_output_tokens",
+    "value": 554
+  },
+  "fable_claims_A_source_request_seconds": {
+    "display": "10.233",
+    "source": "prose/table/fable_claims_A/source_request_seconds",
+    "value": 10.233250940218568
+  },
+  "fable_claims_A_strict_qualified_f1": {
+    "display": "0",
+    "source": "prose/table/fable_claims_A/strict_qualified_f1",
+    "value": 0
+  },
+  "fable_claims_A_strict_qualified_precision": {
+    "display": "0.000",
+    "source": "prose/table/fable_claims_A/strict_qualified_precision",
+    "value": 0.0
+  },
+  "fable_claims_A_strict_qualified_recall": {
+    "display": "0.000",
+    "source": "prose/table/fable_claims_A/strict_qualified_recall",
+    "value": 0.0
+  },
+  "fable_claims_A_supported_irrelevant": {
+    "display": "0",
+    "source": "prose/table/fable_claims_A/supported_irrelevant",
+    "value": 0
+  },
+  "fable_claims_A_unresolved": {
+    "display": "0",
+    "source": "prose/table/fable_claims_A/unresolved",
+    "value": 0
+  },
+  "fable_claims_A_unsupported": {
+    "display": "0",
+    "source": "prose/table/fable_claims_A/unsupported",
+    "value": 0
+  },
+  "fable_claims_B_citations_valid": {
+    "display": "4",
+    "source": "prose/table/fable_claims_B/citations_valid",
+    "value": 4
+  },
+  "fable_claims_B_contradicted": {
+    "display": "0",
+    "source": "prose/table/fable_claims_B/contradicted",
+    "value": 0
+  },
+  "fable_claims_B_format_compliant": {
+    "display": "4",
+    "source": "prose/table/fable_claims_B/format_compliant",
+    "value": 4
+  },
+  "fable_claims_B_partially_supported": {
+    "display": "3",
+    "source": "prose/table/fable_claims_B/partially_supported",
+    "value": 3
+  },
+  "fable_claims_B_predictions": {
+    "display": "4",
+    "source": "prose/table/fable_claims_B/predictions",
+    "value": 4
+  },
+  "fable_claims_B_qualification_errors": {
+    "display": "2",
+    "source": "prose/table/fable_claims_B/qualification_errors",
+    "value": 2
+  },
+  "fable_claims_B_references": {
+    "display": "5",
+    "source": "prose/table/fable_claims_B/references",
+    "value": 5
+  },
+  "fable_claims_B_relationship_f1": {
+    "display": "0",
+    "source": "prose/table/fable_claims_B/relationship_f1",
+    "value": 0
+  },
+  "fable_claims_B_relationship_precision": {
+    "display": "0.000",
+    "source": "prose/table/fable_claims_B/relationship_precision",
+    "value": 0.0
+  },
+  "fable_claims_B_relationship_recall": {
+    "display": "0.000",
+    "source": "prose/table/fable_claims_B/relationship_recall",
+    "value": 0.0
+  },
+  "fable_claims_B_semantic_coverage": {
+    "display": "0.000",
+    "source": "prose/table/fable_claims_B/semantic_coverage",
+    "value": 0.0
+  },
+  "fable_claims_B_semantic_targets_covered": {
+    "display": "0",
+    "source": "prose/table/fable_claims_B/semantic_targets_covered",
+    "value": 0
+  },
+  "fable_claims_B_semantically_supported": {
+    "display": "1",
+    "source": "prose/table/fable_claims_B/semantically_supported",
+    "value": 1
+  },
+  "fable_claims_B_source_input_tokens": {
+    "display": "767",
+    "source": "prose/table/fable_claims_B/source_input_tokens",
+    "value": 767
+  },
+  "fable_claims_B_source_output_tokens": {
+    "display": "170",
+    "source": "prose/table/fable_claims_B/source_output_tokens",
+    "value": 170
+  },
+  "fable_claims_B_source_request_seconds": {
+    "display": "3.429",
+    "source": "prose/table/fable_claims_B/source_request_seconds",
+    "value": 3.4285581819713116
+  },
+  "fable_claims_B_strict_qualified_f1": {
+    "display": "0",
+    "source": "prose/table/fable_claims_B/strict_qualified_f1",
+    "value": 0
+  },
+  "fable_claims_B_strict_qualified_precision": {
+    "display": "0.000",
+    "source": "prose/table/fable_claims_B/strict_qualified_precision",
+    "value": 0.0
+  },
+  "fable_claims_B_strict_qualified_recall": {
+    "display": "0.000",
+    "source": "prose/table/fable_claims_B/strict_qualified_recall",
+    "value": 0.0
+  },
+  "fable_claims_B_supported_irrelevant": {
+    "display": "0",
+    "source": "prose/table/fable_claims_B/supported_irrelevant",
+    "value": 0
+  },
+  "fable_claims_B_unresolved": {
+    "display": "0",
+    "source": "prose/table/fable_claims_B/unresolved",
+    "value": 0
+  },
+  "fable_claims_B_unsupported": {
+    "display": "0",
+    "source": "prose/table/fable_claims_B/unsupported",
+    "value": 0
+  },
+  "fable_sentences": {
+    "display": "6",
+    "source": "prose/stories/fable/evidence count",
+    "value": 6
+  },
+  "fable_words": {
+    "display": "133",
+    "source": "prose/stories/fable/word_count",
+    "value": 133
+  },
+  "harbor_A_mean": {
+    "display": "0.667",
+    "source": "arithmetic mean of compact/harbor/A three question F1 values",
+    "value": 0.6666666666666666
+  },
+  "harbor_B_mean": {
+    "display": "0.563",
+    "source": "arithmetic mean of compact/harbor/B three question F1 values",
+    "value": 0.562962962962963
+  },
+  "harbor_belief_A_f1": {
+    "display": "0.000",
+    "source": "compact/results/harbor/belief/A/evaluation/full/f1",
+    "value": 0.0
+  },
+  "harbor_belief_A_precision": {
+    "display": "0.000",
+    "source": "compact/results/harbor/belief/A/evaluation/full/precision",
+    "value": 0.0
+  },
+  "harbor_belief_A_predicted": {
+    "display": "5",
+    "source": "compact/results/harbor/belief/A/evaluation/full/predicted",
+    "value": 5
+  },
+  "harbor_belief_A_recall": {
+    "display": "0.000",
+    "source": "compact/results/harbor/belief/A/evaluation/full/recall",
+    "value": 0.0
+  },
+  "harbor_belief_A_reference_count": {
+    "display": "4",
+    "source": "compact/results/harbor/belief/A/evaluation/full/reference_count",
+    "value": 4
+  },
+  "harbor_belief_A_true_positive": {
+    "display": "0",
+    "source": "compact/results/harbor/belief/A/evaluation/full/true_positive",
+    "value": 0
+  },
+  "harbor_belief_B_f1": {
+    "display": "0.222",
+    "source": "compact/results/harbor/belief/B/evaluation/full/f1",
+    "value": 0.22222222222222224
+  },
+  "harbor_belief_B_precision": {
+    "display": "0.143",
+    "source": "compact/results/harbor/belief/B/evaluation/full/precision",
+    "value": 0.14285714285714285
+  },
+  "harbor_belief_B_predicted": {
+    "display": "14",
+    "source": "compact/results/harbor/belief/B/evaluation/full/predicted",
+    "value": 14
+  },
+  "harbor_belief_B_recall": {
+    "display": "0.500",
+    "source": "compact/results/harbor/belief/B/evaluation/full/recall",
+    "value": 0.5
+  },
+  "harbor_belief_B_reference_count": {
+    "display": "4",
+    "source": "compact/results/harbor/belief/B/evaluation/full/reference_count",
+    "value": 4
+  },
+  "harbor_belief_B_true_positive": {
+    "display": "2",
+    "source": "compact/results/harbor/belief/B/evaluation/full/true_positive",
+    "value": 2
+  },
+  "harbor_locations_A_f1": {
+    "display": "1.000",
+    "source": "compact/results/harbor/locations/A/evaluation/full/f1",
+    "value": 1.0
+  },
+  "harbor_locations_A_precision": {
+    "display": "1.000",
+    "source": "compact/results/harbor/locations/A/evaluation/full/precision",
+    "value": 1.0
+  },
+  "harbor_locations_A_predicted": {
+    "display": "4",
+    "source": "compact/results/harbor/locations/A/evaluation/full/predicted",
+    "value": 4
+  },
+  "harbor_locations_A_recall": {
+    "display": "1.000",
+    "source": "compact/results/harbor/locations/A/evaluation/full/recall",
+    "value": 1.0
+  },
+  "harbor_locations_A_reference_count": {
+    "display": "4",
+    "source": "compact/results/harbor/locations/A/evaluation/full/reference_count",
+    "value": 4
+  },
+  "harbor_locations_A_true_positive": {
+    "display": "4",
+    "source": "compact/results/harbor/locations/A/evaluation/full/true_positive",
+    "value": 4
+  },
+  "harbor_locations_B_f1": {
+    "display": "0.800",
+    "source": "compact/results/harbor/locations/B/evaluation/full/f1",
+    "value": 0.8
+  },
+  "harbor_locations_B_precision": {
+    "display": "0.667",
+    "source": "compact/results/harbor/locations/B/evaluation/full/precision",
+    "value": 0.6666666666666666
+  },
+  "harbor_locations_B_predicted": {
+    "display": "6",
+    "source": "compact/results/harbor/locations/B/evaluation/full/predicted",
+    "value": 6
+  },
+  "harbor_locations_B_recall": {
+    "display": "1.000",
+    "source": "compact/results/harbor/locations/B/evaluation/full/recall",
+    "value": 1.0
+  },
+  "harbor_locations_B_reference_count": {
+    "display": "4",
+    "source": "compact/results/harbor/locations/B/evaluation/full/reference_count",
+    "value": 4
+  },
+  "harbor_locations_B_true_positive": {
+    "display": "4",
+    "source": "compact/results/harbor/locations/B/evaluation/full/true_positive",
+    "value": 4
+  },
+  "harbor_possession_A_f1": {
+    "display": "1.000",
+    "source": "compact/results/harbor/possession/A/evaluation/full/f1",
+    "value": 1.0
+  },
+  "harbor_possession_A_precision": {
+    "display": "1.000",
+    "source": "compact/results/harbor/possession/A/evaluation/full/precision",
+    "value": 1.0
+  },
+  "harbor_possession_A_predicted": {
+    "display": "5",
+    "source": "compact/results/harbor/possession/A/evaluation/full/predicted",
+    "value": 5
+  },
+  "harbor_possession_A_recall": {
+    "display": "1.000",
+    "source": "compact/results/harbor/possession/A/evaluation/full/recall",
+    "value": 1.0
+  },
+  "harbor_possession_A_reference_count": {
+    "display": "5",
+    "source": "compact/results/harbor/possession/A/evaluation/full/reference_count",
+    "value": 5
+  },
+  "harbor_possession_A_true_positive": {
+    "display": "5",
+    "source": "compact/results/harbor/possession/A/evaluation/full/true_positive",
+    "value": 5
+  },
+  "harbor_possession_B_f1": {
+    "display": "0.667",
+    "source": "compact/results/harbor/possession/B/evaluation/full/f1",
+    "value": 0.6666666666666666
+  },
+  "harbor_possession_B_precision": {
+    "display": "0.500",
+    "source": "compact/results/harbor/possession/B/evaluation/full/precision",
+    "value": 0.5
+  },
+  "harbor_possession_B_predicted": {
+    "display": "10",
+    "source": "compact/results/harbor/possession/B/evaluation/full/predicted",
+    "value": 10
+  },
+  "harbor_possession_B_recall": {
+    "display": "1.000",
+    "source": "compact/results/harbor/possession/B/evaluation/full/recall",
+    "value": 1.0
+  },
+  "harbor_possession_B_reference_count": {
+    "display": "5",
+    "source": "compact/results/harbor/possession/B/evaluation/full/reference_count",
+    "value": 5
+  },
+  "harbor_possession_B_true_positive": {
+    "display": "5",
+    "source": "compact/results/harbor/possession/B/evaluation/full/true_positive",
+    "value": 5
+  },
+  "harbor_sentences": {
+    "display": "14",
+    "source": "compact/stories/harbor/evidence count",
+    "value": 14
+  },
+  "holmes_actions_A_citations_valid": {
+    "display": "0",
+    "source": "prose/table/holmes_actions_A/citations_valid",
+    "value": 0
+  },
+  "holmes_actions_A_contradicted": {
+    "display": "0",
+    "source": "prose/table/holmes_actions_A/contradicted",
+    "value": 0
+  },
+  "holmes_actions_A_format_compliant": {
+    "display": "0",
+    "source": "prose/table/holmes_actions_A/format_compliant",
+    "value": 0
+  },
+  "holmes_actions_A_partially_supported": {
+    "display": "0",
+    "source": "prose/table/holmes_actions_A/partially_supported",
+    "value": 0
+  },
+  "holmes_actions_A_qualification_errors": {
+    "display": "0",
+    "source": "prose/table/holmes_actions_A/qualification_errors",
+    "value": 0
+  },
+  "holmes_actions_A_references": {
+    "display": "6",
+    "source": "prose/table/holmes_actions_A/references",
+    "value": 6
+  },
+  "holmes_actions_A_semantically_supported": {
+    "display": "0",
+    "source": "prose/table/holmes_actions_A/semantically_supported",
+    "value": 0
+  },
+  "holmes_actions_A_source_input_tokens": {
+    "display": "785",
+    "source": "prose/table/holmes_actions_A/source_input_tokens",
+    "value": 785
+  },
+  "holmes_actions_A_source_output_tokens": {
+    "display": "651",
+    "source": "prose/table/holmes_actions_A/source_output_tokens",
+    "value": 651
+  },
+  "holmes_actions_A_source_request_seconds": {
+    "display": "12.695",
+    "source": "prose/table/holmes_actions_A/source_request_seconds",
+    "value": 12.695497162640095
+  },
+  "holmes_actions_A_supported_irrelevant": {
+    "display": "0",
+    "source": "prose/table/holmes_actions_A/supported_irrelevant",
+    "value": 0
+  },
+  "holmes_actions_A_unresolved": {
+    "display": "0",
+    "source": "prose/table/holmes_actions_A/unresolved",
+    "value": 0
+  },
+  "holmes_actions_A_unsupported": {
+    "display": "0",
+    "source": "prose/table/holmes_actions_A/unsupported",
+    "value": 0
+  },
+  "holmes_actions_B_citations_valid": {
+    "display": "0",
+    "source": "prose/table/holmes_actions_B/citations_valid",
+    "value": 0
+  },
+  "holmes_actions_B_contradicted": {
+    "display": "0",
+    "source": "prose/table/holmes_actions_B/contradicted",
+    "value": 0
+  },
+  "holmes_actions_B_format_compliant": {
+    "display": "0",
+    "source": "prose/table/holmes_actions_B/format_compliant",
+    "value": 0
+  },
+  "holmes_actions_B_partially_supported": {
+    "display": "0",
+    "source": "prose/table/holmes_actions_B/partially_supported",
+    "value": 0
+  },
+  "holmes_actions_B_qualification_errors": {
+    "display": "0",
+    "source": "prose/table/holmes_actions_B/qualification_errors",
+    "value": 0
+  },
+  "holmes_actions_B_references": {
+    "display": "6",
+    "source": "prose/table/holmes_actions_B/references",
+    "value": 6
+  },
+  "holmes_actions_B_semantically_supported": {
+    "display": "0",
+    "source": "prose/table/holmes_actions_B/semantically_supported",
+    "value": 0
+  },
+  "holmes_actions_B_source_input_tokens": {
+    "display": "793",
+    "source": "prose/table/holmes_actions_B/source_input_tokens",
+    "value": 793
+  },
+  "holmes_actions_B_source_output_tokens": {
+    "display": "467",
+    "source": "prose/table/holmes_actions_B/source_output_tokens",
+    "value": 467
+  },
+  "holmes_actions_B_source_request_seconds": {
+    "display": "8.778",
+    "source": "prose/table/holmes_actions_B/source_request_seconds",
+    "value": 8.778309401124716
+  },
+  "holmes_actions_B_supported_irrelevant": {
+    "display": "0",
+    "source": "prose/table/holmes_actions_B/supported_irrelevant",
+    "value": 0
+  },
+  "holmes_actions_B_unresolved": {
+    "display": "0",
+    "source": "prose/table/holmes_actions_B/unresolved",
+    "value": 0
+  },
+  "holmes_actions_B_unsupported": {
+    "display": "0",
+    "source": "prose/table/holmes_actions_B/unsupported",
+    "value": 0
+  },
+  "holmes_claims_A_citations_valid": {
+    "display": "0",
+    "source": "prose/table/holmes_claims_A/citations_valid",
+    "value": 0
+  },
+  "holmes_claims_A_contradicted": {
+    "display": "0",
+    "source": "prose/table/holmes_claims_A/contradicted",
+    "value": 0
+  },
+  "holmes_claims_A_format_compliant": {
+    "display": "0",
+    "source": "prose/table/holmes_claims_A/format_compliant",
+    "value": 0
+  },
+  "holmes_claims_A_partially_supported": {
+    "display": "0",
+    "source": "prose/table/holmes_claims_A/partially_supported",
+    "value": 0
+  },
+  "holmes_claims_A_qualification_errors": {
+    "display": "0",
+    "source": "prose/table/holmes_claims_A/qualification_errors",
+    "value": 0
+  },
+  "holmes_claims_A_references": {
+    "display": "5",
+    "source": "prose/table/holmes_claims_A/references",
+    "value": 5
+  },
+  "holmes_claims_A_semantically_supported": {
+    "display": "0",
+    "source": "prose/table/holmes_claims_A/semantically_supported",
+    "value": 0
+  },
+  "holmes_claims_A_source_input_tokens": {
+    "display": "785",
+    "source": "prose/table/holmes_claims_A/source_input_tokens",
+    "value": 785
+  },
+  "holmes_claims_A_source_output_tokens": {
+    "display": "651",
+    "source": "prose/table/holmes_claims_A/source_output_tokens",
+    "value": 651
+  },
+  "holmes_claims_A_source_request_seconds": {
+    "display": "12.695",
+    "source": "prose/table/holmes_claims_A/source_request_seconds",
+    "value": 12.695497162640095
+  },
+  "holmes_claims_A_supported_irrelevant": {
+    "display": "0",
+    "source": "prose/table/holmes_claims_A/supported_irrelevant",
+    "value": 0
+  },
+  "holmes_claims_A_unresolved": {
+    "display": "0",
+    "source": "prose/table/holmes_claims_A/unresolved",
+    "value": 0
+  },
+  "holmes_claims_A_unsupported": {
+    "display": "0",
+    "source": "prose/table/holmes_claims_A/unsupported",
+    "value": 0
+  },
+  "holmes_claims_B_citations_valid": {
+    "display": "3",
+    "source": "prose/table/holmes_claims_B/citations_valid",
+    "value": 3
+  },
+  "holmes_claims_B_contradicted": {
+    "display": "0",
+    "source": "prose/table/holmes_claims_B/contradicted",
+    "value": 0
+  },
+  "holmes_claims_B_format_compliant": {
+    "display": "3",
+    "source": "prose/table/holmes_claims_B/format_compliant",
+    "value": 3
+  },
+  "holmes_claims_B_partially_supported": {
+    "display": "1",
+    "source": "prose/table/holmes_claims_B/partially_supported",
+    "value": 1
+  },
+  "holmes_claims_B_predictions": {
+    "display": "3",
+    "source": "prose/table/holmes_claims_B/predictions",
+    "value": 3
+  },
+  "holmes_claims_B_qualification_errors": {
+    "display": "2",
+    "source": "prose/table/holmes_claims_B/qualification_errors",
+    "value": 2
+  },
+  "holmes_claims_B_references": {
+    "display": "5",
+    "source": "prose/table/holmes_claims_B/references",
+    "value": 5
+  },
+  "holmes_claims_B_relationship_f1": {
+    "display": "0",
+    "source": "prose/table/holmes_claims_B/relationship_f1",
+    "value": 0
+  },
+  "holmes_claims_B_relationship_precision": {
+    "display": "0.000",
+    "source": "prose/table/holmes_claims_B/relationship_precision",
+    "value": 0.0
+  },
+  "holmes_claims_B_relationship_recall": {
+    "display": "0.000",
+    "source": "prose/table/holmes_claims_B/relationship_recall",
+    "value": 0.0
+  },
+  "holmes_claims_B_semantic_coverage": {
+    "display": "0.000",
+    "source": "prose/table/holmes_claims_B/semantic_coverage",
+    "value": 0.0
+  },
+  "holmes_claims_B_semantic_targets_covered": {
+    "display": "0",
+    "source": "prose/table/holmes_claims_B/semantic_targets_covered",
+    "value": 0
+  },
+  "holmes_claims_B_semantically_supported": {
+    "display": "0",
+    "source": "prose/table/holmes_claims_B/semantically_supported",
+    "value": 0
+  },
+  "holmes_claims_B_source_input_tokens": {
+    "display": "811",
+    "source": "prose/table/holmes_claims_B/source_input_tokens",
+    "value": 811
+  },
+  "holmes_claims_B_source_output_tokens": {
+    "display": "139",
+    "source": "prose/table/holmes_claims_B/source_output_tokens",
+    "value": 139
+  },
+  "holmes_claims_B_source_request_seconds": {
+    "display": "3.442",
+    "source": "prose/table/holmes_claims_B/source_request_seconds",
+    "value": 3.441626865416765
+  },
+  "holmes_claims_B_strict_qualified_f1": {
+    "display": "0",
+    "source": "prose/table/holmes_claims_B/strict_qualified_f1",
+    "value": 0
+  },
+  "holmes_claims_B_strict_qualified_precision": {
+    "display": "0.000",
+    "source": "prose/table/holmes_claims_B/strict_qualified_precision",
+    "value": 0.0
+  },
+  "holmes_claims_B_strict_qualified_recall": {
+    "display": "0.000",
+    "source": "prose/table/holmes_claims_B/strict_qualified_recall",
+    "value": 0.0
+  },
+  "holmes_claims_B_supported_irrelevant": {
+    "display": "0",
+    "source": "prose/table/holmes_claims_B/supported_irrelevant",
+    "value": 0
+  },
+  "holmes_claims_B_unresolved": {
+    "display": "2",
+    "source": "prose/table/holmes_claims_B/unresolved",
+    "value": 2
+  },
+  "holmes_claims_B_unsupported": {
+    "display": "0",
+    "source": "prose/table/holmes_claims_B/unsupported",
+    "value": 0
+  },
+  "holmes_sentences": {
+    "display": "8",
+    "source": "prose/stories/holmes/evidence count",
+    "value": 8
+  },
+  "holmes_words": {
+    "display": "159",
+    "source": "prose/stories/holmes/word_count",
+    "value": 159
+  },
+  "interval_eligible": {
+    "display": "79",
+    "source": "compact/findings: unique-call interval audit denominator",
+    "value": 79
+  },
+  "interval_retained": {
+    "display": "79",
+    "source": "compact/findings: unique-call interval audit numerator",
+    "value": 79
+  },
+  "ladder_allocated_seconds": {
+    "display": "157.35",
+    "source": "ladder/unique calls and allocation/new_allocated_seconds",
+    "value": 157.34785499999998
+  },
+  "ladder_calls": {
+    "display": "8",
+    "source": "ladder/unique calls and allocation/new_allocated_seconds",
+    "value": 8
+  },
+  "ladder_input_tokens": {
+    "display": "1344",
+    "source": "ladder/unique calls and allocation/new_allocated_seconds",
+    "value": 1344
+  },
+  "ladder_output_tokens": {
+    "display": "848",
+    "source": "ladder/unique calls and allocation/new_allocated_seconds",
+    "value": 848
+  },
+  "ladder_request_seconds": {
+    "display": "20.03",
+    "source": "ladder/unique calls and allocation/new_allocated_seconds",
+    "value": 20.034208023920655
+  },
+  "ladder_v2_allocated_seconds": {
+    "display": "171.37",
+    "source": "ladder_v2/unique calls and allocation/new_allocated_seconds",
+    "value": 171.37171300000045
+  },
+  "ladder_v2_calls": {
+    "display": "8",
+    "source": "ladder_v2/unique calls and allocation/new_allocated_seconds",
+    "value": 8
+  },
+  "ladder_v2_input_tokens": {
+    "display": "2594",
+    "source": "ladder_v2/unique calls and allocation/new_allocated_seconds",
+    "value": 2594
+  },
+  "ladder_v2_output_tokens": {
+    "display": "997",
+    "source": "ladder_v2/unique calls and allocation/new_allocated_seconds",
+    "value": 997
+  },
+  "ladder_v2_request_seconds": {
+    "display": "22.45",
+    "source": "ladder_v2/unique calls and allocation/new_allocated_seconds",
+    "value": 22.451166632585227
+  },
+  "main_cost": {
+    "display": "454.82",
+    "source": "sum of compact and prose batch allocation only",
+    "value": 454.81764699999985
+  },
+  "maximum_context": {
+    "display": "12,288",
+    "source": "common compact and prose packing/maximum_context",
+    "value": 12288
+  },
+  "model_repository": {
+    "display": "Qwen/Qwen3-8B-AWQ",
+    "source": "ladder/model/repository",
+    "value": "Qwen/Qwen3-8B-AWQ"
+  },
+  "model_revision": {
+    "display": "4da05a8edb55c6046cce958586c33b61da07bb79",
+    "source": "ladder/model/revision",
+    "value": "4da05a8edb55c6046cce958586c33b61da07bb79"
+  },
+  "model_seed": {
+    "display": "1988649846",
+    "source": "ladder/model/seed",
+    "value": 1988649846
+  },
+  "museum_A_mean": {
+    "display": "0.667",
+    "source": "arithmetic mean of compact/museum/A three question F1 values",
+    "value": 0.6666666666666666
+  },
+  "museum_B_mean": {
+    "display": "0.556",
+    "source": "arithmetic mean of compact/museum/B three question F1 values",
+    "value": 0.5555555555555556
+  },
+  "museum_belief_A_f1": {
+    "display": "0.000",
+    "source": "compact/results/museum/belief/A/evaluation/full/f1",
+    "value": 0.0
+  },
+  "museum_belief_A_precision": {
+    "display": "0.000",
+    "source": "compact/results/museum/belief/A/evaluation/full/precision",
+    "value": 0.0
+  },
+  "museum_belief_A_predicted": {
+    "display": "4",
+    "source": "compact/results/museum/belief/A/evaluation/full/predicted",
+    "value": 4
+  },
+  "museum_belief_A_recall": {
+    "display": "0.000",
+    "source": "compact/results/museum/belief/A/evaluation/full/recall",
+    "value": 0.0
+  },
+  "museum_belief_A_reference_count": {
+    "display": "4",
+    "source": "compact/results/museum/belief/A/evaluation/full/reference_count",
+    "value": 4
+  },
+  "museum_belief_A_true_positive": {
+    "display": "0",
+    "source": "compact/results/museum/belief/A/evaluation/full/true_positive",
+    "value": 0
+  },
+  "museum_belief_B_f1": {
+    "display": "0.222",
+    "source": "compact/results/museum/belief/B/evaluation/full/f1",
+    "value": 0.22222222222222224
+  },
+  "museum_belief_B_precision": {
+    "display": "0.143",
+    "source": "compact/results/museum/belief/B/evaluation/full/precision",
+    "value": 0.14285714285714285
+  },
+  "museum_belief_B_predicted": {
+    "display": "14",
+    "source": "compact/results/museum/belief/B/evaluation/full/predicted",
+    "value": 14
+  },
+  "museum_belief_B_recall": {
+    "display": "0.500",
+    "source": "compact/results/museum/belief/B/evaluation/full/recall",
+    "value": 0.5
+  },
+  "museum_belief_B_reference_count": {
+    "display": "4",
+    "source": "compact/results/museum/belief/B/evaluation/full/reference_count",
+    "value": 4
+  },
+  "museum_belief_B_true_positive": {
+    "display": "2",
+    "source": "compact/results/museum/belief/B/evaluation/full/true_positive",
+    "value": 2
+  },
+  "museum_locations_A_f1": {
+    "display": "1.000",
+    "source": "compact/results/museum/locations/A/evaluation/full/f1",
+    "value": 1.0
+  },
+  "museum_locations_A_precision": {
+    "display": "1.000",
+    "source": "compact/results/museum/locations/A/evaluation/full/precision",
+    "value": 1.0
+  },
+  "museum_locations_A_predicted": {
+    "display": "4",
+    "source": "compact/results/museum/locations/A/evaluation/full/predicted",
+    "value": 4
+  },
+  "museum_locations_A_recall": {
+    "display": "1.000",
+    "source": "compact/results/museum/locations/A/evaluation/full/recall",
+    "value": 1.0
+  },
+  "museum_locations_A_reference_count": {
+    "display": "4",
+    "source": "compact/results/museum/locations/A/evaluation/full/reference_count",
+    "value": 4
+  },
+  "museum_locations_A_true_positive": {
+    "display": "4",
+    "source": "compact/results/museum/locations/A/evaluation/full/true_positive",
+    "value": 4
+  },
+  "museum_locations_B_f1": {
+    "display": "0.889",
+    "source": "compact/results/museum/locations/B/evaluation/full/f1",
+    "value": 0.888888888888889
+  },
+  "museum_locations_B_precision": {
+    "display": "0.800",
+    "source": "compact/results/museum/locations/B/evaluation/full/precision",
+    "value": 0.8
+  },
+  "museum_locations_B_predicted": {
+    "display": "5",
+    "source": "compact/results/museum/locations/B/evaluation/full/predicted",
+    "value": 5
+  },
+  "museum_locations_B_recall": {
+    "display": "1.000",
+    "source": "compact/results/museum/locations/B/evaluation/full/recall",
+    "value": 1.0
+  },
+  "museum_locations_B_reference_count": {
+    "display": "4",
+    "source": "compact/results/museum/locations/B/evaluation/full/reference_count",
+    "value": 4
+  },
+  "museum_locations_B_true_positive": {
+    "display": "4",
+    "source": "compact/results/museum/locations/B/evaluation/full/true_positive",
+    "value": 4
+  },
+  "museum_possession_A_f1": {
+    "display": "1.000",
+    "source": "compact/results/museum/possession/A/evaluation/full/f1",
+    "value": 1.0
+  },
+  "museum_possession_A_precision": {
+    "display": "1.000",
+    "source": "compact/results/museum/possession/A/evaluation/full/precision",
+    "value": 1.0
+  },
+  "museum_possession_A_predicted": {
+    "display": "5",
+    "source": "compact/results/museum/possession/A/evaluation/full/predicted",
+    "value": 5
+  },
+  "museum_possession_A_recall": {
+    "display": "1.000",
+    "source": "compact/results/museum/possession/A/evaluation/full/recall",
+    "value": 1.0
+  },
+  "museum_possession_A_reference_count": {
+    "display": "5",
+    "source": "compact/results/museum/possession/A/evaluation/full/reference_count",
+    "value": 5
+  },
+  "museum_possession_A_true_positive": {
+    "display": "5",
+    "source": "compact/results/museum/possession/A/evaluation/full/true_positive",
+    "value": 5
+  },
+  "museum_possession_B_f1": {
+    "display": "0.556",
+    "source": "compact/results/museum/possession/B/evaluation/full/f1",
+    "value": 0.5555555555555556
+  },
+  "museum_possession_B_precision": {
+    "display": "0.385",
+    "source": "compact/results/museum/possession/B/evaluation/full/precision",
+    "value": 0.38461538461538464
+  },
+  "museum_possession_B_predicted": {
+    "display": "13",
+    "source": "compact/results/museum/possession/B/evaluation/full/predicted",
+    "value": 13
+  },
+  "museum_possession_B_recall": {
+    "display": "1.000",
+    "source": "compact/results/museum/possession/B/evaluation/full/recall",
+    "value": 1.0
+  },
+  "museum_possession_B_reference_count": {
+    "display": "5",
+    "source": "compact/results/museum/possession/B/evaluation/full/reference_count",
+    "value": 5
+  },
+  "museum_possession_B_true_positive": {
+    "display": "5",
+    "source": "compact/results/museum/possession/B/evaluation/full/true_positive",
+    "value": 5
+  },
+  "museum_sentences": {
+    "display": "14",
+    "source": "compact/stories/museum/evidence count",
+    "value": 14
+  },
+  "orchard_A_mean": {
+    "display": "1.000",
+    "source": "arithmetic mean of compact/orchard/A three question F1 values",
+    "value": 1.0
+  },
+  "orchard_B_mean": {
+    "display": "0.497",
+    "source": "arithmetic mean of compact/orchard/B three question F1 values",
+    "value": 0.4967320261437908
+  },
+  "orchard_belief_A_f1": {
+    "display": "1.000",
+    "source": "compact/results/orchard/belief/A/evaluation/full/f1",
+    "value": 1.0
+  },
+  "orchard_belief_A_precision": {
+    "display": "1.000",
+    "source": "compact/results/orchard/belief/A/evaluation/full/precision",
+    "value": 1.0
+  },
+  "orchard_belief_A_predicted": {
+    "display": "4",
+    "source": "compact/results/orchard/belief/A/evaluation/full/predicted",
+    "value": 4
+  },
+  "orchard_belief_A_recall": {
+    "display": "1.000",
+    "source": "compact/results/orchard/belief/A/evaluation/full/recall",
+    "value": 1.0
+  },
+  "orchard_belief_A_reference_count": {
+    "display": "4",
+    "source": "compact/results/orchard/belief/A/evaluation/full/reference_count",
+    "value": 4
+  },
+  "orchard_belief_A_true_positive": {
+    "display": "4",
+    "source": "compact/results/orchard/belief/A/evaluation/full/true_positive",
+    "value": 4
+  },
+  "orchard_belief_B_f1": {
+    "display": "0.235",
+    "source": "compact/results/orchard/belief/B/evaluation/full/f1",
+    "value": 0.23529411764705882
+  },
+  "orchard_belief_B_precision": {
+    "display": "0.154",
+    "source": "compact/results/orchard/belief/B/evaluation/full/precision",
+    "value": 0.15384615384615385
+  },
+  "orchard_belief_B_predicted": {
+    "display": "13",
+    "source": "compact/results/orchard/belief/B/evaluation/full/predicted",
+    "value": 13
+  },
+  "orchard_belief_B_recall": {
+    "display": "0.500",
+    "source": "compact/results/orchard/belief/B/evaluation/full/recall",
+    "value": 0.5
+  },
+  "orchard_belief_B_reference_count": {
+    "display": "4",
+    "source": "compact/results/orchard/belief/B/evaluation/full/reference_count",
+    "value": 4
+  },
+  "orchard_belief_B_true_positive": {
+    "display": "2",
+    "source": "compact/results/orchard/belief/B/evaluation/full/true_positive",
+    "value": 2
+  },
+  "orchard_locations_A_f1": {
+    "display": "1.000",
+    "source": "compact/results/orchard/locations/A/evaluation/full/f1",
+    "value": 1.0
+  },
+  "orchard_locations_A_precision": {
+    "display": "1.000",
+    "source": "compact/results/orchard/locations/A/evaluation/full/precision",
+    "value": 1.0
+  },
+  "orchard_locations_A_predicted": {
+    "display": "4",
+    "source": "compact/results/orchard/locations/A/evaluation/full/predicted",
+    "value": 4
+  },
+  "orchard_locations_A_recall": {
+    "display": "1.000",
+    "source": "compact/results/orchard/locations/A/evaluation/full/recall",
+    "value": 1.0
+  },
+  "orchard_locations_A_reference_count": {
+    "display": "4",
+    "source": "compact/results/orchard/locations/A/evaluation/full/reference_count",
+    "value": 4
+  },
+  "orchard_locations_A_true_positive": {
+    "display": "4",
+    "source": "compact/results/orchard/locations/A/evaluation/full/true_positive",
+    "value": 4
+  },
+  "orchard_locations_B_f1": {
+    "display": "0.667",
+    "source": "compact/results/orchard/locations/B/evaluation/full/f1",
+    "value": 0.6666666666666665
+  },
+  "orchard_locations_B_precision": {
+    "display": "0.600",
+    "source": "compact/results/orchard/locations/B/evaluation/full/precision",
+    "value": 0.6
+  },
+  "orchard_locations_B_predicted": {
+    "display": "5",
+    "source": "compact/results/orchard/locations/B/evaluation/full/predicted",
+    "value": 5
+  },
+  "orchard_locations_B_recall": {
+    "display": "0.750",
+    "source": "compact/results/orchard/locations/B/evaluation/full/recall",
+    "value": 0.75
+  },
+  "orchard_locations_B_reference_count": {
+    "display": "4",
+    "source": "compact/results/orchard/locations/B/evaluation/full/reference_count",
+    "value": 4
+  },
+  "orchard_locations_B_true_positive": {
+    "display": "3",
+    "source": "compact/results/orchard/locations/B/evaluation/full/true_positive",
+    "value": 3
+  },
+  "orchard_possession_A_f1": {
+    "display": "1.000",
+    "source": "compact/results/orchard/possession/A/evaluation/full/f1",
+    "value": 1.0
+  },
+  "orchard_possession_A_precision": {
+    "display": "1.000",
+    "source": "compact/results/orchard/possession/A/evaluation/full/precision",
+    "value": 1.0
+  },
+  "orchard_possession_A_predicted": {
+    "display": "5",
+    "source": "compact/results/orchard/possession/A/evaluation/full/predicted",
+    "value": 5
+  },
+  "orchard_possession_A_recall": {
+    "display": "1.000",
+    "source": "compact/results/orchard/possession/A/evaluation/full/recall",
+    "value": 1.0
+  },
+  "orchard_possession_A_reference_count": {
+    "display": "5",
+    "source": "compact/results/orchard/possession/A/evaluation/full/reference_count",
+    "value": 5
+  },
+  "orchard_possession_A_true_positive": {
+    "display": "5",
+    "source": "compact/results/orchard/possession/A/evaluation/full/true_positive",
+    "value": 5
+  },
+  "orchard_possession_B_f1": {
+    "display": "0.588",
+    "source": "compact/results/orchard/possession/B/evaluation/full/f1",
+    "value": 0.5882352941176471
+  },
+  "orchard_possession_B_precision": {
+    "display": "0.417",
+    "source": "compact/results/orchard/possession/B/evaluation/full/precision",
+    "value": 0.4166666666666667
+  },
+  "orchard_possession_B_predicted": {
+    "display": "12",
+    "source": "compact/results/orchard/possession/B/evaluation/full/predicted",
+    "value": 12
+  },
+  "orchard_possession_B_recall": {
+    "display": "1.000",
+    "source": "compact/results/orchard/possession/B/evaluation/full/recall",
+    "value": 1.0
+  },
+  "orchard_possession_B_reference_count": {
+    "display": "5",
+    "source": "compact/results/orchard/possession/B/evaluation/full/reference_count",
+    "value": 5
+  },
+  "orchard_possession_B_true_positive": {
+    "display": "5",
+    "source": "compact/results/orchard/possession/B/evaluation/full/true_positive",
+    "value": 5
+  },
+  "orchard_sentences": {
+    "display": "14",
+    "source": "compact/stories/orchard/evidence count",
+    "value": 14
+  },
+  "project_cost": {
+    "display": "10717.91",
+    "source": "prose/allocation/actual_allocated_seconds",
+    "value": 10717.909776
+  },
+  "prose_allocated_seconds": {
+    "display": "205.37",
+    "source": "prose/unique calls and allocation/new_allocated_seconds",
+    "value": 205.36521600000015
+  },
+  "prose_calls": {
+    "display": "9",
+    "source": "prose/unique calls and allocation/new_allocated_seconds",
+    "value": 9
+  },
+  "prose_input_tokens": {
+    "display": "6802",
+    "source": "prose/unique calls and allocation/new_allocated_seconds",
+    "value": 6802
+  },
+  "prose_output_tokens": {
+    "display": "2927",
+    "source": "prose/unique calls and allocation/new_allocated_seconds",
+    "value": 2927
+  },
+  "prose_request_seconds": {
+    "display": "57.24",
+    "source": "prose/unique calls and allocation/new_allocated_seconds",
+    "value": 57.23926058784127
+  },
+  "prose_strict_json": {
+    "display": "7",
+    "source": "prose/calls/syntax_recovery/strict_parseable",
+    "value": 7
+  },
+  "reserved_output_tokens": {
+    "display": "2,048",
+    "source": "common compact and prose packing/reserved_output_tokens",
+    "value": 2048
+  },
+  "temperature": {
+    "display": "0.7",
+    "source": "configs/study/decoding.json/temperature",
+    "value": 0.7
+  },
+  "top_k": {
+    "display": "20",
+    "source": "configs/study/decoding.json/top_k",
+    "value": 20
+  },
+  "top_p": {
+    "display": "0.8",
+    "source": "configs/study/decoding.json/top_p",
+    "value": 0.8
+  }
+}

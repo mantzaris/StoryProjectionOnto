@@ -1,0 +1,19 @@
+story,task,approach,source_call,strict_json,syntax_recovered,predictions,citation_valid,format_compliant,source_supported,unresolved,irrelevant,bare_precision,bare_recall,bare_f1
+harbor,possession,A pre-extract/select,1,True,False,5,5,5,5,0,0,1.0,1.0,1.0
+harbor,possession,B contextual,4,True,False,10,10,10,10,0,5,0.5,1.0,0.6666666666666666
+harbor,locations,A pre-extract/select,1,True,False,4,4,4,4,0,0,1.0,1.0,1.0
+harbor,locations,B contextual,5,True,False,6,6,6,6,0,2,0.6666666666666666,1.0,0.8
+harbor,belief,A pre-extract/select,1,True,False,5,5,3,3,2,3,0.0,0.0,0.0
+harbor,belief,B contextual,6,True,False,14,14,14,12,2,10,0.14285714285714285,0.5,0.22222222222222224
+orchard,possession,A pre-extract/select,2,True,False,5,5,5,5,0,0,1.0,1.0,1.0
+orchard,possession,B contextual,7,True,False,12,12,12,12,0,7,0.4166666666666667,1.0,0.5882352941176471
+orchard,locations,A pre-extract/select,2,True,False,4,4,4,4,0,0,1.0,1.0,1.0
+orchard,locations,B contextual,8,True,False,5,5,5,5,0,2,0.6,0.75,0.6666666666666665
+orchard,belief,A pre-extract/select,2,True,False,4,4,4,4,0,0,1.0,1.0,1.0
+orchard,belief,B contextual,9,True,False,13,13,13,11,2,9,0.15384615384615385,0.5,0.23529411764705882
+museum,possession,A pre-extract/select,3,True,False,5,5,5,5,0,0,1.0,1.0,1.0
+museum,possession,B contextual,10,True,False,13,13,11,11,2,6,0.38461538461538464,1.0,0.5555555555555556
+museum,locations,A pre-extract/select,3,True,False,4,4,4,4,0,0,1.0,1.0,1.0
+museum,locations,B contextual,11,True,False,5,5,5,5,0,1,0.8,1.0,0.888888888888889
+museum,belief,A pre-extract/select,3,True,False,4,4,2,2,2,2,0.0,0.0,0.0
+museum,belief,B contextual,12,True,False,14,14,12,12,2,10,0.14285714285714285,0.5,0.22222222222222224

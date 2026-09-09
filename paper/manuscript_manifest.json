@@ -1,0 +1,969 @@
+{
+  "body_word_count_excluding_tables_figures_references_and_code": 3424,
+  "display_transformations": [
+    "Whitespace reflow of source only; selected evidence IDs and omissions explicitly labelled",
+    "Exact endpoint strings; no alias merging, semantic repair or record aggregation",
+    "Predicate underscores replaced by spaces for typography only",
+    "Faceted arrows repeat exact identities; native 178-mm artwork, at least 8.5-point labels",
+    "Harbor B carrying extras shown in a labelled callout; all denominators unchanged"
+  ],
+  "figures": [
+    {
+      "caption": "Figure 1. Aesop's The Lion and the Mouse (Townsend translation). Exact executed question: “Which physical running/waking, capture, binding, rope-gnawing and release relationships involve the Lion, Mouse, hunters and ropes? Exclude dialogue, intentions, laughter and the moral.” A selects from an actual pre-extraction; B is generated independently. All B action records and the A capture, conditional-spare, release, hunter-capture, gnawing and rescue records are shown. A's waking and rope-binding records are omitted only from display (two of eight); full graphs and all scores remain in the supplement. B preserves the later rescue but omits the earlier capture and release; its running relation loses the face-specific endpoint. A's spare claim loses conditional scope. S6, the final speech, is not displayed but was supplied. Faceted arrows reproduce exact generated endpoint strings; repeated names denote the same exact-string node. Undisplayed qualification values are null except the explicitly noted missing key. Colours/symbols reproduce Codex-authored assessments, not independent verification.",
+      "display_callouts": [],
+      "displayed_edges": [
+        {
+          "artist_ids": [
+            "edge-figure_1_fable-fable_A-2-0",
+            "edge-figure_1_fable-fable_A-2-1",
+            "edge-figure_1_fable-fable_A-2-2"
+          ],
+          "dataset": "real",
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S2"
+            ],
+            "holder": null,
+            "object": "a Mouse",
+            "relation": "caught",
+            "subject": "A LION",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "id": "edge-figure_1_fable-fable_A-2",
+          "index": 2,
+          "note": "Frozen reference match, not independent verification.",
+          "panel": "fable_A",
+          "status": "supported",
+          "story": "fable"
+        },
+        {
+          "artist_ids": [
+            "edge-figure_1_fable-fable_B-1-0",
+            "edge-figure_1_fable-fable_B-1-1",
+            "edge-figure_1_fable-fable_B-1-2"
+          ],
+          "dataset": "real",
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "Lion",
+            "relation": "running_over",
+            "subject": "Mouse",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "id": "edge-figure_1_fable-fable_B-1",
+          "index": 1,
+          "note": "S1 says running over the Lion's face. Running over Lion retains the actor and broad action but loses the explicit body-part endpoint. This receives partial support, not full coverage of the frozen face-specific target.",
+          "panel": "fable_B",
+          "status": "partial",
+          "story": "fable"
+        },
+        {
+          "artist_ids": [
+            "edge-figure_1_fable-fable_A-3-0",
+            "edge-figure_1_fable-fable_A-3-1",
+            "edge-figure_1_fable-fable_A-3-2"
+          ],
+          "dataset": "real",
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S2"
+            ],
+            "holder": null,
+            "object": "a Mouse",
+            "relation": "spare",
+            "subject": "A LION",
+            "valid until": null,
+            "valid_from": null
+          },
+          "id": "edge-figure_1_fable-fable_A-3",
+          "index": 3,
+          "note": "S2 contains a conditional request to spare, not the accomplished release (which is in S3). The answer asserts spare without the request/conditional scope and cites S2. It also spells valid_until as 'valid until'. No repair or inferred bound is applied.",
+          "panel": "fable_A",
+          "status": "partial",
+          "story": "fable"
+        },
+        {
+          "artist_ids": [
+            "edge-figure_1_fable-fable_B-2-0",
+            "edge-figure_1_fable-fable_B-2-1",
+            "edge-figure_1_fable-fable_B-2-2"
+          ],
+          "dataset": "real",
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S4"
+            ],
+            "holder": null,
+            "object": "hunters",
+            "relation": "caught_by",
+            "subject": "Lion",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "id": "edge-figure_1_fable-fable_B-2",
+          "index": 2,
+          "note": "S4 supports this passive capture relation exactly in meaning. The frozen strict matcher lacks the inverse caught_by alternative; its strict failure is not a falsehood judgment.",
+          "panel": "fable_B",
+          "status": "supported",
+          "story": "fable"
+        },
+        {
+          "artist_ids": [
+            "edge-figure_1_fable-fable_A-4-0",
+            "edge-figure_1_fable-fable_A-4-1",
+            "edge-figure_1_fable-fable_A-4-2"
+          ],
+          "dataset": "real",
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S3"
+            ],
+            "holder": null,
+            "object": "a Mouse",
+            "relation": "let_go",
+            "subject": "A LION",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "id": "edge-figure_1_fable-fable_A-4",
+          "index": 4,
+          "note": "Frozen reference match, not independent verification.",
+          "panel": "fable_A",
+          "status": "supported",
+          "story": "fable"
+        },
+        {
+          "artist_ids": [
+            "edge-figure_1_fable-fable_B-3-0",
+            "edge-figure_1_fable-fable_B-3-1",
+            "edge-figure_1_fable-fable_B-3-2"
+          ],
+          "dataset": "real",
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S4"
+            ],
+            "holder": null,
+            "object": "ropes",
+            "relation": "bound_by",
+            "subject": "Lion",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "id": "edge-figure_1_fable-fable_B-3",
+          "index": 3,
+          "note": "Frozen reference match, not independent verification.",
+          "panel": "fable_B",
+          "status": "supported",
+          "story": "fable"
+        },
+        {
+          "artist_ids": [
+            "edge-figure_1_fable-fable_A-5-0",
+            "edge-figure_1_fable-fable_A-5-1",
+            "edge-figure_1_fable-fable_A-5-2"
+          ],
+          "dataset": "real",
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S4"
+            ],
+            "holder": null,
+            "object": "some hunters",
+            "relation": "caught_by",
+            "subject": "A LION",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "id": "edge-figure_1_fable-fable_A-5",
+          "index": 5,
+          "note": "S4 explicitly says the Lion was caught by hunters. This passive relation preserves participants and direction; frozen strict synonyms do not include this inverse form. No graph rewriting was performed.",
+          "panel": "fable_A",
+          "status": "supported",
+          "story": "fable"
+        },
+        {
+          "artist_ids": [
+            "edge-figure_1_fable-fable_B-4-0",
+            "edge-figure_1_fable-fable_B-4-1",
+            "edge-figure_1_fable-fable_B-4-2"
+          ],
+          "dataset": "real",
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S5"
+            ],
+            "holder": null,
+            "object": "ropes",
+            "relation": "gnawed",
+            "subject": "Mouse",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "id": "edge-figure_1_fable-fable_B-4",
+          "index": 4,
+          "note": "Frozen reference match, not independent verification.",
+          "panel": "fable_B",
+          "status": "supported",
+          "story": "fable"
+        },
+        {
+          "artist_ids": [
+            "edge-figure_1_fable-fable_A-7-0",
+            "edge-figure_1_fable-fable_A-7-1",
+            "edge-figure_1_fable-fable_A-7-2"
+          ],
+          "dataset": "real",
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S5"
+            ],
+            "holder": null,
+            "object": "the rope",
+            "relation": "gnawed",
+            "subject": "a Mouse",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "id": "edge-figure_1_fable-fable_A-7",
+          "index": 7,
+          "note": "Frozen reference match, not independent verification.",
+          "panel": "fable_A",
+          "status": "supported",
+          "story": "fable"
+        },
+        {
+          "artist_ids": [
+            "edge-figure_1_fable-fable_B-5-0",
+            "edge-figure_1_fable-fable_B-5-1",
+            "edge-figure_1_fable-fable_B-5-2"
+          ],
+          "dataset": "real",
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S5"
+            ],
+            "holder": null,
+            "object": "Mouse",
+            "relation": "freed_by",
+            "subject": "Lion",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "id": "edge-figure_1_fable-fable_B-5",
+          "index": 5,
+          "note": "S5 explicitly says the Mouse set the Lion free. Lion freed_by Mouse is the same directed meaning in passive form, outside the frozen strict synonym set.",
+          "panel": "fable_B",
+          "status": "supported",
+          "story": "fable"
+        },
+        {
+          "artist_ids": [
+            "edge-figure_1_fable-fable_A-8-0",
+            "edge-figure_1_fable-fable_A-8-1",
+            "edge-figure_1_fable-fable_A-8-2"
+          ],
+          "dataset": "real",
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S5"
+            ],
+            "holder": null,
+            "object": "A LION",
+            "relation": "set_free",
+            "subject": "a Mouse",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "id": "edge-figure_1_fable-fable_A-8",
+          "index": 8,
+          "note": "Frozen reference match, not independent verification.",
+          "panel": "fable_A",
+          "status": "supported",
+          "story": "fable"
+        }
+      ],
+      "font_hashes": {
+        "bold": "b184b89e3c1075f22f6b71575b6fc20d4972b3cfd3b23322ca6fd596dcaef167",
+        "normal": "3fdf69cabf06049ea70a00b5919340e2ce1e6d02b0cc3c4b44fb6801bd1e0d22"
+      },
+      "height_mm": 175.15416666666664,
+      "minimum_font_pt": 8.5,
+      "name": "figure_1_fable",
+      "panels": [
+        "fable_A",
+        "fable_B"
+      ],
+      "width_mm": 178
+    },
+    {
+      "caption": "Figure 2. Harbor location comparison. Exact executed question: “Which directly narrated location relationships have an explicitly stated interval overlapping day 2 up to but not including day 4? Return all of them with their full evidence-stated intervals, not clipped to the question window. Exclude undated locations and beliefs.” All four A location records and the four corresponding B records are displayed. B's other two records are reproduced in the labelled carrying callout and remain in its six-prediction denominator. Both methods preserve source intervals; the shaded question window selects overlap and does not redefine validity. Circles distinguish included starts from excluded ends. Only S5–S8 are printed; the model received the same complete fourteen-sentence story in every call. A is fixed selection; B is independent generation. All generated holder/attitude values in these records are null. This is an extraction/relevance comparison, not ontology construction.",
+      "display_callouts": [
+        {
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S3"
+            ],
+            "holder": null,
+            "object": "Cobalt Compass",
+            "relation": "carries",
+            "subject": "Priya",
+            "valid_from": 0,
+            "valid_until": 6
+          },
+          "index": 1,
+          "note": "supported_but_irrelevant",
+          "status": "irrelevant"
+        },
+        {
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S4"
+            ],
+            "holder": null,
+            "object": "Amber Lantern",
+            "relation": "carries",
+            "subject": "Lena",
+            "valid_from": 1,
+            "valid_until": 5
+          },
+          "index": 2,
+          "note": "supported_but_irrelevant",
+          "status": "irrelevant"
+        }
+      ],
+      "displayed_edges": [
+        {
+          "artist_ids": [
+            "edge-figure_2_harbor-harbor_A_locations-1-0",
+            "edge-figure_2_harbor-harbor_A_locations-1-1",
+            "edge-figure_2_harbor-harbor_A_locations-1-2"
+          ],
+          "dataset": "synthetic",
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S5"
+            ],
+            "holder": null,
+            "object": "North Hall",
+            "relation": "located_in",
+            "subject": "Lena",
+            "valid_from": 1,
+            "valid_until": 5
+          },
+          "id": "edge-figure_2_harbor-harbor_A_locations-1",
+          "index": 1,
+          "note": "correct_complete_fact",
+          "panel": "harbor_A_locations",
+          "status": "supported",
+          "story": "harbor"
+        },
+        {
+          "artist_ids": [
+            "edge-figure_2_harbor-harbor_B_locations-3-0",
+            "edge-figure_2_harbor-harbor_B_locations-3-1",
+            "edge-figure_2_harbor-harbor_B_locations-3-2"
+          ],
+          "dataset": "synthetic",
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S5"
+            ],
+            "holder": null,
+            "object": "North Hall",
+            "relation": "located_in",
+            "subject": "Lena",
+            "valid_from": 1,
+            "valid_until": 5
+          },
+          "id": "edge-figure_2_harbor-harbor_B_locations-3",
+          "index": 3,
+          "note": "correct_complete_fact",
+          "panel": "harbor_B_locations",
+          "status": "supported",
+          "story": "harbor"
+        },
+        {
+          "artist_ids": [
+            "edge-figure_2_harbor-harbor_A_locations-2-0",
+            "edge-figure_2_harbor-harbor_A_locations-2-1",
+            "edge-figure_2_harbor-harbor_A_locations-2-2"
+          ],
+          "dataset": "synthetic",
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S6"
+            ],
+            "holder": null,
+            "object": "East Garden",
+            "relation": "located_in",
+            "subject": "Omar",
+            "valid_from": 0,
+            "valid_until": 3
+          },
+          "id": "edge-figure_2_harbor-harbor_A_locations-2",
+          "index": 2,
+          "note": "correct_complete_fact",
+          "panel": "harbor_A_locations",
+          "status": "supported",
+          "story": "harbor"
+        },
+        {
+          "artist_ids": [
+            "edge-figure_2_harbor-harbor_B_locations-4-0",
+            "edge-figure_2_harbor-harbor_B_locations-4-1",
+            "edge-figure_2_harbor-harbor_B_locations-4-2"
+          ],
+          "dataset": "synthetic",
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S6"
+            ],
+            "holder": null,
+            "object": "East Garden",
+            "relation": "located_in",
+            "subject": "Omar",
+            "valid_from": 0,
+            "valid_until": 3
+          },
+          "id": "edge-figure_2_harbor-harbor_B_locations-4",
+          "index": 4,
+          "note": "correct_complete_fact",
+          "panel": "harbor_B_locations",
+          "status": "supported",
+          "story": "harbor"
+        },
+        {
+          "artist_ids": [
+            "edge-figure_2_harbor-harbor_A_locations-3-0",
+            "edge-figure_2_harbor-harbor_A_locations-3-1",
+            "edge-figure_2_harbor-harbor_A_locations-3-2"
+          ],
+          "dataset": "synthetic",
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S7"
+            ],
+            "holder": null,
+            "object": "Stone Shed",
+            "relation": "located_in",
+            "subject": "Priya",
+            "valid_from": 3,
+            "valid_until": 6
+          },
+          "id": "edge-figure_2_harbor-harbor_A_locations-3",
+          "index": 3,
+          "note": "correct_complete_fact",
+          "panel": "harbor_A_locations",
+          "status": "supported",
+          "story": "harbor"
+        },
+        {
+          "artist_ids": [
+            "edge-figure_2_harbor-harbor_B_locations-5-0",
+            "edge-figure_2_harbor-harbor_B_locations-5-1",
+            "edge-figure_2_harbor-harbor_B_locations-5-2"
+          ],
+          "dataset": "synthetic",
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S7"
+            ],
+            "holder": null,
+            "object": "Stone Shed",
+            "relation": "located_in",
+            "subject": "Priya",
+            "valid_from": 3,
+            "valid_until": 6
+          },
+          "id": "edge-figure_2_harbor-harbor_B_locations-5",
+          "index": 5,
+          "note": "correct_complete_fact",
+          "panel": "harbor_B_locations",
+          "status": "supported",
+          "story": "harbor"
+        },
+        {
+          "artist_ids": [
+            "edge-figure_2_harbor-harbor_A_locations-4-0",
+            "edge-figure_2_harbor-harbor_A_locations-4-1",
+            "edge-figure_2_harbor-harbor_A_locations-4-2"
+          ],
+          "dataset": "synthetic",
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S8"
+            ],
+            "holder": null,
+            "object": "West Pier",
+            "relation": "located_in",
+            "subject": "Silver Flute",
+            "valid_from": 2,
+            "valid_until": 4
+          },
+          "id": "edge-figure_2_harbor-harbor_A_locations-4",
+          "index": 4,
+          "note": "correct_complete_fact",
+          "panel": "harbor_A_locations",
+          "status": "supported",
+          "story": "harbor"
+        },
+        {
+          "artist_ids": [
+            "edge-figure_2_harbor-harbor_B_locations-6-0",
+            "edge-figure_2_harbor-harbor_B_locations-6-1",
+            "edge-figure_2_harbor-harbor_B_locations-6-2"
+          ],
+          "dataset": "synthetic",
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S8"
+            ],
+            "holder": null,
+            "object": "West Pier",
+            "relation": "located_in",
+            "subject": "Silver Flute",
+            "valid_from": 2,
+            "valid_until": 4
+          },
+          "id": "edge-figure_2_harbor-harbor_B_locations-6",
+          "index": 6,
+          "note": "correct_complete_fact",
+          "panel": "harbor_B_locations",
+          "status": "supported",
+          "story": "harbor"
+        }
+      ],
+      "font_hashes": {
+        "bold": "b184b89e3c1075f22f6b71575b6fc20d4972b3cfd3b23322ca6fd596dcaef167",
+        "normal": "3fdf69cabf06049ea70a00b5919340e2ce1e6d02b0cc3c4b44fb6801bd1e0d22"
+      },
+      "height_mm": 160.6197222222222,
+      "minimum_font_pt": 8.5,
+      "name": "figure_2_harbor",
+      "panels": [
+        "harbor_A_locations",
+        "harbor_B_locations"
+      ],
+      "width_mm": 178
+    },
+    {
+      "caption": "Figure 3. Carroll's Alice opening passage, supplied unchanged to both B requests. Exact action question: “Which sitting/location, reading/inspection and running relationships involve Alice, her sister, the book, bank and Rabbit? Exclude thoughts, feelings, appearance and book-content properties.” Exact claims question: “What does the passage say about the book's absent content and Alice's thoughts about the usefulness of such books and making a daisy-chain? Exclude physical actions, locations, appearance and the Rabbit; preserve questions and consideration without treating them as decisions.” Three of five action records show inspection, incorrect assignment of reading to Alice, and the Rabbit's literal object ‘close by her’; the two sitting records remain in the full graph and score. All three claims records are shown. The sentence-valued thinks object preserves rhetorical meaning but not the requested decomposed attribution structure; it is not redrawn as a corrected proposition. The daisy-chain record lacks attitude alongside holder Alice and may turn consideration into a judgment. All generated bounds are null; other holder/attitude fields are null. Display line breaks and underscore-to-space predicate typography do not change identities, meanings or evaluations. Status labels reproduce the retained Codex assessment.",
+      "display_callouts": [],
+      "displayed_edges": [
+        {
+          "artist_ids": [
+            "edge-figure_3_alice-alice_B_actions-3-0",
+            "edge-figure_3_alice-alice_B_actions-3-1",
+            "edge-figure_3_alice-alice_B_actions-3-2"
+          ],
+          "dataset": "real",
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "the book",
+            "relation": "peeped_into",
+            "subject": "Alice",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "id": "edge-figure_3_alice-alice_B_actions-3",
+          "index": 3,
+          "note": "Frozen reference match, not independent verification.",
+          "panel": "alice_B_actions",
+          "status": "supported",
+          "story": "alice"
+        },
+        {
+          "artist_ids": [
+            "edge-figure_3_alice-alice_B_actions-4-0",
+            "edge-figure_3_alice-alice_B_actions-4-1",
+            "edge-figure_3_alice-alice_B_actions-4-2"
+          ],
+          "dataset": "real",
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "the book",
+            "relation": "reading",
+            "subject": "Alice",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "id": "edge-figure_3_alice-alice_B_actions-4",
+          "index": 4,
+          "note": "S1 explicitly assigns reading to the sister and peeping to Alice. It does not support Alice reading the book. This is an unsupported participant/action assignment, not proof that Alice never read anything.",
+          "panel": "alice_B_actions",
+          "status": "unsupported",
+          "story": "alice"
+        },
+        {
+          "artist_ids": [
+            "edge-figure_3_alice-alice_B_actions-5-0",
+            "edge-figure_3_alice-alice_B_actions-5-1",
+            "edge-figure_3_alice-alice_B_actions-5-2"
+          ],
+          "dataset": "real",
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S2"
+            ],
+            "holder": null,
+            "object": "close by her",
+            "relation": "ran",
+            "subject": "White Rabbit",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "id": "edge-figure_3_alice-alice_B_actions-5",
+          "index": 5,
+          "note": "S2 says the White Rabbit ran close by her, with her unambiguously Alice in the supplied passage. The output retains that exact referential phrase in its object. Manual meaning credit does not merge graph endpoints or change the strict matcher.",
+          "panel": "alice_B_actions",
+          "status": "supported",
+          "story": "alice"
+        },
+        {
+          "artist_ids": [
+            "edge-figure_3_alice-alice_B_claims-1-0",
+            "edge-figure_3_alice-alice_B_claims-1-1",
+            "edge-figure_3_alice-alice_B_claims-1-2"
+          ],
+          "dataset": "real",
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "pictures or conversations",
+            "relation": "lacks",
+            "subject": "book",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "id": "edge-figure_3_alice-alice_B_claims-1",
+          "index": 1,
+          "note": "S1 explicitly says the book has no pictures or conversations. The combined negative object preserves both absent-content targets; one record receives one supported-record credit, and two unique semantic-coverage credits. No splitting or new model facts are performed.",
+          "panel": "alice_B_claims",
+          "status": "supported",
+          "story": "alice"
+        },
+        {
+          "artist_ids": [
+            "edge-figure_3_alice-alice_B_claims-2-0",
+            "edge-figure_3_alice-alice_B_claims-2-1",
+            "edge-figure_3_alice-alice_B_claims-2-2"
+          ],
+          "dataset": "real",
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "use of a book without pictures or conversations is questionable",
+            "relation": "thinks",
+            "subject": "Alice",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "id": "edge-figure_3_alice-alice_B_claims-2",
+          "index": 2,
+          "note": "The subject Alice, mental predicate thinks, and object questioning the use of a pictureless/conversationless book preserve her rhetorical thought from S1. It is not asserted as objective uselessness. This semantically supported mental-act representation remains a strict wording mismatch.",
+          "panel": "alice_B_claims",
+          "status": "supported",
+          "story": "alice"
+        },
+        {
+          "artist_ids": [
+            "edge-figure_3_alice-alice_B_claims-3-0",
+            "edge-figure_3_alice-alice_B_claims-3-1",
+            "edge-figure_3_alice-alice_B_claims-3-2"
+          ],
+          "dataset": "real",
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S2"
+            ],
+            "holder": "Alice",
+            "object": "worth the trouble of getting up and picking the daisies",
+            "relation": "considered",
+            "subject": "making a daisy-chain",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "id": "edge-figure_3_alice-alice_B_claims-3",
+          "index": 3,
+          "note": "S2 says Alice is considering WHETHER making the chain would be worth the trouble. 'considered worth' may instead mean judged worthwhile. The missing attitude alongside holder Alice also violates the compact pairing rule. Source support for a settled positive judgment cannot be established; do not award the consideration target by guessing.",
+          "panel": "alice_B_claims",
+          "status": "unresolved",
+          "story": "alice"
+        }
+      ],
+      "font_hashes": {
+        "bold": "b184b89e3c1075f22f6b71575b6fc20d4972b3cfd3b23322ca6fd596dcaef167",
+        "normal": "3fdf69cabf06049ea70a00b5919340e2ce1e6d02b0cc3c4b44fb6801bd1e0d22"
+      },
+      "height_mm": 173.39027777777778,
+      "minimum_font_pt": 8.5,
+      "name": "figure_3_alice",
+      "panels": [
+        "alice_B_actions",
+        "alice_B_claims"
+      ],
+      "width_mm": 178
+    }
+  ],
+  "generator": "python -m scripts.build_poc_manuscript",
+  "inputs": {
+    "configs/study/decoding.json": "30fb9c6f22bd9cacf4cb5c97651b58608ca29c636a2ebebcdf05b9a2aa474a8a",
+    "paper/README.md": "dac2e90586c7fa6fe7bf3701c95ed0f18f723fcdc7712e3b92ac9048eed94be2",
+    "paper/manuscript_source.md": "9861803d98bed50230b9be41b13c58747db46005b37c022b34cd6d29725e624e",
+    "paper/reference_sources.json": "a16c16b307bee79b76a37fdb90dac42302c3eff10cd6bb8dffaf2bc550d2e07d",
+    "paper/requirements.txt": "0024a724e8f3e85d743229df4b35a0a6c6c0dbf37151dbe8b97be9ef7ca26ab8",
+    "reports/PAPER_FIGURES.pdf": "f9cba0063e07c4f86f14fc58d7b04e0ea479132d94a2df181b278c7d91e581df",
+    "reports/figures/paper/FULL_OUTPUT_SUPPLEMENT.pdf": "fcc8675d6210a54d2f722d365f3afb4cdeb64060121dd46dd72d74ab42fb23b5",
+    "scripts/build_paper_figures.py": "be09667876aaee27b6b7130586dc08132f561c0e30c924418209158e39246631",
+    "scripts/build_poc_manuscript.py": "7356228810733d38117852dd858f386f841af2862398a319942a1dec8ced807d"
+  },
+  "numerical_registry": "tables/numerical_registry.json",
+  "outputs": {
+    "FIGURE_CAPTIONS.md": "07519ce91e1ab4b212d089e7b7e11391bf0a54af2c916b793fd3ab9abea73125",
+    "PROOF_OF_CONCEPT.md": "e62a08d12c8251830703bbaf9200d0c66d5445054ecdc27be185f0c800cc18b9",
+    "PROOF_OF_CONCEPT.pdf": "992231fa993ef1b0369e6005f00901bdcd98725988ad65d376ab57564226b206",
+    "README.md": "dac2e90586c7fa6fe7bf3701c95ed0f18f723fcdc7712e3b92ac9048eed94be2",
+    "SUPPLEMENTARY_MATERIAL.md": "82e9f17e5a5216233f3f0997f42e719d83a8439c274398bcd8fd895cb83c0a76",
+    "SUPPLEMENTARY_MATERIAL.pdf": "e3cf77be74744de57c51532ee55b97da32fc61925233386f39ad001f2166ebb2",
+    "figures/DEJAVU_FONT_LICENSE.txt": "7fc25cbf33ef7f294d7599b9bd6e973fd6358a2e89a49b026b5ee6e4551b2a56",
+    "figures/figure_1_fable.pdf": "85b6076f202bf15f0ee767591f91a41225a7e8bdf97272f36256e8a477c5606b",
+    "figures/figure_1_fable.png": "88967a711be66a1f6acff1938cb977f7a4f15d0bef4db7be25f42cdd58e41f18",
+    "figures/figure_1_fable.svg": "ab4081c708246f622ecea2914c26d400d6ee3efa3a854dfbdef075f621fb965a",
+    "figures/figure_2_harbor.pdf": "4103d811039d2eb6b74e4f94b3f6dce4b38b815edcd5a751136dee82686e4bf7",
+    "figures/figure_2_harbor.png": "fb6464c3582d3d36a70c04fdb462e128486c1761a66912f48c4fdeccac412e0a",
+    "figures/figure_2_harbor.svg": "da4cf319842c0b09a782a4da27903ace294e59dd44a604122466990f9ebe023c",
+    "figures/figure_3_alice.pdf": "60b54c2929f2773dc69cdf72c95d194713a93695c6734b42c04355bd0b852047",
+    "figures/figure_3_alice.png": "d5ab4a295864ea86d7a6a922cdb6d2dd436b5a85900c8cd69d5a4c9c605be7d6",
+    "figures/figure_3_alice.svg": "6889ee6563bac1676626340976888ee65c7c9ae406fcd6d37d5c88f0f4a27232",
+    "figures/index.html": "9710728a04da00f0eb3df25134044034f704a7af75869ce8be14bd22971e9f65",
+    "manuscript_source.md": "9861803d98bed50230b9be41b13c58747db46005b37c022b34cd6d29725e624e",
+    "reference_sources.json": "a16c16b307bee79b76a37fdb90dac42302c3eff10cd6bb8dffaf2bc550d2e07d",
+    "references.bib": "4bac20c3d9f389a3088518613ed5518506ed0eaefd24292c4061ef4aa0b79564",
+    "requirements.txt": "0024a724e8f3e85d743229df4b35a0a6c6c0dbf37151dbe8b97be9ef7ca26ab8",
+    "supplement_front.pdf": "e8f6329021eaa422930c730b03995bb2a236a1a9f8bee5459503ee104d3c1613",
+    "tables/allocation.csv": "abd8f93899f822c681cbb131e13bf693af8110c68bea79415b94d23309c74f92",
+    "tables/allocation.json": "d31af4d90c5bc29134cece521a8f89bd7ea740ee5d4e7cd9abe531ff53dd0947",
+    "tables/compact_assertion_assessments.json": "25ab394f82f358b6ba74d71ca3358cfa1dbbc5fb50af5e1ead5caf13aa2d79ac",
+    "tables/compact_comparison.csv": "2fa5ef5dde8fed0b61270221d09a801a9874d682a7be591a6354b62f9655545d",
+    "tables/compact_comparison.json": "284d53943c8eafd38460bffd2f59d092fd2ca235d95f59529418221563f0edb0",
+    "tables/compact_components.csv": "f5c57f7df5c6983fa7ab919d60f192ae4a156dfaea6ad0bd5dba94d62c1d90f6",
+    "tables/compact_components.json": "5b49022bc1a73d04d2f04528b94e3d8c6c67fb96df39f9d94597a74d962567a5",
+    "tables/historical_syntax_recovery.json": "96ee7e019772ffb83e38df400f1831d8e4aa0f912b1b81e14ba2e6c3d2bd567a",
+    "tables/ladder.csv": "39e096f692d4e0168e2f6ff289e49ade5215f23e491bcac6cebe7fbbbcab1137",
+    "tables/ladder.json": "bba8bcd167fb680e81c5ad0394609b38573dd9a86af60f810c0a30db863ab33f",
+    "tables/ladder_v2.csv": "ebd58c15e278862c803ad9c65f4f48fe7243f4031fa4f916e74e64ee5ef39c9a",
+    "tables/ladder_v2.json": "2754910485c384cb2e66174fae79e3e74119520b0bfb907ae3b6f184db9e8113",
+    "tables/numerical_registry.json": "48e2288cf3b08bbebc3ebe4a538b8c14595ee98e760e4ccb3238a705df0dbeaf",
+    "tables/published_comparison.csv": "8880793e55bc32f406fbd07b5079e5677dfb476573538b01dca33a7e20ea8b49",
+    "tables/published_comparison.json": "0d580a9d92b4836f12c407da39afd213cda4eebbc915dd658e7a64a212637987"
+  },
+  "reference_verification_date": "2026-09-09",
+  "references": [
+    {
+      "author": "Banko, Michele and Cafarella, Michael J. and Soderland, Stephen and Broadhead, Matt and Etzioni, Oren",
+      "booktitle": "Proceedings of IJCAI",
+      "id": "banko2007",
+      "label": "Banko et al., 2007",
+      "pages": "2670--2676",
+      "supports": "Open information extraction produces relational tuples from unrestricted text rather than requiring a separately trained extractor for each relation.",
+      "title": "Open Information Extraction from the Web",
+      "type": "inproceedings",
+      "url": "https://www.ijcai.org/Proceedings/07/Papers/429.pdf",
+      "year": "2007"
+    },
+    {
+      "author": "Caufield, J. Harry and Hegde, Harshad and Emonet, Vincent and Harris, Nomi L. and Joachimiak, Marcin P. and Matentzoglu, Nicolas and Kim, Hyeong Sik and Moxon, Sierra and Reese, Justin T. and Haendel, Melissa A. and Robinson, Peter N. and Mungall, Christopher J.",
+      "doi": "10.1093/bioinformatics/btae104",
+      "id": "caufield2024",
+      "journal": "Bioinformatics",
+      "label": "Caufield et al., 2024",
+      "number": "3",
+      "pages": "btae104",
+      "supports": "Schema-guided language-model extraction and normalization for knowledge-base population; not evidence that our configuration is accurate.",
+      "title": "Structured Prompt Interrogation and Recursive Extraction of Semantics (SPIRES): a method for populating knowledge bases using zero-shot learning",
+      "type": "article",
+      "url": "https://escholarship.org/uc/item/7b51j34r",
+      "verified_full_text": "https://escholarship.org/content/qt7b51j34r/qt7b51j34r_noSplash_6a244af8c891ec32c4a1394d8ec32ac8.pdf",
+      "volume": "40",
+      "year": "2024"
+    },
+    {
+      "author": "Fokkens, Antske and Vossen, Piek and Rospocher, Marco and Hoekstra, Rinke and van Hage, Willem Robert",
+      "booktitle": "Proceedings of the Workshop on Knowledge Resources for the Socio-Economic Sciences and Humanities associated with RANLP 2017",
+      "doi": "10.26615/978-954-452-040-3_003",
+      "id": "fokkens2017",
+      "label": "Fokkens et al., 2017",
+      "pages": "19--25",
+      "publisher": "INCOMA Inc.",
+      "supports": "Grounding content in sources and representing perspectives and stance separately from propositions.",
+      "title": "GRaSP: Grounded Representation and Source Perspective",
+      "type": "inproceedings",
+      "url": "https://aclanthology.org/W17-7803/",
+      "year": "2017"
+    },
+    {
+      "editor": "Cox, Simon and Little, Chris",
+      "id": "time2017",
+      "institution": "World Wide Web Consortium",
+      "label": "Cox and Little, 2017",
+      "supports": "Distinguishes instants, intervals, durations and temporal ordering. The prototype does not implement the full ontology.",
+      "title": "Time Ontology in OWL",
+      "type": "techreport",
+      "type_label": "W3C Recommendation, 19 October 2017",
+      "url": "https://www.w3.org/TR/2017/REC-owl-time-20171019/",
+      "year": "2017"
+    },
+    {
+      "author": "Heer, Jeffrey and Shneiderman, Ben",
+      "id": "heer2012",
+      "journal": "Communications of the ACM",
+      "label": "Heer and Shneiderman, 2012",
+      "number": "4",
+      "pages": "45--54",
+      "supports": "Selection, filtering and coordinated views as operations in visual analysis.",
+      "title": "Interactive Dynamics for Visual Analysis",
+      "type": "article",
+      "url": "https://idl.uw.edu/papers/interactive-dynamics",
+      "verification_note": "Author-lab page verifies authors, CACM volume/pages and links the paper. Its DOI field points to the Queue edition, so DOI is deliberately omitted rather than mixing editions.",
+      "volume": "55",
+      "year": "2012"
+    },
+    {
+      "archivePrefix": "arXiv",
+      "author": "Yang, An and Li, Anfeng and Yang, Baosong and others",
+      "eprint": "2505.09388",
+      "id": "qwen2025",
+      "label": "Yang et al., 2025",
+      "supports": "Qwen3 model family and its thinking/nonthinking modes; actual run settings are established by repository manifests, not inferred from this paper.",
+      "title": "Qwen3 Technical Report",
+      "type": "misc",
+      "url": "https://arxiv.org/abs/2505.09388",
+      "year": "2025"
+    },
+    {
+      "author": "{Qwen Team}",
+      "id": "qwenmodel",
+      "label": "Qwen Team, model card",
+      "note": "Snapshot 4da05a8edb55c6046cce958586c33b61da07bb79; accessed 9 September 2026",
+      "supports": "Official model repository, AWQ variant, chat-template nonthinking switch and sampling recommendations.",
+      "title": "Qwen3-8B-AWQ model card and pinned snapshot",
+      "type": "misc",
+      "url": "https://huggingface.co/Qwen/Qwen3-8B-AWQ"
+    },
+    {
+      "archivePrefix": "arXiv",
+      "author": "Kwon, Woosuk and Li, Zhuohan and Zhuang, Siyuan and Sheng, Ying and Zheng, Lianmin and Yu, Cody Hao and Gonzalez, Joseph E. and Zhang, Hao and Stoica, Ion",
+      "eprint": "2309.06180",
+      "id": "kwon2023",
+      "label": "Kwon et al., 2023",
+      "note": "SOSP 2023 paper; cited author preprint",
+      "supports": "vLLM serving system and PagedAttention, not a throughput comparison measured here.",
+      "title": "Efficient Memory Management for Large Language Model Serving with PagedAttention",
+      "type": "misc",
+      "url": "https://arxiv.org/abs/2309.06180",
+      "year": "2023"
+    },
+    {
+      "author": "{Aesop}",
+      "id": "aesop",
+      "label": "Aesop, trans. Townsend",
+      "note": "The Lion And The Mouse; retained text retrieved 9 September 2026",
+      "publisher": "Project Gutenberg, ebook 21",
+      "supports": "Source text and translator attribution for the complete fable.",
+      "title": "Three Hundred Aesop's Fables",
+      "translator": "Townsend, George Fyler",
+      "type": "book",
+      "url": "https://www.gutenberg.org/ebooks/21"
+    },
+    {
+      "author": "Carroll, Lewis",
+      "id": "carroll",
+      "label": "Carroll, Alice",
+      "note": "Chapter I, opening passage; retained text retrieved 9 September 2026",
+      "publisher": "Project Gutenberg, ebook 11",
+      "supports": "Source text and attribution for the Alice excerpt.",
+      "title": "Alice's Adventures in Wonderland",
+      "type": "book",
+      "url": "https://www.gutenberg.org/ebooks/11"
+    },
+    {
+      "author": "Doyle, Arthur Conan",
+      "id": "doyle",
+      "label": "Doyle, Holmes",
+      "note": "The Red-Headed League, opening passage; retained text retrieved 9 September 2026",
+      "publisher": "Project Gutenberg, ebook 1661",
+      "supports": "Source text and attribution for the Holmes excerpt.",
+      "title": "The Adventures of Sherlock Holmes",
+      "type": "book",
+      "url": "https://www.gutenberg.org/ebooks/1661"
+    }
+  ],
+  "retained_supplement_pages": {
+    "reports/PAPER_FIGURES.pdf": 8,
+    "reports/figures/paper/FULL_OUTPUT_SUPPLEMENT.pdf": 15
+  },
+  "scope": "Retained outputs only; no new inference, scoring changes or registered-study acceptance",
+  "selection_rationale": {
+    "alice": "Thought meaning preserved despite structural mismatch, with unsupported reading participant",
+    "fable": "Readable capture/rescue example, baseline advantage and partial conditional representation",
+    "harbor": "Explicit intervals plus contextual over-selection, not a success-only example"
+  },
+  "source_artifacts": {
+    "reports/COMPACT_STORY_V2_RESULTS.md": "cfc81e5362bd1ff6035927fea1fbec97c55dc7cea06cc76cc17c5c48773a6298",
+    "reports/REAL_TEXT_PROOF_OF_CONCEPT.md": "7d31491843c99b179a93ce26d07e2147d0d540b6290330d5b0e8aedb996490b0",
+    "reports/figures/compact_story_v2_comparison.html": "a1802863e8019bfc5fb09adf356aefeb094cdf78a63f791ab6743f3bea7c820c",
+    "reports/figures/real_text_proof_of_concept.html": "b68b84adbf96d0821a97107aefcebf078fdabb54418695b8ceac596927dfb194",
+    "reports/tables/compact_story_v2_results.csv": "751e1702e5cd8eb35e09ac5016b36a51d91926b0552b11ae0f9d769a94be163d",
+    "reports/tables/compact_story_v2_results.json": "aa790aa69c049dd400c1ea2228b782b08ec33bbbc8c399ed51ecc16af6b8e77a",
+    "reports/tables/real_text_proof_of_concept.csv": "5eb3b0ad641d59cecc74294b150e5b6071d1220d7857901ee11e49d9dedcde11",
+    "reports/tables/real_text_proof_of_concept.json": "ad118e8aca4b2b3d7ed19abda1879bdfb2f8fac4f21e3f34c541056084742e59",
+    "reports/tables/simple_synthetic_results.json": "ac618c5dfba3c143c8049c1a9dab88ac1c64c4d52f3b65368aed849aea246f1d",
+    "reports/tables/simple_synthetic_v2_results.json": "29a1b52aa285eec3b943e2351c99a57119e59afbebd93901bee568447b320de6"
+  },
+  "source_checkpoint": "e76d52807ab2004d1e644c6f25a49b8b41fd214a",
+  "version": "exploratory-manuscript-v1",
+  "word_count_note": "Approximate whitespace/punctuation-tokenized prose count; table captions also excluded; headings and AI-assistance declaration included."
+}
