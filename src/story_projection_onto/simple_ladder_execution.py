@@ -11,7 +11,7 @@ from dataclasses import asdict
 from .contracts import canonical_sha256
 from .gpu_runtime import ResourceWatchdog, capture_gpu_hardware_identity, capture_tokenizer_manifest
 from .manifest import write_json_atomic
-from .simple_ladder import CONFIG, cases, parse_text, policy, prepare
+from .simple_ladder import cases, parse_text, policy, prepare
 from .store import (
     ArtifactStore,
     AttemptKind,
@@ -35,7 +35,7 @@ def next_case(outcomes):
     return str(len(outcomes) + 1) if len(outcomes) < 8 else None
 
 
-def execute_workload(root, block, run, *, prepare_only=False):
+def execute_workload(root, block, run, *, prepare_only=False, version="v1"):
     from transformers import AutoTokenizer
 
     from scripts.run_capacity_diagnostics import (
@@ -49,7 +49,22 @@ def execute_workload(root, block, run, *, prepare_only=False):
 
     from .scorer_only.simple_ladder import RULE_VERSION, SYNONYMS, evaluate, references, toy_extract
 
-    cfg = policy()
+    if version == "v2":
+        from . import simple_ladder_v2 as protocol
+        from .scorer_only import simple_ladder_v2 as scorer
+
+        cfg = protocol.policy()
+        case_factory, request_factory, next_request = (
+            protocol.cases,
+            protocol.prepare,
+            protocol.next_case,
+        )
+        evaluate, references = scorer.evaluate, scorer.references
+    elif version == "v1":
+        cfg = policy()
+        case_factory, request_factory, next_request = cases, prepare, next_case
+    else:
+        raise ValueError("unknown small diagnostic version")
     ledger, sampler, service = setup(root, run)
     sampler.prepare()
     binding = json.loads((run / "binding.json").read_text())
@@ -66,8 +81,8 @@ def execute_workload(root, block, run, *, prepare_only=False):
         repository="Qwen/Qwen3-8B-AWQ",
         revision="4da05a8edb55c6046cce958586c33b61da07bb79",
     )
-    inputs = cases()
-    requests = {k: prepare(c, tokenizer, manifest) for k, c in inputs.items()}
+    inputs = case_factory()
+    requests = {k: request_factory(c, tokenizer, manifest) for k, c in inputs.items()}
     frozen = {}
     for k, q in requests.items():
         # Effective server request validation, without initializing CUDA/model.
@@ -95,7 +110,9 @@ def execute_workload(root, block, run, *, prepare_only=False):
     immutable(run / "reference-answers-not-transmitted.json", references())
     immutable(
         run / "frozen-scoring.json",
-        {
+        scorer.frozen_rules()
+        if version == "v2"
+        else {
             "version": RULE_VERSION,
             "synonyms": SYNONYMS,
             "progression": "combined direct precision and recall >= 0.8; otherwise one plain control then stop",
@@ -106,7 +123,9 @@ def execute_workload(root, block, run, *, prepare_only=False):
     )
     immutable(
         run / "toy-baseline.json",
-        {
+        {}
+        if version == "v2"
+        else {
             k: {
                 "output": toy_extract(inputs[k]["evidence"]),
                 "evaluation": evaluate(k, toy_extract(inputs[k]["evidence"])),
@@ -165,7 +184,7 @@ def execute_workload(root, block, run, *, prepare_only=False):
             prior_block_seconds=prior,
             stage_seconds=seconds,
             comparison=True,
-            semantic="simple-ladder",
+            semantic="simple-ladder-v2" if version == "v2" else "simple-ladder",
         )
         state.update(
             stage=name,
@@ -176,7 +195,7 @@ def execute_workload(root, block, run, *, prepare_only=False):
         write_json_atomic(state, run / "state.json")
         return deadline - time.monotonic()
 
-    stage("startup", CONFIG["startup_seconds"])
+    stage("startup", cfg.config["startup_seconds"])
     immutable(block / "start-01.json", state | {"admission": admission})
     outcomes = []
     stop_reason = "completed"
@@ -200,13 +219,19 @@ def execute_workload(root, block, run, *, prepare_only=False):
             )
         )
         sampler.sample(sample_id=run.name + "-ready", root_pid=service.pid)
-        while (case_id := next_case(outcomes)) is not None:
-            # A full 45s request, 5s failure drain, 10s validation, 60s shutdown.
-            if state["whole_deadline_monotonic"] - time.monotonic() < 120:
+        while (case_id := next_request(outcomes)) is not None:
+            # Full bounded request, 5s failure drain, 10s validation, 60s shutdown.
+            if state["whole_deadline_monotonic"] - time.monotonic() < cfg.GENERATION + 75:
                 stop_reason = "protected_shutdown_insufficient_next_request_time"
                 break
             n = count_reservations(block, "attempt")
-            cfg.admit(service.actual_allocated_service_seconds, 1, n, generating=True, seconds=60)
+            cfg.admit(
+                service.actual_allocated_service_seconds,
+                1,
+                n,
+                generating=True,
+                seconds=cfg.GENERATION + 15,
+            )
             q = requests[case_id]
             attempt = cfg.BLOCK_ID + f"-attempt-{n + 1}"
             immutable(
@@ -238,12 +263,12 @@ def execute_workload(root, block, run, *, prepare_only=False):
             )
             result, failure = None, None
             tick = time.monotonic()
-            stage("generation_and_exception_drain", 50)
+            stage("generation_and_exception_drain", cfg.GENERATION + 5)
             try:
                 result = service.generate(
                     q,
                     event_id=attempt,
-                    watchdog_seconds=45,
+                    watchdog_seconds=cfg.GENERATION,
                     job_id=job.job_id,
                     attempt_id=attempt,
                     remaining_required_seconds=60,

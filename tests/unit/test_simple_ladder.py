@@ -111,8 +111,9 @@ def test_progression_and_bounds():
 
 
 @pytest.mark.parametrize("basics_pass", [True, False])
+@pytest.mark.parametrize("version", ["v1", "v2"])
 def test_actual_workload_service_guard_and_stream_transport(
-    tmp_path, monkeypatch, pinned, basics_pass
+    tmp_path, monkeypatch, pinned, basics_pass, version
 ):
     import sys
 
@@ -122,6 +123,20 @@ def test_actual_workload_service_guard_and_stream_transport(
     from story_projection_onto.manifest import write_json_atomic
 
     tokenizer, manifest = pinned
+    if version == "v2":
+        from story_projection_onto.scorer_only.simple_ladder_v2 import (
+            references as reference_factory,
+        )
+        from story_projection_onto.simple_ladder_v2 import BASELINE as actual_baseline
+        from story_projection_onto.simple_ladder_v2 import cases as case_factory
+        from story_projection_onto.simple_ladder_v2 import prepare as request_factory
+    else:
+        reference_factory, actual_baseline, case_factory, request_factory = (
+            references,
+            BASELINE,
+            cases,
+            prepare,
+        )
     block = tmp_path / "artifacts/restricted/block"
     run = block / "run"
     run.mkdir(parents=True)
@@ -137,8 +152,8 @@ def test_actual_workload_service_guard_and_stream_transport(
         snapshot_path=Path("artifacts/restricted/pinned-tokenizer-cpu"),
         served_model_name="qwen3-8b-awq-fallback",
     )
-    service.meter.actual_allocated_gpu_seconds = BASELINE
-    service.actual_allocated_service_seconds = BASELINE
+    service.meter.actual_allocated_gpu_seconds = actual_baseline
+    service.actual_allocated_service_seconds = actual_baseline
     seen = []
 
     def transport(url, payload, timeout):
@@ -147,8 +162,8 @@ def test_actual_workload_service_guard_and_stream_transport(
         assert "guided_json" not in payload
         n = str(len(seen))
         text = (
-            json.dumps({"facts": references()[n][0] if basics_pass else []})
-            if n != "3" or basics_pass
+            json.dumps({"facts": reference_factory()[n][0] if basics_pass else []})
+            if n != "3" or basics_pass or version == "v2"
             else "Mira carries a lantern. Tomas owns the lantern. Mira is in the courtyard."
         )
         events = [
@@ -198,22 +213,32 @@ def test_actual_workload_service_guard_and_stream_transport(
             "reserved_output_tokens": q.decoding.maximum_output_tokens,
             "maximum_context": 12288,
         }
-        for k, q in ((k, prepare(c, tokenizer, manifest)) for k, c in cases().items())
+        for k, q in (
+            (k, request_factory(c, tokenizer, manifest)) for k, c in case_factory().items()
+        )
     }
     write_json_atomic(frozen, block / "approved-request-hashes.json")
-    workload.execute_workload(tmp_path, block, run)
+    workload.execute_workload(tmp_path, block, run, version=version)
     terminal = json.loads((run / "terminal.json").read_text())
-    assert len(seen) == (8 if basics_pass else 3)
+    assert len(seen) == (8 if basics_pass or version == "v2" else 3)
     assert service.require_service_capacity.call_count == len(seen)
     assert service.meter.inference.call_count == len(seen)
     assert service.shutdown.call_count == 1
     assert terminal["open_allocations"] == terminal["open_service_journals"] == 0
     assert all(o["transport_complete"] for o in terminal["outcomes"])
-    from scripts.report_simple_ladder import render
+    if version == "v2":
+        from scripts.report_simple_ladder_v2 import render
+    else:
+        from scripts.report_simple_ladder import render
 
     rows = render(run, tmp_path / "reports")
     assert len(rows) == len(seen)
-    assert (tmp_path / "reports/figures/simple_synthetic_comparison.html").exists()
+    filename = (
+        "simple_synthetic_v2_comparison.html"
+        if version == "v2"
+        else "simple_synthetic_comparison.html"
+    )
+    assert (tmp_path / "reports/figures" / filename).exists()
 
 
 def test_actual_ladder_scores_and_report_consistency(tmp_path):
