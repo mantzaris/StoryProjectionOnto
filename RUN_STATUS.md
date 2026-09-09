@@ -1,5 +1,50 @@
 # Run status
 
+Updated: 2026-09-09 UTC — compact v2 batch completed; vLLM stopped.
+
+Branch `implementation/query-dependent-temporal-ontology`; verified pushed baseline
+`a431ae4`; frozen v2 execution checkpoint `9f6102f`. Eight single-attempt,
+unconstrained responses completed below cap; no repair or extra startup.
+Direct/interval controls and original/fresh belief cases have complete P/R/F1=1.
+Office complete F1: original person/continuity 0/0; fresh person/continuity .5/.5.
+All 25 emitted citation lists contain valid supplied string IDs. Belief formatting
+works on these two passages, but office narratives still receive unsupported
+epistemic fields. `held_office`, inverse `held_by`, and an unlisted office suffix
+remain unresolved by the frozen matcher, not retrospectively normalized.
+
+No semantic-organization contrast is established. Both question/reference sets
+permit an office-mediated graph. The fresh pair's mechanical “different fact
+selection” label is limited by inverse-predicate coverage; manual interpretation
+separately identifies a predicate/direction difference, not demonstrated changed
+selected meanings. No original v1 output or score was altered or reclassified.
+
+New allocation **171.371713 s**; cumulative **10,070.219657 s**. Same development
+phase use **3,354.111576 / 3,600 s**, remainder **245.888424 s**. Ten historical
+development starts and thirty-three reservations are preserved. This batch's
+one-start/eight-request authority is exhausted; no further GPU work is initiated.
+Allocation/service journals 0/0 open, GPU processes absent, pod intact. Sampled
+v2 VRAM/RAM/project-storage peaks: 22,582,132,736 / 7,071,289,344 / 17,215,718,608
+bytes. Global scheduled 33,660 / strict actual <36,000 limits remain unchanged.
+
+41 focused v1/v2 tests pass, including actual-output replay, unchanged original
+reports, real workload/transport guards and numeric report consistency. Installed
+vLLM request checks and exact local/remote tokenizer counts passed before launch.
+All 507 recovered hashes match; every pre-v2 ledger row remains; SQLite integrity
+and foreign keys pass. Graphs show model-authored qualifications and all failures.
+
+Results: `reports/SIMPLE_SYNTHETIC_V2_RESULTS.md`; CSV/JSON/manifest under
+`reports/tables/simple_synthetic_v2_*`; graph
+`reports/figures/simple_synthetic_v2_comparison.html`.
+CPU-only reproduction (no inference):
+`python -m scripts.report_simple_ladder_v2 --run artifacts/restricted/simple-v2-backup.TBXLRG/run-20260909T012304816240 --output reports`
+
+C0 competence/contextual scores, registered metrics, the original benchmark and
+mandatory held-out review remain unchanged. No ordinary admission, full-ontology
+acceptance, model reliability, construction efficacy or production-p95 claim.
+No new PDF or automatic return to the full benchmark.
+
+## Original minimal synthetic ladder (historical)
+
 Updated: 2026-09-08 UTC — minimal synthetic ladder completed; vLLM stopped.
 
 Branch `implementation/query-dependent-temporal-ontology`; verified pushed

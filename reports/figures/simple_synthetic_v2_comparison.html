@@ -1,0 +1,2434 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Simple synthetic ladder v2 — format and fresh-counterpart diagnostics</title><style>body{font:16px system-ui;max-width:1000px;margin:30px auto;padding:0 20px;color:#172033}section{border-top:2px solid #cbd5e1;padding:25px 0}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f1f5f9;padding:15px}svg{width:100%;font:14px system-ui}.edge{paint-order:stroke;stroke:white;stroke-width:4px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #ccc;padding:8px;overflow-wrap:anywhere;text-align:left}</style><style>table{table-layout:fixed}th:nth-child(1){width:4%}th:nth-child(2){width:44%}th:nth-child(3){width:18%}th:nth-child(4){width:34%}</style><h1>Simple synthetic ladder v2 — format and fresh-counterpart diagnostics</h1><p>Development diagnostics only; all executed outcomes are shown.</p><p>Highest tested coverage meeting exploratory P/R ≥.8: belief format on original and fresh examples. This is not general reliability.</p><p>Identical office-mediated graphs satisfy both frozen question/reference sets; factual accuracy alone is not ontology-construction evidence.</p><pre>{
+  &quot;original&quot;: {
+    &quot;first_organization&quot;: &quot;office-mediated&quot;,
+    &quot;second_organization&quot;: &quot;unresolved&quot;,
+    &quot;verdict&quot;: &quot;unresolved&quot;,
+    &quot;only_first&quot;: [
+      [
+        &quot;ada&quot;,
+        &quot;held_office&quot;,
+        &quot;harbor warden&quot;
+      ],
+      [
+        &quot;bram&quot;,
+        &quot;held_office&quot;,
+        &quot;harbor warden&quot;
+      ],
+      [
+        &quot;harbor warden&quot;,
+        &quot;responsible_for&quot;,
+        &quot;inspecting boats&quot;
+      ],
+      [
+        &quot;harbor warden&quot;,
+        &quot;responsible_for&quot;,
+        &quot;maintaining beacons&quot;
+      ]
+    ],
+    &quot;only_second&quot;: [
+      [
+        &quot;harbor warden office&quot;,
+        &quot;held_by&quot;,
+        &quot;ada&quot;
+      ],
+      [
+        &quot;harbor warden office&quot;,
+        &quot;held_by&quot;,
+        &quot;bram&quot;
+      ],
+      [
+        &quot;harbor warden office&quot;,
+        &quot;responsible_for&quot;,
+        &quot;inspecting boats&quot;
+      ],
+      [
+        &quot;harbor warden office&quot;,
+        &quot;responsible_for&quot;,
+        &quot;maintaining beacons&quot;
+      ]
+    ],
+    &quot;limitations&quot;: &quot;Ignores cosmetic order, allowed aliases and qualification-only changes. Identical office-mediated answers are permitted by both frozen references; not a required construction contrast or efficacy test.&quot;
+  },
+  &quot;fresh&quot;: {
+    &quot;first_organization&quot;: &quot;office-mediated&quot;,
+    &quot;second_organization&quot;: &quot;office-mediated&quot;,
+    &quot;verdict&quot;: &quot;different fact selection within same organization&quot;,
+    &quot;only_first&quot;: [
+      [
+        &quot;celia&quot;,
+        &quot;holds_office&quot;,
+        &quot;orchard steward&quot;
+      ],
+      [
+        &quot;dax&quot;,
+        &quot;holds_office&quot;,
+        &quot;orchard steward&quot;
+      ]
+    ],
+    &quot;only_second&quot;: [
+      [
+        &quot;orchard steward&quot;,
+        &quot;held_by&quot;,
+        &quot;celia&quot;
+      ],
+      [
+        &quot;orchard steward&quot;,
+        &quot;held_by&quot;,
+        &quot;dax&quot;
+      ]
+    ],
+    &quot;limitations&quot;: &quot;Ignores cosmetic order, allowed aliases and qualification-only changes. Identical office-mediated answers are permitted by both frozen references; not a required construction contrast or efficacy test.&quot;
+  }
+}</pre><p>Manual interpretation (not rescoring): The automatic comparison is unresolved because the continuity answer uses an unlisted office-name suffix and inverse predicate. Visually both answers retain one shared office linked to occupants and responsibilities. No semantic-organization change is established. The frozen mechanical comparator labels changed directed bindings as different fact selection within the same office-mediated organization. That label is not evidence of different selected meanings: the changed edges use held_by in the inverse direction, outside the frozen equivalence rules. The evidence supports only a predicate/direction difference with organization still office-mediated; selection equivalence remains formally unresolved. No construction contrast is established.</p><section id="case-1"><h2>Case 1: regression / direct</h2><pre>S1: Mira carries a lantern.
+S2: Tomas owns the lantern.
+S3: Mira is in the courtyard.</pre><p>Extract every explicitly stated relationship and no inferred relationships.</p><details><summary>Frozen reference answers (not model output)</summary><pre>[
+  [
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S1&quot;
+      ],
+      &quot;object&quot;: &quot;lantern&quot;,
+      &quot;relation&quot;: &quot;carries&quot;,
+      &quot;subject&quot;: &quot;Mira&quot;
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S2&quot;
+      ],
+      &quot;object&quot;: &quot;lantern&quot;,
+      &quot;relation&quot;: &quot;owns&quot;,
+      &quot;subject&quot;: &quot;Tomas&quot;
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S3&quot;
+      ],
+      &quot;object&quot;: &quot;courtyard&quot;,
+      &quot;relation&quot;: &quot;located_in&quot;,
+      &quot;subject&quot;: &quot;Mira&quot;
+    }
+  ]
+]</pre></details><h3>Actual response</h3><pre>{&quot;facts&quot;: [{&quot;subject&quot;:&quot;Mira&quot;,&quot;relation&quot;:&quot;carries&quot;,&quot;object&quot;:&quot;lantern&quot;,&quot;evidence_ids&quot;:[&quot;S1&quot;]},{&quot;subject&quot;:&quot;Tomas&quot;,&quot;relation&quot;:&quot;owns&quot;,&quot;object&quot;:&quot;lantern&quot;,&quot;evidence_ids&quot;:[&quot;S2&quot;]},{&quot;subject&quot;:&quot;Mira&quot;,&quot;relation&quot;:&quot;located_in&quot;,&quot;object&quot;:&quot;courtyard&quot;,&quot;evidence_ids&quot;:[&quot;S3&quot;]}]}</pre><svg viewBox="0 0 860 420" role="img" aria-label="Actual generated relationships"><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#64748b"/></marker></defs><path d="M730.0,200.0 L488.4721359549996,320.7639320225002" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="580.0" y="269.0" text-anchor="middle" class="edge"><tspan x="580.0" dy="0">1. carries</tspan></text><path d="M130.0,200.00000000000003 L371.5278640450004,320.7639320225002" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="280.0" y="256.0" text-anchor="middle" class="edge"><tspan x="280.0" dy="0">2. owns</tspan></text><path d="M730.0,200.0 L488.47213595499954,79.23606797749979" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="580.0" y="119.0" text-anchor="middle" class="edge"><tspan x="580.0" dy="0">3. located_in</tspan></text><rect x="635.0" y="173.0" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="730.0" y="205.0" text-anchor="middle">Mira</text><rect x="335.0" y="323.0" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="430.0" y="355.0" text-anchor="middle">lantern</text><rect x="35.0" y="173.00000000000003" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="130.0" y="205.00000000000003" text-anchor="middle">Tomas</text><rect x="334.99999999999994" y="23.0" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="429.99999999999994" y="55.0" text-anchor="middle">courtyard</text></svg><table><tr><th>#</th><th>Actual fact</th><th>Assessment</th><th>Errors</th></tr><tr><td>1</td><td>{&quot;evidence_ids&quot;: [&quot;S1&quot;], &quot;object&quot;: &quot;lantern&quot;, &quot;relation&quot;: &quot;carries&quot;, &quot;subject&quot;: &quot;Mira&quot;}</td><td>correct complete fact</td><td></td></tr><tr><td>2</td><td>{&quot;evidence_ids&quot;: [&quot;S2&quot;], &quot;object&quot;: &quot;lantern&quot;, &quot;relation&quot;: &quot;owns&quot;, &quot;subject&quot;: &quot;Tomas&quot;}</td><td>correct complete fact</td><td></td></tr><tr><td>3</td><td>{&quot;evidence_ids&quot;: [&quot;S3&quot;], &quot;object&quot;: &quot;courtyard&quot;, &quot;relation&quot;: &quot;located_in&quot;, &quot;subject&quot;: &quot;Mira&quot;}</td><td>correct complete fact</td><td></td></tr></table><p>Complete P/R/F1: 1.000/1.000/1.000; underlying F1 1.000. Tokens 262/73; 2.610 seconds; finish stop.</p><details><summary>Qualification, citation, omission and denominator details</summary><pre>{
+  &quot;citation_valid&quot;: 3,
+  &quot;diagnostic_level_supported&quot;: true,
+  &quot;format_compliant&quot;: 3,
+  &quot;format_unresolved&quot;: 0,
+  &quot;full&quot;: {
+    &quot;f1&quot;: 1.0,
+    &quot;incorrect_or_unmatched&quot;: [],
+    &quot;matches&quot;: [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        2
+      ]
+    ],
+    &quot;missing&quot;: [],
+    &quot;precision&quot;: 1.0,
+    &quot;predicted&quot;: 3,
+    &quot;recall&quot;: 1.0,
+    &quot;reference_count&quot;: 3,
+    &quot;true_positive&quot;: 3
+  },
+  &quot;matched_alternative&quot;: 0,
+  &quot;parseable&quot;: true,
+  &quot;prediction_count&quot;: 3,
+  &quot;qualifications&quot;: {
+    &quot;epistemic&quot;: {
+      &quot;applicable_predictions&quot;: 0,
+      &quot;assessed_absence&quot;: 3,
+      &quot;correct&quot;: 0,
+      &quot;correct_absence&quot;: 3,
+      &quot;precision&quot;: null,
+      &quot;target_count&quot;: 0,
+      &quot;target_recall&quot;: null
+    },
+    &quot;temporal&quot;: {
+      &quot;applicable_predictions&quot;: 0,
+      &quot;assessed_absence&quot;: 3,
+      &quot;correct&quot;: 0,
+      &quot;correct_absence&quot;: 3,
+      &quot;precision&quot;: null,
+      &quot;target_count&quot;: 0,
+      &quot;target_recall&quot;: null
+    }
+  },
+  &quot;records&quot;: [
+    {
+      &quot;assessment&quot;: &quot;correct_complete_fact&quot;,
+      &quot;citation_valid&quot;: true,
+      &quot;complete_correct&quot;: true,
+      &quot;conditional_format_resolved&quot;: true,
+      &quot;epistemic_correct&quot;: true,
+      &quot;fact&quot;: {
+        &quot;evidence_ids&quot;: [
+          &quot;S1&quot;
+        ],
+        &quot;object&quot;: &quot;lantern&quot;,
+        &quot;relation&quot;: &quot;carries&quot;,
+        &quot;subject&quot;: &quot;Mira&quot;
+      },
+      &quot;format_issues&quot;: [],
+      &quot;index&quot;: 0,
+      &quot;meaning_issues&quot;: [],
+      &quot;shape_compliant&quot;: true,
+      &quot;temporal_correct&quot;: true,
+      &quot;underlying_correct&quot;: true
+    },
+    {
+      &quot;assessment&quot;: &quot;correct_complete_fact&quot;,
+      &quot;citation_valid&quot;: true,
+      &quot;complete_correct&quot;: true,
+      &quot;conditional_format_resolved&quot;: true,
+      &quot;epistemic_correct&quot;: true,
+      &quot;fact&quot;: {
+        &quot;evidence_ids&quot;: [
+          &quot;S2&quot;
+        ],
+        &quot;object&quot;: &quot;lantern&quot;,
+        &quot;relation&quot;: &quot;owns&quot;,
+        &quot;subject&quot;: &quot;Tomas&quot;
+      },
+      &quot;format_issues&quot;: [],
+      &quot;index&quot;: 1,
+      &quot;meaning_issues&quot;: [],
+      &quot;shape_compliant&quot;: true,
+      &quot;temporal_correct&quot;: true,
+      &quot;underlying_correct&quot;: true
+    },
+    {
+      &quot;assessment&quot;: &quot;correct_complete_fact&quot;,
+      &quot;citation_valid&quot;: true,
+      &quot;complete_correct&quot;: true,
+      &quot;conditional_format_resolved&quot;: true,
+      &quot;epistemic_correct&quot;: true,
+      &quot;fact&quot;: {
+        &quot;evidence_ids&quot;: [
+          &quot;S3&quot;
+        ],
+        &quot;object&quot;: &quot;courtyard&quot;,
+        &quot;relation&quot;: &quot;located_in&quot;,
+        &quot;subject&quot;: &quot;Mira&quot;
+      },
+      &quot;format_issues&quot;: [],
+      &quot;index&quot;: 2,
+      &quot;meaning_issues&quot;: [],
+      &quot;shape_compliant&quot;: true,
+      &quot;temporal_correct&quot;: true,
+      &quot;underlying_correct&quot;: true
+    }
+  ],
+  &quot;rule_version&quot;: &quot;simple-ladder-v2&quot;,
+  &quot;shape_compliant&quot;: 3,
+  &quot;underlying&quot;: {
+    &quot;f1&quot;: 1.0,
+    &quot;incorrect_or_unmatched&quot;: [],
+    &quot;matches&quot;: [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        2
+      ]
+    ],
+    &quot;missing&quot;: [],
+    &quot;precision&quot;: 1.0,
+    &quot;predicted&quot;: 3,
+    &quot;recall&quot;: 1.0,
+    &quot;reference_count&quot;: 3,
+    &quot;true_positive&quot;: 3
+  }
+}</pre></details></section><section id="case-2"><h2>Case 2: regression / temporal</h2><pre>S1: Ada is in the atrium from day 0 up to but not including day 2.
+S2: Ada is in the library from day 2 up to but not including day 5.</pre><p>State both location relationships with their explicitly given intervals.</p><details><summary>Frozen reference answers (not model output)</summary><pre>[
+  [
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S1&quot;
+      ],
+      &quot;object&quot;: &quot;atrium&quot;,
+      &quot;relation&quot;: &quot;located_in&quot;,
+      &quot;subject&quot;: &quot;Ada&quot;,
+      &quot;valid_from&quot;: 0,
+      &quot;valid_until&quot;: 2
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S2&quot;
+      ],
+      &quot;object&quot;: &quot;library&quot;,
+      &quot;relation&quot;: &quot;located_in&quot;,
+      &quot;subject&quot;: &quot;Ada&quot;,
+      &quot;valid_from&quot;: 2,
+      &quot;valid_until&quot;: 5
+    }
+  ]
+]</pre></details><h3>Actual response</h3><pre>{&quot;facts&quot;: [{&quot;subject&quot;:&quot;Ada&quot;,&quot;relation&quot;:&quot;located_in&quot;,&quot;object&quot;:&quot;atrium&quot;,&quot;evidence_ids&quot;:[&quot;S1&quot;],&quot;valid_from&quot;:0,&quot;valid_until&quot;:2}, {&quot;subject&quot;:&quot;Ada&quot;,&quot;relation&quot;:&quot;located_in&quot;,&quot;object&quot;:&quot;library&quot;,&quot;evidence_ids&quot;:[&quot;S2&quot;],&quot;valid_from&quot;:2,&quot;valid_until&quot;:5}]}</pre><svg viewBox="0 0 860 420" role="img" aria-label="Actual generated relationships"><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#64748b"/></marker></defs><path d="M730.0,200.0 L378.33458822287207,301.5170600771027" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="505.0" y="258.9519052838329" text-anchor="middle" class="edge"><tspan x="505.0" dy="0">1. located_in | [0,2)</tspan></text><path d="M730.0,200.0 L378.33458822287196,98.48293992289733" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="504.99999999999994" y="116.04809471616713" text-anchor="middle" class="edge"><tspan x="504.99999999999994" dy="0">2. located_in | [2,5)</tspan></text><rect x="635.0" y="173.0" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="730.0" y="205.0" text-anchor="middle">Ada</text><rect x="185.00000000000006" y="302.9038105676658" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="280.00000000000006" y="334.9038105676658" text-anchor="middle">atrium</text><rect x="184.9999999999999" y="43.096189432334256" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="279.9999999999999" y="75.09618943233426" text-anchor="middle">library</text></svg><table><tr><th>#</th><th>Actual fact</th><th>Assessment</th><th>Errors</th></tr><tr><td>1</td><td>{&quot;evidence_ids&quot;: [&quot;S1&quot;], &quot;object&quot;: &quot;atrium&quot;, &quot;relation&quot;: &quot;located_in&quot;, &quot;subject&quot;: &quot;Ada&quot;, &quot;valid_from&quot;: 0, &quot;valid_until&quot;: 2}</td><td>correct complete fact</td><td></td></tr><tr><td>2</td><td>{&quot;evidence_ids&quot;: [&quot;S2&quot;], &quot;object&quot;: &quot;library&quot;, &quot;relation&quot;: &quot;located_in&quot;, &quot;subject&quot;: &quot;Ada&quot;, &quot;valid_from&quot;: 2, &quot;valid_until&quot;: 5}</td><td>correct complete fact</td><td></td></tr></table><p>Complete P/R/F1: 1.000/1.000/1.000; underlying F1 1.000. Tokens 278/68; 1.804 seconds; finish stop.</p><details><summary>Qualification, citation, omission and denominator details</summary><pre>{
+  &quot;citation_valid&quot;: 2,
+  &quot;diagnostic_level_supported&quot;: true,
+  &quot;format_compliant&quot;: 2,
+  &quot;format_unresolved&quot;: 0,
+  &quot;full&quot;: {
+    &quot;f1&quot;: 1.0,
+    &quot;incorrect_or_unmatched&quot;: [],
+    &quot;matches&quot;: [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        1
+      ]
+    ],
+    &quot;missing&quot;: [],
+    &quot;precision&quot;: 1.0,
+    &quot;predicted&quot;: 2,
+    &quot;recall&quot;: 1.0,
+    &quot;reference_count&quot;: 2,
+    &quot;true_positive&quot;: 2
+  },
+  &quot;matched_alternative&quot;: 0,
+  &quot;parseable&quot;: true,
+  &quot;prediction_count&quot;: 2,
+  &quot;qualifications&quot;: {
+    &quot;epistemic&quot;: {
+      &quot;applicable_predictions&quot;: 0,
+      &quot;assessed_absence&quot;: 2,
+      &quot;correct&quot;: 0,
+      &quot;correct_absence&quot;: 2,
+      &quot;precision&quot;: null,
+      &quot;target_count&quot;: 0,
+      &quot;target_recall&quot;: null
+    },
+    &quot;temporal&quot;: {
+      &quot;applicable_predictions&quot;: 2,
+      &quot;assessed_absence&quot;: 0,
+      &quot;correct&quot;: 2,
+      &quot;correct_absence&quot;: 0,
+      &quot;precision&quot;: 1.0,
+      &quot;target_count&quot;: 2,
+      &quot;target_recall&quot;: 1.0
+    }
+  },
+  &quot;records&quot;: [
+    {
+      &quot;assessment&quot;: &quot;correct_complete_fact&quot;,
+      &quot;citation_valid&quot;: true,
+      &quot;complete_correct&quot;: true,
+      &quot;conditional_format_resolved&quot;: true,
+      &quot;epistemic_correct&quot;: true,
+      &quot;fact&quot;: {
+        &quot;evidence_ids&quot;: [
+          &quot;S1&quot;
+        ],
+        &quot;object&quot;: &quot;atrium&quot;,
+        &quot;relation&quot;: &quot;located_in&quot;,
+        &quot;subject&quot;: &quot;Ada&quot;,
+        &quot;valid_from&quot;: 0,
+        &quot;valid_until&quot;: 2
+      },
+      &quot;format_issues&quot;: [],
+      &quot;index&quot;: 0,
+      &quot;meaning_issues&quot;: [],
+      &quot;shape_compliant&quot;: true,
+      &quot;temporal_correct&quot;: true,
+      &quot;underlying_correct&quot;: true
+    },
+    {
+      &quot;assessment&quot;: &quot;correct_complete_fact&quot;,
+      &quot;citation_valid&quot;: true,
+      &quot;complete_correct&quot;: true,
+      &quot;conditional_format_resolved&quot;: true,
+      &quot;epistemic_correct&quot;: true,
+      &quot;fact&quot;: {
+        &quot;evidence_ids&quot;: [
+          &quot;S2&quot;
+        ],
+        &quot;object&quot;: &quot;library&quot;,
+        &quot;relation&quot;: &quot;located_in&quot;,
+        &quot;subject&quot;: &quot;Ada&quot;,
+        &quot;valid_from&quot;: 2,
+        &quot;valid_until&quot;: 5
+      },
+      &quot;format_issues&quot;: [],
+      &quot;index&quot;: 1,
+      &quot;meaning_issues&quot;: [],
+      &quot;shape_compliant&quot;: true,
+      &quot;temporal_correct&quot;: true,
+      &quot;underlying_correct&quot;: true
+    }
+  ],
+  &quot;rule_version&quot;: &quot;simple-ladder-v2&quot;,
+  &quot;shape_compliant&quot;: 2,
+  &quot;underlying&quot;: {
+    &quot;f1&quot;: 1.0,
+    &quot;incorrect_or_unmatched&quot;: [],
+    &quot;matches&quot;: [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        1
+      ]
+    ],
+    &quot;missing&quot;: [],
+    &quot;precision&quot;: 1.0,
+    &quot;predicted&quot;: 2,
+    &quot;recall&quot;: 1.0,
+    &quot;reference_count&quot;: 2,
+    &quot;true_positive&quot;: 2
+  }
+}</pre></details></section><section id="case-3"><h2>Case 3: original-revised / epistemic</h2><pre>S1: Rina believes that the coin is in the drawer.
+S2: In reality, the coin is in the chest.</pre><p>State the believed location and the narrated real location, keeping belief separate from reality.</p><details><summary>Frozen reference answers (not model output)</summary><pre>[
+  [
+    {
+      &quot;attitude&quot;: &quot;believes&quot;,
+      &quot;evidence_ids&quot;: [
+        &quot;S1&quot;
+      ],
+      &quot;holder&quot;: &quot;Rina&quot;,
+      &quot;object&quot;: &quot;drawer&quot;,
+      &quot;relation&quot;: &quot;located_in&quot;,
+      &quot;subject&quot;: &quot;coin&quot;
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S2&quot;
+      ],
+      &quot;object&quot;: &quot;chest&quot;,
+      &quot;relation&quot;: &quot;located_in&quot;,
+      &quot;subject&quot;: &quot;coin&quot;
+    }
+  ]
+]</pre></details><h3>Actual response</h3><pre>{&quot;facts&quot;: [{&quot;subject&quot;:&quot;coin&quot;,&quot;relation&quot;:&quot;located_in&quot;,&quot;object&quot;:&quot;drawer&quot;,&quot;evidence_ids&quot;:[&quot;S1&quot;],&quot;holder&quot;:&quot;Rina&quot;,&quot;attitude&quot;:&quot;believes&quot;},{&quot;subject&quot;:&quot;coin&quot;,&quot;relation&quot;:&quot;located_in&quot;,&quot;object&quot;:&quot;chest&quot;,&quot;evidence_ids&quot;:[&quot;S2&quot;]}]}</pre><svg viewBox="0 0 860 420" role="img" aria-label="Actual generated relationships"><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#64748b"/></marker></defs><path d="M730.0,200.0 L378.33458822287207,301.5170600771027" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="505.0" y="250.9519052838329" text-anchor="middle" class="edge"><tspan x="505.0" dy="0">1. located_in | holder=Rina;</tspan><tspan x="505.0" dy="16">attitude=believes</tspan></text><path d="M730.0,200.0 L378.33458822287196,98.48293992289733" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="504.99999999999994" y="116.04809471616713" text-anchor="middle" class="edge"><tspan x="504.99999999999994" dy="0">2. located_in</tspan></text><rect x="635.0" y="173.0" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="730.0" y="205.0" text-anchor="middle">coin</text><rect x="185.00000000000006" y="302.9038105676658" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="280.00000000000006" y="334.9038105676658" text-anchor="middle">drawer</text><rect x="184.9999999999999" y="43.096189432334256" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="279.9999999999999" y="75.09618943233426" text-anchor="middle">chest</text></svg><table><tr><th>#</th><th>Actual fact</th><th>Assessment</th><th>Errors</th></tr><tr><td>1</td><td>{&quot;attitude&quot;: &quot;believes&quot;, &quot;evidence_ids&quot;: [&quot;S1&quot;], &quot;holder&quot;: &quot;Rina&quot;, &quot;object&quot;: &quot;drawer&quot;, &quot;relation&quot;: &quot;located_in&quot;, &quot;subject&quot;: &quot;coin&quot;}</td><td>correct complete fact</td><td></td></tr><tr><td>2</td><td>{&quot;evidence_ids&quot;: [&quot;S2&quot;], &quot;object&quot;: &quot;chest&quot;, &quot;relation&quot;: &quot;located_in&quot;, &quot;subject&quot;: &quot;coin&quot;}</td><td>correct complete fact</td><td></td></tr></table><p>Complete P/R/F1: 1.000/1.000/1.000; underlying F1 1.000. Tokens 269/57; 1.749 seconds; finish stop.</p><details><summary>Qualification, citation, omission and denominator details</summary><pre>{
+  &quot;citation_valid&quot;: 2,
+  &quot;diagnostic_level_supported&quot;: true,
+  &quot;format_compliant&quot;: 2,
+  &quot;format_unresolved&quot;: 0,
+  &quot;full&quot;: {
+    &quot;f1&quot;: 1.0,
+    &quot;incorrect_or_unmatched&quot;: [],
+    &quot;matches&quot;: [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        1
+      ]
+    ],
+    &quot;missing&quot;: [],
+    &quot;precision&quot;: 1.0,
+    &quot;predicted&quot;: 2,
+    &quot;recall&quot;: 1.0,
+    &quot;reference_count&quot;: 2,
+    &quot;true_positive&quot;: 2
+  },
+  &quot;matched_alternative&quot;: 0,
+  &quot;parseable&quot;: true,
+  &quot;prediction_count&quot;: 2,
+  &quot;qualifications&quot;: {
+    &quot;epistemic&quot;: {
+      &quot;applicable_predictions&quot;: 1,
+      &quot;assessed_absence&quot;: 1,
+      &quot;correct&quot;: 1,
+      &quot;correct_absence&quot;: 1,
+      &quot;precision&quot;: 1.0,
+      &quot;target_count&quot;: 1,
+      &quot;target_recall&quot;: 1.0
+    },
+    &quot;temporal&quot;: {
+      &quot;applicable_predictions&quot;: 0,
+      &quot;assessed_absence&quot;: 2,
+      &quot;correct&quot;: 0,
+      &quot;correct_absence&quot;: 2,
+      &quot;precision&quot;: null,
+      &quot;target_count&quot;: 0,
+      &quot;target_recall&quot;: null
+    }
+  },
+  &quot;records&quot;: [
+    {
+      &quot;assessment&quot;: &quot;correct_complete_fact&quot;,
+      &quot;citation_valid&quot;: true,
+      &quot;complete_correct&quot;: true,
+      &quot;conditional_format_resolved&quot;: true,
+      &quot;epistemic_correct&quot;: true,
+      &quot;fact&quot;: {
+        &quot;attitude&quot;: &quot;believes&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S1&quot;
+        ],
+        &quot;holder&quot;: &quot;Rina&quot;,
+        &quot;object&quot;: &quot;drawer&quot;,
+        &quot;relation&quot;: &quot;located_in&quot;,
+        &quot;subject&quot;: &quot;coin&quot;
+      },
+      &quot;format_issues&quot;: [],
+      &quot;index&quot;: 0,
+      &quot;meaning_issues&quot;: [],
+      &quot;shape_compliant&quot;: true,
+      &quot;temporal_correct&quot;: true,
+      &quot;underlying_correct&quot;: true
+    },
+    {
+      &quot;assessment&quot;: &quot;correct_complete_fact&quot;,
+      &quot;citation_valid&quot;: true,
+      &quot;complete_correct&quot;: true,
+      &quot;conditional_format_resolved&quot;: true,
+      &quot;epistemic_correct&quot;: true,
+      &quot;fact&quot;: {
+        &quot;evidence_ids&quot;: [
+          &quot;S2&quot;
+        ],
+        &quot;object&quot;: &quot;chest&quot;,
+        &quot;relation&quot;: &quot;located_in&quot;,
+        &quot;subject&quot;: &quot;coin&quot;
+      },
+      &quot;format_issues&quot;: [],
+      &quot;index&quot;: 1,
+      &quot;meaning_issues&quot;: [],
+      &quot;shape_compliant&quot;: true,
+      &quot;temporal_correct&quot;: true,
+      &quot;underlying_correct&quot;: true
+    }
+  ],
+  &quot;rule_version&quot;: &quot;simple-ladder-v2&quot;,
+  &quot;shape_compliant&quot;: 2,
+  &quot;underlying&quot;: {
+    &quot;f1&quot;: 1.0,
+    &quot;incorrect_or_unmatched&quot;: [],
+    &quot;matches&quot;: [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        1
+      ]
+    ],
+    &quot;missing&quot;: [],
+    &quot;precision&quot;: 1.0,
+    &quot;predicted&quot;: 2,
+    &quot;recall&quot;: 1.0,
+    &quot;reference_count&quot;: 2,
+    &quot;true_positive&quot;: 2
+  }
+}</pre></details></section><section id="case-4"><h2>Case 4: fresh / epistemic</h2><pre>S1: Selin believes that the map is in the cabinet.
+S2: In reality, the map is in the satchel.</pre><p>State the believed location and the narrated real location, keeping belief separate from reality.</p><details><summary>Frozen reference answers (not model output)</summary><pre>[
+  [
+    {
+      &quot;attitude&quot;: &quot;believes&quot;,
+      &quot;evidence_ids&quot;: [
+        &quot;S1&quot;
+      ],
+      &quot;holder&quot;: &quot;Selin&quot;,
+      &quot;object&quot;: &quot;cabinet&quot;,
+      &quot;relation&quot;: &quot;located_in&quot;,
+      &quot;subject&quot;: &quot;map&quot;
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S2&quot;
+      ],
+      &quot;object&quot;: &quot;satchel&quot;,
+      &quot;relation&quot;: &quot;located_in&quot;,
+      &quot;subject&quot;: &quot;map&quot;
+    }
+  ]
+]</pre></details><h3>Actual response</h3><pre>{&quot;facts&quot;: [{&quot;subject&quot;:&quot;map&quot;,&quot;relation&quot;:&quot;located_in&quot;,&quot;object&quot;:&quot;cabinet&quot;,&quot;evidence_ids&quot;:[&quot;S1&quot;],&quot;holder&quot;:&quot;Selin&quot;,&quot;attitude&quot;:&quot;believes&quot;},{&quot;subject&quot;:&quot;map&quot;,&quot;relation&quot;:&quot;located_in&quot;,&quot;object&quot;:&quot;satchel&quot;,&quot;evidence_ids&quot;:[&quot;S2&quot;]}]}</pre><svg viewBox="0 0 860 420" role="img" aria-label="Actual generated relationships"><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#64748b"/></marker></defs><path d="M730.0,200.0 L378.33458822287207,301.5170600771027" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="505.0" y="250.9519052838329" text-anchor="middle" class="edge"><tspan x="505.0" dy="0">1. located_in | holder=Selin;</tspan><tspan x="505.0" dy="16">attitude=believes</tspan></text><path d="M730.0,200.0 L378.33458822287196,98.48293992289733" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="504.99999999999994" y="116.04809471616713" text-anchor="middle" class="edge"><tspan x="504.99999999999994" dy="0">2. located_in</tspan></text><rect x="635.0" y="173.0" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="730.0" y="205.0" text-anchor="middle">map</text><rect x="185.00000000000006" y="302.9038105676658" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="280.00000000000006" y="334.9038105676658" text-anchor="middle">cabinet</text><rect x="184.9999999999999" y="43.096189432334256" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="279.9999999999999" y="75.09618943233426" text-anchor="middle">satchel</text></svg><table><tr><th>#</th><th>Actual fact</th><th>Assessment</th><th>Errors</th></tr><tr><td>1</td><td>{&quot;attitude&quot;: &quot;believes&quot;, &quot;evidence_ids&quot;: [&quot;S1&quot;], &quot;holder&quot;: &quot;Selin&quot;, &quot;object&quot;: &quot;cabinet&quot;, &quot;relation&quot;: &quot;located_in&quot;, &quot;subject&quot;: &quot;map&quot;}</td><td>correct complete fact</td><td></td></tr><tr><td>2</td><td>{&quot;evidence_ids&quot;: [&quot;S2&quot;], &quot;object&quot;: &quot;satchel&quot;, &quot;relation&quot;: &quot;located_in&quot;, &quot;subject&quot;: &quot;map&quot;}</td><td>correct complete fact</td><td></td></tr></table><p>Complete P/R/F1: 1.000/1.000/1.000; underlying F1 1.000. Tokens 271/60; 1.656 seconds; finish stop.</p><details><summary>Qualification, citation, omission and denominator details</summary><pre>{
+  &quot;citation_valid&quot;: 2,
+  &quot;diagnostic_level_supported&quot;: true,
+  &quot;format_compliant&quot;: 2,
+  &quot;format_unresolved&quot;: 0,
+  &quot;full&quot;: {
+    &quot;f1&quot;: 1.0,
+    &quot;incorrect_or_unmatched&quot;: [],
+    &quot;matches&quot;: [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        1
+      ]
+    ],
+    &quot;missing&quot;: [],
+    &quot;precision&quot;: 1.0,
+    &quot;predicted&quot;: 2,
+    &quot;recall&quot;: 1.0,
+    &quot;reference_count&quot;: 2,
+    &quot;true_positive&quot;: 2
+  },
+  &quot;matched_alternative&quot;: 0,
+  &quot;parseable&quot;: true,
+  &quot;prediction_count&quot;: 2,
+  &quot;qualifications&quot;: {
+    &quot;epistemic&quot;: {
+      &quot;applicable_predictions&quot;: 1,
+      &quot;assessed_absence&quot;: 1,
+      &quot;correct&quot;: 1,
+      &quot;correct_absence&quot;: 1,
+      &quot;precision&quot;: 1.0,
+      &quot;target_count&quot;: 1,
+      &quot;target_recall&quot;: 1.0
+    },
+    &quot;temporal&quot;: {
+      &quot;applicable_predictions&quot;: 0,
+      &quot;assessed_absence&quot;: 2,
+      &quot;correct&quot;: 0,
+      &quot;correct_absence&quot;: 2,
+      &quot;precision&quot;: null,
+      &quot;target_count&quot;: 0,
+      &quot;target_recall&quot;: null
+    }
+  },
+  &quot;records&quot;: [
+    {
+      &quot;assessment&quot;: &quot;correct_complete_fact&quot;,
+      &quot;citation_valid&quot;: true,
+      &quot;complete_correct&quot;: true,
+      &quot;conditional_format_resolved&quot;: true,
+      &quot;epistemic_correct&quot;: true,
+      &quot;fact&quot;: {
+        &quot;attitude&quot;: &quot;believes&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S1&quot;
+        ],
+        &quot;holder&quot;: &quot;Selin&quot;,
+        &quot;object&quot;: &quot;cabinet&quot;,
+        &quot;relation&quot;: &quot;located_in&quot;,
+        &quot;subject&quot;: &quot;map&quot;
+      },
+      &quot;format_issues&quot;: [],
+      &quot;index&quot;: 0,
+      &quot;meaning_issues&quot;: [],
+      &quot;shape_compliant&quot;: true,
+      &quot;temporal_correct&quot;: true,
+      &quot;underlying_correct&quot;: true
+    },
+    {
+      &quot;assessment&quot;: &quot;correct_complete_fact&quot;,
+      &quot;citation_valid&quot;: true,
+      &quot;complete_correct&quot;: true,
+      &quot;conditional_format_resolved&quot;: true,
+      &quot;epistemic_correct&quot;: true,
+      &quot;fact&quot;: {
+        &quot;evidence_ids&quot;: [
+          &quot;S2&quot;
+        ],
+        &quot;object&quot;: &quot;satchel&quot;,
+        &quot;relation&quot;: &quot;located_in&quot;,
+        &quot;subject&quot;: &quot;map&quot;
+      },
+      &quot;format_issues&quot;: [],
+      &quot;index&quot;: 1,
+      &quot;meaning_issues&quot;: [],
+      &quot;shape_compliant&quot;: true,
+      &quot;temporal_correct&quot;: true,
+      &quot;underlying_correct&quot;: true
+    }
+  ],
+  &quot;rule_version&quot;: &quot;simple-ladder-v2&quot;,
+  &quot;shape_compliant&quot;: 2,
+  &quot;underlying&quot;: {
+    &quot;f1&quot;: 1.0,
+    &quot;incorrect_or_unmatched&quot;: [],
+    &quot;matches&quot;: [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        1
+      ]
+    ],
+    &quot;missing&quot;: [],
+    &quot;precision&quot;: 1.0,
+    &quot;predicted&quot;: 2,
+    &quot;recall&quot;: 1.0,
+    &quot;reference_count&quot;: 2,
+    &quot;true_positive&quot;: 2
+  }
+}</pre></details></section><section id="case-5"><h2>Case 5: original-revised / office-person</h2><pre>S1: Ada holds the office of Harbor Warden from day 0 up to but not including day 3.
+S2: Bram holds the office of Harbor Warden from day 3 up to but not including day 6.
+S3: The office of Harbor Warden is responsible for inspecting boats.
+S4: The office of Harbor Warden is responsible for maintaining beacons.</pre><p>Person-centered question: who held the office when, and what responsibilities did each person have through it?</p><details><summary>Frozen reference answers (not model output)</summary><pre>[
+  [
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S1&quot;
+      ],
+      &quot;object&quot;: &quot;Harbor Warden&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;subject&quot;: &quot;Ada&quot;,
+      &quot;valid_from&quot;: 0,
+      &quot;valid_until&quot;: 3
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S2&quot;
+      ],
+      &quot;object&quot;: &quot;Harbor Warden&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;subject&quot;: &quot;Bram&quot;,
+      &quot;valid_from&quot;: 3,
+      &quot;valid_until&quot;: 6
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S3&quot;
+      ],
+      &quot;object&quot;: &quot;inspecting boats&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Harbor Warden&quot;
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S4&quot;
+      ],
+      &quot;object&quot;: &quot;maintaining beacons&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Harbor Warden&quot;
+    }
+  ],
+  [
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S1&quot;
+      ],
+      &quot;object&quot;: &quot;Harbor Warden&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;subject&quot;: &quot;Ada&quot;,
+      &quot;valid_from&quot;: 0,
+      &quot;valid_until&quot;: 3
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S2&quot;
+      ],
+      &quot;object&quot;: &quot;Harbor Warden&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;subject&quot;: &quot;Bram&quot;,
+      &quot;valid_from&quot;: 3,
+      &quot;valid_until&quot;: 6
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S1&quot;,
+        &quot;S3&quot;
+      ],
+      &quot;object&quot;: &quot;inspecting boats&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Ada&quot;,
+      &quot;valid_from&quot;: 0,
+      &quot;valid_until&quot;: 3
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S1&quot;,
+        &quot;S4&quot;
+      ],
+      &quot;object&quot;: &quot;maintaining beacons&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Ada&quot;,
+      &quot;valid_from&quot;: 0,
+      &quot;valid_until&quot;: 3
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S2&quot;,
+        &quot;S3&quot;
+      ],
+      &quot;object&quot;: &quot;inspecting boats&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Bram&quot;,
+      &quot;valid_from&quot;: 3,
+      &quot;valid_until&quot;: 6
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S2&quot;,
+        &quot;S4&quot;
+      ],
+      &quot;object&quot;: &quot;maintaining beacons&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Bram&quot;,
+      &quot;valid_from&quot;: 3,
+      &quot;valid_until&quot;: 6
+    }
+  ],
+  [
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S1&quot;
+      ],
+      &quot;object&quot;: &quot;Harbor Warden&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;subject&quot;: &quot;Ada&quot;,
+      &quot;valid_from&quot;: 0,
+      &quot;valid_until&quot;: 3
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S2&quot;
+      ],
+      &quot;object&quot;: &quot;Harbor Warden&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;subject&quot;: &quot;Bram&quot;,
+      &quot;valid_from&quot;: 3,
+      &quot;valid_until&quot;: 6
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S3&quot;
+      ],
+      &quot;object&quot;: &quot;inspecting boats&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Harbor Warden&quot;
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S4&quot;
+      ],
+      &quot;object&quot;: &quot;maintaining beacons&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Harbor Warden&quot;
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S1&quot;,
+        &quot;S3&quot;
+      ],
+      &quot;object&quot;: &quot;inspecting boats&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Ada&quot;,
+      &quot;valid_from&quot;: 0,
+      &quot;valid_until&quot;: 3
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S1&quot;,
+        &quot;S4&quot;
+      ],
+      &quot;object&quot;: &quot;maintaining beacons&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Ada&quot;,
+      &quot;valid_from&quot;: 0,
+      &quot;valid_until&quot;: 3
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S2&quot;,
+        &quot;S3&quot;
+      ],
+      &quot;object&quot;: &quot;inspecting boats&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Bram&quot;,
+      &quot;valid_from&quot;: 3,
+      &quot;valid_until&quot;: 6
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S2&quot;,
+        &quot;S4&quot;
+      ],
+      &quot;object&quot;: &quot;maintaining beacons&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Bram&quot;,
+      &quot;valid_from&quot;: 3,
+      &quot;valid_until&quot;: 6
+    }
+  ]
+]</pre></details><h3>Actual response</h3><pre>{&quot;facts&quot;: [{&quot;subject&quot;:&quot;Ada&quot;,&quot;relation&quot;:&quot;held_office&quot;,&quot;object&quot;:&quot;Harbor Warden&quot;,&quot;evidence_ids&quot;:[&quot;S1&quot;],&quot;valid_from&quot;:0,&quot;valid_until&quot;:3,&quot;holder&quot;:&quot;Ada&quot;,&quot;attitude&quot;:&quot;believes&quot;},{&quot;subject&quot;:&quot;Bram&quot;,&quot;relation&quot;:&quot;held_office&quot;,&quot;object&quot;:&quot;Harbor Warden&quot;,&quot;evidence_ids&quot;:[&quot;S2&quot;],&quot;valid_from&quot;:3,&quot;valid_until&quot;:6,&quot;holder&quot;:&quot;Bram&quot;,&quot;attitude&quot;:&quot;believes&quot;},{&quot;subject&quot;:&quot;Harbor Warden&quot;,&quot;relation&quot;:&quot;responsible_for&quot;,&quot;object&quot;:&quot;inspecting boats&quot;,&quot;evidence_ids&quot;:[&quot;S3&quot;],&quot;holder&quot;:&quot;Ada&quot;,&quot;attitude&quot;:&quot;believes&quot;},{&quot;subject&quot;:&quot;Harbor Warden&quot;,&quot;relation&quot;:&quot;responsible_for&quot;,&quot;object&quot;:&quot;maintaining beacons&quot;,&quot;evidence_ids&quot;:[&quot;S4&quot;],&quot;holder&quot;:&quot;Ada&quot;,&quot;attitude&quot;:&quot;believes&quot;}]}</pre><svg viewBox="0 0 860 420" role="img" aria-label="Actual generated relationships"><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#64748b"/></marker></defs><path d="M730.0,200.0 L566.0572753640337,312.823901090864" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="626.352549156242" y="257.3292387221365" text-anchor="middle" class="edge"><tspan x="626.352549156242" dy="0">1. held_office | holder=Ada;</tspan><tspan x="626.352549156242" dy="16">attitude=believes | [0,3)</tspan></text><path d="M187.2949016875158,288.167787843871 L422.76980327035227,326.4230045902553" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="405.0" y="288.413132644072" text-anchor="middle" class="edge"><tspan x="405.0" dy="0">2. held_office | holder=Bram;</tspan><tspan x="405.0" dy="16">attitude=believes | [3,6)</tspan></text><path d="M522.7050983124842,342.658477444273 L230.6470787390652,141.66678850953807" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="355.0" y="213.24534480020102" text-anchor="middle" class="edge"><tspan x="355.0" dy="0">3. responsible_for |</tspan><tspan x="355.0" dy="16">holder=Ada; attitude=believes</tspan></text><path d="M522.7050983124842,342.658477444273 L522.7050983124842,89.34152255572695" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="522.7050983124842" y="147.99999999999997" text-anchor="middle" class="edge"><tspan x="522.7050983124842" dy="0">4. responsible_for |</tspan><tspan x="522.7050983124842" dy="16">holder=Ada; attitude=believes</tspan></text><rect x="635.0" y="173.0" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="730.0" y="205.0" text-anchor="middle">Ada</text><rect x="427.7050983124842" y="315.658477444273" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="522.7050983124842" y="347.658477444273" text-anchor="middle">Harbor Warden</text><rect x="92.29490168751579" y="261.167787843871" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="187.2949016875158" y="293.167787843871" text-anchor="middle">Bram</text><rect x="92.29490168751573" y="84.83221215612905" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="187.29490168751573" y="116.83221215612905" text-anchor="middle">inspecting boats</text><rect x="427.7050983124842" y="30.341522555726954" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="522.7050983124842" y="62.341522555726954" text-anchor="middle">maintaining beacons</text></svg><table><tr><th>#</th><th>Actual fact</th><th>Assessment</th><th>Errors</th></tr><tr><td>1</td><td>{&quot;attitude&quot;: &quot;believes&quot;, &quot;evidence_ids&quot;: [&quot;S1&quot;], &quot;holder&quot;: &quot;Ada&quot;, &quot;object&quot;: &quot;Harbor Warden&quot;, &quot;relation&quot;: &quot;held_office&quot;, &quot;subject&quot;: &quot;Ada&quot;, &quot;valid_from&quot;: 0, &quot;valid_until&quot;: 3}</td><td>unresolved wording or unsupported endpoint</td><td></td></tr><tr><td>2</td><td>{&quot;attitude&quot;: &quot;believes&quot;, &quot;evidence_ids&quot;: [&quot;S2&quot;], &quot;holder&quot;: &quot;Bram&quot;, &quot;object&quot;: &quot;Harbor Warden&quot;, &quot;relation&quot;: &quot;held_office&quot;, &quot;subject&quot;: &quot;Bram&quot;, &quot;valid_from&quot;: 3, &quot;valid_until&quot;: 6}</td><td>unresolved wording or unsupported endpoint</td><td></td></tr><tr><td>3</td><td>{&quot;attitude&quot;: &quot;believes&quot;, &quot;evidence_ids&quot;: [&quot;S3&quot;], &quot;holder&quot;: &quot;Ada&quot;, &quot;object&quot;: &quot;inspecting boats&quot;, &quot;relation&quot;: &quot;responsible_for&quot;, &quot;subject&quot;: &quot;Harbor Warden&quot;}</td><td>unmatched</td><td>unsupported epistemic fields on this relationship; epistemic holder/attitude missing, changed or unsupported</td></tr><tr><td>4</td><td>{&quot;attitude&quot;: &quot;believes&quot;, &quot;evidence_ids&quot;: [&quot;S4&quot;], &quot;holder&quot;: &quot;Ada&quot;, &quot;object&quot;: &quot;maintaining beacons&quot;, &quot;relation&quot;: &quot;responsible_for&quot;, &quot;subject&quot;: &quot;Harbor Warden&quot;}</td><td>unmatched</td><td>unsupported epistemic fields on this relationship; epistemic holder/attitude missing, changed or unsupported</td></tr></table><p>Complete P/R/F1: 0.000/0.000/0.000; underlying F1 0.500. Tokens 377/167; 3.180 seconds; finish stop.</p><details><summary>Qualification, citation, omission and denominator details</summary><pre>{
+  &quot;citation_valid&quot;: 4,
+  &quot;diagnostic_level_supported&quot;: false,
+  &quot;format_compliant&quot;: 0,
+  &quot;format_unresolved&quot;: 2,
+  &quot;full&quot;: {
+    &quot;f1&quot;: 0.0,
+    &quot;incorrect_or_unmatched&quot;: [
+      {
+        &quot;attitude&quot;: &quot;believes&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S1&quot;
+        ],
+        &quot;holder&quot;: &quot;Ada&quot;,
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;held_office&quot;,
+        &quot;subject&quot;: &quot;Ada&quot;,
+        &quot;valid_from&quot;: 0,
+        &quot;valid_until&quot;: 3
+      },
+      {
+        &quot;attitude&quot;: &quot;believes&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S2&quot;
+        ],
+        &quot;holder&quot;: &quot;Bram&quot;,
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;held_office&quot;,
+        &quot;subject&quot;: &quot;Bram&quot;,
+        &quot;valid_from&quot;: 3,
+        &quot;valid_until&quot;: 6
+      },
+      {
+        &quot;attitude&quot;: &quot;believes&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S3&quot;
+        ],
+        &quot;holder&quot;: &quot;Ada&quot;,
+        &quot;object&quot;: &quot;inspecting boats&quot;,
+        &quot;relation&quot;: &quot;responsible_for&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden&quot;
+      },
+      {
+        &quot;attitude&quot;: &quot;believes&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S4&quot;
+        ],
+        &quot;holder&quot;: &quot;Ada&quot;,
+        &quot;object&quot;: &quot;maintaining beacons&quot;,
+        &quot;relation&quot;: &quot;responsible_for&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden&quot;
+      }
+    ],
+    &quot;matches&quot;: [],
+    &quot;missing&quot;: [
+      {
+        &quot;evidence_ids&quot;: [
+          &quot;S1&quot;
+        ],
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Ada&quot;,
+        &quot;valid_from&quot;: 0,
+        &quot;valid_until&quot;: 3
+      },
+      {
+        &quot;evidence_ids&quot;: [
+          &quot;S2&quot;
+        ],
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Bram&quot;,
+        &quot;valid_from&quot;: 3,
+        &quot;valid_until&quot;: 6
+      },
+      {
+        &quot;evidence_ids&quot;: [
+          &quot;S3&quot;
+        ],
+        &quot;object&quot;: &quot;inspecting boats&quot;,
+        &quot;relation&quot;: &quot;responsible_for&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden&quot;
+      },
+      {
+        &quot;evidence_ids&quot;: [
+          &quot;S4&quot;
+        ],
+        &quot;object&quot;: &quot;maintaining beacons&quot;,
+        &quot;relation&quot;: &quot;responsible_for&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden&quot;
+      }
+    ],
+    &quot;precision&quot;: 0.0,
+    &quot;predicted&quot;: 4,
+    &quot;recall&quot;: 0.0,
+    &quot;reference_count&quot;: 4,
+    &quot;true_positive&quot;: 0
+  },
+  &quot;matched_alternative&quot;: 0,
+  &quot;parseable&quot;: true,
+  &quot;prediction_count&quot;: 4,
+  &quot;qualifications&quot;: {
+    &quot;epistemic&quot;: {
+      &quot;applicable_predictions&quot;: 4,
+      &quot;assessed_absence&quot;: 0,
+      &quot;correct&quot;: 0,
+      &quot;correct_absence&quot;: 0,
+      &quot;precision&quot;: 0.0,
+      &quot;target_count&quot;: 0,
+      &quot;target_recall&quot;: null
+    },
+    &quot;temporal&quot;: {
+      &quot;applicable_predictions&quot;: 2,
+      &quot;assessed_absence&quot;: 2,
+      &quot;correct&quot;: 0,
+      &quot;correct_absence&quot;: 2,
+      &quot;precision&quot;: 0.0,
+      &quot;target_count&quot;: 2,
+      &quot;target_recall&quot;: 0.0
+    }
+  },
+  &quot;records&quot;: [
+    {
+      &quot;assessment&quot;: &quot;unresolved_wording_or_unsupported_endpoint&quot;,
+      &quot;citation_valid&quot;: true,
+      &quot;complete_correct&quot;: false,
+      &quot;conditional_format_resolved&quot;: false,
+      &quot;epistemic_correct&quot;: null,
+      &quot;fact&quot;: {
+        &quot;attitude&quot;: &quot;believes&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S1&quot;
+        ],
+        &quot;holder&quot;: &quot;Ada&quot;,
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;held_office&quot;,
+        &quot;subject&quot;: &quot;Ada&quot;,
+        &quot;valid_from&quot;: 0,
+        &quot;valid_until&quot;: 3
+      },
+      &quot;format_issues&quot;: [],
+      &quot;index&quot;: 0,
+      &quot;meaning_issues&quot;: [],
+      &quot;shape_compliant&quot;: true,
+      &quot;temporal_correct&quot;: null,
+      &quot;underlying_correct&quot;: false
+    },
+    {
+      &quot;assessment&quot;: &quot;unresolved_wording_or_unsupported_endpoint&quot;,
+      &quot;citation_valid&quot;: true,
+      &quot;complete_correct&quot;: false,
+      &quot;conditional_format_resolved&quot;: false,
+      &quot;epistemic_correct&quot;: null,
+      &quot;fact&quot;: {
+        &quot;attitude&quot;: &quot;believes&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S2&quot;
+        ],
+        &quot;holder&quot;: &quot;Bram&quot;,
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;held_office&quot;,
+        &quot;subject&quot;: &quot;Bram&quot;,
+        &quot;valid_from&quot;: 3,
+        &quot;valid_until&quot;: 6
+      },
+      &quot;format_issues&quot;: [],
+      &quot;index&quot;: 1,
+      &quot;meaning_issues&quot;: [],
+      &quot;shape_compliant&quot;: true,
+      &quot;temporal_correct&quot;: null,
+      &quot;underlying_correct&quot;: false
+    },
+    {
+      &quot;assessment&quot;: &quot;unmatched&quot;,
+      &quot;citation_valid&quot;: true,
+      &quot;complete_correct&quot;: false,
+      &quot;conditional_format_resolved&quot;: true,
+      &quot;epistemic_correct&quot;: false,
+      &quot;fact&quot;: {
+        &quot;attitude&quot;: &quot;believes&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S3&quot;
+        ],
+        &quot;holder&quot;: &quot;Ada&quot;,
+        &quot;object&quot;: &quot;inspecting boats&quot;,
+        &quot;relation&quot;: &quot;responsible_for&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden&quot;
+      },
+      &quot;format_issues&quot;: [
+        &quot;unsupported epistemic fields on this relationship&quot;
+      ],
+      &quot;index&quot;: 2,
+      &quot;meaning_issues&quot;: [
+        &quot;epistemic holder/attitude missing, changed or unsupported&quot;
+      ],
+      &quot;shape_compliant&quot;: true,
+      &quot;temporal_correct&quot;: true,
+      &quot;underlying_correct&quot;: true
+    },
+    {
+      &quot;assessment&quot;: &quot;unmatched&quot;,
+      &quot;citation_valid&quot;: true,
+      &quot;complete_correct&quot;: false,
+      &quot;conditional_format_resolved&quot;: true,
+      &quot;epistemic_correct&quot;: false,
+      &quot;fact&quot;: {
+        &quot;attitude&quot;: &quot;believes&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S4&quot;
+        ],
+        &quot;holder&quot;: &quot;Ada&quot;,
+        &quot;object&quot;: &quot;maintaining beacons&quot;,
+        &quot;relation&quot;: &quot;responsible_for&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden&quot;
+      },
+      &quot;format_issues&quot;: [
+        &quot;unsupported epistemic fields on this relationship&quot;
+      ],
+      &quot;index&quot;: 3,
+      &quot;meaning_issues&quot;: [
+        &quot;epistemic holder/attitude missing, changed or unsupported&quot;
+      ],
+      &quot;shape_compliant&quot;: true,
+      &quot;temporal_correct&quot;: true,
+      &quot;underlying_correct&quot;: true
+    }
+  ],
+  &quot;rule_version&quot;: &quot;simple-ladder-v2&quot;,
+  &quot;shape_compliant&quot;: 4,
+  &quot;underlying&quot;: {
+    &quot;f1&quot;: 0.5,
+    &quot;incorrect_or_unmatched&quot;: [
+      {
+        &quot;attitude&quot;: &quot;believes&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S1&quot;
+        ],
+        &quot;holder&quot;: &quot;Ada&quot;,
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;held_office&quot;,
+        &quot;subject&quot;: &quot;Ada&quot;,
+        &quot;valid_from&quot;: 0,
+        &quot;valid_until&quot;: 3
+      },
+      {
+        &quot;attitude&quot;: &quot;believes&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S2&quot;
+        ],
+        &quot;holder&quot;: &quot;Bram&quot;,
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;held_office&quot;,
+        &quot;subject&quot;: &quot;Bram&quot;,
+        &quot;valid_from&quot;: 3,
+        &quot;valid_until&quot;: 6
+      }
+    ],
+    &quot;matches&quot;: [
+      [
+        2,
+        2
+      ],
+      [
+        3,
+        3
+      ]
+    ],
+    &quot;missing&quot;: [
+      {
+        &quot;evidence_ids&quot;: [
+          &quot;S1&quot;
+        ],
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Ada&quot;,
+        &quot;valid_from&quot;: 0,
+        &quot;valid_until&quot;: 3
+      },
+      {
+        &quot;evidence_ids&quot;: [
+          &quot;S2&quot;
+        ],
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Bram&quot;,
+        &quot;valid_from&quot;: 3,
+        &quot;valid_until&quot;: 6
+      }
+    ],
+    &quot;precision&quot;: 0.5,
+    &quot;predicted&quot;: 4,
+    &quot;recall&quot;: 0.5,
+    &quot;reference_count&quot;: 4,
+    &quot;true_positive&quot;: 2
+  }
+}</pre></details><h3>Manual interpretation — no rescoring</h3><p>The model uses held_office, outside the frozen relation synonym list. Its literal holder intervals agree with the evidence, but those assertions do not receive a positive automated temporal score because their relationship matching is unresolved. All four assertions add believes attributions absent from the direct narration. Unsupported attribution is a real evidence-grounding failure, independent of the relation-wording limitation. The depicted responsibilities remain attached to the shared office.</p></section><section id="case-6"><h2>Case 6: original-revised / office-continuity</h2><pre>S1: Ada holds the office of Harbor Warden from day 0 up to but not including day 3.
+S2: Bram holds the office of Harbor Warden from day 3 up to but not including day 6.
+S3: The office of Harbor Warden is responsible for inspecting boats.
+S4: The office of Harbor Warden is responsible for maintaining beacons.</pre><p>Office-continuity question: represent the continuing office, its responsibilities, and the successive holders with their intervals.</p><details><summary>Frozen reference answers (not model output)</summary><pre>[
+  [
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S1&quot;
+      ],
+      &quot;object&quot;: &quot;Harbor Warden&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;subject&quot;: &quot;Ada&quot;,
+      &quot;valid_from&quot;: 0,
+      &quot;valid_until&quot;: 3
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S2&quot;
+      ],
+      &quot;object&quot;: &quot;Harbor Warden&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;subject&quot;: &quot;Bram&quot;,
+      &quot;valid_from&quot;: 3,
+      &quot;valid_until&quot;: 6
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S3&quot;
+      ],
+      &quot;object&quot;: &quot;inspecting boats&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Harbor Warden&quot;
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S4&quot;
+      ],
+      &quot;object&quot;: &quot;maintaining beacons&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Harbor Warden&quot;
+    }
+  ],
+  [
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S1&quot;
+      ],
+      &quot;object&quot;: &quot;Harbor Warden&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;subject&quot;: &quot;Ada&quot;,
+      &quot;valid_from&quot;: 0,
+      &quot;valid_until&quot;: 3
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S2&quot;
+      ],
+      &quot;object&quot;: &quot;Harbor Warden&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;subject&quot;: &quot;Bram&quot;,
+      &quot;valid_from&quot;: 3,
+      &quot;valid_until&quot;: 6
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S3&quot;
+      ],
+      &quot;object&quot;: &quot;inspecting boats&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Harbor Warden&quot;
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S4&quot;
+      ],
+      &quot;object&quot;: &quot;maintaining beacons&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Harbor Warden&quot;
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S1&quot;,
+        &quot;S3&quot;
+      ],
+      &quot;object&quot;: &quot;inspecting boats&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Ada&quot;,
+      &quot;valid_from&quot;: 0,
+      &quot;valid_until&quot;: 3
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S1&quot;,
+        &quot;S4&quot;
+      ],
+      &quot;object&quot;: &quot;maintaining beacons&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Ada&quot;,
+      &quot;valid_from&quot;: 0,
+      &quot;valid_until&quot;: 3
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S2&quot;,
+        &quot;S3&quot;
+      ],
+      &quot;object&quot;: &quot;inspecting boats&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Bram&quot;,
+      &quot;valid_from&quot;: 3,
+      &quot;valid_until&quot;: 6
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S2&quot;,
+        &quot;S4&quot;
+      ],
+      &quot;object&quot;: &quot;maintaining beacons&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Bram&quot;,
+      &quot;valid_from&quot;: 3,
+      &quot;valid_until&quot;: 6
+    }
+  ]
+]</pre></details><h3>Actual response</h3><pre>{&quot;facts&quot;: [{&quot;subject&quot;:&quot;Harbor Warden office&quot;,&quot;relation&quot;:&quot;held_by&quot;,&quot;object&quot;:&quot;Ada&quot;,&quot;evidence_ids&quot;:[&quot;S1&quot;],&quot;valid_from&quot;:0,&quot;valid_until&quot;:3,&quot;holder&quot;:&quot;Ada&quot;,&quot;attitude&quot;:&quot;believes&quot;},{&quot;subject&quot;:&quot;Harbor Warden office&quot;,&quot;relation&quot;:&quot;held_by&quot;,&quot;object&quot;:&quot;Bram&quot;,&quot;evidence_ids&quot;:[&quot;S2&quot;],&quot;valid_from&quot;:3,&quot;valid_until&quot;:6,&quot;holder&quot;:&quot;Bram&quot;,&quot;attitude&quot;:&quot;believes&quot;},{&quot;subject&quot;:&quot;Harbor Warden office&quot;,&quot;relation&quot;:&quot;responsible_for&quot;,&quot;object&quot;:&quot;inspecting boats&quot;,&quot;evidence_ids&quot;:[&quot;S3&quot;],&quot;holder&quot;:&quot;Harbor Warden office&quot;,&quot;attitude&quot;:&quot;has responsibility&quot;},{&quot;subject&quot;:&quot;Harbor Warden office&quot;,&quot;relation&quot;:&quot;responsible_for&quot;,&quot;object&quot;:&quot;maintaining beacons&quot;,&quot;evidence_ids&quot;:[&quot;S4&quot;],&quot;holder&quot;:&quot;Harbor Warden office&quot;,&quot;attitude&quot;:&quot;has responsibility&quot;}]}</pre><svg viewBox="0 0 860 420" role="img" aria-label="Actual generated relationships"><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#64748b"/></marker></defs><path d="M730.0,200.0 L566.0572753640337,312.823901090864" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="626.352549156242" y="257.3292387221365" text-anchor="middle" class="edge"><tspan x="626.352549156242" dy="0">1. held_by | holder=Ada;</tspan><tspan x="626.352549156242" dy="16">attitude=believes | [0,3)</tspan></text><path d="M730.0,200.0 L287.23019672964773,271.9323149898533" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="458.6474508437579" y="217.0838939219355" text-anchor="middle" class="edge"><tspan x="458.6474508437579" dy="0">2. held_by | holder=Bram;</tspan><tspan x="458.6474508437579" dy="16">attitude=believes | [3,6)</tspan></text><path d="M730.0,200.0 L287.2301967296477,128.06768501014673" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="458.64745084375784" y="133.91610607806453" text-anchor="middle" class="edge"><tspan x="458.64745084375784" dy="0">3. responsible_for |</tspan><tspan x="458.64745084375784" dy="16">holder=Harbor Warden office;</tspan><tspan x="458.64745084375784" dy="16">attitude=has responsibility</tspan></text><path d="M730.0,200.0 L566.0572753640337,87.17609890913594" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="626.352549156242" y="93.67076127786348" text-anchor="middle" class="edge"><tspan x="626.352549156242" dy="0">4. responsible_for |</tspan><tspan x="626.352549156242" dy="16">holder=Harbor Warden office;</tspan><tspan x="626.352549156242" dy="16">attitude=has responsibility</tspan></text><rect x="635.0" y="173.0" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="730.0" y="205.0" text-anchor="middle">Harbor Warden office</text><rect x="427.7050983124842" y="315.658477444273" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="522.7050983124842" y="347.658477444273" text-anchor="middle">Ada</text><rect x="92.29490168751579" y="261.167787843871" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="187.2949016875158" y="293.167787843871" text-anchor="middle">Bram</text><rect x="92.29490168751573" y="84.83221215612905" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="187.29490168751573" y="116.83221215612905" text-anchor="middle">inspecting boats</text><rect x="427.7050983124842" y="30.341522555726954" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="522.7050983124842" y="62.341522555726954" text-anchor="middle">maintaining beacons</text></svg><table><tr><th>#</th><th>Actual fact</th><th>Assessment</th><th>Errors</th></tr><tr><td>1</td><td>{&quot;attitude&quot;: &quot;believes&quot;, &quot;evidence_ids&quot;: [&quot;S1&quot;], &quot;holder&quot;: &quot;Ada&quot;, &quot;object&quot;: &quot;Ada&quot;, &quot;relation&quot;: &quot;held_by&quot;, &quot;subject&quot;: &quot;Harbor Warden office&quot;, &quot;valid_from&quot;: 0, &quot;valid_until&quot;: 3}</td><td>unresolved wording or unsupported endpoint</td><td></td></tr><tr><td>2</td><td>{&quot;attitude&quot;: &quot;believes&quot;, &quot;evidence_ids&quot;: [&quot;S2&quot;], &quot;holder&quot;: &quot;Bram&quot;, &quot;object&quot;: &quot;Bram&quot;, &quot;relation&quot;: &quot;held_by&quot;, &quot;subject&quot;: &quot;Harbor Warden office&quot;, &quot;valid_from&quot;: 3, &quot;valid_until&quot;: 6}</td><td>unresolved wording or unsupported endpoint</td><td></td></tr><tr><td>3</td><td>{&quot;attitude&quot;: &quot;has responsibility&quot;, &quot;evidence_ids&quot;: [&quot;S3&quot;], &quot;holder&quot;: &quot;Harbor Warden office&quot;, &quot;object&quot;: &quot;inspecting boats&quot;, &quot;relation&quot;: &quot;responsible_for&quot;, &quot;subject&quot;: &quot;Harbor Warden office&quot;}</td><td>unresolved wording or unsupported endpoint</td><td>this diagnostic&#x27;s attributed attitude is believes</td></tr><tr><td>4</td><td>{&quot;attitude&quot;: &quot;has responsibility&quot;, &quot;evidence_ids&quot;: [&quot;S4&quot;], &quot;holder&quot;: &quot;Harbor Warden office&quot;, &quot;object&quot;: &quot;maintaining beacons&quot;, &quot;relation&quot;: &quot;responsible_for&quot;, &quot;subject&quot;: &quot;Harbor Warden office&quot;}</td><td>unresolved wording or unsupported endpoint</td><td>this diagnostic&#x27;s attributed attitude is believes</td></tr></table><p>Complete P/R/F1: 0.000/0.000/0.000; underlying F1 0.000. Tokens 379/179; 3.693 seconds; finish stop.</p><details><summary>Qualification, citation, omission and denominator details</summary><pre>{
+  &quot;citation_valid&quot;: 4,
+  &quot;diagnostic_level_supported&quot;: false,
+  &quot;format_compliant&quot;: 0,
+  &quot;format_unresolved&quot;: 2,
+  &quot;full&quot;: {
+    &quot;f1&quot;: 0.0,
+    &quot;incorrect_or_unmatched&quot;: [
+      {
+        &quot;attitude&quot;: &quot;believes&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S1&quot;
+        ],
+        &quot;holder&quot;: &quot;Ada&quot;,
+        &quot;object&quot;: &quot;Ada&quot;,
+        &quot;relation&quot;: &quot;held_by&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden office&quot;,
+        &quot;valid_from&quot;: 0,
+        &quot;valid_until&quot;: 3
+      },
+      {
+        &quot;attitude&quot;: &quot;believes&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S2&quot;
+        ],
+        &quot;holder&quot;: &quot;Bram&quot;,
+        &quot;object&quot;: &quot;Bram&quot;,
+        &quot;relation&quot;: &quot;held_by&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden office&quot;,
+        &quot;valid_from&quot;: 3,
+        &quot;valid_until&quot;: 6
+      },
+      {
+        &quot;attitude&quot;: &quot;has responsibility&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S3&quot;
+        ],
+        &quot;holder&quot;: &quot;Harbor Warden office&quot;,
+        &quot;object&quot;: &quot;inspecting boats&quot;,
+        &quot;relation&quot;: &quot;responsible_for&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden office&quot;
+      },
+      {
+        &quot;attitude&quot;: &quot;has responsibility&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S4&quot;
+        ],
+        &quot;holder&quot;: &quot;Harbor Warden office&quot;,
+        &quot;object&quot;: &quot;maintaining beacons&quot;,
+        &quot;relation&quot;: &quot;responsible_for&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden office&quot;
+      }
+    ],
+    &quot;matches&quot;: [],
+    &quot;missing&quot;: [
+      {
+        &quot;evidence_ids&quot;: [
+          &quot;S1&quot;
+        ],
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Ada&quot;,
+        &quot;valid_from&quot;: 0,
+        &quot;valid_until&quot;: 3
+      },
+      {
+        &quot;evidence_ids&quot;: [
+          &quot;S2&quot;
+        ],
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Bram&quot;,
+        &quot;valid_from&quot;: 3,
+        &quot;valid_until&quot;: 6
+      },
+      {
+        &quot;evidence_ids&quot;: [
+          &quot;S3&quot;
+        ],
+        &quot;object&quot;: &quot;inspecting boats&quot;,
+        &quot;relation&quot;: &quot;responsible_for&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden&quot;
+      },
+      {
+        &quot;evidence_ids&quot;: [
+          &quot;S4&quot;
+        ],
+        &quot;object&quot;: &quot;maintaining beacons&quot;,
+        &quot;relation&quot;: &quot;responsible_for&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden&quot;
+      }
+    ],
+    &quot;precision&quot;: 0.0,
+    &quot;predicted&quot;: 4,
+    &quot;recall&quot;: 0.0,
+    &quot;reference_count&quot;: 4,
+    &quot;true_positive&quot;: 0
+  },
+  &quot;matched_alternative&quot;: 0,
+  &quot;parseable&quot;: true,
+  &quot;prediction_count&quot;: 4,
+  &quot;qualifications&quot;: {
+    &quot;epistemic&quot;: {
+      &quot;applicable_predictions&quot;: 4,
+      &quot;assessed_absence&quot;: 0,
+      &quot;correct&quot;: 0,
+      &quot;correct_absence&quot;: 0,
+      &quot;precision&quot;: 0.0,
+      &quot;target_count&quot;: 0,
+      &quot;target_recall&quot;: null
+    },
+    &quot;temporal&quot;: {
+      &quot;applicable_predictions&quot;: 2,
+      &quot;assessed_absence&quot;: 0,
+      &quot;correct&quot;: 0,
+      &quot;correct_absence&quot;: 0,
+      &quot;precision&quot;: 0.0,
+      &quot;target_count&quot;: 2,
+      &quot;target_recall&quot;: 0.0
+    }
+  },
+  &quot;records&quot;: [
+    {
+      &quot;assessment&quot;: &quot;unresolved_wording_or_unsupported_endpoint&quot;,
+      &quot;citation_valid&quot;: true,
+      &quot;complete_correct&quot;: false,
+      &quot;conditional_format_resolved&quot;: false,
+      &quot;epistemic_correct&quot;: null,
+      &quot;fact&quot;: {
+        &quot;attitude&quot;: &quot;believes&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S1&quot;
+        ],
+        &quot;holder&quot;: &quot;Ada&quot;,
+        &quot;object&quot;: &quot;Ada&quot;,
+        &quot;relation&quot;: &quot;held_by&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden office&quot;,
+        &quot;valid_from&quot;: 0,
+        &quot;valid_until&quot;: 3
+      },
+      &quot;format_issues&quot;: [],
+      &quot;index&quot;: 0,
+      &quot;meaning_issues&quot;: [],
+      &quot;shape_compliant&quot;: true,
+      &quot;temporal_correct&quot;: null,
+      &quot;underlying_correct&quot;: false
+    },
+    {
+      &quot;assessment&quot;: &quot;unresolved_wording_or_unsupported_endpoint&quot;,
+      &quot;citation_valid&quot;: true,
+      &quot;complete_correct&quot;: false,
+      &quot;conditional_format_resolved&quot;: false,
+      &quot;epistemic_correct&quot;: null,
+      &quot;fact&quot;: {
+        &quot;attitude&quot;: &quot;believes&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S2&quot;
+        ],
+        &quot;holder&quot;: &quot;Bram&quot;,
+        &quot;object&quot;: &quot;Bram&quot;,
+        &quot;relation&quot;: &quot;held_by&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden office&quot;,
+        &quot;valid_from&quot;: 3,
+        &quot;valid_until&quot;: 6
+      },
+      &quot;format_issues&quot;: [],
+      &quot;index&quot;: 1,
+      &quot;meaning_issues&quot;: [],
+      &quot;shape_compliant&quot;: true,
+      &quot;temporal_correct&quot;: null,
+      &quot;underlying_correct&quot;: false
+    },
+    {
+      &quot;assessment&quot;: &quot;unresolved_wording_or_unsupported_endpoint&quot;,
+      &quot;citation_valid&quot;: true,
+      &quot;complete_correct&quot;: false,
+      &quot;conditional_format_resolved&quot;: false,
+      &quot;epistemic_correct&quot;: null,
+      &quot;fact&quot;: {
+        &quot;attitude&quot;: &quot;has responsibility&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S3&quot;
+        ],
+        &quot;holder&quot;: &quot;Harbor Warden office&quot;,
+        &quot;object&quot;: &quot;inspecting boats&quot;,
+        &quot;relation&quot;: &quot;responsible_for&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden office&quot;
+      },
+      &quot;format_issues&quot;: [
+        &quot;this diagnostic&#x27;s attributed attitude is believes&quot;
+      ],
+      &quot;index&quot;: 2,
+      &quot;meaning_issues&quot;: [],
+      &quot;shape_compliant&quot;: false,
+      &quot;temporal_correct&quot;: null,
+      &quot;underlying_correct&quot;: false
+    },
+    {
+      &quot;assessment&quot;: &quot;unresolved_wording_or_unsupported_endpoint&quot;,
+      &quot;citation_valid&quot;: true,
+      &quot;complete_correct&quot;: false,
+      &quot;conditional_format_resolved&quot;: false,
+      &quot;epistemic_correct&quot;: null,
+      &quot;fact&quot;: {
+        &quot;attitude&quot;: &quot;has responsibility&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S4&quot;
+        ],
+        &quot;holder&quot;: &quot;Harbor Warden office&quot;,
+        &quot;object&quot;: &quot;maintaining beacons&quot;,
+        &quot;relation&quot;: &quot;responsible_for&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden office&quot;
+      },
+      &quot;format_issues&quot;: [
+        &quot;this diagnostic&#x27;s attributed attitude is believes&quot;
+      ],
+      &quot;index&quot;: 3,
+      &quot;meaning_issues&quot;: [],
+      &quot;shape_compliant&quot;: false,
+      &quot;temporal_correct&quot;: null,
+      &quot;underlying_correct&quot;: false
+    }
+  ],
+  &quot;rule_version&quot;: &quot;simple-ladder-v2&quot;,
+  &quot;shape_compliant&quot;: 2,
+  &quot;underlying&quot;: {
+    &quot;f1&quot;: 0.0,
+    &quot;incorrect_or_unmatched&quot;: [
+      {
+        &quot;attitude&quot;: &quot;believes&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S1&quot;
+        ],
+        &quot;holder&quot;: &quot;Ada&quot;,
+        &quot;object&quot;: &quot;Ada&quot;,
+        &quot;relation&quot;: &quot;held_by&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden office&quot;,
+        &quot;valid_from&quot;: 0,
+        &quot;valid_until&quot;: 3
+      },
+      {
+        &quot;attitude&quot;: &quot;believes&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S2&quot;
+        ],
+        &quot;holder&quot;: &quot;Bram&quot;,
+        &quot;object&quot;: &quot;Bram&quot;,
+        &quot;relation&quot;: &quot;held_by&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden office&quot;,
+        &quot;valid_from&quot;: 3,
+        &quot;valid_until&quot;: 6
+      },
+      {
+        &quot;attitude&quot;: &quot;has responsibility&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S3&quot;
+        ],
+        &quot;holder&quot;: &quot;Harbor Warden office&quot;,
+        &quot;object&quot;: &quot;inspecting boats&quot;,
+        &quot;relation&quot;: &quot;responsible_for&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden office&quot;
+      },
+      {
+        &quot;attitude&quot;: &quot;has responsibility&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S4&quot;
+        ],
+        &quot;holder&quot;: &quot;Harbor Warden office&quot;,
+        &quot;object&quot;: &quot;maintaining beacons&quot;,
+        &quot;relation&quot;: &quot;responsible_for&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden office&quot;
+      }
+    ],
+    &quot;matches&quot;: [],
+    &quot;missing&quot;: [
+      {
+        &quot;evidence_ids&quot;: [
+          &quot;S1&quot;
+        ],
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Ada&quot;,
+        &quot;valid_from&quot;: 0,
+        &quot;valid_until&quot;: 3
+      },
+      {
+        &quot;evidence_ids&quot;: [
+          &quot;S2&quot;
+        ],
+        &quot;object&quot;: &quot;Harbor Warden&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Bram&quot;,
+        &quot;valid_from&quot;: 3,
+        &quot;valid_until&quot;: 6
+      },
+      {
+        &quot;evidence_ids&quot;: [
+          &quot;S3&quot;
+        ],
+        &quot;object&quot;: &quot;inspecting boats&quot;,
+        &quot;relation&quot;: &quot;responsible_for&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden&quot;
+      },
+      {
+        &quot;evidence_ids&quot;: [
+          &quot;S4&quot;
+        ],
+        &quot;object&quot;: &quot;maintaining beacons&quot;,
+        &quot;relation&quot;: &quot;responsible_for&quot;,
+        &quot;subject&quot;: &quot;Harbor Warden&quot;
+      }
+    ],
+    &quot;precision&quot;: 0.0,
+    &quot;predicted&quot;: 4,
+    &quot;recall&quot;: 0.0,
+    &quot;reference_count&quot;: 4,
+    &quot;true_positive&quot;: 0
+  }
+}</pre></details><h3>Manual interpretation — no rescoring</h3><p>Harbor Warden office is not among the prospectively allowed office-name aliases; held_by is an inverse expression outside the frozen predicate matching rules. Neither is automatically classified as a false officeholding claim. The numerical intervals agree with the supplied text, but unresolved graph mapping prevents formal qualification credit. The model additionally invents believes attribution for officeholders and uses the invalid epistemic attitude has responsibility with the office as holder. Those epistemic fields are not supported by the narrated facts.</p></section><section id="case-7"><h2>Case 7: fresh / office-person</h2><pre>S1: Celia holds the office of Orchard Steward from day 2 up to but not including day 5.
+S2: Dax holds the office of Orchard Steward from day 5 up to but not including day 9.
+S3: The office of Orchard Steward is responsible for checking irrigation.
+S4: The office of Orchard Steward is responsible for recording harvests.</pre><p>Person-centered question: who held the office when, and what responsibilities did each person have through it?</p><details><summary>Frozen reference answers (not model output)</summary><pre>[
+  [
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S1&quot;
+      ],
+      &quot;object&quot;: &quot;Orchard Steward&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;subject&quot;: &quot;Celia&quot;,
+      &quot;valid_from&quot;: 2,
+      &quot;valid_until&quot;: 5
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S2&quot;
+      ],
+      &quot;object&quot;: &quot;Orchard Steward&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;subject&quot;: &quot;Dax&quot;,
+      &quot;valid_from&quot;: 5,
+      &quot;valid_until&quot;: 9
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S3&quot;
+      ],
+      &quot;object&quot;: &quot;checking irrigation&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Orchard Steward&quot;
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S4&quot;
+      ],
+      &quot;object&quot;: &quot;recording harvests&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Orchard Steward&quot;
+    }
+  ],
+  [
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S1&quot;
+      ],
+      &quot;object&quot;: &quot;Orchard Steward&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;subject&quot;: &quot;Celia&quot;,
+      &quot;valid_from&quot;: 2,
+      &quot;valid_until&quot;: 5
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S2&quot;
+      ],
+      &quot;object&quot;: &quot;Orchard Steward&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;subject&quot;: &quot;Dax&quot;,
+      &quot;valid_from&quot;: 5,
+      &quot;valid_until&quot;: 9
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S1&quot;,
+        &quot;S3&quot;
+      ],
+      &quot;object&quot;: &quot;checking irrigation&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Celia&quot;,
+      &quot;valid_from&quot;: 2,
+      &quot;valid_until&quot;: 5
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S1&quot;,
+        &quot;S4&quot;
+      ],
+      &quot;object&quot;: &quot;recording harvests&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Celia&quot;,
+      &quot;valid_from&quot;: 2,
+      &quot;valid_until&quot;: 5
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S2&quot;,
+        &quot;S3&quot;
+      ],
+      &quot;object&quot;: &quot;checking irrigation&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Dax&quot;,
+      &quot;valid_from&quot;: 5,
+      &quot;valid_until&quot;: 9
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S2&quot;,
+        &quot;S4&quot;
+      ],
+      &quot;object&quot;: &quot;recording harvests&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Dax&quot;,
+      &quot;valid_from&quot;: 5,
+      &quot;valid_until&quot;: 9
+    }
+  ],
+  [
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S1&quot;
+      ],
+      &quot;object&quot;: &quot;Orchard Steward&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;subject&quot;: &quot;Celia&quot;,
+      &quot;valid_from&quot;: 2,
+      &quot;valid_until&quot;: 5
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S2&quot;
+      ],
+      &quot;object&quot;: &quot;Orchard Steward&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;subject&quot;: &quot;Dax&quot;,
+      &quot;valid_from&quot;: 5,
+      &quot;valid_until&quot;: 9
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S3&quot;
+      ],
+      &quot;object&quot;: &quot;checking irrigation&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Orchard Steward&quot;
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S4&quot;
+      ],
+      &quot;object&quot;: &quot;recording harvests&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Orchard Steward&quot;
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S1&quot;,
+        &quot;S3&quot;
+      ],
+      &quot;object&quot;: &quot;checking irrigation&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Celia&quot;,
+      &quot;valid_from&quot;: 2,
+      &quot;valid_until&quot;: 5
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S1&quot;,
+        &quot;S4&quot;
+      ],
+      &quot;object&quot;: &quot;recording harvests&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Celia&quot;,
+      &quot;valid_from&quot;: 2,
+      &quot;valid_until&quot;: 5
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S2&quot;,
+        &quot;S3&quot;
+      ],
+      &quot;object&quot;: &quot;checking irrigation&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Dax&quot;,
+      &quot;valid_from&quot;: 5,
+      &quot;valid_until&quot;: 9
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S2&quot;,
+        &quot;S4&quot;
+      ],
+      &quot;object&quot;: &quot;recording harvests&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Dax&quot;,
+      &quot;valid_from&quot;: 5,
+      &quot;valid_until&quot;: 9
+    }
+  ]
+]</pre></details><h3>Actual response</h3><pre>{
+  &quot;facts&quot;: [
+    {
+      &quot;subject&quot;: &quot;Celia&quot;,
+      &quot;relation&quot;: &quot;holds&quot;,
+      &quot;object&quot;: &quot;Orchard Steward&quot;,
+      &quot;evidence_ids&quot;: [&quot;S1&quot;],
+      &quot;holder&quot;: &quot;Celia&quot;,
+      &quot;attitude&quot;: &quot;believes&quot;,
+      &quot;valid_from&quot;: 2,
+      &quot;valid_until&quot;: 5
+    },
+    {
+      &quot;subject&quot;: &quot;Dax&quot;,
+      &quot;relation&quot;: &quot;holds&quot;,
+      &quot;object&quot;: &quot;Orchard Steward&quot;,
+      &quot;evidence_ids&quot;: [&quot;S2&quot;],
+      &quot;holder&quot;: &quot;Dax&quot;,
+      &quot;attitude&quot;: &quot;believes&quot;,
+      &quot;valid_from&quot;: 5,
+      &quot;valid_until&quot;: 9
+    },
+    {
+      &quot;subject&quot;: &quot;Orchard Steward&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;object&quot;: &quot;checking irrigation&quot;,
+      &quot;evidence_ids&quot;: [&quot;S3&quot;]
+    },
+    {
+      &quot;subject&quot;: &quot;Orchard Steward&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;object&quot;: &quot;recording harvests&quot;,
+      &quot;evidence_ids&quot;: [&quot;S4&quot;]
+    }
+  ]
+}</pre><svg viewBox="0 0 860 420" role="img" aria-label="Actual generated relationships"><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#64748b"/></marker></defs><path d="M730.0,200.0 L566.0572753640337,312.823901090864" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="626.352549156242" y="257.3292387221365" text-anchor="middle" class="edge"><tspan x="626.352549156242" dy="0">1. holds | holder=Celia;</tspan><tspan x="626.352549156242" dy="16">attitude=believes | [2,5)</tspan></text><path d="M187.2949016875158,288.167787843871 L422.76980327035227,326.4230045902553" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="405.0" y="288.413132644072" text-anchor="middle" class="edge"><tspan x="405.0" dy="0">2. holds | holder=Dax;</tspan><tspan x="405.0" dy="16">attitude=believes | [5,9)</tspan></text><path d="M522.7050983124842,342.658477444273 L230.6470787390652,141.66678850953807" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="355.0" y="221.24534480020102" text-anchor="middle" class="edge"><tspan x="355.0" dy="0">3. responsible_for</tspan></text><path d="M522.7050983124842,342.658477444273 L522.7050983124842,89.34152255572695" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="522.7050983124842" y="180.99999999999997" text-anchor="middle" class="edge"><tspan x="522.7050983124842" dy="0">4. responsible_for</tspan></text><rect x="635.0" y="173.0" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="730.0" y="205.0" text-anchor="middle">Celia</text><rect x="427.7050983124842" y="315.658477444273" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="522.7050983124842" y="347.658477444273" text-anchor="middle">Orchard Steward</text><rect x="92.29490168751579" y="261.167787843871" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="187.2949016875158" y="293.167787843871" text-anchor="middle">Dax</text><rect x="92.29490168751573" y="84.83221215612905" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="187.29490168751573" y="116.83221215612905" text-anchor="middle">checking irrigation</text><rect x="427.7050983124842" y="30.341522555726954" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="522.7050983124842" y="62.341522555726954" text-anchor="middle">recording harvests</text></svg><table><tr><th>#</th><th>Actual fact</th><th>Assessment</th><th>Errors</th></tr><tr><td>1</td><td>{&quot;attitude&quot;: &quot;believes&quot;, &quot;evidence_ids&quot;: [&quot;S1&quot;], &quot;holder&quot;: &quot;Celia&quot;, &quot;object&quot;: &quot;Orchard Steward&quot;, &quot;relation&quot;: &quot;holds&quot;, &quot;subject&quot;: &quot;Celia&quot;, &quot;valid_from&quot;: 2, &quot;valid_until&quot;: 5}</td><td>unmatched</td><td>unsupported epistemic fields on this relationship; epistemic holder/attitude missing, changed or unsupported</td></tr><tr><td>2</td><td>{&quot;attitude&quot;: &quot;believes&quot;, &quot;evidence_ids&quot;: [&quot;S2&quot;], &quot;holder&quot;: &quot;Dax&quot;, &quot;object&quot;: &quot;Orchard Steward&quot;, &quot;relation&quot;: &quot;holds&quot;, &quot;subject&quot;: &quot;Dax&quot;, &quot;valid_from&quot;: 5, &quot;valid_until&quot;: 9}</td><td>unmatched</td><td>unsupported epistemic fields on this relationship; epistemic holder/attitude missing, changed or unsupported</td></tr><tr><td>3</td><td>{&quot;evidence_ids&quot;: [&quot;S3&quot;], &quot;object&quot;: &quot;checking irrigation&quot;, &quot;relation&quot;: &quot;responsible_for&quot;, &quot;subject&quot;: &quot;Orchard Steward&quot;}</td><td>correct complete fact</td><td></td></tr><tr><td>4</td><td>{&quot;evidence_ids&quot;: [&quot;S4&quot;], &quot;object&quot;: &quot;recording harvests&quot;, &quot;relation&quot;: &quot;responsible_for&quot;, &quot;subject&quot;: &quot;Orchard Steward&quot;}</td><td>correct complete fact</td><td></td></tr></table><p>Complete P/R/F1: 0.500/0.500/0.500; underlying F1 1.000. Tokens 378/242; 4.403 seconds; finish stop.</p><details><summary>Qualification, citation, omission and denominator details</summary><pre>{
+  &quot;citation_valid&quot;: 4,
+  &quot;diagnostic_level_supported&quot;: false,
+  &quot;format_compliant&quot;: 2,
+  &quot;format_unresolved&quot;: 0,
+  &quot;full&quot;: {
+    &quot;f1&quot;: 0.5,
+    &quot;incorrect_or_unmatched&quot;: [
+      {
+        &quot;attitude&quot;: &quot;believes&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S1&quot;
+        ],
+        &quot;holder&quot;: &quot;Celia&quot;,
+        &quot;object&quot;: &quot;Orchard Steward&quot;,
+        &quot;relation&quot;: &quot;holds&quot;,
+        &quot;subject&quot;: &quot;Celia&quot;,
+        &quot;valid_from&quot;: 2,
+        &quot;valid_until&quot;: 5
+      },
+      {
+        &quot;attitude&quot;: &quot;believes&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S2&quot;
+        ],
+        &quot;holder&quot;: &quot;Dax&quot;,
+        &quot;object&quot;: &quot;Orchard Steward&quot;,
+        &quot;relation&quot;: &quot;holds&quot;,
+        &quot;subject&quot;: &quot;Dax&quot;,
+        &quot;valid_from&quot;: 5,
+        &quot;valid_until&quot;: 9
+      }
+    ],
+    &quot;matches&quot;: [
+      [
+        2,
+        2
+      ],
+      [
+        3,
+        3
+      ]
+    ],
+    &quot;missing&quot;: [
+      {
+        &quot;evidence_ids&quot;: [
+          &quot;S1&quot;
+        ],
+        &quot;object&quot;: &quot;Orchard Steward&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Celia&quot;,
+        &quot;valid_from&quot;: 2,
+        &quot;valid_until&quot;: 5
+      },
+      {
+        &quot;evidence_ids&quot;: [
+          &quot;S2&quot;
+        ],
+        &quot;object&quot;: &quot;Orchard Steward&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Dax&quot;,
+        &quot;valid_from&quot;: 5,
+        &quot;valid_until&quot;: 9
+      }
+    ],
+    &quot;precision&quot;: 0.5,
+    &quot;predicted&quot;: 4,
+    &quot;recall&quot;: 0.5,
+    &quot;reference_count&quot;: 4,
+    &quot;true_positive&quot;: 2
+  },
+  &quot;matched_alternative&quot;: 0,
+  &quot;parseable&quot;: true,
+  &quot;prediction_count&quot;: 4,
+  &quot;qualifications&quot;: {
+    &quot;epistemic&quot;: {
+      &quot;applicable_predictions&quot;: 2,
+      &quot;assessed_absence&quot;: 2,
+      &quot;correct&quot;: 0,
+      &quot;correct_absence&quot;: 2,
+      &quot;precision&quot;: 0.0,
+      &quot;target_count&quot;: 0,
+      &quot;target_recall&quot;: null
+    },
+    &quot;temporal&quot;: {
+      &quot;applicable_predictions&quot;: 2,
+      &quot;assessed_absence&quot;: 2,
+      &quot;correct&quot;: 2,
+      &quot;correct_absence&quot;: 2,
+      &quot;precision&quot;: 1.0,
+      &quot;target_count&quot;: 2,
+      &quot;target_recall&quot;: 1.0
+    }
+  },
+  &quot;records&quot;: [
+    {
+      &quot;assessment&quot;: &quot;unmatched&quot;,
+      &quot;citation_valid&quot;: true,
+      &quot;complete_correct&quot;: false,
+      &quot;conditional_format_resolved&quot;: true,
+      &quot;epistemic_correct&quot;: false,
+      &quot;fact&quot;: {
+        &quot;attitude&quot;: &quot;believes&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S1&quot;
+        ],
+        &quot;holder&quot;: &quot;Celia&quot;,
+        &quot;object&quot;: &quot;Orchard Steward&quot;,
+        &quot;relation&quot;: &quot;holds&quot;,
+        &quot;subject&quot;: &quot;Celia&quot;,
+        &quot;valid_from&quot;: 2,
+        &quot;valid_until&quot;: 5
+      },
+      &quot;format_issues&quot;: [
+        &quot;unsupported epistemic fields on this relationship&quot;
+      ],
+      &quot;index&quot;: 0,
+      &quot;meaning_issues&quot;: [
+        &quot;epistemic holder/attitude missing, changed or unsupported&quot;
+      ],
+      &quot;shape_compliant&quot;: true,
+      &quot;temporal_correct&quot;: true,
+      &quot;underlying_correct&quot;: true
+    },
+    {
+      &quot;assessment&quot;: &quot;unmatched&quot;,
+      &quot;citation_valid&quot;: true,
+      &quot;complete_correct&quot;: false,
+      &quot;conditional_format_resolved&quot;: true,
+      &quot;epistemic_correct&quot;: false,
+      &quot;fact&quot;: {
+        &quot;attitude&quot;: &quot;believes&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S2&quot;
+        ],
+        &quot;holder&quot;: &quot;Dax&quot;,
+        &quot;object&quot;: &quot;Orchard Steward&quot;,
+        &quot;relation&quot;: &quot;holds&quot;,
+        &quot;subject&quot;: &quot;Dax&quot;,
+        &quot;valid_from&quot;: 5,
+        &quot;valid_until&quot;: 9
+      },
+      &quot;format_issues&quot;: [
+        &quot;unsupported epistemic fields on this relationship&quot;
+      ],
+      &quot;index&quot;: 1,
+      &quot;meaning_issues&quot;: [
+        &quot;epistemic holder/attitude missing, changed or unsupported&quot;
+      ],
+      &quot;shape_compliant&quot;: true,
+      &quot;temporal_correct&quot;: true,
+      &quot;underlying_correct&quot;: true
+    },
+    {
+      &quot;assessment&quot;: &quot;correct_complete_fact&quot;,
+      &quot;citation_valid&quot;: true,
+      &quot;complete_correct&quot;: true,
+      &quot;conditional_format_resolved&quot;: true,
+      &quot;epistemic_correct&quot;: true,
+      &quot;fact&quot;: {
+        &quot;evidence_ids&quot;: [
+          &quot;S3&quot;
+        ],
+        &quot;object&quot;: &quot;checking irrigation&quot;,
+        &quot;relation&quot;: &quot;responsible_for&quot;,
+        &quot;subject&quot;: &quot;Orchard Steward&quot;
+      },
+      &quot;format_issues&quot;: [],
+      &quot;index&quot;: 2,
+      &quot;meaning_issues&quot;: [],
+      &quot;shape_compliant&quot;: true,
+      &quot;temporal_correct&quot;: true,
+      &quot;underlying_correct&quot;: true
+    },
+    {
+      &quot;assessment&quot;: &quot;correct_complete_fact&quot;,
+      &quot;citation_valid&quot;: true,
+      &quot;complete_correct&quot;: true,
+      &quot;conditional_format_resolved&quot;: true,
+      &quot;epistemic_correct&quot;: true,
+      &quot;fact&quot;: {
+        &quot;evidence_ids&quot;: [
+          &quot;S4&quot;
+        ],
+        &quot;object&quot;: &quot;recording harvests&quot;,
+        &quot;relation&quot;: &quot;responsible_for&quot;,
+        &quot;subject&quot;: &quot;Orchard Steward&quot;
+      },
+      &quot;format_issues&quot;: [],
+      &quot;index&quot;: 3,
+      &quot;meaning_issues&quot;: [],
+      &quot;shape_compliant&quot;: true,
+      &quot;temporal_correct&quot;: true,
+      &quot;underlying_correct&quot;: true
+    }
+  ],
+  &quot;rule_version&quot;: &quot;simple-ladder-v2&quot;,
+  &quot;shape_compliant&quot;: 4,
+  &quot;underlying&quot;: {
+    &quot;f1&quot;: 1.0,
+    &quot;incorrect_or_unmatched&quot;: [],
+    &quot;matches&quot;: [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        2
+      ],
+      [
+        3,
+        3
+      ]
+    ],
+    &quot;missing&quot;: [],
+    &quot;precision&quot;: 1.0,
+    &quot;predicted&quot;: 4,
+    &quot;recall&quot;: 1.0,
+    &quot;reference_count&quot;: 4,
+    &quot;true_positive&quot;: 4
+  }
+}</pre></details><h3>Manual interpretation — no rescoring</h3><p>All underlying bindings, supplied citation IDs and explicit holder intervals match the fresh evidence under the frozen evaluator. Both officeholding assertions nevertheless add unsupported believes attribution. The two direct office-responsibility assertions omit epistemic fields correctly and are complete matches. This is an epistemic-scope failure, not a wrong-date failure.</p></section><section id="case-8"><h2>Case 8: fresh / office-continuity</h2><pre>S1: Celia holds the office of Orchard Steward from day 2 up to but not including day 5.
+S2: Dax holds the office of Orchard Steward from day 5 up to but not including day 9.
+S3: The office of Orchard Steward is responsible for checking irrigation.
+S4: The office of Orchard Steward is responsible for recording harvests.</pre><p>Office-continuity question: represent the continuing office, its responsibilities, and the successive holders with their intervals.</p><details><summary>Frozen reference answers (not model output)</summary><pre>[
+  [
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S1&quot;
+      ],
+      &quot;object&quot;: &quot;Orchard Steward&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;subject&quot;: &quot;Celia&quot;,
+      &quot;valid_from&quot;: 2,
+      &quot;valid_until&quot;: 5
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S2&quot;
+      ],
+      &quot;object&quot;: &quot;Orchard Steward&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;subject&quot;: &quot;Dax&quot;,
+      &quot;valid_from&quot;: 5,
+      &quot;valid_until&quot;: 9
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S3&quot;
+      ],
+      &quot;object&quot;: &quot;checking irrigation&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Orchard Steward&quot;
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S4&quot;
+      ],
+      &quot;object&quot;: &quot;recording harvests&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Orchard Steward&quot;
+    }
+  ],
+  [
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S1&quot;
+      ],
+      &quot;object&quot;: &quot;Orchard Steward&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;subject&quot;: &quot;Celia&quot;,
+      &quot;valid_from&quot;: 2,
+      &quot;valid_until&quot;: 5
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S2&quot;
+      ],
+      &quot;object&quot;: &quot;Orchard Steward&quot;,
+      &quot;relation&quot;: &quot;holds_office&quot;,
+      &quot;subject&quot;: &quot;Dax&quot;,
+      &quot;valid_from&quot;: 5,
+      &quot;valid_until&quot;: 9
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S3&quot;
+      ],
+      &quot;object&quot;: &quot;checking irrigation&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Orchard Steward&quot;
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S4&quot;
+      ],
+      &quot;object&quot;: &quot;recording harvests&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Orchard Steward&quot;
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S1&quot;,
+        &quot;S3&quot;
+      ],
+      &quot;object&quot;: &quot;checking irrigation&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Celia&quot;,
+      &quot;valid_from&quot;: 2,
+      &quot;valid_until&quot;: 5
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S1&quot;,
+        &quot;S4&quot;
+      ],
+      &quot;object&quot;: &quot;recording harvests&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Celia&quot;,
+      &quot;valid_from&quot;: 2,
+      &quot;valid_until&quot;: 5
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S2&quot;,
+        &quot;S3&quot;
+      ],
+      &quot;object&quot;: &quot;checking irrigation&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Dax&quot;,
+      &quot;valid_from&quot;: 5,
+      &quot;valid_until&quot;: 9
+    },
+    {
+      &quot;evidence_ids&quot;: [
+        &quot;S2&quot;,
+        &quot;S4&quot;
+      ],
+      &quot;object&quot;: &quot;recording harvests&quot;,
+      &quot;relation&quot;: &quot;responsible_for&quot;,
+      &quot;subject&quot;: &quot;Dax&quot;,
+      &quot;valid_from&quot;: 5,
+      &quot;valid_until&quot;: 9
+    }
+  ]
+]</pre></details><h3>Actual response</h3><pre>{&quot;facts&quot;: [{&quot;subject&quot;:&quot;Orchard Steward&quot;,&quot;relation&quot;:&quot;held_by&quot;,&quot;object&quot;:&quot;Celia&quot;,&quot;evidence_ids&quot;:[&quot;S1&quot;],&quot;valid_from&quot;:2,&quot;valid_until&quot;:5,&quot;holder&quot;:&quot;Celia&quot;,&quot;attitude&quot;:&quot;holds&quot;},{&quot;subject&quot;:&quot;Orchard Steward&quot;,&quot;relation&quot;:&quot;held_by&quot;,&quot;object&quot;:&quot;Dax&quot;,&quot;evidence_ids&quot;:[&quot;S2&quot;],&quot;valid_from&quot;:5,&quot;valid_until&quot;:9,&quot;holder&quot;:&quot;Dax&quot;,&quot;attitude&quot;:&quot;holds&quot;},{&quot;subject&quot;:&quot;Orchard Steward&quot;,&quot;relation&quot;:&quot;responsible_for&quot;,&quot;object&quot;:&quot;checking irrigation&quot;,&quot;evidence_ids&quot;:[&quot;S3&quot;]},{&quot;subject&quot;:&quot;Orchard Steward&quot;,&quot;relation&quot;:&quot;responsible_for&quot;,&quot;object&quot;:&quot;recording harvests&quot;,&quot;evidence_ids&quot;:[&quot;S4&quot;]}]}</pre><svg viewBox="0 0 860 420" role="img" aria-label="Actual generated relationships"><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#64748b"/></marker></defs><path d="M730.0,200.0 L566.0572753640337,312.823901090864" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="626.352549156242" y="257.3292387221365" text-anchor="middle" class="edge"><tspan x="626.352549156242" dy="0">1. held_by | holder=Celia;</tspan><tspan x="626.352549156242" dy="16">attitude=holds | [2,5)</tspan></text><path d="M730.0,200.0 L287.23019672964773,271.9323149898533" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="458.6474508437579" y="217.0838939219355" text-anchor="middle" class="edge"><tspan x="458.6474508437579" dy="0">2. held_by | holder=Dax;</tspan><tspan x="458.6474508437579" dy="16">attitude=holds | [5,9)</tspan></text><path d="M730.0,200.0 L287.2301967296477,128.06768501014673" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="458.64745084375784" y="149.91610607806453" text-anchor="middle" class="edge"><tspan x="458.64745084375784" dy="0">3. responsible_for</tspan></text><path d="M730.0,200.0 L566.0572753640337,87.17609890913594" stroke="#64748b" fill="none" marker-end="url(#arrow)"/><text x="626.352549156242" y="109.67076127786348" text-anchor="middle" class="edge"><tspan x="626.352549156242" dy="0">4. responsible_for</tspan></text><rect x="635.0" y="173.0" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="730.0" y="205.0" text-anchor="middle">Orchard Steward</text><rect x="427.7050983124842" y="315.658477444273" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="522.7050983124842" y="347.658477444273" text-anchor="middle">Celia</text><rect x="92.29490168751579" y="261.167787843871" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="187.2949016875158" y="293.167787843871" text-anchor="middle">Dax</text><rect x="92.29490168751573" y="84.83221215612905" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="187.29490168751573" y="116.83221215612905" text-anchor="middle">checking irrigation</text><rect x="427.7050983124842" y="30.341522555726954" width="190" height="54" rx="8" fill="#e0f2fe" stroke="#0369a1"/><text x="522.7050983124842" y="62.341522555726954" text-anchor="middle">recording harvests</text></svg><table><tr><th>#</th><th>Actual fact</th><th>Assessment</th><th>Errors</th></tr><tr><td>1</td><td>{&quot;attitude&quot;: &quot;holds&quot;, &quot;evidence_ids&quot;: [&quot;S1&quot;], &quot;holder&quot;: &quot;Celia&quot;, &quot;object&quot;: &quot;Celia&quot;, &quot;relation&quot;: &quot;held_by&quot;, &quot;subject&quot;: &quot;Orchard Steward&quot;, &quot;valid_from&quot;: 2, &quot;valid_until&quot;: 5}</td><td>unresolved wording or unsupported endpoint</td><td>this diagnostic&#x27;s attributed attitude is believes</td></tr><tr><td>2</td><td>{&quot;attitude&quot;: &quot;holds&quot;, &quot;evidence_ids&quot;: [&quot;S2&quot;], &quot;holder&quot;: &quot;Dax&quot;, &quot;object&quot;: &quot;Dax&quot;, &quot;relation&quot;: &quot;held_by&quot;, &quot;subject&quot;: &quot;Orchard Steward&quot;, &quot;valid_from&quot;: 5, &quot;valid_until&quot;: 9}</td><td>unresolved wording or unsupported endpoint</td><td>this diagnostic&#x27;s attributed attitude is believes</td></tr><tr><td>3</td><td>{&quot;evidence_ids&quot;: [&quot;S3&quot;], &quot;object&quot;: &quot;checking irrigation&quot;, &quot;relation&quot;: &quot;responsible_for&quot;, &quot;subject&quot;: &quot;Orchard Steward&quot;}</td><td>correct complete fact</td><td></td></tr><tr><td>4</td><td>{&quot;evidence_ids&quot;: [&quot;S4&quot;], &quot;object&quot;: &quot;recording harvests&quot;, &quot;relation&quot;: &quot;responsible_for&quot;, &quot;subject&quot;: &quot;Orchard Steward&quot;}</td><td>correct complete fact</td><td></td></tr></table><p>Complete P/R/F1: 0.500/0.500/0.500; underlying F1 0.500. Tokens 380/151; 3.356 seconds; finish stop.</p><details><summary>Qualification, citation, omission and denominator details</summary><pre>{
+  &quot;citation_valid&quot;: 4,
+  &quot;diagnostic_level_supported&quot;: false,
+  &quot;format_compliant&quot;: 2,
+  &quot;format_unresolved&quot;: 0,
+  &quot;full&quot;: {
+    &quot;f1&quot;: 0.5,
+    &quot;incorrect_or_unmatched&quot;: [
+      {
+        &quot;attitude&quot;: &quot;holds&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S1&quot;
+        ],
+        &quot;holder&quot;: &quot;Celia&quot;,
+        &quot;object&quot;: &quot;Celia&quot;,
+        &quot;relation&quot;: &quot;held_by&quot;,
+        &quot;subject&quot;: &quot;Orchard Steward&quot;,
+        &quot;valid_from&quot;: 2,
+        &quot;valid_until&quot;: 5
+      },
+      {
+        &quot;attitude&quot;: &quot;holds&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S2&quot;
+        ],
+        &quot;holder&quot;: &quot;Dax&quot;,
+        &quot;object&quot;: &quot;Dax&quot;,
+        &quot;relation&quot;: &quot;held_by&quot;,
+        &quot;subject&quot;: &quot;Orchard Steward&quot;,
+        &quot;valid_from&quot;: 5,
+        &quot;valid_until&quot;: 9
+      }
+    ],
+    &quot;matches&quot;: [
+      [
+        2,
+        2
+      ],
+      [
+        3,
+        3
+      ]
+    ],
+    &quot;missing&quot;: [
+      {
+        &quot;evidence_ids&quot;: [
+          &quot;S1&quot;
+        ],
+        &quot;object&quot;: &quot;Orchard Steward&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Celia&quot;,
+        &quot;valid_from&quot;: 2,
+        &quot;valid_until&quot;: 5
+      },
+      {
+        &quot;evidence_ids&quot;: [
+          &quot;S2&quot;
+        ],
+        &quot;object&quot;: &quot;Orchard Steward&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Dax&quot;,
+        &quot;valid_from&quot;: 5,
+        &quot;valid_until&quot;: 9
+      }
+    ],
+    &quot;precision&quot;: 0.5,
+    &quot;predicted&quot;: 4,
+    &quot;recall&quot;: 0.5,
+    &quot;reference_count&quot;: 4,
+    &quot;true_positive&quot;: 2
+  },
+  &quot;matched_alternative&quot;: 0,
+  &quot;parseable&quot;: true,
+  &quot;prediction_count&quot;: 4,
+  &quot;qualifications&quot;: {
+    &quot;epistemic&quot;: {
+      &quot;applicable_predictions&quot;: 2,
+      &quot;assessed_absence&quot;: 2,
+      &quot;correct&quot;: 0,
+      &quot;correct_absence&quot;: 2,
+      &quot;precision&quot;: 0.0,
+      &quot;target_count&quot;: 0,
+      &quot;target_recall&quot;: null
+    },
+    &quot;temporal&quot;: {
+      &quot;applicable_predictions&quot;: 2,
+      &quot;assessed_absence&quot;: 2,
+      &quot;correct&quot;: 0,
+      &quot;correct_absence&quot;: 2,
+      &quot;precision&quot;: 0.0,
+      &quot;target_count&quot;: 2,
+      &quot;target_recall&quot;: 0.0
+    }
+  },
+  &quot;records&quot;: [
+    {
+      &quot;assessment&quot;: &quot;unresolved_wording_or_unsupported_endpoint&quot;,
+      &quot;citation_valid&quot;: true,
+      &quot;complete_correct&quot;: false,
+      &quot;conditional_format_resolved&quot;: false,
+      &quot;epistemic_correct&quot;: null,
+      &quot;fact&quot;: {
+        &quot;attitude&quot;: &quot;holds&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S1&quot;
+        ],
+        &quot;holder&quot;: &quot;Celia&quot;,
+        &quot;object&quot;: &quot;Celia&quot;,
+        &quot;relation&quot;: &quot;held_by&quot;,
+        &quot;subject&quot;: &quot;Orchard Steward&quot;,
+        &quot;valid_from&quot;: 2,
+        &quot;valid_until&quot;: 5
+      },
+      &quot;format_issues&quot;: [
+        &quot;this diagnostic&#x27;s attributed attitude is believes&quot;
+      ],
+      &quot;index&quot;: 0,
+      &quot;meaning_issues&quot;: [],
+      &quot;shape_compliant&quot;: false,
+      &quot;temporal_correct&quot;: null,
+      &quot;underlying_correct&quot;: false
+    },
+    {
+      &quot;assessment&quot;: &quot;unresolved_wording_or_unsupported_endpoint&quot;,
+      &quot;citation_valid&quot;: true,
+      &quot;complete_correct&quot;: false,
+      &quot;conditional_format_resolved&quot;: false,
+      &quot;epistemic_correct&quot;: null,
+      &quot;fact&quot;: {
+        &quot;attitude&quot;: &quot;holds&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S2&quot;
+        ],
+        &quot;holder&quot;: &quot;Dax&quot;,
+        &quot;object&quot;: &quot;Dax&quot;,
+        &quot;relation&quot;: &quot;held_by&quot;,
+        &quot;subject&quot;: &quot;Orchard Steward&quot;,
+        &quot;valid_from&quot;: 5,
+        &quot;valid_until&quot;: 9
+      },
+      &quot;format_issues&quot;: [
+        &quot;this diagnostic&#x27;s attributed attitude is believes&quot;
+      ],
+      &quot;index&quot;: 1,
+      &quot;meaning_issues&quot;: [],
+      &quot;shape_compliant&quot;: false,
+      &quot;temporal_correct&quot;: null,
+      &quot;underlying_correct&quot;: false
+    },
+    {
+      &quot;assessment&quot;: &quot;correct_complete_fact&quot;,
+      &quot;citation_valid&quot;: true,
+      &quot;complete_correct&quot;: true,
+      &quot;conditional_format_resolved&quot;: true,
+      &quot;epistemic_correct&quot;: true,
+      &quot;fact&quot;: {
+        &quot;evidence_ids&quot;: [
+          &quot;S3&quot;
+        ],
+        &quot;object&quot;: &quot;checking irrigation&quot;,
+        &quot;relation&quot;: &quot;responsible_for&quot;,
+        &quot;subject&quot;: &quot;Orchard Steward&quot;
+      },
+      &quot;format_issues&quot;: [],
+      &quot;index&quot;: 2,
+      &quot;meaning_issues&quot;: [],
+      &quot;shape_compliant&quot;: true,
+      &quot;temporal_correct&quot;: true,
+      &quot;underlying_correct&quot;: true
+    },
+    {
+      &quot;assessment&quot;: &quot;correct_complete_fact&quot;,
+      &quot;citation_valid&quot;: true,
+      &quot;complete_correct&quot;: true,
+      &quot;conditional_format_resolved&quot;: true,
+      &quot;epistemic_correct&quot;: true,
+      &quot;fact&quot;: {
+        &quot;evidence_ids&quot;: [
+          &quot;S4&quot;
+        ],
+        &quot;object&quot;: &quot;recording harvests&quot;,
+        &quot;relation&quot;: &quot;responsible_for&quot;,
+        &quot;subject&quot;: &quot;Orchard Steward&quot;
+      },
+      &quot;format_issues&quot;: [],
+      &quot;index&quot;: 3,
+      &quot;meaning_issues&quot;: [],
+      &quot;shape_compliant&quot;: true,
+      &quot;temporal_correct&quot;: true,
+      &quot;underlying_correct&quot;: true
+    }
+  ],
+  &quot;rule_version&quot;: &quot;simple-ladder-v2&quot;,
+  &quot;shape_compliant&quot;: 2,
+  &quot;underlying&quot;: {
+    &quot;f1&quot;: 0.5,
+    &quot;incorrect_or_unmatched&quot;: [
+      {
+        &quot;attitude&quot;: &quot;holds&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S1&quot;
+        ],
+        &quot;holder&quot;: &quot;Celia&quot;,
+        &quot;object&quot;: &quot;Celia&quot;,
+        &quot;relation&quot;: &quot;held_by&quot;,
+        &quot;subject&quot;: &quot;Orchard Steward&quot;,
+        &quot;valid_from&quot;: 2,
+        &quot;valid_until&quot;: 5
+      },
+      {
+        &quot;attitude&quot;: &quot;holds&quot;,
+        &quot;evidence_ids&quot;: [
+          &quot;S2&quot;
+        ],
+        &quot;holder&quot;: &quot;Dax&quot;,
+        &quot;object&quot;: &quot;Dax&quot;,
+        &quot;relation&quot;: &quot;held_by&quot;,
+        &quot;subject&quot;: &quot;Orchard Steward&quot;,
+        &quot;valid_from&quot;: 5,
+        &quot;valid_until&quot;: 9
+      }
+    ],
+    &quot;matches&quot;: [
+      [
+        2,
+        2
+      ],
+      [
+        3,
+        3
+      ]
+    ],
+    &quot;missing&quot;: [
+      {
+        &quot;evidence_ids&quot;: [
+          &quot;S1&quot;
+        ],
+        &quot;object&quot;: &quot;Orchard Steward&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Celia&quot;,
+        &quot;valid_from&quot;: 2,
+        &quot;valid_until&quot;: 5
+      },
+      {
+        &quot;evidence_ids&quot;: [
+          &quot;S2&quot;
+        ],
+        &quot;object&quot;: &quot;Orchard Steward&quot;,
+        &quot;relation&quot;: &quot;holds_office&quot;,
+        &quot;subject&quot;: &quot;Dax&quot;,
+        &quot;valid_from&quot;: 5,
+        &quot;valid_until&quot;: 9
+      }
+    ],
+    &quot;precision&quot;: 0.5,
+    &quot;predicted&quot;: 4,
+    &quot;recall&quot;: 0.5,
+    &quot;reference_count&quot;: 4,
+    &quot;true_positive&quot;: 2
+  }
+}</pre></details><h3>Manual interpretation — no rescoring</h3><p>Officeholder assertions use inverse held_by wording, which remains unresolved by the frozen matcher; their written dates match the evidence. They also populate holder and attitude=holds, using epistemic fields for office occupancy rather than supported attribution. The two office-responsibility facts are complete matches. No inverse translation was added after seeing this answer.</p></section></html>

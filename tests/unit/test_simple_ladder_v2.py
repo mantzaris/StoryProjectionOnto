@@ -156,3 +156,35 @@ def test_original_results_and_frozen_evaluator_unchanged():
     manifest = json.loads((root / "reports/tables/simple_synthetic_manifest.json").read_text())
     for p, h in manifest.items():
         assert hashlib.sha256((root / "reports" / p).read_bytes()).hexdigest() == h
+
+
+def test_actual_v2_replay_and_report_consistency(tmp_path):
+    import csv
+
+    from scripts.report_simple_ladder_v2 import render
+
+    run = Path("artifacts/restricted/simple-v2-backup.TBXLRG/run-20260909T012304816240")
+    if not run.exists():
+        pytest.skip("restricted real outputs unavailable")
+    terminal = json.loads((run / "terminal.json").read_text())
+    assert len(terminal["outcomes"]) == 8
+    expected = [1, 1, 1, 1, 0, 0, 0.5, 0.5]
+    packing = json.loads((run / "packing.json").read_text())
+    for outcome, f1 in zip(terminal["outcomes"], expected, strict=True):
+        k = outcome["case_id"]
+        recomputed = json.loads(json.dumps(evaluate(k, outcome["parsed"])))
+        assert recomputed == outcome["evaluation"]
+        assert recomputed["full"]["f1"] == f1
+        assert outcome["response"]["finish_reason"] == "stop"
+        assert outcome["response"]["prompt_tokens"] == packing[k]["input_tokens"]
+        assert outcome["response"]["completion_tokens"] < packing[k]["reserved_output_tokens"]
+    rows = render(run, tmp_path)
+    saved = list(csv.DictReader((tmp_path / "tables/simple_synthetic_v2_results.csv").open()))
+    for row, record in zip(rows, saved, strict=True):
+        for k, v in row.items():
+            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                assert float(record[k]) == v
+    manifest = json.loads((tmp_path / "tables/simple_synthetic_v2_manifest.json").read_text())
+    for p, h in manifest.items():
+        assert hashlib.sha256((tmp_path / p).read_bytes()).hexdigest() == h
+    assert terminal["open_allocations"] == terminal["open_service_journals"] == 0
