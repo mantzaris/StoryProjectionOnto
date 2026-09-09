@@ -109,7 +109,9 @@ def anchors_for(collections):
     }
 
 
-def build(run):
+def build(run, *, protocol=p, evaluator=scorer):
+    p, scorer = protocol, evaluator
+
     def read(name):
         return json.loads((run / name).read_text())
 

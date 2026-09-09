@@ -49,8 +49,11 @@ def execute_workload(root, block, run, *, prepare_only=False, version="v1"):
 
     from .scorer_only.simple_ladder import RULE_VERSION, SYNONYMS, evaluate, references, toy_extract
 
-    if version in ("v2", "compact-story"):
-        if version == "compact-story":
+    if version in ("v2", "compact-story", "compact-story-v2"):
+        if version == "compact-story-v2":
+            from . import compact_story_v2 as protocol
+            from .scorer_only import compact_story_v2 as scorer
+        elif version == "compact-story":
             from . import compact_story as protocol
             from .scorer_only import compact_story as scorer
         else:
@@ -115,7 +118,7 @@ def execute_workload(root, block, run, *, prepare_only=False, version="v1"):
     immutable(
         run / "frozen-scoring.json",
         scorer.frozen_rules()
-        if version in ("v2", "compact-story")
+        if version in ("v2", "compact-story", "compact-story-v2")
         else {
             "version": RULE_VERSION,
             "synonyms": SYNONYMS,
@@ -128,7 +131,7 @@ def execute_workload(root, block, run, *, prepare_only=False, version="v1"):
     immutable(
         run / "toy-baseline.json",
         {}
-        if version in ("v2", "compact-story")
+        if version in ("v2", "compact-story", "compact-story-v2")
         else {
             k: {
                 "output": toy_extract(inputs[k]["evidence"]),
@@ -188,8 +191,8 @@ def execute_workload(root, block, run, *, prepare_only=False, version="v1"):
             prior_block_seconds=prior,
             stage_seconds=seconds,
             comparison=True,
-            semantic="compact-story"
-            if version == "compact-story"
+            semantic=version
+            if version in ("compact-story", "compact-story-v2")
             else "simple-ladder-v2"
             if version == "v2"
             else "simple-ladder",
@@ -293,6 +296,15 @@ def execute_workload(root, block, run, *, prepare_only=False, version="v1"):
             stage("validation_and_bookkeeping", 10)
             text = result.parsed_object["diagnostic_text"] if result else ""
             parsed, normalization, parse_error = parse_text(text)
+            syntax_recovery = None
+            if version == "compact-story-v2":
+                from .compact_syntax import recover
+
+                parsed, syntax_recovery = recover(text)
+                normalization = (
+                    "trailing_comma_syntax_recovery" if syntax_recovery["applied"] else "none"
+                )
+                parse_error = None if parsed is not None else syntax_recovery["recovery_error"]
             if case_id == "control":
                 parsed, parse_error = None, None
             evaluation = evaluate(case_id, parsed) if case_id != "control" else None
@@ -349,8 +361,13 @@ def execute_workload(root, block, run, *, prepare_only=False, version="v1"):
                 "transport_complete": result is not None,
                 "completed_at": now(),
             }
+            if syntax_recovery is not None:
+                outcome["syntax_recovery"] = syntax_recovery
             immutable(run / f"outcome-{case_id}.json", outcome)
-            if version == "compact-story" and inputs[case_id]["task"] == "all":
+            if (
+                version in ("compact-story", "compact-story-v2")
+                and inputs[case_id]["task"] == "all"
+            ):
                 # Administrative seal of the actual response, not scientific acceptance.
                 immutable(
                     run / f"preextract-seal-{case_id}.json",

@@ -195,17 +195,23 @@ def triple(row, story_id):
     return s, next((k for k, values in RELATIONS.items() if r in values), r), o
 
 
-def select(parsed, story_id, task):
+def select(parsed, story_id, task, *, _stories=stories, _triple=triple, _attributed=None):
     """Record-only filter. No reference lookup, semantic repair, clipping or deduplication."""
     facts = parsed.get("facts", []) if isinstance(parsed, dict) else []
 
     def attributed(row):
-        return isinstance(row, dict) and ("holder" in row or "attitude" in row)
+        return (
+            _attributed(row)
+            if _attributed is not None
+            else isinstance(row, dict) and ("holder" in row or "attitude" in row)
+        )
+
+    triple = _triple
 
     belief_subjects = {
         triple(r, story_id)[0] for r in facts if attributed(r) and triple(r, story_id) is not None
     }
-    start, end = stories()[story_id]["window"]
+    start, end = _stories()[story_id]["window"]
     selected, trace = [], []
     for i, row in enumerate(facts):
         t = triple(row, story_id)

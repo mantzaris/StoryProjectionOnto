@@ -129,6 +129,10 @@ def semantic_session_admit(actual, starts, attempts, *, starting=False, generati
 
 
 def diagnostic_policy(semantic):
+    if semantic == "compact-story-v2":
+        from story_projection_onto.compact_story_v2 import policy
+
+        return policy()
     if semantic == "compact-story":
         from story_projection_onto.compact_story import policy
 
@@ -927,7 +931,7 @@ def advance_small_semantic(
 
 
 def controller(root, block, run, *, prepare_only=False, comparison=False, semantic=False):
-    if semantic in ("simple-ladder", "simple-ladder-v2", "compact-story"):
+    if semantic in ("simple-ladder", "simple-ladder-v2", "compact-story", "compact-story-v2"):
         from story_projection_onto.simple_ladder_execution import execute_workload
 
         return execute_workload(
@@ -935,8 +939,8 @@ def controller(root, block, run, *, prepare_only=False, comparison=False, semant
             block,
             run,
             prepare_only=prepare_only,
-            version="compact-story"
-            if semantic == "compact-story"
+            version=semantic
+            if semantic in ("compact-story", "compact-story-v2")
             else "v2"
             if semantic == "simple-ladder-v2"
             else "v1",
@@ -1779,6 +1783,7 @@ def guardian(root, *, prepare_only=False, comparison=False, semantic=False):
             "simple-ladder",
             "simple-ladder-v2",
             "compact-story",
+            "compact-story-v2",
         ):
             authorization = {**authorization, "preliminary_development_demo": policy_mode.config}
         if authorization["activation_scope"] != "bounded_feasibility_diagnostics_only":
@@ -1821,6 +1826,7 @@ def guardian(root, *, prepare_only=False, comparison=False, semantic=False):
                     "simple-ladder",
                     "simple-ladder-v2",
                     "compact-story",
+                    "compact-story-v2",
                 )
                 else "parent_linked_small_repairs"
                 if semantic
@@ -1835,6 +1841,7 @@ def guardian(root, *, prepare_only=False, comparison=False, semantic=False):
                     "simple-ladder",
                     "simple-ladder-v2",
                     "compact-story",
+                    "compact-story-v2",
                 )
                 else SEMANTIC_SESSION
                 if semantic
@@ -1870,7 +1877,9 @@ def guardian(root, *, prepare_only=False, comparison=False, semantic=False):
         ]
         if prepare_only:
             command.append("--prepare-only")
-        if semantic == "compact-story":
+        if semantic == "compact-story-v2":
+            command.append("--compact-story-v2")
+        elif semantic == "compact-story":
             command.append("--compact-story")
         elif semantic == "simple-ladder-v2":
             command.append("--simple-ladder-v2")
@@ -1978,6 +1987,7 @@ if __name__ == "__main__":
     parser.add_argument("--simple-ladder", action="store_true")
     parser.add_argument("--simple-ladder-v2", action="store_true")
     parser.add_argument("--compact-story", action="store_true")
+    parser.add_argument("--compact-story-v2", action="store_true")
     args = parser.parse_args()
     root = Path.cwd()
     if args.controller:
@@ -1987,7 +1997,9 @@ if __name__ == "__main__":
             args.controller,
             prepare_only=args.prepare_only,
             comparison=args.comparison,
-            semantic="compact-story"
+            semantic="compact-story-v2"
+            if args.compact_story_v2
+            else "compact-story"
             if args.compact_story
             else "simple-ladder-v2"
             if args.simple_ladder_v2
@@ -2004,7 +2016,9 @@ if __name__ == "__main__":
             root,
             prepare_only=True,
             comparison=args.comparison,
-            semantic="compact-story"
+            semantic="compact-story-v2"
+            if args.compact_story_v2
+            else "compact-story"
             if args.compact_story
             else "simple-ladder-v2"
             if args.simple_ladder_v2
@@ -2020,7 +2034,9 @@ if __name__ == "__main__":
         guardian(
             root,
             comparison=args.comparison,
-            semantic="compact-story"
+            semantic="compact-story-v2"
+            if args.compact_story_v2
+            else "compact-story"
             if args.compact_story
             else "simple-ladder-v2"
             if args.simple_ladder_v2

@@ -113,10 +113,27 @@ def full_key(row, story_id):
     )
 
 
-def evaluate_answer(story_id, task, parsed):
+def evaluate_answer(
+    story_id,
+    task,
+    parsed,
+    *,
+    _protocol=protocol,
+    _targets=None,
+    _source=None,
+    _full_key=full_key,
+    _field_issues=field_issues,
+    _qualification=qualification,
+):
+    protocol, full_key, field_issues, qualification = (
+        _protocol,
+        _full_key,
+        _field_issues,
+        _qualification,
+    )
     predictions = parsed["facts"] if parsed else []
-    targets = reference_for(story_id, task)
-    source = story_reference(story_id)
+    targets = reference_for(story_id, task) if _targets is None else _targets
+    source = story_reference(story_id) if _source is None else _source
     evidence = protocol.stories()[story_id]["evidence"]
     full = count_matches(predictions, targets, lambda r: full_key(r, story_id))
     bare = count_matches(predictions, targets, lambda r: protocol.triple(r, story_id))
