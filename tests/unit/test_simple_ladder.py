@@ -111,7 +111,7 @@ def test_progression_and_bounds():
 
 
 @pytest.mark.parametrize("basics_pass", [True, False])
-@pytest.mark.parametrize("version", ["v1", "v2"])
+@pytest.mark.parametrize("version", ["v1", "v2", "compact-story"])
 def test_actual_workload_service_guard_and_stream_transport(
     tmp_path, monkeypatch, pinned, basics_pass, version
 ):
@@ -123,7 +123,12 @@ def test_actual_workload_service_guard_and_stream_transport(
     from story_projection_onto.manifest import write_json_atomic
 
     tokenizer, manifest = pinned
-    if version == "v2":
+    if version == "compact-story":
+        from story_projection_onto.compact_story import BASELINE as actual_baseline
+        from story_projection_onto.compact_story import cases as case_factory
+        from story_projection_onto.compact_story import prepare as request_factory
+        from story_projection_onto.scorer_only.compact_story import references as reference_factory
+    elif version == "v2":
         from story_projection_onto.scorer_only.simple_ladder_v2 import (
             references as reference_factory,
         )
@@ -163,7 +168,7 @@ def test_actual_workload_service_guard_and_stream_transport(
         n = str(len(seen))
         text = (
             json.dumps({"facts": reference_factory()[n][0] if basics_pass else []})
-            if n != "3" or basics_pass or version == "v2"
+            if n != "3" or basics_pass or version in ("v2", "compact-story")
             else "Mira carries a lantern. Tomas owns the lantern. Mira is in the courtyard."
         )
         events = [
@@ -220,12 +225,21 @@ def test_actual_workload_service_guard_and_stream_transport(
     write_json_atomic(frozen, block / "approved-request-hashes.json")
     workload.execute_workload(tmp_path, block, run, version=version)
     terminal = json.loads((run / "terminal.json").read_text())
-    assert len(seen) == (8 if basics_pass or version == "v2" else 3)
+    assert len(seen) == (8 if basics_pass or version in ("v2", "compact-story") else 3)
     assert service.require_service_capacity.call_count == len(seen)
     assert service.meter.inference.call_count == len(seen)
     assert service.shutdown.call_count == 1
     assert terminal["open_allocations"] == terminal["open_service_journals"] == 0
     assert all(o["transport_complete"] for o in terminal["outcomes"])
+    if version == "compact-story":
+        from scripts.report_compact_story import render
+
+        data = render(run, tmp_path / "report")
+        assert len(data["results"]) == 12
+        assert all(r["evaluation"]["full"]["f1"] == int(basics_pass) for r in data["results"])
+        for k in ("1", "2"):
+            seal = json.loads((run / f"preextract-seal-{k}.json").read_text())
+            assert seal["sealed_at"] <= terminal["outcomes"][2]["completed_at"]
     if version == "v2":
         from scripts.report_simple_ladder_v2 import render
     else:

@@ -49,9 +49,13 @@ def execute_workload(root, block, run, *, prepare_only=False, version="v1"):
 
     from .scorer_only.simple_ladder import RULE_VERSION, SYNONYMS, evaluate, references, toy_extract
 
-    if version == "v2":
-        from . import simple_ladder_v2 as protocol
-        from .scorer_only import simple_ladder_v2 as scorer
+    if version in ("v2", "compact-story"):
+        if version == "compact-story":
+            from . import compact_story as protocol
+            from .scorer_only import compact_story as scorer
+        else:
+            from . import simple_ladder_v2 as protocol
+            from .scorer_only import simple_ladder_v2 as scorer
 
         cfg = protocol.policy()
         case_factory, request_factory, next_request = (
@@ -111,7 +115,7 @@ def execute_workload(root, block, run, *, prepare_only=False, version="v1"):
     immutable(
         run / "frozen-scoring.json",
         scorer.frozen_rules()
-        if version == "v2"
+        if version in ("v2", "compact-story")
         else {
             "version": RULE_VERSION,
             "synonyms": SYNONYMS,
@@ -124,7 +128,7 @@ def execute_workload(root, block, run, *, prepare_only=False, version="v1"):
     immutable(
         run / "toy-baseline.json",
         {}
-        if version == "v2"
+        if version in ("v2", "compact-story")
         else {
             k: {
                 "output": toy_extract(inputs[k]["evidence"]),
@@ -184,7 +188,11 @@ def execute_workload(root, block, run, *, prepare_only=False, version="v1"):
             prior_block_seconds=prior,
             stage_seconds=seconds,
             comparison=True,
-            semantic="simple-ladder-v2" if version == "v2" else "simple-ladder",
+            semantic="compact-story"
+            if version == "compact-story"
+            else "simple-ladder-v2"
+            if version == "v2"
+            else "simple-ladder",
         )
         state.update(
             stage=name,
@@ -342,6 +350,19 @@ def execute_workload(root, block, run, *, prepare_only=False, version="v1"):
                 "completed_at": now(),
             }
             immutable(run / f"outcome-{case_id}.json", outcome)
+            if version == "compact-story" and inputs[case_id]["task"] == "all":
+                # Administrative seal of the actual response, not scientific acceptance.
+                immutable(
+                    run / f"preextract-seal-{case_id}.json",
+                    {
+                        "response_sha256": (outcome["response"] or {}).get("response_sha256"),
+                        "parsed_hash": canonical_sha256(parsed),
+                        "sealed_at": now(),
+                        "outcome_hash": canonical_sha256(outcome),
+                        "parseable": parsed is not None,
+                        "registered_acceptance": False,
+                    },
+                )
             outcomes.append(outcome)
             print(
                 json.dumps(
