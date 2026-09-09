@@ -111,7 +111,9 @@ def test_progression_and_bounds():
 
 
 @pytest.mark.parametrize("basics_pass", [True, False])
-@pytest.mark.parametrize("version", ["v1", "v2", "compact-story", "compact-story-v2"])
+@pytest.mark.parametrize(
+    "version", ["v1", "v2", "compact-story", "compact-story-v2", "real-text-poc"]
+)
 def test_actual_workload_service_guard_and_stream_transport(
     tmp_path, monkeypatch, pinned, basics_pass, version
 ):
@@ -123,7 +125,12 @@ def test_actual_workload_service_guard_and_stream_transport(
     from story_projection_onto.manifest import write_json_atomic
 
     tokenizer, manifest = pinned
-    if version == "compact-story-v2":
+    if version == "real-text-poc":
+        from story_projection_onto.real_text_poc import BASELINE as actual_baseline
+        from story_projection_onto.real_text_poc import cases as case_factory
+        from story_projection_onto.real_text_poc import prepare as request_factory
+        from story_projection_onto.scorer_only.real_text_poc import references as reference_factory
+    elif version == "compact-story-v2":
         from story_projection_onto.compact_story_v2 import BASELINE as actual_baseline
         from story_projection_onto.compact_story_v2 import cases as case_factory
         from story_projection_onto.compact_story_v2 import prepare as request_factory
@@ -175,7 +182,9 @@ def test_actual_workload_service_guard_and_stream_transport(
         n = str(len(seen))
         text = (
             json.dumps({"facts": reference_factory()[n][0] if basics_pass else []})
-            if n != "3" or basics_pass or version in ("v2", "compact-story", "compact-story-v2")
+            if n != "3"
+            or basics_pass
+            or version in ("v2", "compact-story", "compact-story-v2", "real-text-poc")
             else "Mira carries a lantern. Tomas owns the lantern. Mira is in the courtyard."
         )
         events = [
@@ -233,7 +242,9 @@ def test_actual_workload_service_guard_and_stream_transport(
     workload.execute_workload(tmp_path, block, run, version=version)
     terminal = json.loads((run / "terminal.json").read_text())
     assert len(seen) == (
-        12
+        9
+        if version == "real-text-poc"
+        else 12
         if version == "compact-story-v2"
         else 8
         if basics_pass or version in ("v2", "compact-story")
@@ -244,6 +255,17 @@ def test_actual_workload_service_guard_and_stream_transport(
     assert service.shutdown.call_count == 1
     assert terminal["open_allocations"] == terminal["open_service_journals"] == 0
     assert all(o["transport_complete"] for o in terminal["outcomes"])
+    if version == "real-text-poc":
+        from scripts.report_real_text_poc import render
+
+        data = render(run, tmp_path / "report")
+        assert len(data["results"]) == 12
+        assert all(o["syntax_recovery"]["strict_parseable"] for o in terminal["outcomes"])
+        for k in ("1", "2", "3"):
+            seal = json.loads((run / f"preextract-seal-{k}.json").read_text())
+            reservation = json.loads((block / "attempt-04.json").read_text())
+            assert seal["sealed_at"] <= reservation["reserved_at"]
+        return
     if version == "compact-story-v2":
         from scripts.report_compact_story_v2 import render
 
