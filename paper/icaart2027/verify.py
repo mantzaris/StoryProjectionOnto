@@ -4,6 +4,8 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import os
+import shutil
 import subprocess
 import tempfile
 import unicodedata
@@ -11,7 +13,7 @@ import zipfile
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-from build_assets import HERE, ROOT, read, digest, write_json
+from build_assets import HERE, ROOT, read, digest, write_json, companion_values
 
 
 def command(*args, cwd=None):
@@ -74,6 +76,88 @@ def pdf_check(path, *, main):
                 page_bounds_pdf_points=page_bounds,all_fonts_embedded=True,no_type3_fonts=True,
                 author_metadata_empty=True,identifying_string_scan='pass',
                 top_table_captions=table_captions,sha256=digest(path)),text
+
+
+def compare_pdf_pages(before, after):
+    """Compare layout text and every rendered pixel, without relying on PDF metadata."""
+    old = command('pdftotext', '-layout', str(before), '-')
+    new = command('pdftotext', '-layout', str(after), '-')
+    assert old == new, 'Companion layout text changed'
+    from PIL import Image
+    with tempfile.TemporaryDirectory(prefix='icaart-page-comparison-') as folder:
+        folder = Path(folder)
+        for label, pdf in [('before', before), ('after', after)]:
+            command('pdftoppm', '-r', '150', '-png', str(pdf), str(folder/label))
+        a, b = sorted(folder.glob('before-*.png')), sorted(folder.glob('after-*.png'))
+        assert len(a) == len(b) and a
+        pages = []
+        for left, right in zip(a, b):
+            with Image.open(left) as x, Image.open(right) as y:
+                assert x.size == y.size and x.convert('RGB').tobytes() == y.convert('RGB').tobytes(), right.name
+                pages.append(dict(size_px=list(x.size), rgb_sha256=hashlib.sha256(x.convert('RGB').tobytes()).hexdigest()))
+    return dict(pages=len(pages), text_identical=True, pixels_identical=True, dpi=150,
+                layout_text_sha256=hashlib.sha256(old.encode()).hexdigest(), rendered_pages=pages)
+
+
+def verify_companion(compare_with=None):
+    """Compile the authoritative single source with only its class and figure images."""
+    filename = 'ICAART2027_companion.tex'
+    source = (HERE/filename).read_text()
+    active = re.sub(r'(?m)(?<!\\)%.*$', '', source)
+    forbidden = r'\\(?:input|include|includeonly|import|subimport|inputfrom|subfile|subfileinclude|VerbatimInput|BVerbatimInput|LVerbatimInput|lstinputlisting|inputminted|bibliography|addbibresource)\b'
+    assert not re.search(forbidden, active), 'Companion loads external document content'
+    images = re.findall(r'\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}', active)
+    manifest = read(HERE/'manifest.json')
+    assert images == [f'figures/{n}.pdf' for n in manifest['supplementary_figures']]
+    for f in images:
+        assert digest(HERE/f) == manifest['figures'][Path(f).stem]['output_sha256']['pdf']
+    assert digest(HERE/'article.cls') == manifest['template_files']['article.cls'] == digest(HERE/'vendor/original/article.cls')
+    for path, h in manifest['evidence_preservation']['complete_evidence_files'].items():
+        assert digest(ROOT/path) == h, path
+    datasets = {'compact':read(ROOT/'reports/tables/compact_story_v2_results.json'),
+                'prose':read(ROOT/'reports/tables/real_text_proof_of_concept.json')}
+    declarations, tail = companion_values(datasets)
+    # Main-paper numerical macros remain a generated file. They are verification
+    # inputs only here, never a companion compilation dependency or rewrite source.
+    declarations += (HERE/'generated/numbers.tex').read_text().splitlines()
+    for declaration in declarations:
+        assert normalized(declaration) in normalized(source), declaration
+    listing = re.search(r'\\begin\{Verbatim\}(?:\[[^\]]*\])?\n(.*?)\n\\end\{Verbatim\}', source, re.S)
+    assert listing and listing[1] == tail, 'Inline raw-output excerpt differs from retained bytes'
+    files = [filename, 'article.cls', *images]
+    with tempfile.TemporaryDirectory(prefix='icaart-companion-source-') as folder:
+        clean = Path(folder)
+        for f in files:
+            (clean/f).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(HERE/f, clean/f)
+        assert sorted(str(p.relative_to(clean)) for p in clean.rglob('*') if p.is_file()) == sorted(files)
+        env = {**os.environ, 'TEXINPUTS':'.:', 'BIBINPUTS':'.:',
+               'SOURCE_DATE_EPOCH':'1788912000', 'FORCE_SOURCE_DATE':'1'}
+        for _ in range(2):
+            subprocess.run(['pdflatex','-no-shell-escape','-recorder','-interaction=nonstopmode',
+                            '-halt-on-error',filename],cwd=clean,env=env,check=True,
+                           stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+        log = (clean/'ICAART2027_companion.log').read_text()
+        for failure in ['Overfull \\hbox', 'Overfull \\vbox', 'undefined', 'Label(s) may have changed']:
+            assert failure not in log, failure
+        for line in (clean/'ICAART2027_companion.fls').read_text().splitlines():
+            if line.startswith('INPUT '):
+                assert not (clean/line[6:]).resolve().is_relative_to(ROOT), line
+        pdf = clean/'ICAART2027_companion.pdf'
+        info, _ = pdf_check(pdf, main=False)
+        assert 6 <= info['pages'] <= 8
+        comparison = compare_pdf_pages(HERE/pdf.name, pdf)
+    result = dict(single_editable_source=filename, source_sha256=digest(HERE/filename),
+                  pdf_sha256=digest(HERE/'ICAART2027_companion.pdf'),
+                  initial_isolated_files=files, no_external_content_commands=True,
+                  no_repository_files_loaded=True, inline_data_and_listing='pass',
+                  isolated_compilation='pass', pdf=info, isolated_comparison=comparison)
+    if compare_with:
+        result['prior_pdf_sha256'] = digest(compare_with)
+        result['prior_pdf_comparison'] = compare_pdf_pages(Path(compare_with), HERE/'ICAART2027_companion.pdf')
+    write_json(HERE/'companion_verification.json', result)
+    print(f"Companion: {info['pages']} pages; single-source isolated compilation, data checks and all-page pixel comparison passed.")
+    return result
 
 
 def main():
@@ -228,10 +312,22 @@ def main():
         reference_audit_sha256=manifest['reference_audit_sha256'],
         source_zip=dict(sha256=digest(archive),files=files,isolated_compilation='pass',pdf_text_identical=True),
         no_new_inference=True,visual_inspection='See visual_inspection.md; generated after rendering, not asserted by automated checks.',
-        outputs={str(p.relative_to(HERE)):digest(p) for p in [HERE/'ICAART2027_submission.tex',HERE/'ICAART2027_companion.tex',HERE/'references.bib',HERE/'figure_blocks.tex',HERE/'companion_source.tex',HERE/'generated/companion_facts.tex']})
+        companion_single_source=verify_companion(),
+        outputs={str(p.relative_to(HERE)):digest(p) for p in [HERE/'ICAART2027_submission.tex',HERE/'ICAART2027_companion.tex',HERE/'references.bib',HERE/'figure_blocks.tex']})
     write_json(HERE/'verification.json',verification)
     print(json.dumps({k:verification[k] for k in ['abstract_words','conservative_double_counted_figure_bound']},indent=2))
     print('Submission:',report['pages'],'pages;',report['nonwhitespace_characters'],'non-whitespace characters. Companion:',supp['pages'],'pages. Clean source ZIP compiled; text identical.')
 
 
-if __name__=='__main__':main()
+if __name__=='__main__':
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--companion-only', action='store_true')
+    parser.add_argument('--compare-with', type=Path, help='Prior companion PDF for organizational-change comparison')
+    args = parser.parse_args()
+    if args.compare_with and not args.companion_only:
+        parser.error('--compare-with requires --companion-only')
+    if args.companion_only:
+        verify_companion(args.compare_with)
+    else:
+        main()

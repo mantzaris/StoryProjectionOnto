@@ -29,13 +29,32 @@ The clean ZIP contains the root `ICAART2027_submission.tex`, generated inputs, t
 
 Both root sources compile under their own basenames: `ICAART2027_submission.tex` produces `ICAART2027_submission.pdf`, and `ICAART2027_companion.tex` produces `ICAART2027_companion.pdf`. The build keeps auxiliary files in `build/` and copies the completed PDFs to this directory without renaming them or overriding job names. To rebuild both PDFs from the existing assets, run `sh paper/icaart2027/build.sh` from the repository root. No Python or asset regeneration is needed for a manuscript-only edit.
 
+### Single-source companion
+
+`ICAART2027_companion.tex` is the complete, authoritative editable source. It contains all prose, commands, numerical macros, tables, captions and the verbatim diagnostic listing. It has no external content or bibliography inputs. Compilation requires only standard installed LaTeX packages, the unchanged supplied `article.cls`, and these four images in `figures/`: `orchard_comparison.pdf`, `orchard_beliefs.pdf`, `harbor.pdf` and `fable_networks.pdf`.
+
+Build and verify only the companion, preserving the submission and any ongoing manuscript edits:
+
+```bash
+sh paper/icaart2027/build.sh --companion-only
+python paper/icaart2027/verify.py --companion-only
+```
+
+For a minimal copied directory containing the single root source, class and four figure PDFs, run the following twice from that directory:
+
+```bash
+pdflatex -no-shell-escape -interaction=nonstopmode -halt-on-error ICAART2027_companion.tex
+```
+
+The companion check performs this isolated compilation automatically, checks inline values against retained records without rewriting them, and compares text and every rendered page with the built PDF. It writes `companion_verification.json`. For a source-only reorganization, add `--compare-with /path/to/prior-companion.pdf` to compare against the preceding PDF as well. Companion-only commands leave the main submission, its source ZIP and its last full-package verification record unchanged. The existing `ICAART2027_source.zip` contains only the main submission, not the companion.
+
 ## Editing and provenance
 
 The conference [references.bib](references.bib) is now directly editable and is no longer overwritten from the earlier general manuscript. [REFERENCE_AUDIT.md](REFERENCE_AUDIT.md) records primary verification and the contribution-to-evidence mapping.
 
 Figure regeneration requires licensed local **Times New Roman** regular and bold faces. Both were already installed. The renderer requires these exact faces without fallback, uses them for wrapping and drawing, embeds document subsets in PDFs, and records font hashes. Editable SVGs retain searchable text with local font references without redistributing font software. PDFs and PNGs are portable viewing artifacts. Recompiling the source ZIP uses the embedded figure PDFs and does not require these local figure-generation fonts.
 
-Edit `ICAART2027_submission.tex` (including its inline abstract), `figure_blocks.tex`, `ICAART2027_companion.tex` and `companion_source.tex`. These files are not generated or overwritten from an earlier manuscript. Asset generation checks that they remain unchanged. Numerical commands and tables are generated from retained canonical tables by `build_assets.py`; do not transcribe or change scores. The figure renderer reuses the established exact-record display helpers, but uses the actual template width and new layouts. PDF/SVG/400-dpi PNG figures are in `figures/`. Literal model values, assessment statuses and omitted display indices are in `manifest.json`. The three compact historical figures, general manuscript, general supplement and eight original plates are untouched.
+Edit `ICAART2027_submission.tex` (including its inline abstract), `figure_blocks.tex` and `ICAART2027_companion.tex`. These files are not generated or overwritten from an earlier manuscript. Asset generation checks that they remain unchanged. The main paper's numerical commands and tables are generated from retained canonical tables by `build_assets.py`; do not transcribe or change scores. Companion values are inline and checked, never restored from generated fragments. The figure renderer reuses the established exact-record display helpers, but uses the actual template width and new layouts. PDF/SVG/400-dpi PNG figures are in `figures/`. Literal model values, assessment statuses and omitted display indices are in `manifest.json`. The three compact historical figures, general manuscript, general supplement and eight original plates are untouched.
 
 ## Network figures and concise companion
 
@@ -43,7 +62,7 @@ The main paper now has three figures: Orchard's full model extraction and actual
 
 `network_figures.py` is a small adapter to the existing Matplotlib renderer, not a new graph framework. Each panel has one visual node per literal endpoint string and one arrow per retained record. Author-chosen coordinates and node categories are display annotations. Directed, parallel edges retain citations, intervals and holder/attitude fields. Holder badges do not add nodes or relationships. The main Orchard broad extraction is not labelled as gold or retrospectively given a query-specific assessment. Fixed-selection membership is checked against actual call 2, while the contextual ownership panel uses independent call 7. The manifest records source indices, identities, coordinates, statuses and complete facts. All network panels are complete, with zero display omissions.
 
-The current companion has seven pages rather than 36, with four supplementary figures: Orchard A/B ownership networks, Orchard belief/reality selection, Harbor intervals, and complete fable action networks. It does not repeat the main figures unchanged. Edit its narrative in `companion_source.tex`. Selected literal examples and numerical summaries are generated into `generated/companion_facts.tex`. Regeneration no longer emits the old raw-record dump or rewrites the complete evidence files.
+The current companion has seven pages rather than 36, with four supplementary figures: Orchard A/B ownership networks, Orchard belief/reality selection, Harbor intervals, and complete fable action networks. It does not repeat the main figures unchanged. All content is editable directly in `ICAART2027_companion.tex`. The former companion prose, macro and listing fragments have been inlined and removed after checking that no other document uses them. The shared `generated/numbers.tex` remains for the main paper only. Regeneration neither recreates companion fragments nor rewrites the complete evidence files.
 
 Complete evidence remains in [data/retained_outputs.json](data/retained_outputs.json), exact payloads in [data/requests.json](data/requests.json), and rules in [data/evaluation_rules.json](data/evaluation_rules.json). Full semantic assessments remain in the unchanged [published-prose result artifact](../../reports/tables/real_text_proof_of_concept.json), alongside the [compact-story results](../../reports/tables/compact_story_v2_results.json). The [reproducibility index](generated/reproducibility_index.json) gives field paths and hashes. The deletion of the generated 1,918-line PDF dump does not delete these records. Strict matching, partial meaning and failures are explained once in the reader-oriented companion.
 

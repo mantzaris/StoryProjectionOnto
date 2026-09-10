@@ -1,1 +1,0 @@
-l,"valid_until":null,"holder":null,"attitude":null},{"subject":"Holmes","relation":"said","object":"Watson","evidence_ids":["S7"],"valid_from":null,"valid_until":null,"holder":null,"attitude":null}]}}

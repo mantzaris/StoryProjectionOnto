@@ -325,8 +325,8 @@ def retained_requests(datasets):
     return requests
 
 
-def companion(datasets, requests):
-    """Build selected reader aids only. Full retained machine records are not rewritten."""
+def companion_values(datasets):
+    """Expected literal declarations for verification only; never write companion content."""
     from network_figures import load_panels
     panels = load_panels(datasets)
     parts = []
@@ -355,9 +355,12 @@ def companion(datasets, requests):
     # Truncated DISPLAY excerpt of a complete, historically unparseable response.
     # It is never parsed as a recovered graph.
     c=next(c for c in real['calls'] if c['case_id']=='8')
-    (HERE/'generated/holmes_tail.txt').write_text(c['raw_text'][-200:])
     macro('HolmesParseError',str(c['parse_error']))
-    (HERE/'generated/companion_facts.tex').write_text('\n'.join(parts)+'\n')
+    return parts, c['raw_text'][-200:]
+
+
+def reproducibility_index():
+    """Maintain data provenance without generating editable document content."""
     paths=list((HERE/'data').glob('*'))+[
         ROOT/'reports/tables/compact_story_v2_results.json',
         ROOT/'reports/tables/real_text_proof_of_concept.json']
@@ -376,16 +379,16 @@ def companion(datasets, requests):
 def main():
     # Editable conference manuscripts are inputs, never generated from an older draft.
     roots = {'submission':'ICAART2027_submission.tex', 'companion':'ICAART2027_companion.tex'}
-    before = {p:digest(HERE/p) for p in [*roots.values(), 'companion_source.tex', 'figure_blocks.tex']}
+    before = {p:digest(HERE/p) for p in [*roots.values(), 'figure_blocks.tex']}
     for folder in ['figures','tables','generated','data']:(HERE/folder).mkdir(exist_ok=True)
     _,data,panels,hashes=graph.load_inputs()
     datasets={'compact':data['synthetic'],'prose':data['real']}
-    req=retained_requests(datasets)
+    retained_requests(datasets)
     nums=numbers_and_tables(**datasets)
     figs=figures(datasets,panels)
     from network_figures import load_panels, network_assets
     figs.update(network_assets(sys.modules[__name__], datasets, load_panels(datasets)))
-    companion(datasets,req)
+    reproducibility_index()
     assert all(digest(HERE/p)==h for p,h in before.items()), 'Editable manuscript changed during asset generation'
     # The audited conference bibliography is editable, not overwritten from the
     # historical general manuscript. Official apalike files remain byte-identical.
@@ -397,7 +400,7 @@ def main():
                manuscript_roots=roots,
                reference_audit_sha256=digest(HERE/'REFERENCE_AUDIT.md'),
                figures=figs,numerical_claims=nums,
-               rendering_source_hashes={p:digest(HERE/p) for p in ['build_assets.py','network_figures.py','companion_source.tex','figure_blocks.tex']},
+               rendering_source_hashes={p:digest(HERE/p) for p in ['build_assets.py','network_figures.py','figure_blocks.tex']},
                main_figures=['orchard_network','fable','alice'],
                supplementary_figures=['orchard_comparison','orchard_beliefs','harbor','fable_networks'],
                evidence_preservation=read(HERE/'generated/reproducibility_index.json'),
