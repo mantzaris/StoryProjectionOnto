@@ -98,6 +98,87 @@ def compare_pdf_pages(before, after):
                 layout_text_sha256=hashlib.sha256(old.encode()).hexdigest(), rendered_pages=pages)
 
 
+def verify_companion_references(source, pdf, aux):
+    """Check numbered floats and their real PDF destinations, not just TeX labels."""
+    from pdfrw import PdfReader
+
+    expected = [
+        ('table', 'tab:supp-assessment-legend', None),
+        ('table', 'tab:supp-example-index', None),
+        ('figure', 'fig:supp-orchard-comparison', 'orchard_comparison'),
+        ('figure', 'fig:supp-orchard-beliefs', 'orchard_beliefs'),
+        ('figure', 'fig:supp-harbor-intervals', 'harbor'),
+        ('figure', 'fig:supp-fable-networks', 'fable_networks'),
+    ]
+    blocks = {kind: re.findall(r'\\begin\{' + kind + r'\}\[htbp\](.*?)\\end\{' + kind + r'\}', source, re.S)
+              for kind in ('table', 'figure')}
+    assert len(blocks['figure']) == 4 and len(blocks['table']) == 2
+    assert not re.search(r'\\(?:newpage|clearpage|FloatBarrier)\b|\[H\]|Page~7', source)
+    reader = PdfReader(str(pdf))
+    destinations = {}
+
+    def collect(node):
+        for child in node.Kids or []:
+            collect(child)
+        entries = node.Names or []
+        for i in range(0, len(entries), 2):
+            value = entries[i + 1]
+            destinations[entries[i].to_unicode()] = value.D if hasattr(value, 'D') else value
+
+    collect(reader.Root.Names.Dests)
+    page_numbers = {page.indirect: i for i, page in enumerate(reader.pages, 1)}
+    incoming = {}
+    for page in reader.pages:
+        for annotation in page.Annots or []:
+            if annotation.A and str(annotation.A.S) == '/GoTo':
+                target = annotation.A.D.to_unicode()
+                assert target in destinations, ('unresolved PDF link', target)
+                incoming[target] = incoming.get(target, 0) + 1
+    counts = {'table': 0, 'figure': 0}
+    items = []
+    aux_text = aux.read_text()
+    assert '\\usepackage[all]{hypcap}' in source
+    text_pages = ET.fromstring(command('pdftotext', '-bbox', str(pdf), '-')).findall(
+        './/{http://www.w3.org/1999/xhtml}page')
+    for kind, label, image in expected:
+        counts[kind] += 1
+        block = next(b for b in blocks[kind] if '\\label{' + label + '}' in b)
+        assert source.count('\\label{' + label + '}') == 1
+        assert re.search(r'\\caption\{[^{}]+\}\s*\\label\{' + re.escape(label) + r'\}', block)
+        assert '\\ref{' + label + '}' in source
+        if image:
+            assert 'figures/' + image + '.pdf' in block
+            question = {'orchard_comparison': 'OrchardQuestion', 'orchard_beliefs': 'OrchardBeliefQuestion',
+                        'harbor': 'HarborQuestion', 'fable_networks': 'FableQuestion'}[image]
+            assert '\\' + question in block
+            scores = {'orchard_comparison': ['OrchardAScore', 'OrchardBScore'],
+                      'orchard_beliefs': ['OrchardBeliefScore'], 'harbor': [],
+                      'fable_networks': ['FableAScore', 'FableBScore']}[image]
+            assert all('\\' + score in block for score in scores)
+        else:
+            assert block.index('\\caption') < block.index('\\begin{tabular}')
+        match = re.search(r'\\newlabel\{' + re.escape(label) + r'\}\{\{(S\d+)\}\{(\d+)\}\{[^{}]*\}\{([^{}]+)\}', aux_text)
+        assert match and match[1] == 'S' + str(counts[kind]), label
+        target = destinations[match[3]]
+        assert page_numbers[target[0].indirect] == int(match[2])
+        assert incoming.get(match[3], 0) > 0, ('no clickable reference', label)
+        # hypcap targets the float beginning, not the caption below a tall image.
+        text_page = text_pages[int(match[2]) - 1]
+        words = text_page.findall('.//{http://www.w3.org/1999/xhtml}word')
+        caption = next(a for a, b in zip(words, words[1:])
+                       if a.text == kind.title() and b.text == match[1] + ':')
+        caption_top = float(text_page.attrib['height']) - float(caption.attrib['yMin'])
+        assert float(target[3]) >= caption_top, ('link below caption', label)
+        items.append(dict(label=label, number=match[1], page=int(match[2]),
+                          destination=match[3], incoming_link_count=incoming[match[3]]))
+    section = re.search(r'\\newlabel\{sec:supp-meaning\}\{\{\}\{(\d+)\}\{6\. Interpreting agreement and preserved meaning\}\{([^{}]+)\}', aux_text)
+    assert section and incoming.get(section[2], 0) > 0
+    assert page_numbers[destinations[section[2]][0].indirect] == int(section[1])
+    return dict(items=items, all_internal_destinations_resolve=True,
+                section_6_link_verified=True, float_top_anchors=True,
+                questions_and_scores_inside_corresponding_floats=True)
+
+
 def verify_companion(compare_with=None):
     """Compile the authoritative single source with only its class and figure images."""
     filename = 'ICAART2027_companion.tex'
@@ -154,6 +235,7 @@ def verify_companion(compare_with=None):
         pdf = clean/'ICAART2027_companion.pdf'
         info, _ = pdf_check(pdf, main=False)
         assert 6 <= info['pages'] <= 8
+        references = verify_companion_references(source, pdf, clean/'ICAART2027_companion.aux')
         comparison = compare_pdf_pages(HERE/pdf.name, pdf)
     result = dict(single_editable_source=filename, source_sha256=digest(HERE/filename),
                   pdf_sha256=digest(HERE/'ICAART2027_companion.pdf'),
@@ -162,7 +244,8 @@ def verify_companion(compare_with=None):
                   raw_listing='verified' if listing else 'not displayed in the edited companion',
                   source_zip=dict(filename=archive.name, sha256=digest(archive), files=files,
                                   isolated_compilation='pass'),
-                  isolated_compilation='pass', pdf=info, isolated_comparison=comparison)
+                  isolated_compilation='pass', pdf=info, isolated_comparison=comparison,
+                  cross_references=references)
     if compare_with:
         result['prior_pdf_sha256'] = digest(compare_with)
         result['prior_pdf_comparison'] = compare_pdf_pages(Path(compare_with), HERE/'ICAART2027_companion.pdf')

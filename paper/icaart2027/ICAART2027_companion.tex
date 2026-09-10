@@ -11,8 +11,14 @@
 \usepackage{fvextra}
 \usepackage{ragged2e}
 \usepackage[hidelinks,pdfauthor={},pdftitle={Inspectable Narrative Graphs: Local Companion},pdfcreator={LaTeX}]{hyperref}
+\usepackage[all]{hypcap}
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{3pt}
+\renewcommand{\thefigure}{S\arabic{figure}}
+\renewcommand{\thetable}{S\arabic{table}}
+\renewcommand{\topfraction}{0.95}
+\renewcommand{\textfraction}{0.05}
+\renewcommand{\floatpagefraction}{0.75}
 \newcolumntype{L}[1]{>{\RaggedRight\arraybackslash}p{#1}}
 \emergencystretch=3em
 \title{Contextual Ontology Extraction and Inspection of Temporal Narrative Networks\\[0.5em]
@@ -108,7 +114,12 @@ Each arrow runs from the subject to the object. Its label describes their relati
 Within each panel, exactly matching names share a node. Different names remain separate, even when they might refer to the same entity. Multiple records connecting the same nodes remain separate arrows. Omitted time or attribution fields are \texttt{null}, meaning unspecified. A missing time interval does not mean that a relationship holds forever.
 
 \textbf{Understanding the assessment labels.}
-\begin{center}
+Table~\ref{tab:supp-assessment-legend} explains the assessment symbols.
+
+\begin{table}[htbp]
+\centering
+\caption{Assessment symbols used in the network figures.}
+\label{tab:supp-assessment-legend}
 \begin{tabular}{@{}ll@{}}
 $+$         & Meaning supported by the text \\
 $\sim$      & Meaning partly supported \\
@@ -116,7 +127,8 @@ $\sim$      & Meaning partly supported \\
 ?           & Interpretation unresolved \\
 \texttt{I}  & Supported, but outside the question's scope \\
 \end{tabular}
-\end{center}
+\end{table}
+
 Symbols and line styles accompany the colours, so colour alone is not needed to read the assessments.
 
 In Orchard, node colours distinguish people, objects and places. These categories were added for display and were not inferred by the model. The broad extraction shown in the main paper has no assessment labels. It displays the model's output rather than a verified reference answer.
@@ -126,21 +138,28 @@ In Orchard, node colours distinguish people, objects and places. These categorie
 
 
 \subsection*{Compact index of retained examples}
+Table~\ref{tab:supp-example-index} indexes the retained examples.
+
+\begin{table}[htbp]
+\centering
+\caption{Retained examples and locations of their supporting records.}
+\label{tab:supp-example-index}
 \begin{tabular}{L{27mm}L{58mm}L{60mm}}
 \toprule
 Example & What to inspect & Complete record location\\\midrule
-Harbor & Source intervals versus query window (p.~4) & Compact calls 1, 4--6\\
-Orchard & Connected ownership slice, extra locations and attribution (pp.~2--3) & Compact calls 2, 7--9\\
+Harbor & Source intervals versus query window (Figure~\ref{fig:supp-harbor-intervals}) & Compact calls 1, 4--6\\
+Orchard & Connected ownership slice, extra locations and attribution (Figures~\ref{fig:supp-orchard-comparison} and~\ref{fig:supp-orchard-beliefs}) & Compact calls 2, 7--9\\
 Museum & Fresh synthetic comparison, including relevance errors & Compact calls 3, 10--12\\
-Fable & Parallel actions, passive wording and conditional scope (pp.~5--6) & Prose calls 1, 4--5\\
-Alice & Wrong reading participant and literal thought object (p.~6 and main paper) & Prose calls 2, 6--7\\
-Holmes & Syntax failure and unresolved interpretation (pp.~6--7) & Prose calls 3, 8--9\\
+Fable & Parallel actions, passive wording and conditional scope (Figure~\ref{fig:supp-fable-networks} and \hyperref[sec:supp-meaning]{\mbox{Section~6}}) & Prose calls 1, 4--5\\
+Alice & Wrong reading participant and literal thought object (main paper) & Prose calls 2, 6--7\\
+Holmes & Syntax failure and unresolved interpretation (main paper) & Prose calls 3, 8--9\\
 \bottomrule
 \end{tabular}
+\end{table}
 
-Call numbers are local to their batch. Three pre-extractions precede contextual requests in each batch. A pre-extraction reused for several questions is still one model call. The main paper contains the complete aggregate tables. This supplement retains selected explanations instead of repeating every prompt and record. Page~7 gives exact file and field paths for the complete data.
+Call numbers are local to their batch. Three pre-extractions precede contextual requests in each batch. A pre-extraction reused for several questions is still one model call. The main paper contains the complete aggregate tables. This supplement retains selected explanations instead of repeating every prompt and record.
 
-The main Orchard figure is an illustrative selection from an existing evaluation, not a prospectively sampled new success. The views below include extra irrelevant predictions, partial meanings and failures. No record was repaired for display, and no score was recomputed.
+The main Orchard figure is an illustrative selection from an existing evaluation, not a prospectively sampled new success. The views in Figures~\ref{fig:supp-orchard-comparison}--\ref{fig:supp-fable-networks} include extra irrelevant predictions, partial meanings and failures. No record was repaired for display, and no score was recomputed.
 
 
 
@@ -149,35 +168,48 @@ The main Orchard figure is an illustrative selection from an existing evaluation
 
 
 \section*{2. Orchard: correct relationships can still be irrelevant}
+\begin{figure}[htbp]
+\raggedright
 \textbf{Exact executed ownership/carrying question:} \OrchardQuestion
 
-\begin{center}
+\par\medskip\centering
 \includegraphics[width=158.0134mm]{figures/orchard_comparison.pdf}
-\end{center}
+\caption{Ownership and carrying networks from fixed selection (A) and contextual extraction (B).}
+\label{fig:supp-orchard-comparison}
+\raggedright
 \textbf{A:} \OrchardAScore\quad \textbf{B:} \OrchardBScore
+\end{figure}
 
-Both views preserve all five requested facts. The contextual output also returns seven locations. These are supported by the supplied story but outside this question. They remain visible and in the precision denominator. No belief records are present in this contextual ownership output. The panels share horizontal anchors and node categories, not an inferred identity mapping across different strings.
+Both views in Figure~\ref{fig:supp-orchard-comparison} preserve all five requested facts. The contextual output also returns seven locations. These are supported by the supplied story but outside this question. They remain visible and in the precision denominator. No belief records are present in this contextual ownership output. The panels share horizontal anchors and node categories, not an inferred identity mapping across different strings.
 
-\clearpage
 \section*{3. Orchard: attribution belongs to the assertion}
+\begin{figure}[htbp]
+\raggedright
 \textbf{Exact executed question:} \OrchardBeliefQuestion
 
-\begin{center}
+\par\medskip\centering
 \includegraphics[width=158.0134mm]{figures/orchard_beliefs.pdf}
-\end{center}
+\caption{Believed and narrated locations in Orchard's fixed-selection network.}
+\label{fig:supp-orchard-beliefs}
+\raggedright
 \textbf{Fixed-selection score:} \OrchardBeliefScore
+\end{figure}
 
-Each object connects to two places under different epistemic scopes. Copper Book's South Loft location is attributed to Soren's belief, while River Room is narrated reality. Ivory Vase similarly separates Jun's belief from narration. Holder names remain edge metadata even though the names also occur elsewhere in the broader extraction. This selected graph has two disconnected components. No connector has been invented to make it appear more cohesive.
+Each object in Figure~\ref{fig:supp-orchard-beliefs} connects to two places under different epistemic scopes. Copper Book's South Loft location is attributed to Soren's belief, while River Room is narrated reality. Ivory Vase similarly separates Jun's belief from narration. Holder names remain edge metadata even though the names also occur elsewhere in the broader extraction. This selected graph has two disconnected components. No connector has been invented to make it appear more cohesive.
 
 
 
 \section*{4. Harbor: preserve source duration, select by overlap}
+\begin{figure}[htbp]
+\raggedright
 \textbf{Exact executed question:} \HarborQuestion
 
-\begin{center}
+\par\medskip\centering
 \includegraphics[width=158.0134mm]{figures/harbor.pdf}
-\end{center}
-The blue band is the requested window $[2,4)$, not rewritten validity. Filled starts and open ends mark the full generated intervals. All four selected A location records coincide with four B records. The two carrying records below are additional B predictions, not part of the location answer. All six B records remain scored. No relationship is given extra temporal precision because it was observed during the question window.
+\caption{Full generated validity intervals and the Harbor location query window.}
+\label{fig:supp-harbor-intervals}
+\end{figure}
+In Figure~\ref{fig:supp-harbor-intervals}, the blue band is the requested window $[2,4)$, not rewritten validity. Filled starts and open ends mark the full generated intervals. All four selected A location records coincide with four B records. The two carrying records in the figure are additional B predictions, not part of the location answer. All six B records remain scored. No relationship is given extra temporal precision because it was observed during the question window.
 
 Source display: S5-S8 of the fourteen supplied sentences. Complete evidence and both outputs remain in the compact records. The main paper reports their unchanged strict scores in Table~1.
 
@@ -185,44 +217,38 @@ Source display: S5-S8 of the fourteen supplied sentences. Complete evidence and 
 
 
 \section*{5. Fable: parallel actions and separate endpoint identities}
-\begin{center}
+\begin{figure}[htbp]
+\raggedright
+\textbf{Same executed question as main-paper Figure~2:} \FableQuestion
+
+\par\medskip\centering
 \includegraphics[width=158.0134mm]{figures/fable_networks.pdf}
-\end{center}
-\textbf{Same executed question as main Figure~2:} \FableQuestion
-
+\caption{Complete fable action networks from fixed selection (A) and contextual extraction (B).}
+\label{fig:supp-fable-networks}
+\raggedright
 \textbf{A:} \FableAScore\quad \textbf{B:} \FableBScore
+\end{figure}
 
-All eight A and five B action records appear. A's five nodes preserve its two different rope strings. B's four nodes use a single literal ropes endpoint. This is not a corrected alias alignment. The complete source is the 133-word fable retained in the prose dataset. A's ambiguous awakening and partial conditional plea remain in the graph.
+All eight A and five B action records appear in Figure~\ref{fig:supp-fable-networks}. A's five nodes preserve its two different rope strings. B's four nodes use a single literal ropes endpoint. This is not a corrected alias alignment. The complete source is the 133-word fable retained in the prose dataset. A's ambiguous awakening and partial conditional plea remain in the graph.
 
-\clearpage
-\section*{6. Agreement, preserved meaning and substantive errors}
-\subsection*{A worked example from the fable}
-\textbf{Exact supplied S4:} \FableFour
 
-\textbf{Actual contextual record:} \PassiveExample.
-Its bounds, holder and attitude are all null. The retained assessment is:
-\begin{quote}\PassiveExampleAssessment\end{quote}
-The passive relationship preserves the narrated participants and meaning. The frozen strict matcher does not accept that inverse wording. This is a strict mismatch without a semantic falsehood verdict. It is not changed into a matching record for these figures.
+\section*{6. Interpreting agreement and preserved meaning}
+\label{sec:supp-meaning}
+Two fable examples illustrate why strict agreement and semantic coverage are assessed separately.
 
-\textbf{Exact supplied S1:} \FableOne
+\textbf{Preserved meaning.}
+The record \PassiveExample\ correctly expresses the capture described in S4. It fails strict matching because the frozen reference alternatives do not include this passive wording. The semantic assessment therefore identifies useful information that the strict score does not credit.
 
-\textbf{Actual contextual record:} \PartialExample.
-The retained assessment is:
-\begin{quote}\PartialExampleAssessment\end{quote}
-The broad action survives, but the face-specific endpoint does not. Partial support therefore does not count as complete target coverage. Neither this case nor the passive example is newly scored.
+\textbf{Partial meaning.}
+The record \PartialExample\ captures the Mouse's movement over the Lion, but S1 specifically describes movement over his face. The actor and broad action are preserved, while the more precise endpoint is omitted. This receives partial support rather than complete target coverage.
 
-\subsection*{Compact failure and uncertainty guide}
-\begin{tabular}{L{29mm}L{54mm}L{62mm}}
-\toprule
-Issue & Retained example & Interpretation\\\midrule
-Wrong participant & Alice contextual actions, record 4: Alice reading the book & Her sister reads. Alice peeps into the book. This is unsupported participant attribution, not merely a synonym mismatch.\\
-Belief representation & Alice contextual claims, record 2: literal thought object & Meaning is supported, while the requested decomposed structure is absent. The daisy-chain record remains unresolved.\\
-Irrelevant additions & Orchard contextual possession, seven locations & Supported relationships outside the question. Counted as precision errors, not silently removed.\\
-Conditional scope & Fable A action record 3: spare & The Mouse's conditional plea is not an unconditional release. The misspelled temporal key also remains.\\
-Syntax failure & Holmes pre-extraction and contextual actions & Extra closing brace. No parsed graph scores and no invented empty network.\\
-\bottomrule
-\end{tabular}
+These examples demonstrate the value of inspecting network relationships alongside their source passages. Readers can distinguish alternative wording from missing detail while examining the original outputs and unchanged scores.
 
-Pending author judgments remain pending, including Holmes's vocative and speaker attribution. Unresolved wording is not assumed true or false.
+
+
+
+
+
+
 
 \end{document}

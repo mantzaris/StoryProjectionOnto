@@ -1,7 +1,7 @@
 {
   "single_editable_source": "ICAART2027_companion.tex",
-  "source_sha256": "c5987fc3f12385c1d28fe9e8e3a668f915c0da3d10a5b9651fd75cc2a7639724",
-  "pdf_sha256": "17af1918bb531ec60330cbfac6660eec33da6a6ba976f2339b26472948228bff",
+  "source_sha256": "35615a261b8dd663d2fe11ee485ab17640d3c7480a4b5a5a849d387fac4609ba",
+  "pdf_sha256": "891121ed7ce81409a92e3c662afadac1074c8e123183878507305f3d68343114",
   "initial_isolated_files": [
     "ICAART2027_companion.tex",
     "article.cls",
@@ -16,7 +16,7 @@
   "raw_listing": "not displayed in the edited companion",
   "source_zip": {
     "filename": "ICAART2027_companion_source.zip",
-    "sha256": "00113b38b171dc15b26caab803c77294cdfa16b9e224c03f644f3fb8c91f28c6",
+    "sha256": "ebb24ad7c040261b7e89e91cb3810137754b35fb39324072002d5665126842cd",
     "files": [
       "ICAART2027_companion.tex",
       "article.cls",
@@ -29,50 +29,44 @@
   },
   "isolated_compilation": "pass",
   "pdf": {
-    "pages": 7,
-    "nonwhitespace_characters": 10124,
+    "pages": 6,
+    "nonwhitespace_characters": 9425,
     "page_bounds_pdf_points": [
       [
         68.031,
         108.164959,
         524.706621,
-        642.586922
+        757.664922
       ],
       [
         68.031,
-        69.744912,
-        519.335913,
-        419.079922
+        77.994357,
+        526.430151,
+        752.109922
       ],
       [
         68.031,
-        70.23603,
+        119.379806,
         523.451295,
-        685.030922
+        722.495922
       ],
       [
         68.031,
-        68.095122,
-        522.36541,
-        730.959922
+        134.031806,
+        520.192972,
+        707.843922
       ],
       [
         68.031,
-        68.095122,
-        526.060943,
-        683.413922
+        68.021806,
+        526.76988,
+        755.979922
       ],
       [
         68.031,
-        68.095122,
-        523.610667,
-        753.152922
-      ],
-      [
-        68.031,
-        68.095122,
-        526.818693,
-        618.954922
+        107.394806,
+        522.345485,
+        736.517922
       ]
     ],
     "all_fonts_embedded": true,
@@ -80,64 +74,107 @@
     "author_metadata_empty": true,
     "identifying_string_scan": "pass",
     "top_table_captions": [],
-    "sha256": "6502328f16f70c4ef107efd704445725089090518fdb74f5f8b21a109c98ef98"
+    "sha256": "641c985fb24d703abad5e276d0fcd95dddfa24fc15986c01a1a46c14cf79ecaf"
   },
   "isolated_comparison": {
-    "pages": 7,
+    "pages": 6,
     "text_identical": true,
     "pixels_identical": true,
     "dpi": 150,
-    "layout_text_sha256": "5df5e7f1fa12780ffbb8fed6cf1762cab32f5d4f6a6e922ccea88761c328071e",
+    "layout_text_sha256": "ee859bc8882b0a841d603f43d44f18c977cdac5dbb7969a677a1e2b58c6e7641",
     "rendered_pages": [
       {
         "size_px": [
           1241,
           1754
         ],
-        "rgb_sha256": "def92259b9a2fd24ad7d363d8a32e90332b150d862d0ba86a0de960e05bb7e38"
+        "rgb_sha256": "ddad8c5d3e40715282cb8ed7bc0a65bf8144d722f4fd999e69bef65e36a90d06"
       },
       {
         "size_px": [
           1241,
           1754
         ],
-        "rgb_sha256": "41f80433b04983f2111e66bf93f4067bb604d4ffe59e80d7f62e9ce04e8aa6d9"
+        "rgb_sha256": "840289fbb445b4da528596b7f0bf75d0147f2e15f6b4755952790020e9c036ce"
       },
       {
         "size_px": [
           1241,
           1754
         ],
-        "rgb_sha256": "99c89f321332c7a793a776b0571a61596a66911de18892b45169377507c7873e"
+        "rgb_sha256": "46d2cce1b892042adb3a390e5b8a4b4e6d7290f841a08d298de5edb9c8f93231"
       },
       {
         "size_px": [
           1241,
           1754
         ],
-        "rgb_sha256": "43410adf578d266eb8ba638b09eeb5e6bf4c8cb25f0d829327655192db93c929"
+        "rgb_sha256": "b28711add833bfc2695e939af70b84ff3b873be60eb7f837bde0b4243c254448"
       },
       {
         "size_px": [
           1241,
           1754
         ],
-        "rgb_sha256": "c135dd7e46d8c588ece899ba979f458b5ee24cf90338ef0bd2ff9ad7d9b4a3a4"
+        "rgb_sha256": "c208329cd5819ead38e8659846bf22bc1932a8e7eb76a6ce013b5e8f5a9de45c"
       },
       {
         "size_px": [
           1241,
           1754
         ],
-        "rgb_sha256": "be3d2a02d1ec398bae57d27ca36f206bef0afba37584be9c85f3a43953dadf69"
-      },
-      {
-        "size_px": [
-          1241,
-          1754
-        ],
-        "rgb_sha256": "1bf00d0aaaecb662328e4dbd73898fdcefb55e6883c79bb9fff0df90466153ba"
+        "rgb_sha256": "b2c77fe8ce389542f0f9757f380708f10bb27250d84bb931162750c30975b582"
       }
     ]
+  },
+  "cross_references": {
+    "items": [
+      {
+        "label": "tab:supp-assessment-legend",
+        "number": "S1",
+        "page": 1,
+        "destination": "table.1",
+        "incoming_link_count": 1
+      },
+      {
+        "label": "tab:supp-example-index",
+        "number": "S2",
+        "page": 2,
+        "destination": "table.2",
+        "incoming_link_count": 1
+      },
+      {
+        "label": "fig:supp-orchard-comparison",
+        "number": "S1",
+        "page": 3,
+        "destination": "figure.1",
+        "incoming_link_count": 3
+      },
+      {
+        "label": "fig:supp-orchard-beliefs",
+        "number": "S2",
+        "page": 4,
+        "destination": "figure.2",
+        "incoming_link_count": 2
+      },
+      {
+        "label": "fig:supp-harbor-intervals",
+        "number": "S3",
+        "page": 5,
+        "destination": "figure.3",
+        "incoming_link_count": 2
+      },
+      {
+        "label": "fig:supp-fable-networks",
+        "number": "S4",
+        "page": 6,
+        "destination": "figure.4",
+        "incoming_link_count": 3
+      }
+    ],
+    "all_internal_destinations_resolve": true,
+    "section_6_link_verified": true,
+    "float_top_anchors": true,
+    "questions_and_scores_inside_corresponding_floats": true
   }
 }
