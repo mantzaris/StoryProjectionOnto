@@ -1,0 +1,825 @@
+{
+  "source_editorial_commit": "dafabd0fd5258b68965ec4b11a870ac5773d66d6",
+  "source_hashes": {
+    "reports/REAL_TEXT_PROOF_OF_CONCEPT.md": "7d31491843c99b179a93ce26d07e2147d0d540b6290330d5b0e8aedb996490b0",
+    "reports/figures/real_text_proof_of_concept.html": "b68b84adbf96d0821a97107aefcebf078fdabb54418695b8ceac596927dfb194",
+    "reports/tables/real_text_proof_of_concept.csv": "5eb3b0ad641d59cecc74294b150e5b6071d1220d7857901ee11e49d9dedcde11",
+    "reports/tables/real_text_proof_of_concept.json": "ad118e8aca4b2b3d7ed19abda1879bdfb2f8fac4f21e3f34c541056084742e59",
+    "reports/COMPACT_STORY_V2_RESULTS.md": "cfc81e5362bd1ff6035927fea1fbec97c55dc7cea06cc76cc17c5c48773a6298",
+    "reports/figures/compact_story_v2_comparison.html": "a1802863e8019bfc5fb09adf356aefeb094cdf78a63f791ab6743f3bea7c820c",
+    "reports/tables/compact_story_v2_results.csv": "751e1702e5cd8eb35e09ac5016b36a51d91926b0552b11ae0f9d769a94be163d",
+    "reports/tables/compact_story_v2_results.json": "aa790aa69c049dd400c1ea2228b782b08ec33bbbc8c399ed51ecc16af6b8e77a",
+    "paper/manuscript_source.md": "6f8fe89f7fa16b297d52fa2f3b9ffac7cbafee8c1dde8e97d0607f141f7f8393",
+    "paper/AUTHOR_REVIEW.md": "64cab542db2680dd557b69d76e9f474edbbc50308bbc23245981696b68e6d44b",
+    "paper/FIGURE_CAPTIONS.md": "af624f8b1cb89c19516f0847f61df2d79a4d05508168bc102658f81412bca4ff",
+    "paper/references.bib": "306b2650f0255b535c4a6e977aa92e14cadb7c3e7f44b7b428eb7eb0009cd00d",
+    "paper/tables/numerical_registry.json": "48e2288cf3b08bbebc3ebe4a538b8c14595ee98e760e4ccb3238a705df0dbeaf",
+    "paper/tables/compact_comparison.json": "284d53943c8eafd38460bffd2f59d092fd2ca235d95f59529418221563f0edb0",
+    "paper/tables/published_comparison.json": "0d580a9d92b4836f12c407da39afd213cda4eebbc915dd658e7a64a212637987",
+    "paper/tables/allocation.json": "d31af4d90c5bc29134cece521a8f89bd7ea740ee5d4e7cd9abe531ff53dd0947"
+  },
+  "template_archive_sha256": "ec6cfaa11962e08d5c6a402124f21c3bca3591397521406ab6d1889398a3807a",
+  "template_files": {
+    "article.cls": "23e48b9a27539b6589503b6b5c5ff1451b58edfb245a0fa4c5847bb94392d32c",
+    "SCITEPRESS.sty": "d4a8482e5b2772a279b881012bedd813023f3c614287e02d5c648497ade3bf14",
+    "apalike.sty": "183bdccc3608e9db948dbd1cdffec3e2a476650dad223c7a3294325371fc0339",
+    "apalike.bst": "6977bea0847e4b850fd5bdc948beeaa50cd4d0c2a275e74a5fd68309a9628191"
+  },
+  "figures": {
+    "fable": {
+      "width_mm": 158.0134,
+      "height_mm": 133.45583333333332,
+      "minimum_font_pt": 8.5,
+      "text": [
+        "The Lion and the Mouse · actions and rescue",
+        "S2 … \"If you would only spare my life, I would be sure to repay your kindness.\"",
+        "S5 The Mouse, recognizing his roar, came and gnawed the rope with his teeth, and set him free,\nexclaiming:",
+        "Request: physical actions; exclude dialogue and intentions",
+        "A: text → extraction → selection",
+        "B: text + question → extraction",
+        "A LION",
+        "a Mouse",
+        "+ caught",
+        "S2",
+        "Mouse",
+        "Lion",
+        "~ running over",
+        "S1",
+        "A LION",
+        "a Mouse",
+        "~ spare",
+        "S2",
+        "Lion",
+        "hunters",
+        "+ caught by",
+        "S4",
+        "A LION",
+        "a Mouse",
+        "+ let go",
+        "S3",
+        "Lion",
+        "ropes",
+        "+ bound by",
+        "S4",
+        "a Mouse",
+        "the rope",
+        "+ gnawed",
+        "S5",
+        "Mouse",
+        "ropes",
+        "+ gnawed",
+        "S5",
+        "a Mouse",
+        "A LION",
+        "+ set free",
+        "S5",
+        "Lion",
+        "Mouse",
+        "+ freed by",
+        "S5",
+        "+ supported meaning ~ partial meaning; citations are not proof of support.",
+        "A: spare loses conditional scope; B: early capture/release missing. Source display is excerpted;\nfull fable supplied."
+      ],
+      "records": [
+        {
+          "id": "edge-fable-fable_A-2",
+          "artist_ids": [
+            "edge-fable-fable_A-2-0",
+            "edge-fable-fable_A-2-1",
+            "edge-fable-fable_A-2-2"
+          ],
+          "panel": "fable_A",
+          "story": "fable",
+          "dataset": "real",
+          "index": 2,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S2"
+            ],
+            "holder": null,
+            "object": "a Mouse",
+            "relation": "caught",
+            "subject": "A LION",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "Frozen reference match, not independent verification."
+        },
+        {
+          "id": "edge-fable-fable_B-1",
+          "artist_ids": [
+            "edge-fable-fable_B-1-0",
+            "edge-fable-fable_B-1-1",
+            "edge-fable-fable_B-1-2"
+          ],
+          "panel": "fable_B",
+          "story": "fable",
+          "dataset": "real",
+          "index": 1,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "Lion",
+            "relation": "running_over",
+            "subject": "Mouse",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "partial",
+          "note": "S1 says running over the Lion's face. Running over Lion retains the actor and broad action but loses the explicit body-part endpoint. This receives partial support, not full coverage of the frozen face-specific target."
+        },
+        {
+          "id": "edge-fable-fable_A-3",
+          "artist_ids": [
+            "edge-fable-fable_A-3-0",
+            "edge-fable-fable_A-3-1",
+            "edge-fable-fable_A-3-2"
+          ],
+          "panel": "fable_A",
+          "story": "fable",
+          "dataset": "real",
+          "index": 3,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S2"
+            ],
+            "holder": null,
+            "object": "a Mouse",
+            "relation": "spare",
+            "subject": "A LION",
+            "valid until": null,
+            "valid_from": null
+          },
+          "status": "partial",
+          "note": "S2 contains a conditional request to spare, not the accomplished release (which is in S3). The answer asserts spare without the request/conditional scope and cites S2. It also spells valid_until as 'valid until'. No repair or inferred bound is applied."
+        },
+        {
+          "id": "edge-fable-fable_B-2",
+          "artist_ids": [
+            "edge-fable-fable_B-2-0",
+            "edge-fable-fable_B-2-1",
+            "edge-fable-fable_B-2-2"
+          ],
+          "panel": "fable_B",
+          "story": "fable",
+          "dataset": "real",
+          "index": 2,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S4"
+            ],
+            "holder": null,
+            "object": "hunters",
+            "relation": "caught_by",
+            "subject": "Lion",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "S4 supports this passive capture relation exactly in meaning. The frozen strict matcher lacks the inverse caught_by alternative; its strict failure is not a falsehood judgment."
+        },
+        {
+          "id": "edge-fable-fable_A-4",
+          "artist_ids": [
+            "edge-fable-fable_A-4-0",
+            "edge-fable-fable_A-4-1",
+            "edge-fable-fable_A-4-2"
+          ],
+          "panel": "fable_A",
+          "story": "fable",
+          "dataset": "real",
+          "index": 4,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S3"
+            ],
+            "holder": null,
+            "object": "a Mouse",
+            "relation": "let_go",
+            "subject": "A LION",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "Frozen reference match, not independent verification."
+        },
+        {
+          "id": "edge-fable-fable_B-3",
+          "artist_ids": [
+            "edge-fable-fable_B-3-0",
+            "edge-fable-fable_B-3-1",
+            "edge-fable-fable_B-3-2"
+          ],
+          "panel": "fable_B",
+          "story": "fable",
+          "dataset": "real",
+          "index": 3,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S4"
+            ],
+            "holder": null,
+            "object": "ropes",
+            "relation": "bound_by",
+            "subject": "Lion",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "Frozen reference match, not independent verification."
+        },
+        {
+          "id": "edge-fable-fable_A-7",
+          "artist_ids": [
+            "edge-fable-fable_A-7-0",
+            "edge-fable-fable_A-7-1",
+            "edge-fable-fable_A-7-2"
+          ],
+          "panel": "fable_A",
+          "story": "fable",
+          "dataset": "real",
+          "index": 7,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S5"
+            ],
+            "holder": null,
+            "object": "the rope",
+            "relation": "gnawed",
+            "subject": "a Mouse",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "Frozen reference match, not independent verification."
+        },
+        {
+          "id": "edge-fable-fable_B-4",
+          "artist_ids": [
+            "edge-fable-fable_B-4-0",
+            "edge-fable-fable_B-4-1",
+            "edge-fable-fable_B-4-2"
+          ],
+          "panel": "fable_B",
+          "story": "fable",
+          "dataset": "real",
+          "index": 4,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S5"
+            ],
+            "holder": null,
+            "object": "ropes",
+            "relation": "gnawed",
+            "subject": "Mouse",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "Frozen reference match, not independent verification."
+        },
+        {
+          "id": "edge-fable-fable_A-8",
+          "artist_ids": [
+            "edge-fable-fable_A-8-0",
+            "edge-fable-fable_A-8-1",
+            "edge-fable-fable_A-8-2"
+          ],
+          "panel": "fable_A",
+          "story": "fable",
+          "dataset": "real",
+          "index": 8,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S5"
+            ],
+            "holder": null,
+            "object": "A LION",
+            "relation": "set_free",
+            "subject": "a Mouse",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "Frozen reference match, not independent verification."
+        },
+        {
+          "id": "edge-fable-fable_B-5",
+          "artist_ids": [
+            "edge-fable-fable_B-5-0",
+            "edge-fable-fable_B-5-1",
+            "edge-fable-fable_B-5-2"
+          ],
+          "panel": "fable_B",
+          "story": "fable",
+          "dataset": "real",
+          "index": 5,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S5"
+            ],
+            "holder": null,
+            "object": "Mouse",
+            "relation": "freed_by",
+            "subject": "Lion",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "S5 explicitly says the Mouse set the Lion free. Lion freed_by Mouse is the same directed meaning in passive form, outside the frozen strict synonym set."
+        }
+      ],
+      "display_transformation": "Five of eight A facts, all five B facts. Full exact strings; underscore-to-space labels and whitespace reflow only. Omitted A indices 1,5,6. Bounds and attribution null except actual missing valid_until (key valid until). No node merging across conditions."
+    },
+    "harbor": {
+      "width_mm": 158.0134,
+      "height_mm": 162.75402777777776,
+      "minimum_font_pt": 8.5,
+      "text": [
+        "Harbor · full intervals, not clipped to the question",
+        "S5 Lena is in North Hall from day 1 up to but not including day 5.",
+        "S6 Omar is in East Garden from day 0 up to but not including day 3.",
+        "S7 Priya is in Stone Shed from day 3 up to but not including day 6.",
+        "S8 Silver Flute is in West Pier from day 2 up to but not including day 4.",
+        "Request: narrated locations overlapping [2,4); full source intervals.",
+        "A and B: four identical location records, generated independently",
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "Lena",
+        "North Hall",
+        "+ located in",
+        "S5",
+        "[1,5)",
+        "Omar",
+        "East Garden",
+        "+ located in",
+        "S6",
+        "[0,3)",
+        "Priya",
+        "Stone Shed",
+        "+ located in",
+        "S7",
+        "[3,6)",
+        "Silver Flute",
+        "West Pier",
+        "+ located in",
+        "S8",
+        "[2,4)",
+        "B also returns two irrelevant carrying records (both still scored)",
+        "Priya",
+        "Cobalt Compass",
+        "I carries",
+        "S3",
+        "[0,6)",
+        "Lena",
+        "Amber Lantern",
+        "I carries",
+        "S4",
+        "[1,5)",
+        "+ supported I irrelevant; all holder/attitude values null. Shading = query window; filled start /\nopen end = source validity."
+      ],
+      "records": [
+        {
+          "id": "edge-harbor-harbor_A_locations-1",
+          "artist_ids": [
+            "edge-harbor-harbor_A_locations-1-0",
+            "edge-harbor-harbor_A_locations-1-1",
+            "edge-harbor-harbor_A_locations-1-2"
+          ],
+          "panel": "harbor_A_locations",
+          "story": "harbor",
+          "dataset": "synthetic",
+          "index": 1,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S5"
+            ],
+            "holder": null,
+            "object": "North Hall",
+            "relation": "located_in",
+            "subject": "Lena",
+            "valid_from": 1,
+            "valid_until": 5
+          },
+          "status": "supported",
+          "note": "correct_complete_fact"
+        },
+        {
+          "id": "edge-harbor-harbor_B_locations-3",
+          "artist_ids": [],
+          "panel": "harbor_B_locations",
+          "story": "harbor",
+          "dataset": "synthetic",
+          "index": 3,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S5"
+            ],
+            "holder": null,
+            "object": "North Hall",
+            "relation": "located_in",
+            "subject": "Lena",
+            "valid_from": 1,
+            "valid_until": 5
+          },
+          "status": "supported",
+          "note": "correct_complete_fact"
+        },
+        {
+          "id": "edge-harbor-harbor_A_locations-2",
+          "artist_ids": [
+            "edge-harbor-harbor_A_locations-2-0",
+            "edge-harbor-harbor_A_locations-2-1",
+            "edge-harbor-harbor_A_locations-2-2"
+          ],
+          "panel": "harbor_A_locations",
+          "story": "harbor",
+          "dataset": "synthetic",
+          "index": 2,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S6"
+            ],
+            "holder": null,
+            "object": "East Garden",
+            "relation": "located_in",
+            "subject": "Omar",
+            "valid_from": 0,
+            "valid_until": 3
+          },
+          "status": "supported",
+          "note": "correct_complete_fact"
+        },
+        {
+          "id": "edge-harbor-harbor_B_locations-4",
+          "artist_ids": [],
+          "panel": "harbor_B_locations",
+          "story": "harbor",
+          "dataset": "synthetic",
+          "index": 4,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S6"
+            ],
+            "holder": null,
+            "object": "East Garden",
+            "relation": "located_in",
+            "subject": "Omar",
+            "valid_from": 0,
+            "valid_until": 3
+          },
+          "status": "supported",
+          "note": "correct_complete_fact"
+        },
+        {
+          "id": "edge-harbor-harbor_A_locations-3",
+          "artist_ids": [
+            "edge-harbor-harbor_A_locations-3-0",
+            "edge-harbor-harbor_A_locations-3-1",
+            "edge-harbor-harbor_A_locations-3-2"
+          ],
+          "panel": "harbor_A_locations",
+          "story": "harbor",
+          "dataset": "synthetic",
+          "index": 3,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S7"
+            ],
+            "holder": null,
+            "object": "Stone Shed",
+            "relation": "located_in",
+            "subject": "Priya",
+            "valid_from": 3,
+            "valid_until": 6
+          },
+          "status": "supported",
+          "note": "correct_complete_fact"
+        },
+        {
+          "id": "edge-harbor-harbor_B_locations-5",
+          "artist_ids": [],
+          "panel": "harbor_B_locations",
+          "story": "harbor",
+          "dataset": "synthetic",
+          "index": 5,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S7"
+            ],
+            "holder": null,
+            "object": "Stone Shed",
+            "relation": "located_in",
+            "subject": "Priya",
+            "valid_from": 3,
+            "valid_until": 6
+          },
+          "status": "supported",
+          "note": "correct_complete_fact"
+        },
+        {
+          "id": "edge-harbor-harbor_A_locations-4",
+          "artist_ids": [
+            "edge-harbor-harbor_A_locations-4-0",
+            "edge-harbor-harbor_A_locations-4-1",
+            "edge-harbor-harbor_A_locations-4-2"
+          ],
+          "panel": "harbor_A_locations",
+          "story": "harbor",
+          "dataset": "synthetic",
+          "index": 4,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S8"
+            ],
+            "holder": null,
+            "object": "West Pier",
+            "relation": "located_in",
+            "subject": "Silver Flute",
+            "valid_from": 2,
+            "valid_until": 4
+          },
+          "status": "supported",
+          "note": "correct_complete_fact"
+        },
+        {
+          "id": "edge-harbor-harbor_B_locations-6",
+          "artist_ids": [],
+          "panel": "harbor_B_locations",
+          "story": "harbor",
+          "dataset": "synthetic",
+          "index": 6,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S8"
+            ],
+            "holder": null,
+            "object": "West Pier",
+            "relation": "located_in",
+            "subject": "Silver Flute",
+            "valid_from": 2,
+            "valid_until": 4
+          },
+          "status": "supported",
+          "note": "correct_complete_fact"
+        },
+        {
+          "id": "edge-harbor-harbor_B_locations-1",
+          "artist_ids": [
+            "edge-harbor-harbor_B_locations-1-0",
+            "edge-harbor-harbor_B_locations-1-1",
+            "edge-harbor-harbor_B_locations-1-2"
+          ],
+          "panel": "harbor_B_locations",
+          "story": "harbor",
+          "dataset": "synthetic",
+          "index": 1,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S3"
+            ],
+            "holder": null,
+            "object": "Cobalt Compass",
+            "relation": "carries",
+            "subject": "Priya",
+            "valid_from": 0,
+            "valid_until": 6
+          },
+          "status": "irrelevant",
+          "note": "supported_but_irrelevant"
+        },
+        {
+          "id": "edge-harbor-harbor_B_locations-2",
+          "artist_ids": [
+            "edge-harbor-harbor_B_locations-2-0",
+            "edge-harbor-harbor_B_locations-2-1",
+            "edge-harbor-harbor_B_locations-2-2"
+          ],
+          "panel": "harbor_B_locations",
+          "story": "harbor",
+          "dataset": "synthetic",
+          "index": 2,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S4"
+            ],
+            "holder": null,
+            "object": "Amber Lantern",
+            "relation": "carries",
+            "subject": "Lena",
+            "valid_from": 1,
+            "valid_until": 5
+          },
+          "status": "irrelevant",
+          "note": "supported_but_irrelevant"
+        }
+      ],
+      "display_transformation": "All four A and six B facts. Four identical location records share labelled display rows only; both provenance records retained. Two B carrying extras shown. Source S5-S8 of fourteen; no bounds changed."
+    },
+    "alice": {
+      "width_mm": 158.0134,
+      "height_mm": 147.95499999999998,
+      "minimum_font_pt": 8.5,
+      "text": [
+        "Alice · inspecting an action and a thought",
+        "S1 … once or twice she had peeped into the book her sister was reading …",
+        "S1 … \"and what is the use of a book,\" thought Alice \"without pictures or conversations?\" …",
+        "S2 … whether the pleasure of making a daisy-chain would be worth the trouble of getting up and\npicking the daisies …",
+        "B action request: sitting, reading/inspection and running",
+        "Alice",
+        "the book",
+        "+ peeped into",
+        "S1",
+        "Alice",
+        "the book",
+        "x reading",
+        "S1",
+        "x The sister reads; Alice peeps. Same source, different participant.",
+        "B claims request: absent book content and Alice’s thoughts",
+        "Alice",
+        "use of a book without pictures or\nconversations is questionable",
+        "+ thinks",
+        "S1",
+        "making a\ndaisy-chain",
+        "worth the trouble of getting up and picking\nthe daisies",
+        "? considered",
+        "S2",
+        "Final edge: holder = Alice; attitude = null. Other qualifiers null. Thought remains\nsentence-valued; daisy-chain judgment unresolved.",
+        "+ supported meaning x unsupported ? unresolved. Source excerpted; full passage supplied to\neach independent request."
+      ],
+      "records": [
+        {
+          "id": "edge-alice-alice_B_actions-3",
+          "artist_ids": [
+            "edge-alice-alice_B_actions-3-0",
+            "edge-alice-alice_B_actions-3-1",
+            "edge-alice-alice_B_actions-3-2"
+          ],
+          "panel": "alice_B_actions",
+          "story": "alice",
+          "dataset": "real",
+          "index": 3,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "the book",
+            "relation": "peeped_into",
+            "subject": "Alice",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "Frozen reference match, not independent verification."
+        },
+        {
+          "id": "edge-alice-alice_B_actions-4",
+          "artist_ids": [
+            "edge-alice-alice_B_actions-4-0",
+            "edge-alice-alice_B_actions-4-1",
+            "edge-alice-alice_B_actions-4-2"
+          ],
+          "panel": "alice_B_actions",
+          "story": "alice",
+          "dataset": "real",
+          "index": 4,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "the book",
+            "relation": "reading",
+            "subject": "Alice",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "unsupported",
+          "note": "S1 explicitly assigns reading to the sister and peeping to Alice. It does not support Alice reading the book. This is an unsupported participant/action assignment, not proof that Alice never read anything."
+        },
+        {
+          "id": "edge-alice-alice_B_claims-2",
+          "artist_ids": [
+            "edge-alice-alice_B_claims-2-0",
+            "edge-alice-alice_B_claims-2-1",
+            "edge-alice-alice_B_claims-2-2"
+          ],
+          "panel": "alice_B_claims",
+          "story": "alice",
+          "dataset": "real",
+          "index": 2,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "use of a book without pictures or conversations is questionable",
+            "relation": "thinks",
+            "subject": "Alice",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "The subject Alice, mental predicate thinks, and object questioning the use of a pictureless/conversationless book preserve her rhetorical thought from S1. It is not asserted as objective uselessness. This semantically supported mental-act representation remains a strict wording mismatch."
+        },
+        {
+          "id": "edge-alice-alice_B_claims-3",
+          "artist_ids": [
+            "edge-alice-alice_B_claims-3-0",
+            "edge-alice-alice_B_claims-3-1",
+            "edge-alice-alice_B_claims-3-2"
+          ],
+          "panel": "alice_B_claims",
+          "story": "alice",
+          "dataset": "real",
+          "index": 3,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S2"
+            ],
+            "holder": "Alice",
+            "object": "worth the trouble of getting up and picking the daisies",
+            "relation": "considered",
+            "subject": "making a daisy-chain",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "unresolved",
+          "note": "S2 says Alice is considering WHETHER making the chain would be worth the trouble. 'considered worth' may instead mean judged worthwhile. The missing attitude alongside holder Alice also violates the compact pairing rule. Source support for a settled positive judgment cannot be established; do not award the consideration target by guessing."
+        }
+      ],
+      "display_transformation": "Action indices 3,4 of five; claim indices 2,3 of three. Exact endpoint strings retained, including sentence-valued object. Predicate underscores printed as spaces. No reconstructed belief graph. Source excerpts marked."
+    }
+  },
+  "numerical_claims": {
+    "Temperature": "0.7",
+    "TopP": "0.8",
+    "TopK": "20",
+    "Seed": "1988649846",
+    "OutputTokens": "2,048",
+    "ContextTokens": "12,288",
+    "StorySentences": "14",
+    "FableWords": "133",
+    "AliceWords": "112",
+    "HolmesWords": "159",
+    "CompactCalls": "12",
+    "ProseCalls": "9",
+    "ProseParsed": "7",
+    "IntervalsKept": "79",
+    "IntervalsEligible": "79",
+    "OrchardLocationRecall": "0.750",
+    "MainCalls": "21",
+    "MainAllocation": "454.82",
+    "CompactAllocation": "249.45",
+    "ProseAllocation": "205.37",
+    "CompactRequest": "104.72",
+    "ProseRequest": "57.24",
+    "FableAFone": "0.625",
+    "FableACoverage": "6 of 8",
+    "FableBFone": "0.308",
+    "FableBCoverage": "4 of 8",
+    "AliceAFone": "0.000",
+    "AliceACoverage": "1 of 4",
+    "AliceBFone": "0.000",
+    "AliceBCoverage": "3 of 4"
+  },
+  "regeneration": "python paper/icaart2027/build_assets.py && sh paper/icaart2027/build.sh && python paper/icaart2027/verify.py",
+  "selection_rationale": {
+    "fable": "Simple actions, conditional-scope loss and a comparison favouring A.",
+    "harbor": "Source intervals versus question window with all B relevance errors visible.",
+    "alice": "Useful thought content beside a wrong participant and unresolved interpretation."
+  }
+}

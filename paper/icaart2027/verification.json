@@ -1,0 +1,346 @@
+{
+  "submission": {
+    "pages": 8,
+    "nonwhitespace_characters": 25224,
+    "page_bounds_pdf_points": [
+      [
+        73.701,
+        94.663122,
+        521.616809,
+        719.292922
+      ],
+      [
+        73.701,
+        98.613101,
+        521.617512,
+        712.261922
+      ],
+      [
+        73.701,
+        95.703534,
+        521.616809,
+        723.274922
+      ],
+      [
+        73.701,
+        97.64431,
+        521.617512,
+        715.117922
+      ],
+      [
+        73.701,
+        97.885357,
+        521.616809,
+        719.991922
+      ],
+      [
+        73.701,
+        97.605762,
+        521.617512,
+        715.505922
+      ],
+      [
+        73.701,
+        91.586781,
+        521.617512,
+        723.274922
+      ],
+      [
+        73.701,
+        97.885357,
+        521.616993,
+        722.267742
+      ]
+    ],
+    "all_fonts_embedded": true,
+    "no_type3_fonts": true,
+    "author_metadata_empty": true,
+    "identifying_string_scan": "pass",
+    "sha256": "3de8f610e9f0ff7a2dfe7556f9f762aee525a96bdce53a80926f082824df9c23"
+  },
+  "companion": {
+    "pages": 36,
+    "nonwhitespace_characters": 80595,
+    "page_bounds_pdf_points": [
+      [
+        68.032,
+        108.164959,
+        522.934279,
+        541.889922
+      ],
+      [
+        68.031,
+        68.095122,
+        506.456209,
+        464.349199
+      ],
+      [
+        78.6823,
+        70.99931,
+        518.323552,
+        521.233259
+      ],
+      [
+        78.6823,
+        70.959762,
+        500.832112,
+        479.280259
+      ],
+      [
+        68.031,
+        68.095122,
+        524.087445,
+        541.458922
+      ],
+      [
+        68.031,
+        69.744912,
+        526.360306,
+        776.010922
+      ],
+      [
+        68.031,
+        71.239357,
+        525.473742,
+        776.009922
+      ],
+      [
+        68.031,
+        71.119806,
+        525.473742,
+        771.303922
+      ],
+      [
+        68.031,
+        71.239357,
+        525.473742,
+        771.677922
+      ],
+      [
+        68.031,
+        71.119806,
+        515.232189,
+        772.264922
+      ],
+      [
+        68.031,
+        71.119806,
+        525.782582,
+        403.682922
+      ],
+      [
+        68.031,
+        69.744912,
+        526.360306,
+        776.010922
+      ],
+      [
+        68.031,
+        71.239357,
+        525.473742,
+        773.919922
+      ],
+      [
+        68.031,
+        71.239357,
+        525.473742,
+        768.315922
+      ],
+      [
+        68.031,
+        71.119806,
+        517.902166,
+        723.483922
+      ],
+      [
+        68.031,
+        71.119806,
+        519.306892,
+        739.547922
+      ],
+      [
+        68.031,
+        71.119806,
+        525.782582,
+        598.327922
+      ],
+      [
+        68.031,
+        69.744912,
+        526.360306,
+        776.010922
+      ],
+      [
+        68.031,
+        71.239357,
+        525.473742,
+        764.952922
+      ],
+      [
+        68.031,
+        71.119806,
+        525.473742,
+        775.039922
+      ],
+      [
+        68.031,
+        71.239357,
+        525.473742,
+        776.010922
+      ],
+      [
+        68.031,
+        71.119806,
+        520.213489,
+        744.404922
+      ],
+      [
+        68.031,
+        71.119806,
+        525.782582,
+        385.749922
+      ],
+      [
+        68.031,
+        68.095122,
+        524.087445,
+        651.047922
+      ],
+      [
+        68.031,
+        69.744912,
+        526.499889,
+        776.010922
+      ],
+      [
+        68.031,
+        71.239357,
+        525.533517,
+        776.010922
+      ],
+      [
+        68.031,
+        71.239357,
+        526.430151,
+        766.073922
+      ],
+      [
+        68.031,
+        71.119806,
+        519.984993,
+        230.332922
+      ],
+      [
+        68.031,
+        69.744912,
+        526.908249,
+        769.435922
+      ],
+      [
+        68.031,
+        71.119806,
+        526.908249,
+        765.699922
+      ],
+      [
+        68.031,
+        71.119806,
+        526.589553,
+        776.009922
+      ],
+      [
+        68.031,
+        71.119806,
+        519.89503,
+        535.189922
+      ],
+      [
+        68.031,
+        69.744912,
+        527.227159,
+        760.843922
+      ],
+      [
+        68.031,
+        71.119806,
+        527.097645,
+        754.796183
+      ],
+      [
+        68.031,
+        72.39,
+        526.530777,
+        719.135183
+      ],
+      [
+        68.031,
+        72.39,
+        526.670254,
+        625.555922
+      ]
+    ],
+    "all_fonts_embedded": true,
+    "no_type3_fonts": true,
+    "author_metadata_empty": true,
+    "identifying_string_scan": "pass",
+    "sha256": "d07ab3d28f37f892100545e2a56f0b5f6b2a74b4541774f3228ee3853b8af9e7"
+  },
+  "abstract_words": 164,
+  "character_count_method": "pdftotext UTF-8, remove every Unicode whitespace character; includes title, abstract, captions, tables, searchable vector graph text, references and appendix. PDF discretionary hyphens retained. Counts are local, not a claimed PRIMORIS count.",
+  "figure_text_characters_already_included": 2227,
+  "conservative_double_counted_figure_bound": 27451,
+  "scheduled_character_range": [
+    8000,
+    40000
+  ],
+  "ordinary_page_limit": 8,
+  "template_files_unmodified": true,
+  "retained_source_hashes": "pass",
+  "canonical_tables": "unchanged",
+  "record_and_assessment_correspondence": "pass",
+  "references_cited_and_defined": [
+    "aesop",
+    "banko2007",
+    "carroll",
+    "caufield2024",
+    "doyle",
+    "fokkens2017",
+    "heer2012",
+    "kwon2023",
+    "openai2025",
+    "qwen2025",
+    "qwenmodel",
+    "time2017"
+  ],
+  "source_zip": {
+    "sha256": "5a736a74e3c41a9f0421574b1e84112c7635819b5a6028545eae0efdebf4961b",
+    "files": [
+      "main.tex",
+      "abstract.tex",
+      "figure_blocks.tex",
+      "references.bib",
+      "build.sh",
+      "article.cls",
+      "SCITEPRESS.sty",
+      "apalike.sty",
+      "apalike.bst",
+      "generated/numbers.tex",
+      "tables/compact.tex",
+      "tables/prose.tex",
+      "figures/fable.pdf",
+      "figures/harbor.pdf",
+      "figures/alice.pdf"
+    ],
+    "isolated_compilation": "pass",
+    "pdf_text_identical": true
+  },
+  "no_new_inference": true,
+  "visual_inspection": "See visual_inspection.md; generated after rendering, not asserted by automated checks.",
+  "outputs": {
+    "main.tex": "b6c0d714126711f3363b334000af124125d20a83a42071f601b12ae86e76a490",
+    "abstract.tex": "cb1a002ddf241a52926c74a45806c59d818e529fd7d639184a3c0d128986fcce",
+    "references.bib": "cc5fcd457be574ef5691f7ac5a18ce2fd0ba5ac06a50b8686fbd2a1d0095dd01",
+    "figure_blocks.tex": "e9febe5841e96f09f57f6dbd7787d083aea8e218572ca62d479c373f5b0580ed",
+    "generated/companion_content.tex": "563d1d96cdaae40637db2d68ae5b4c2b46f996d7b3516ae7010e71a3fee861aa"
+  }
+}

@@ -2,6 +2,8 @@
 
 [Review manuscript](PROOF_OF_CONCEPT.pdf) · [Editable Markdown](PROOF_OF_CONCEPT.md) · [Compact figures](figures/index.html) · [Supplement](SUPPLEMENTARY_MATERIAL.pdf)
 
+Conference-specific local adaptation: [ICAART 2027 Position Paper package](icaart2027/README.md). It uses the official LaTeX template and preserves this general manuscript. Read its author actions and public-posting warning before any public push or submission.
+
 This manuscript describes retained **exploratory extraction** results. It does not report completed registered C1/C2 acceptance, an independently reviewed benchmark, a full-novel study, or participant evaluation. No GPU is used by this publishing toolchain. Historical outputs, assessments and scores are unchanged.
 
 ## Regenerate
