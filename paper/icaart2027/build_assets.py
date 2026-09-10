@@ -7,9 +7,10 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
 import sys
+from functools import lru_cache
 from pathlib import Path
+from xml.etree import ElementTree as ET
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
@@ -18,6 +19,58 @@ from scripts import build_paper_figures as graph
 
 W = 6.221 * 25.4 / 25.4 * 72  # exactly the official style's 6.221 in, in PDF points
 graph.W = W  # process-local width only; never regenerate or edit historical artwork
+FONT = "Times New Roman"
+# Require the installed face, rather than silently falling back to a sans serif.
+FONT_FILES = {
+    weight: Path(graph.findfont(graph.FontProperties(family=FONT, weight=weight),
+                               fallback_to_default=False))
+    for weight in ("normal", "bold")
+}
+graph.matplotlib.rcParams["font.family"] = FONT
+
+
+@lru_cache(maxsize=20000)
+def conference_text_width(text, size=9, bold=False):
+    return graph.TextToPath().get_text_width_height_descent(
+        text, graph.FontProperties(family=FONT, size=size,
+                                   weight="bold" if bold else "normal"), False)[0]
+
+
+graph.width = conference_text_width  # wrapping and rendering use the same face
+
+
+def annotate_svg(path, plate):
+    """Preserve searchable labels and record links without redistributing font files.
+
+    PDF embeds document font subsets. Editable SVG requires a licensed local Times
+    New Roman installation. PNG is the font-independent raster counterpart.
+    """
+    ns = "http://www.w3.org/2000/svg"
+    ET.register_namespace("", ns)
+    ET.register_namespace("xlink", "http://www.w3.org/1999/xlink")
+    root = ET.parse(path).getroot()
+    defs = root.find(f"{{{ns}}}defs")
+    ET.SubElement(defs, f"{{{ns}}}style").text = (
+        "@font-face{font-family:'Times New Roman';font-weight:normal;"
+        "src:local('Times New Roman'),local('TimesNewRomanPSMT');}"
+        "@font-face{font-family:'Times New Roman';font-weight:bold;"
+        "src:local('Times New Roman Bold'),local('TimesNewRomanPS-BoldMT');}"
+    )
+    ET.SubElement(root, f"{{{ns}}}metadata").text = (
+        "Conference figure. Searchable Times New Roman text requires the local font. "
+        "No font software is redistributed in this SVG. PDF embeds document subsets."
+    )
+    for item in plate.edges:
+        for gid in item["artist_ids"]:
+            group = next(el for el in root.iter() if el.get("id") == gid)
+            group.set("data-record", item["id"])
+            group.set("role", "button")
+            group.set("tabindex", "0")
+            ET.SubElement(group, f"{{{ns}}}title").text = (
+                item["status"] + ": " + json.dumps(item["fact"], ensure_ascii=False)
+                + ". Citation link only. " + item["note"]
+            )
+    ET.ElementTree(root).write(path, encoding="utf-8", xml_declaration=True)
 
 
 def read(path):
@@ -88,9 +141,11 @@ def save_plate(p, height, note):
     p.fig.savefig(out.with_suffix('.pdf'), metadata={'Author':'', 'Creator':'Matplotlib',
                   'Title':p.name, 'CreationDate':None, 'ModDate':None})
     p.fig.savefig(out.with_suffix('.svg'), metadata={'Creator':'Matplotlib', 'Date':None})
-    graph.embed_svg(out.with_suffix('.svg'),p)
+    annotate_svg(out.with_suffix('.svg'),p)
     p.fig.savefig(out.with_suffix('.png'), dpi=400)
     record = dict(width_mm=W/72*25.4, height_mm=height/72*25.4, minimum_font_pt=8.5,
+                  font_family=FONT, font_sha256={k:digest(v) for k,v in FONT_FILES.items()},
+                  svg_font_delivery="licensed local face; no redistributed font software",
                   text=[t.get_text() for t in p.text_items], records=p.edges,
                   display_transformation=note)
     graph.plt.close(p.fig)
@@ -104,7 +159,7 @@ def figures(data, panels):
     text='S2 … "If you would only spare my life, I would be sure to repay your kindness."'
     y=p.para(5, 22, text, W-10, size=8.5)
     y=p.para(5, y+4, 'S5 '+ ' '.join(data['prose']['stories']['fable']['evidence']['S5'].split()), W-10, size=8.5)+8
-    p.text(5,y,'Request: physical actions; exclude dialogue and intentions',size=8.5,bold=True)
+    p.text(5,y,'Request: physical actions, excluding dialogue and intentions',size=8.5,bold=True)
     y+=20
     half=(W-20)/2
     p.text(5,y,'A: text → extraction → selection',size=8.5,bold=True)
@@ -116,8 +171,8 @@ def figures(data, panels):
         edge(p,panels['fable_A'],a,5,y,half,sw=53,ow=53,height=37)
         edge(p,panels['fable_B'],b,half+15,y,half,sw=53,ow=53,height=37)
         y+=45
-    y=p.para(5,y,'+ supported meaning   ~ partial meaning; citations are not proof of support.',W-10,size=8.5)+4
-    y=p.para(5,y,'A: spare loses conditional scope; B: early capture/release missing. Source display is excerpted; full fable supplied.',W-10,size=8.5)+8
+    y=p.para(5,y,'+ supported meaning   ~ partial meaning. Citations are not proof of support.',W-10,size=8.5)+4
+    y=p.para(5,y,'A: spare loses conditional scope. B: early capture/release missing. Source excerpted. Full fable supplied.',W-10,size=8.5)+8
     meta['fable']=save_plate(p,y,'Five of eight A facts, all five B facts. Full exact strings; underscore-to-space labels and whitespace reflow only. Omitted A indices 1,5,6. Bounds and attribution null except actual missing valid_until (key valid until). No node merging across conditions.')
 
     p=make_plate('harbor')
@@ -125,7 +180,7 @@ def figures(data, panels):
     y=22
     for eid in ['S5','S6','S7','S8']:
         y=p.para(5,y,eid+' '+data['compact']['stories']['harbor']['evidence'][eid],W-10,size=8.5)+3
-    y=p.para(5,y+3,'Request: narrated locations overlapping [2,4); full source intervals.',W-10,size=8.5,bold=True)+8
+    y=p.para(5,y+3,'Request: narrated locations overlapping [2,4), with full source intervals.',W-10,size=8.5,bold=True)+8
     p.text(5,y,'A and B: four identical location records, generated independently',size=8.5,bold=True)
     y+=23
     x0,x1=W-117,W-6
@@ -169,12 +224,12 @@ def figures(data, panels):
     y+=7;p.text(5,y,'B action request: sitting, reading/inspection and running',size=8.5,bold=True);y+=21
     for ix in [3,4]:
         edge(p,panels['alice_B_actions'],panels['alice_B_actions']['records'][ix-1],5,y,W-10,sw=80,ow=126,height=34);y+=42
-    p.text(5,y,'x The sister reads; Alice peeps. Same source, different participant.',size=8.5,color='#B33C3D');y+=23
+    p.text(5,y,'x The sister reads. Alice peeps. Same source, different participant.',size=8.5,color='#B33C3D');y+=23
     p.text(5,y,'B claims request: absent book content and Alice’s thoughts',size=8.5,bold=True);y+=23
     for ix in [2,3]:
         edge(p,panels['alice_B_claims'],panels['alice_B_claims']['records'][ix-1],5,y,W-10,sw=85,ow=215,height=56);y+=65
-    y=p.para(5,y,'Final edge: holder = Alice; attitude = null. Other qualifiers null. Thought remains sentence-valued; daisy-chain judgment unresolved.',W-10,size=8.5)+5
-    y=p.para(5,y,'+ supported meaning   x unsupported   ? unresolved. Source excerpted; full passage supplied to each independent request.',W-10,size=8.5)+7
+    y=p.para(5,y,'Final edge: holder = Alice, attitude = null. Other qualifiers null. Thought remains a sentence. Daisy-chain judgment unresolved.',W-10,size=8.5)+5
+    y=p.para(5,y,'+ supported meaning   x unsupported   ? unresolved. Source excerpted. Full passage supplied to each independent request.',W-10,size=8.5)+7
     meta['alice']=save_plate(p,y,'Action indices 3,4 of five; claim indices 2,3 of three. Exact endpoint strings retained, including sentence-valued object. Predicate underscores printed as spaces. No reconstructed belief graph. Source excerpts marked.')
     return meta
 
@@ -215,7 +270,9 @@ def numbers_and_tables(compact, prose):
             vals += [str(r[m+'_predicted'])]+[f"{r[m+'_'+v]:.3f}" for v in ['precision','recall','f1']]
         rows.append(' & '.join(vals)+r' \\')
     (HERE/'tables/compact.tex').write_text(r'''\begin{table*}[t]
-\caption{Compact-story v2 strict qualified-fact scores. A = pre-extract/select; B = independent contextual extraction. $n$ includes every prediction. Targets: possession 5, location 4, belief/reality 4 per story. No historical recoveries are pooled.}\label{tab:compact}
+% Positive inset keeps the top caption within the nominal text margin.
+\vspace*{6pt}
+\caption{Compact-story v2 strict qualified-fact scores. A: pre-extract/select. B: contextual extraction. $n$ includes every prediction. Targets per story: possession 5, location 4, belief/reality 4. No historical recoveries are pooled.}\label{tab:compact}
 \centering\small
 \begin{tabular}{llrrrrrrrr}\toprule
 Story & Question & $n_A$ & $P_A$ & $R_A$ & $F1_A$ & $n_B$ & $P_B$ & $R_B$ & $F1_B$\\\midrule
@@ -229,7 +286,8 @@ Story & Question & $n_A$ & $P_A$ & $R_A$ & $F1_A$ & $n_B$ & $P_B$ & $R_B$ & $F1_
         else: vals += ['NA']*6
         rows.append(' & '.join(vals)+r' \\')
     (HERE/'tables/prose.tex').write_text(r'''\begin{table*}[t]
-\caption{Published prose: strict qualified-fact precision, recall and F1, separate from Codex-authored semantic support (S), partial support (P), unsupported (X), unresolved (U), and semantic target coverage. NA = unavailable due to parse failure, not an empty graph. All parseable predictions have valid evidence IDs; that does not establish support.}\label{tab:prose}
+\vspace*{6pt}
+\caption{Published prose: strict agreement and Codex-authored semantic assessment. A: pre-extract/select. B: contextual extraction. S/P/X/U counts supported, partial, unsupported and unresolved records. Coverage counts preserved target meanings. NA denotes parse failure, not an empty graph. All parseable predictions cite valid evidence IDs, which does not establish support.}\label{tab:prose}
 \centering\small\begin{tabular}{lllrrrrrr}\toprule
 Passage & Question & Method & $n$ & Precision & Recall & F1 & S/P/X/U & Coverage\\\midrule
 '''+ '\n'.join(rows)+r'\bottomrule\end{tabular}\end{table*}'+'\n')
@@ -276,11 +334,11 @@ def companion(datasets, requests):
         return line+r'\par\smallskip'
 
     out=[r'\section*{Reader Guide}',
-         'Locally prepared anonymous supporting material. Separate supplementary upload eligibility is unconfirmed. '
+         'Locally prepared anonymous supporting material. '
          'This document preserves the retained evidence, executed questions, reference alternatives and actual outputs. '
-         'References and semantic judgments are Codex-authored, not independent human review. '
+         'Reference answers and semantic judgments are Codex-authored, not independent human review. '
          'No semantic correction, new inference or rescoring is performed. '
-         'A is fixed selection from a query-blind output; B is independent extraction from text and question. '
+         'Pre-extract/select (A) filters an extraction made without the question. Contextual extraction (B) independently uses text and question. '
          'AI assistance in implementation, annotation, analysis, writing and rendering was substantive. '
          r'OpenAI Codex (2025): \url{https://openai.com/index/introducing-codex/}. '
          'Exact request messages are factored without changing content: the common system message per batch, then each printed task and complete evidence under the wrapper below. '
@@ -377,24 +435,14 @@ def main():
     nums=numbers_and_tables(**datasets)
     figs=figures(datasets,panels)
     companion(datasets,req)
-    bib=(ROOT/'paper/references.bib').read_text()
-    bib=bib.replace('@techreport{time2017,','@book{time2017,').replace('institution = {World Wide Web Consortium}','publisher = {World Wide Web Consortium}')
-    for key in ['qwenmodel','aesop','carroll','doyle']:
-        bib=bib.replace('{'+key+',','{'+key+',\n  year = {n.d.},')
-    bib=bib.replace('The Lion And The Mouse; retained text','Translated by George Fyler Townsend. The Lion And The Mouse; retained text')
-    bib=bib.replace('eprint = {2505.09388},','eprint = {2505.09388},\n  howpublished = {arXiv:2505.09388},')
-    bib=bib.replace('eprint = {2309.06180},','eprint = {2309.06180},\n  howpublished = {arXiv:2309.06180},')
-    bib=bib.replace('title = {Qwen3 Technical Report}', 'title = {{Qwen3} Technical Report}')
-    bib=bib.replace('title = {Qwen3-8B-AWQ model card and pinned snapshot}', 'title = {{Qwen3-8B-AWQ} model card and pinned snapshot}')
-    bib=bib.replace('(SPIRES):','({SPIRES}):').replace('title = {GRaSP:','title = {{GRaSP}:').replace('with PagedAttention}', 'with {PagedAttention}}')
-    bib += '\n@misc{openai2025,\n author = {{OpenAI}},\n title = {Introducing Codex},\n year = {2025},\n howpublished = {\\url{https://openai.com/index/introducing-codex/}},\n note = {16 May. Tool citation; not an identification of the backend version used in this study}\n}\n'
-    # apalike does not print the url field, so retain accessible identifiers in notes.
-    bib=re.sub(r'  url = \{([^}]+)\}',lambda m:'  url = {'+m[1]+'}',bib)
-    (HERE/'references.bib').write_text(bib)
+    # The audited conference bibliography is editable, not overwritten from the
+    # historical general manuscript. Official apalike files remain byte-identical.
     write_json(HERE/'manifest.json',dict(source_editorial_commit='dafabd0fd5258b68965ec4b11a870ac5773d66d6',
                source_hashes={**hashes,**{p:digest(ROOT/p) for p in ['paper/manuscript_source.md','paper/AUTHOR_REVIEW.md','paper/FIGURE_CAPTIONS.md','paper/references.bib','paper/tables/numerical_registry.json','paper/tables/compact_comparison.json','paper/tables/published_comparison.json','paper/tables/allocation.json']}},
                template_archive_sha256=digest(HERE/'vendor/SCITEPRESS_Conference_Latex.zip'),
                template_files={p:digest(HERE/p) for p in ['article.cls','SCITEPRESS.sty','apalike.sty','apalike.bst']},
+               conference_bibliography_sha256=digest(HERE/'references.bib'),
+               reference_audit_sha256=digest(HERE/'REFERENCE_AUDIT.md'),
                figures=figs,numerical_claims=nums,
                regeneration='python paper/icaart2027/build_assets.py && sh paper/icaart2027/build.sh && python paper/icaart2027/verify.py',
                selection_rationale={'fable':'Simple actions, conditional-scope loss and a comparison favouring A.',

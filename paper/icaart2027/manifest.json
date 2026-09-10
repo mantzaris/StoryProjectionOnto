@@ -25,16 +25,24 @@
     "apalike.sty": "183bdccc3608e9db948dbd1cdffec3e2a476650dad223c7a3294325371fc0339",
     "apalike.bst": "6977bea0847e4b850fd5bdc948beeaa50cd4d0c2a275e74a5fd68309a9628191"
   },
+  "conference_bibliography_sha256": "b3751d829fe94961e805553659f7df7f2f8ecc6156dbd8e768dbb113a76b6f06",
+  "reference_audit_sha256": "74ba030d2cf3a11f20396ecc8cdf215d5008d32b509766e581c658a35cfc2283",
   "figures": {
     "fable": {
       "width_mm": 158.0134,
-      "height_mm": 133.45583333333332,
+      "height_mm": 125.65944444444446,
       "minimum_font_pt": 8.5,
+      "font_family": "Times New Roman",
+      "font_sha256": {
+        "normal": "4e98adeff8ccc8ef4e3ece8d4547e288ff85fdc9c7ca711a4599c234874bbe86",
+        "bold": "4357b63cef20c01661a53c5dae70ffd20cb4765503aaed6d38b17a57c5a90bff"
+      },
+      "svg_font_delivery": "licensed local face; no redistributed font software",
       "text": [
         "The Lion and the Mouse · actions and rescue",
         "S2 … \"If you would only spare my life, I would be sure to repay your kindness.\"",
-        "S5 The Mouse, recognizing his roar, came and gnawed the rope with his teeth, and set him free,\nexclaiming:",
-        "Request: physical actions; exclude dialogue and intentions",
+        "S5 The Mouse, recognizing his roar, came and gnawed the rope with his teeth, and set him free, exclaiming:",
+        "Request: physical actions, excluding dialogue and intentions",
         "A: text → extraction → selection",
         "B: text + question → extraction",
         "A LION",
@@ -77,8 +85,8 @@
         "Mouse",
         "+ freed by",
         "S5",
-        "+ supported meaning ~ partial meaning; citations are not proof of support.",
-        "A: spare loses conditional scope; B: early capture/release missing. Source display is excerpted;\nfull fable supplied."
+        "+ supported meaning ~ partial meaning. Citations are not proof of support.",
+        "A: spare loses conditional scope. B: early capture/release missing. Source excerpted. Full fable supplied."
       ],
       "records": [
         {
@@ -346,15 +354,21 @@
     },
     "harbor": {
       "width_mm": 158.0134,
-      "height_mm": 162.75402777777776,
+      "height_mm": 158.85583333333332,
       "minimum_font_pt": 8.5,
+      "font_family": "Times New Roman",
+      "font_sha256": {
+        "normal": "4e98adeff8ccc8ef4e3ece8d4547e288ff85fdc9c7ca711a4599c234874bbe86",
+        "bold": "4357b63cef20c01661a53c5dae70ffd20cb4765503aaed6d38b17a57c5a90bff"
+      },
+      "svg_font_delivery": "licensed local face; no redistributed font software",
       "text": [
         "Harbor · full intervals, not clipped to the question",
         "S5 Lena is in North Hall from day 1 up to but not including day 5.",
         "S6 Omar is in East Garden from day 0 up to but not including day 3.",
         "S7 Priya is in Stone Shed from day 3 up to but not including day 6.",
         "S8 Silver Flute is in West Pier from day 2 up to but not including day 4.",
-        "Request: narrated locations overlapping [2,4); full source intervals.",
+        "Request: narrated locations overlapping [2,4), with full source intervals.",
         "A and B: four identical location records, generated independently",
         "0",
         "1",
@@ -394,7 +408,7 @@
         "I carries",
         "S4",
         "[1,5)",
-        "+ supported I irrelevant; all holder/attitude values null. Shading = query window; filled start /\nopen end = source validity."
+        "+ supported I irrelevant; all holder/attitude values null. Shading = query window; filled start / open end = source validity."
       ],
       "records": [
         {
@@ -646,13 +660,19 @@
     },
     "alice": {
       "width_mm": 158.0134,
-      "height_mm": 147.95499999999998,
+      "height_mm": 140.1586111111111,
       "minimum_font_pt": 8.5,
+      "font_family": "Times New Roman",
+      "font_sha256": {
+        "normal": "4e98adeff8ccc8ef4e3ece8d4547e288ff85fdc9c7ca711a4599c234874bbe86",
+        "bold": "4357b63cef20c01661a53c5dae70ffd20cb4765503aaed6d38b17a57c5a90bff"
+      },
+      "svg_font_delivery": "licensed local face; no redistributed font software",
       "text": [
         "Alice · inspecting an action and a thought",
         "S1 … once or twice she had peeped into the book her sister was reading …",
         "S1 … \"and what is the use of a book,\" thought Alice \"without pictures or conversations?\" …",
-        "S2 … whether the pleasure of making a daisy-chain would be worth the trouble of getting up and\npicking the daisies …",
+        "S2 … whether the pleasure of making a daisy-chain would be worth the trouble of getting up and picking the daisies …",
         "B action request: sitting, reading/inspection and running",
         "Alice",
         "the book",
@@ -662,18 +682,18 @@
         "the book",
         "x reading",
         "S1",
-        "x The sister reads; Alice peeps. Same source, different participant.",
+        "x The sister reads. Alice peeps. Same source, different participant.",
         "B claims request: absent book content and Alice’s thoughts",
         "Alice",
-        "use of a book without pictures or\nconversations is questionable",
+        "use of a book without pictures or conversations is\nquestionable",
         "+ thinks",
         "S1",
-        "making a\ndaisy-chain",
-        "worth the trouble of getting up and picking\nthe daisies",
+        "making a daisy-chain",
+        "worth the trouble of getting up and picking the daisies",
         "? considered",
         "S2",
-        "Final edge: holder = Alice; attitude = null. Other qualifiers null. Thought remains\nsentence-valued; daisy-chain judgment unresolved.",
-        "+ supported meaning x unsupported ? unresolved. Source excerpted; full passage supplied to\neach independent request."
+        "Final edge: holder = Alice, attitude = null. Other qualifiers null. Thought remains a sentence. Daisy-chain judgment\nunresolved.",
+        "+ supported meaning x unsupported ? unresolved. Source excerpted. Full passage supplied to each independent request."
       ],
       "records": [
         {

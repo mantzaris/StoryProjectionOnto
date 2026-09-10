@@ -29,10 +29,14 @@ The clean ZIP contains only the main source, generated inputs, three figure PDFs
 
 ## Editing and provenance
 
+The conference [references.bib](references.bib) is now directly editable and is no longer overwritten from the earlier general manuscript. [REFERENCE_AUDIT.md](REFERENCE_AUDIT.md) records primary verification and the contribution-to-evidence mapping.
+
+Figure regeneration requires licensed local **Times New Roman** regular and bold faces. Both were already installed. The renderer requires these exact faces without fallback, uses them for wrapping and drawing, embeds document subsets in PDFs, and records font hashes. Editable SVGs retain searchable text with local font references without redistributing font software. PDFs and PNGs are portable viewing artifacts. Recompiling the source ZIP uses the embedded figure PDFs and does not require these local figure-generation fonts.
+
 Edit `main.tex`, `abstract.tex`, `figure_blocks.tex` and `companion.tex`. Numerical commands and tables are generated from retained canonical tables by `build_assets.py`; do not transcribe or change scores. The figure renderer reuses the established exact-record display helpers, but uses the actual template width and new layouts. PDF/SVG/400-dpi PNG figures are in `figures/`. Literal model values, assessment statuses and omitted display indices are in `manifest.json`. The three compact historical figures, general manuscript, general supplement and eight original plates are untouched.
 
 `vendor/` preserves the official archive and example for local provenance only. Never edit the supplied class/style/BibTeX files to alter layout. `verification.json` records template hashes, numerical consistency, anonymity, embedded fonts, page/abstract/character counts, text bounds and source-package reproduction. `rendered/` is ignored and contains inspection images. Build timestamps are fixed for reproducibility, not represented as experiment times. Companion raw records and requests are under `data/`; Gutenberg notices remain attached there.
 
 ## Before public distribution
 
-Read `author_actions.md` and the **unsent** secretariat inquiry. The general manuscript already exists publicly, but no assumption about ICAART eligibility follows. The conference prohibits public posting of submitted manuscripts while under review. A normal push of this branch to its public upstream would publish this package; the local commit is not authorization to do so.
+Read `author_actions.md` and the **unsent** secretariat inquiry. The general manuscript and initial conference package already occur in the public upstream history, but no assumption about ICAART eligibility follows. The conference prohibits public posting of submitted manuscripts while under review. A normal push of this branch to its public upstream would publish this revision; the local commit is not authorization to do so.

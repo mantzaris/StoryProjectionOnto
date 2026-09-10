@@ -42,6 +42,7 @@ def pdf_check(path, *, main):
     root=ET.fromstring(bbox)
     ns={'h':'http://www.w3.org/1999/xhtml'}
     page_bounds=[]
+    table_captions=[]
     for i,p in enumerate(root.findall('.//h:page',ns),1):
         words=p.findall('.//h:word',ns)
         if not main:
@@ -54,13 +55,24 @@ def pdf_check(path, *, main):
         if main:assert bb[0]>=72 and bb[2]<=523 and bb[1]>=90 and bb[3]<=727,(i,bb)
         else:assert bb[0]>=64 and bb[2]<=531 and bb[1]>=45 and bb[3]<=798,(i,bb)
         page_bounds.append(bb)
+        if main:
+            for w in words:
+                # Concrete regression: the top table caption previously began at
+                # y=91.59 pt, above the style's approximately 94.68 pt text margin.
+                if w.text=="Table" and float(w.attrib['yMin'])<105:
+                    y=float(w.attrib['yMin'])
+                    assert y>=94.67,(i,"table caption above nominal margin",y)
+                    table_captions.append(dict(page=i,y_min_pdf_points=y))
     return dict(pages=pages,nonwhitespace_characters=len(re.sub(r'\s','',text)),
                 page_bounds_pdf_points=page_bounds,all_fonts_embedded=True,no_type3_fonts=True,
-                author_metadata_empty=True,identifying_string_scan='pass',sha256=digest(path)),text
+                author_metadata_empty=True,identifying_string_scan='pass',
+                top_table_captions=table_captions,sha256=digest(path)),text
 
 
 def main():
     manifest=read(HERE/'manifest.json')
+    assert digest(HERE/'references.bib')==manifest['conference_bibliography_sha256']
+    assert digest(HERE/'REFERENCE_AUDIT.md')==manifest['reference_audit_sha256']
     for path,h in manifest['source_hashes'].items():assert digest(ROOT/path)==h,path
     for path,h in manifest['template_files'].items():
         assert digest(HERE/path)==h==digest(HERE/'vendor/original'/path),path
@@ -75,6 +87,10 @@ def main():
     for name,f in manifest['figures'].items():
         assert abs(f['width_mm']-158.0134)<.001
         assert f['minimum_font_pt']>=8.5
+        assert f['font_family']=='Times New Roman'
+        font_listing=command('pdffonts',str(HERE/f'figures/{name}.pdf'))
+        assert 'TimesNewRomanPSMT' in font_listing and 'TimesNewRomanPS-BoldMT' in font_listing
+        assert 'DejaVu' not in font_listing
         text=command('pdftotext',str(HERE/f'figures/{name}.pdf'),'-')
         assert len(normalized(text))>300
         for record in f['records']:
@@ -82,6 +98,7 @@ def main():
             assert record['fact']==original['fact'] and record['status']==original['status']
         svg=(HERE/f'figures/{name}.svg').read_text()
         assert '@font-face' in svg and '<text' in svg
+        assert "local('Times New Roman')" in svg and 'data:font/' not in svg
     for filename in ['main.log','companion.log']:
         log=(HERE/'build'/filename).read_text()
         assert 'Overfull \\hbox' not in log and 'Overfull \\vbox' not in log,filename
@@ -142,6 +159,8 @@ def main():
         scheduled_character_range=[8000,40000],ordinary_page_limit=8,
         template_files_unmodified=True,retained_source_hashes='pass',canonical_tables='unchanged',
         record_and_assessment_correspondence='pass',references_cited_and_defined=sorted(cited),
+        figure_typeface='Times New Roman, embedded PDF subsets; editable SVG uses local faces',
+        reference_audit_sha256=manifest['reference_audit_sha256'],
         source_zip=dict(sha256=digest(archive),files=files,isolated_compilation='pass',pdf_text_identical=True),
         no_new_inference=True,visual_inspection='See visual_inspection.md; generated after rendering, not asserted by automated checks.',
         outputs={str(p.relative_to(HERE)):digest(p) for p in [HERE/'main.tex',HERE/'abstract.tex',HERE/'references.bib',HERE/'figure_blocks.tex',HERE/'generated/companion_content.tex']})

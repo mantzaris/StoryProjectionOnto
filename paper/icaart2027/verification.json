@@ -1,19 +1,19 @@
 {
   "submission": {
     "pages": 8,
-    "nonwhitespace_characters": 25224,
+    "nonwhitespace_characters": 25142,
     "page_bounds_pdf_points": [
       [
         73.701,
         94.663122,
-        521.616809,
-        719.292922
+        521.617159,
+        723.274922
       ],
       [
         73.701,
-        98.613101,
+        97.882064,
         521.617512,
-        712.261922
+        713.074922
       ],
       [
         73.701,
@@ -23,44 +23,50 @@
       ],
       [
         73.701,
-        97.64431,
+        96.881358,
         521.617512,
-        715.117922
+        715.523922
       ],
       [
         73.701,
-        97.885357,
+        95.703534,
         521.616809,
-        719.991922
+        715.508922
       ],
       [
         73.701,
-        97.605762,
+        96.873725,
         521.617512,
-        715.505922
+        719.307922
       ],
       [
         73.701,
-        91.586781,
+        97.563781,
         521.617512,
-        723.274922
+        718.596922
       ],
       [
         73.701,
-        97.885357,
-        521.616993,
-        722.267742
+        95.703534,
+        521.616902,
+        721.271742
       ]
     ],
     "all_fonts_embedded": true,
     "no_type3_fonts": true,
     "author_metadata_empty": true,
     "identifying_string_scan": "pass",
-    "sha256": "3de8f610e9f0ff7a2dfe7556f9f762aee525a96bdce53a80926f082824df9c23"
+    "top_table_captions": [
+      {
+        "page": 7,
+        "y_min_pdf_points": 97.563781
+      }
+    ],
+    "sha256": "d772fcf0e716d55b9092f2f4d261993e3eb59b79233ba8117099983308014edd"
   },
   "companion": {
     "pages": 36,
-    "nonwhitespace_characters": 80595,
+    "nonwhitespace_characters": 80570,
     "page_bounds_pdf_points": [
       [
         68.032,
@@ -71,20 +77,20 @@
       [
         68.031,
         68.095122,
-        506.456209,
-        464.349199
+        502.624204,
+        441.280172
       ],
       [
         78.6823,
-        70.99931,
-        518.323552,
-        521.233259
+        70.236358,
+        517.745642,
+        509.214232
       ],
       [
         78.6823,
-        70.959762,
-        500.832112,
-        479.280259
+        70.228725,
+        501.044394,
+        456.211232
       ],
       [
         68.031,
@@ -283,12 +289,13 @@
     "no_type3_fonts": true,
     "author_metadata_empty": true,
     "identifying_string_scan": "pass",
-    "sha256": "d07ab3d28f37f892100545e2a56f0b5f6b2a74b4541774f3228ee3853b8af9e7"
+    "top_table_captions": [],
+    "sha256": "60a206ab88c82a13fb7f17e568742fd7c86cb23fa8f625f372ce96fabcf5d81f"
   },
-  "abstract_words": 164,
+  "abstract_words": 159,
   "character_count_method": "pdftotext UTF-8, remove every Unicode whitespace character; includes title, abstract, captions, tables, searchable vector graph text, references and appendix. PDF discretionary hyphens retained. Counts are local, not a claimed PRIMORIS count.",
-  "figure_text_characters_already_included": 2227,
-  "conservative_double_counted_figure_bound": 27451,
+  "figure_text_characters_already_included": 2218,
+  "conservative_double_counted_figure_bound": 27360,
   "scheduled_character_range": [
     8000,
     40000
@@ -301,6 +308,7 @@
   "references_cited_and_defined": [
     "aesop",
     "banko2007",
+    "bhardwaj2019",
     "carroll",
     "caufield2024",
     "doyle",
@@ -310,10 +318,13 @@
     "openai2025",
     "qwen2025",
     "qwenmodel",
+    "schneider2017",
     "time2017"
   ],
+  "figure_typeface": "Times New Roman, embedded PDF subsets; editable SVG uses local faces",
+  "reference_audit_sha256": "74ba030d2cf3a11f20396ecc8cdf215d5008d32b509766e581c658a35cfc2283",
   "source_zip": {
-    "sha256": "5a736a74e3c41a9f0421574b1e84112c7635819b5a6028545eae0efdebf4961b",
+    "sha256": "43f08216e0e88b84ce67ca1efb0270f824d4f2c2409a95666daeba211710988c",
     "files": [
       "main.tex",
       "abstract.tex",
@@ -337,10 +348,10 @@
   "no_new_inference": true,
   "visual_inspection": "See visual_inspection.md; generated after rendering, not asserted by automated checks.",
   "outputs": {
-    "main.tex": "b6c0d714126711f3363b334000af124125d20a83a42071f601b12ae86e76a490",
-    "abstract.tex": "cb1a002ddf241a52926c74a45806c59d818e529fd7d639184a3c0d128986fcce",
-    "references.bib": "cc5fcd457be574ef5691f7ac5a18ce2fd0ba5ac06a50b8686fbd2a1d0095dd01",
-    "figure_blocks.tex": "e9febe5841e96f09f57f6dbd7787d083aea8e218572ca62d479c373f5b0580ed",
-    "generated/companion_content.tex": "563d1d96cdaae40637db2d68ae5b4c2b46f996d7b3516ae7010e71a3fee861aa"
+    "main.tex": "6905d5c0fa4679c7f46bcf76fa12a4a9eeee75230fa77ac3c182863c12e40c9c",
+    "abstract.tex": "9b51ed2e15094f6d5913f4a7a6f561072f731396eac1d633d4d5a241d0124907",
+    "references.bib": "b3751d829fe94961e805553659f7df7f2f8ecc6156dbd8e768dbb113a76b6f06",
+    "figure_blocks.tex": "8a96db114ae6152fb39a4e3c4c1cb207e0d71f8ec3019bb4439e488910f74488",
+    "generated/companion_content.tex": "9de775f370dbb41359fd743794316040b3cafc797f926d822e7356f499c4cdec"
   }
 }
