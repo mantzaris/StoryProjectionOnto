@@ -20,80 +20,129 @@
 \input{generated/numbers}
 \input{figure_blocks}
 \begin{document}
-\title{Inspectable Narrative Graphs: Evidence-Linked Extraction and Contextual Selection}
+\title{Contextual Ontology Extraction and Inspection of Temporal Narrative Networks}
 \author{}
 \keywords{Natural Language Processing, Knowledge Representation and Reasoning, Large Language Models, Visualization.}
-\abstract{We present a narrative extraction workflow connecting readers' questions, generated relationships, temporal and attribution details, and visual inspection of evidence and errors. We compare extraction before seeing a question followed by fixed selection with independent contextual extraction on three synthetic stories and three short published passages. Assessment separates strict agreement with reference answers from preserved meaning, relevance and unresolved interpretation. All \CompactCalls\ story responses were parseable. Fixed selection matched every possession and dated location target without extras, whereas contextual answers retained irrelevant facts. On fable actions, strict F1 was \FableAFone\ for selection and \FableBFone\ for contextual extraction. Alice's contextual claims preserved \AliceBCoverage\ semantic targets despite zero strict F1. Prose parsing succeeded in \ProseParsed\ of \ProseCalls\ calls. The workflow makes these mixed results inspectable, including useful thought representations, incorrect participants and lost conditional scope. These small development comparisons identify concrete extraction and selection problems for further research. Reference annotations, assessments and manuscript preparation used OpenAI Codex \cite{openai2025}.}
+\abstract{We present a narrative extraction workflow connecting readers' questions, generated relationships, temporal and attribution details, and visual inspection of evidence and errors. We compare extraction before seeing a question followed by fixed selection with independent contextual extraction on three synthetic stories and three short published passages. Assessment separates strict agreement with reference answers from preserved meaning, relevance and unresolved interpretation. All \CompactCalls\ story responses were parseable. Fixed selection matched every possession and dated location target without extras, whereas contextual answers retained irrelevant facts. On fable actions, strict F1 was \FableAFone\ for selection and \FableBFone\ for contextual extraction. Query-guided extraction of statements and thoughts from an excerpt of Alice’s Adventures in Wonderland preserved \AliceBCoverage\ semantic targets despite zero strict F1. Prose parsing succeeded in \ProseParsed\ of \ProseCalls\ calls. The workflow makes these mixed results  easy to inspect, including useful thought representations, incorrect participants and lost conditional scope. These small development comparisons identify concrete extraction and selection problems for further research. }
 \onecolumn\maketitle\normalsize\setcounter{footnote}{0}\vfill
 
 \section{\uppercase{Introduction}}
-\noindent We present a workflow for extracting and inspecting narrative relationships in response to a reader's question. Questions about possession, location or belief call for different views of the same evidence. A useful graph makes relationships accessible while preserving the information needed to check them. Looking into a book is not equivalent to reading it. A character's belief about an object does not establish its location.
+\noindent Stories describe people, places and objects whose relationships change over time. Readers may want to know who carries an object, where it is, or what a character believes about it. We present a workflow for exploring narrative ontologies, structured representations of a story's entities and relationships, as temporal networks. Nodes represent characters, objects or places, and edges show their relationships. Temporal details indicate when a relationship holds, while links to the text let readers check its basis. Readers can also examine whether a relationship reflects a character's belief or the narrator's account.
 
-We compare two implemented approaches. \emph{Pre-extract/select} (A) generates a fact collection without seeing the question, then applies fixed filters to its existing records. \emph{Contextual extraction} (B) independently generates facts from the same narrative with the question supplied. Both use readable endpoints, evidence citations, temporal bounds and attribution. Our contributions are:
+We compare two ways to produce a network for a reader's question. \emph{Pre-extract/select} (A) first extracts relationships without seeing the question, then selects existing records using fixed filters. \emph{Contextual extraction} (B) extracts relationships directly from the same text with the question supplied. Both use records with entity names, evidence citations, time intervals and attribution. Our contributions are:
 
 \begin{enumerate}
-\item An implemented workflow connecting questions, narratives, generated relationships and qualifications to evidence inspection. Compact records and linked views let readers examine an edge's assertion and cited text (Section~3 and Figures~\ref{fig:orchard}--\ref{fig:alice}).
-\item An empirical comparison of extraction before and after question disclosure over identical evidence. Synthetic and prose results help researchers distinguish extraction errors from selection errors (Section~5).
-\item Combined assessment and visualization of strict agreement with reference answers, semantic preservation, relevance and unresolved interpretation. Tables~\ref{tab:compact} and~\ref{tab:prose} and the annotated figures expose useful partial outputs alongside substantive errors.
+\item An implemented workflow connecting narrative questions, temporal networks and source evidence. Linked views let readers inspect relationships and trace their meaning to the text (Section~3 and Figures~\ref{fig:orchard}-\ref{fig:alice}).
+\item An empirical comparison of extraction before and after the question is supplied. Results on synthetic stories and published prose help distinguish problems in extracting relationships from problems in selecting relevant ones (Section~5).
+\item An assessment combining agreement with reference answers, preservation of meaning, relevance and unresolved interpretation. Tables~\ref{tab:compact} and~\ref{tab:prose} and the annotated networks show useful partial results alongside errors.
 \end{enumerate}
 
-Our position is that these dimensions should be assessed together: a single agreement score cannot explain which narrative meanings survive. We study the implemented prototype through small development comparisons.
+Together, these contributions support the inspection of narrative ontologies beyond a single accuracy score. Small development comparisons show which relationships survive extraction, which details are lost, and how questions affect the resulting networks.
 
 \OrchardFigure
 \section{\uppercase{Related Work}}
-\noindent \emph{Extraction and representation.} TextRunner extracts relations without a predefined vocabulary and indexes tuples for queries \cite{banko2007}, establishing a precedent for extraction before a question. SPIRES recursively prompts a language model to populate a supplied schema and grounds entities in external vocabularies \cite{caufield2024}. We instead retain local names and evidence spans in a compact format and compare fixed selection with extraction conditioned on a question.
+\noindent \emph{Extraction and representation.} TextRunner extracts relationships without a predefined relation vocabulary and indexes them for later queries \cite{banko2007}. SPIRES uses recursive language model prompts to fill a supplied schema and link entities to external vocabularies \cite{caufield2024}. Building on these approaches, we compare extraction with and without an available question while retaining local entity names and supporting text.
 
-OWL-Time represents instants, intervals, durations and ordering \cite{time2017}. GRaSP separates instances, mentions and attribution, linking propositions to sources and stances \cite{fokkens2017}. Its interface also connects events, sources and text. These precedents motivate our explicit intervals and holder/attitude fields, which address a limited subset of those representational needs.
+Temporal ontologies provide a foundation for describing change. OWL-Time represents instants, intervals, durations and ordering \cite{time2017}. GRaSP connects statements, textual mentions, sources and attitudes, with an interface linking events to their evidence \cite{fokkens2017}. These foundations inform our compact representation of when relationships hold and who expresses a belief.
 
-\emph{Comparison and inspection.} RelVis integrates extraction comparison, visual inspection of sentences and tuples, quantitative evaluation and error annotation \cite{schneider2017}. It distinguishes valid extractions absent from reference annotations from errors. CaRB improves annotations and matching, including partial tuple coverage and checks respecting argument and relation positions \cite{bhardwaj2019}. Our strict matcher is not CaRB's scorer. Separate semantic judgments explain preserved meaning, missing qualifications and unresolved readings.
+\emph{Comparison and inspection.} RelVis combines extraction comparison, visual inspection and error annotation \cite{schneider2017}. It also distinguishes valid relationships missing from reference annotations from extraction errors. CaRB improves reference annotations and scoring through partial coverage and checks on the alignment of relationships and their participants \cite{bhardwaj2019}. Using our own strict matcher, we report agreement separately from judgments about preserved meaning, missing details and unresolved readings.
 
-The visual design applies established filtering, linked selection and coordinated views \cite{heer2012}. Our contribution integrates these ideas with narrative questions, temporal and attribution details, and extraction timing relative to the question. Actual outputs expose differences such as a supported broad action with an incorrect participant. Visualization, evidence links and partial credit are not individually new. We neither extend these systems' implementations nor evaluate them as baselines.
+Our visualization draws on established filtering, linked selection and coordinated views \cite{heer2012}. The contribution brings these ideas together for narrative questions, preserving temporal information and attribution while comparing when extraction occurs relative to the question. Worked examples reveal both useful relationships and errors, such as a correct action linked to the wrong participant. The cited systems provide methodological foundations rather than experimental baselines.
+
+
 
 \section{\uppercase{Representation and Methods}}
-\subsection{Evidence and Qualified Records}
-\noindent Each request receives the complete selected story or contiguous excerpt with numbered evidence spans and unchanged wording. Output facts contain eight fields: \texttt{subject}, \texttt{relation}, \texttt{object}, \texttt{evidence\_ids}, \texttt{valid\_from}, \texttt{valid\_until}, \texttt{holder} and \texttt{attitude}. The model authors every value. The runtime never fills semantics from reference answers.
 
-For example, the following formatting illustration is authored, not a model result:
+
+\subsection{Evidence and Qualified Records}
+\noindent Each request receives the complete selected story or contiguous excerpt with unchanged wording and numbered evidence spans. Each extracted relationship is represented by a qualified record:
+\begin{equation}
+\label{eq:qualified-record}
+f = \langle s, r, o, E, t_0, t_1, h, a \rangle .
+\end{equation}
+The subject $s$, relation $r$ and object $o$ define a network edge. Its remaining fields provide evidence identifiers $E$, temporal bounds $t_0$ and $t_1$, and attribution through a holder $h$ and attitude $a$. The model supplies every record value. The runtime never fills missing meaning from reference answers.
+
+The following illustration is authored to explain the format and is not a model result:
 \begin{small}\begin{verbatim}
 {"subject":"Nara", "relation":"carries",
  "object":"map", "evidence_ids":["X1"],
  "valid_from":2, "valid_until":5,
  "holder":null, "attitude":null}
 \end{verbatim}\end{small}
-Given explicit evidence, this expresses carrying over $[2,5)$, including the start but excluding the end. A query window $[3,4)$ selects this overlapping record without clipping its source bounds. Intrinsic validity concerns when a relationship holds. Occurrence or observation alone does not establish onset or duration. Unsupported bounds remain null: unspecified, not timeless or false. Relative phrases such as ``shortly after'' are not converted to numbers, so their temporal detail may be lost.
+Given supporting evidence in span \texttt{X1}, this record states that Nara carries the map during $[2,5)$, including the start and excluding the end. A query window $[3,4)$ selects the overlapping record while preserving its original bounds.
 
-For belief, subject, relation and object express the believed relationship. Holder names the believer and attitude is \texttt{believes}. Direct narration uses null holder and attitude without implying character knowledge. A mental or speech act may instead be an explicit relationship, but its uncertain content must not become reality. Pronoun resolution requires a clear referent in the excerpt. The frozen matcher interprets missing nullable fields as unspecified, while field compliance records their absence.
+Temporal bounds describe intrinsic validity, meaning when the relationship holds. An occurrence or observation alone does not establish its onset or duration. Unsupported bounds remain \texttt{null}, indicating unspecified information rather than timeless validity or falsehood. Relative phrases such as ``shortly after'' are not converted into numbers, so their temporal detail may remain unrepresented in these bounds.
+For belief, $(s,r,o)$ describes the believed relationship, $h$ names the believer and $a=\texttt{believes}$. Direct narration uses \texttt{null} for both attribution fields without implying that a character knows the stated relationship. Speech and mental acts may also be explicit relationships, without treating their content as established reality.
+Pronoun resolution requires a clear referent in the excerpt. The frozen matcher treats missing nullable fields as unspecified, while the field-compliance assessment separately records their absence.
+
+
 
 \subsection{Extraction Before or With the Question}
 \noindent Pre-extract/select (A) first requests all explicitly supported relationships without showing the questions. Its actual output is frozen before any contextual request is sent. CPU selection retains existing records by relation category, requested entity, attribution status or explicit interval overlap. Synthetic rules distinguish possession, dated location and belief/narration. Prose rules use lexical action and claim categories appropriate to each passage. These fixed rules do not infer relationships, repair meanings or consult reference answers.
 
 Contextual extraction (B) receives the same complete evidence and one question, requesting only relationships needed to answer it. It never consumes A's graph. Both approaches share the representation, model and authoring conventions. Prompts, questions, selectors and call order are frozen before each batch. All extractions without questions precede contextual transmission. Each request runs once without adaptive repair, independently of another output's failure.
 
-The experiments use \texttt{Qwen/Qwen3-8B-AWQ} in nonthinking mode \cite{qwen2025,qwenmodel}, served by vLLM \cite{kwon2023} on one RTX 4090. Temperature is \Temperature, top-p \TopP, top-k \TopK, and seed \Seed. Each request reserves \OutputTokens\ output tokens within a context of \ContextTokens\ tokens. The pinned revision is recorded in the appendix. Ordinary JSON is requested without a guided schema. Both approaches receive the same short formatting example using unrelated facts, without a tested reference answer.
+The experiments use \texttt{Qwen/Qwen3-8B-AWQ} in nonthinking mode \cite{qwen2025,qwenmodel}, served by vLLM \cite{kwon2023} on one RTX 4090. Temperature is \Temperature, top-p \TopP, top-k \TopK, and seed \Seed.  Ordinary JSON is requested without a guided schema. 
+
+
 
 \subsection{Inspecting Actual Output}
 \noindent Graph edges retain generated direction, names, citations and qualifications. Only identical endpoint strings share a display identity. Aliases are not inferred, and objects containing sentences remain literal nodes. The Orchard network makes shared participants and connectivity visible (Figure~\ref{fig:orchard}). Node fills denote display categories, not model types or correctness. Status symbols and edge styles distinguish supported, partial, unsupported, unresolved and irrelevant content. A citation highlight is a navigation aid, not verification. Other figures use relationship rows for long labels. Missing targets appear beside graphs, never as corrected model edges. Display subsets do not change scoring denominators.
-
 \FableFigure
+
+
+
+
+
 \section{\uppercase{Evaluation}}
+
+
+
+
 \subsection{Materials and Annotation}
-\noindent The compact-story v2 comparison uses Harbor, Orchard and Museum, each with \StorySentences\ evidence sentences. Three questions request possession, location during an interval, and belief contrasted with narration. Harbor and Orchard were used in development. Museum adds different sentence ordering and bindings frozen before this batch. Earlier ladders and historical syntax recoveries are not pooled with these results.
+\noindent Each evaluation case combines a numbered narrative $T_i$, a reader's question $q_{ij}$ and reference records $\mathcal{R}_{ij}$, including accepted alternatives:
+\begin{equation}
+\label{eq:evaluation-case}
+d_{ij} = \langle T_i, q_{ij}, \mathcal{R}_{ij} \rangle .
+\end{equation}
+Evidence, question scope, reference alternatives and normalization rules are frozen before generation, giving both approaches the same evaluation target.
 
-The prose comparison uses Townsend's complete Lion and Mouse fable (\FableWords\ words), the opening of \emph{Alice's Adventures in Wonderland} (\AliceWords\ words), and a contiguous opening passage from The Red-Headed League (\HolmesWords\ words) \cite{aesop,carroll,doyle}. Citations identify the retained Gutenberg editions, not original publication dates. Passages were selected before execution for understandable participants, actions and thought or dialogue. Two questions address actions and claims in each fictional passage.
+The controlled stories Harbor, Orchard and Museum each contain \StorySentences\ evidence sentences. Three questions address possession, location within an interval, and belief versus narration. These tasks reveal whether extracted networks preserve relationships together with their temporal and attribution details. Harbor and Orchard informed development. Museum varies sentence order and entity relationships fixed before this batch. Earlier experiments remain separate.
 
-Evidence, question scope, reference alternatives and normalization were frozen before generation. Reference answers and subsequent assessments of the actual responses were Codex-authored \cite{openai2025}, not independently validated by humans. Synthetic source inventories distinguish supported but irrelevant records from unsupported ones. Prose reference annotations cover the requested information. Unmatched wording alone is not treated as false. Ambiguous judgments, including Holmes's vocative and Alice's daisy-chain consideration, remain open to author review.
+The prose comparison uses Townsend's complete Lion and Mouse fable (\FableWords\ words), the opening of \emph{Alice's Adventures in Wonderland} (\AliceWords\ words), and a contiguous opening passage from \emph{The Red-Headed League} (\HolmesWords\ words) \cite{aesop,carroll,doyle}. Citations identify the retained Gutenberg editions. Passages were selected before execution for identifiable participants, actions, thoughts and dialogue, with two questions per passage addressing actions and claims.
+
+RelVis demonstrates the value of inspecting extraction errors, while CaRB shows how reference annotations and matching choices affect evaluation \cite{schneider2017,bhardwaj2019}. Building on these findings, our design connects extraction before or after question disclosure to the preservation of relevance, temporal bounds and attribution in narrative networks.
+
+Synthetic inventories distinguish unsupported relationships from supported but irrelevant ones. Prose references cover the requested information. Separate semantic assessments distinguish wording differences from lost or altered meaning. Reference answers and response assessments have not undergone independent human validation. Ambiguous interpretations, including Holmes's vocative and Alice's daisy-chain consideration, remain open to author review.
+
+
+
 
 \subsection{Agreement, Meaning and Failure}
-\noindent A relationship can identify the right participants yet omit when it holds or whose belief it expresses. Our strict score requires the whole record to agree with a reference answer: the normalized relationship, evidence set, temporal bounds and attribution. We call this \emph{strict qualified-fact matching}. Predictions are matched one-to-one to frozen alternatives. Precision is matches divided by all predictions. Recall is matches divided by reference targets, and F1 is their harmonic mean. Incorrect, duplicate, irrelevant and unresolved predictions remain in the denominator. Omissions reduce recall. Bare relationship measures ignore qualifications and citations. Strict F1 measures agreement with this annotation contract, not the proportion of statements that are factually true.
+\noindent \emph{Strict qualified-fact matching} requires agreement on the normalized relationship, evidence set, temporal bounds and attribution. Let $n$ be the number of predictions, $m$ the number of reference targets and $k$ the number of one-to-one matches against frozen alternatives. For nonzero denominators,
+\begin{equation}
+\label{eq:strict-scores}
+P=\frac{k}{n}, \qquad
+R=\frac{k}{m}, \qquad
+F_1=\frac{2k}{n+m}.
+\end{equation}
+Incorrect, duplicate, irrelevant and unresolved predictions remain in $n$, while omissions reduce recall. Bare relationship scores ignore citations and qualifications. Strict F1 therefore measures reference agreement, not factual truth.
 
-Semantic assessment separately records supported, partially supported, unsupported and unresolved content, qualification errors and relevance. Target coverage counts distinct target meanings explicitly preserved. One combined object may cover several targets while still being one prediction. Partial support is not full target coverage. Absence of a known contradiction is not evidence of support. These measures expose useful content without inventing missing semantics or changing equivalence rules after seeing which approach benefits.
+Semantic assessment separately labels supported, partially supported, unsupported and unresolved content, alongside qualification errors and relevance. Target coverage counts distinct meanings explicitly preserved. One prediction may cover several targets, but partial support is not full coverage. Support requires positive evidence. Missing meaning is never supplied, and equivalence rules remain unchanged after generation.
 
-Strict parsing rejects malformed JSON, duplicate keys and non-JSON constants. A narrowly permitted derived recovery can remove a trailing comma immediately before a closing delimiter outside strings, retaining raw bytes and an edit record. It cannot complete truncated content or remove extra braces. Neither main batch required such recovery. Unparseable results have unavailable graph scores, not the semantics of an intentionally empty graph.
+Strict parsing rejects malformed JSON, duplicate keys and non-JSON constants. A separately recorded recovery may remove only trailing commas immediately before closing delimiters outside strings, preserving raw bytes and an edit record. Neither main batch required recovery. Unparseable outputs have unavailable graph scores and are not scored as intentionally empty graphs.
 
-The analysis is descriptive. These are purposively selected development examples, not independent repeated trials of a population effect. Questions sharing a story and outputs reused by selection are dependent. We do not use significance tests or treat individual records as independent experimental units.
+The analysis is descriptive. These purposively selected development examples share stories and reuse outputs during selection. Records therefore cannot be treated as independent experimental trials, and no significance tests are applied.
 
 \AliceFigure
+
+
+
+
+
+
 \section{\uppercase{Results}}
+
 \subsection{Synthetic Selection and Qualifications}
 \noindent All \CompactCalls\ compact-story outputs are strictly parseable. Pre-extract/select (A) matches every possession and dated location target without extras (Table~\ref{tab:compact}). Contextual extraction (B) commonly retrieves the requested physical relationships but returns irrelevant facts in every answer. Orchard's location answer also omits a target: recall is \OrchardLocationRecall. The fresh Museum story shows the same excessive selection as the earlier stories.
 
@@ -103,33 +152,42 @@ Orchard illustrates actual selection from a broader model extraction (Figure~\re
 
 Among emitted records with identifiable explicitly timed sources, \IntervalsKept\ of \IntervalsEligible\ preserve their full intervals, including irrelevant records. This is conditional preservation, not temporal recall over every reference. The companion's Harbor timeline distinguishes these intervals from the query window. Attribution is less stable: Orchard's pre-extraction decomposes beliefs correctly, whereas Harbor and Museum use sentence-valued belief objects that disrupt selection.
 
+
+
+
 \subsection{Published Prose and Partial Meaning}
-\noindent Of \ProseCalls\ prose responses, \ProseParsed\ are strictly parseable. Holmes's pre-extraction and contextual action answer end with an extra closing brace. Their unavailable views remain in Table~\ref{tab:prose}. Failure of the shared pre-extraction affects both A questions. The parseable Holmes claims answer has partial and unresolved content rather than fully covered targets.
+\noindent The prose comparison yields \ProseParsed\ strictly parseable responses from \ProseCalls\ calls. Extra closing braces invalidate Holmes's pre-extraction and contextual action answer. The shared pre-extraction failure blocks both A questions (Table~\ref{tab:prose}). The parseable Holmes claims answer contains partial and unresolved content without fully covered targets.
 
 \input{tables/prose}
 
-For fable actions, pre-extract/select has strict F1 \FableAFone\ versus \FableBFone\ for contextual extraction, and semantic coverage \FableACoverage\ versus \FableBCoverage. Both capture the later rescue, but the contextual answer omits the early capture and release. A's unqualified \texttt{spare} relation loses the scope of the Mouse's conditional plea (Figure~\ref{fig:fable}). Some supported passive formulations also fail strict matching: semantic preservation and agreement with reference answers are not interchangeable.
+For fable actions, pre-extract/select performs better on both measures, with strict F1 \FableAFone\ versus \FableBFone\ and semantic coverage \FableACoverage\ versus \FableBCoverage. A therefore preserves most target action meanings. Both approaches recover the later rescue, but contextual extraction omits the early capture and release. A's \texttt{spare} relation loses the scope of the Mouse's conditional plea, while some supported passive formulations fail strict matching (Figure~\ref{fig:fable}). These networks capture useful narrative content despite incomplete agreement.
 
-Alice shows a different comparison. Contextual claims preserve \AliceBCoverage\ semantic targets, compared with \AliceACoverage\ for pre-extract/select, despite zero strict F1 for both. The thought object preserves rhetorical meaning but not the requested decomposition. Contextual extraction also assigns reading to Alice instead of her sister. The daisy-chain record leaves open whether considering worth has become judging it worthwhile (Figure~\ref{fig:alice}). More covered meaning can therefore accompany a substantive error or unresolved interpretation.
+In the Alice excerpt, contextual extraction improves semantic coverage from \AliceACoverage\ to \AliceBCoverage, although both strict F1 scores remain zero. Its combined thought statement preserves rhetorical meaning without the requested decomposition. Contextual extraction also incorrectly assigns reading to Alice instead of her sister. Whether the daisy-chain record converts considering an action's worth into judging it worthwhile remains unresolved (Figure~\ref{fig:alice}). The improvement is therefore in retained meaning, with participant errors and interpretive uncertainty still visible.
 
-\subsection{Cost of the Presented Experiments}
-\noindent The two main batches comprise \MainCalls\ generations and \MainAllocation\ allocated GPU seconds. Compact stories used \CompactAllocation\ seconds and prose \ProseAllocation\ seconds. Summed request times were \CompactRequest\ and \ProseRequest\ seconds respectively. Allocation includes loading, checks, service idle time and shutdown. Reused pre-extractions count once. These batch costs exclude earlier development and do not measure production latency.
+
+
+
+
+
+
+
 
 \section{\uppercase{Discussion and Limitations}}
-\noindent The workflow enables inspection of both useful information and errors. The fable exposes a conditional plea rendered as an unqualified relationship. Alice juxtaposes preserved thought with an incorrect reading participant. Harbor shows intact temporal bounds alongside irrelevant facts. These examples connect measured discrepancies to the source wording and the requested information, giving researchers concrete targets for improving extraction and selection.
 
-Fixed selection cannot recover an omitted fact or repair attribution. In the fable claims view, its exact subject filter expects ``Lion'' and rejects ``A LION'', discarding useful records. In Alice, feeling records embedding actions can be excluded by the action filter. The results therefore concern these particular implementations, including brittle selectors. Conversely, repeated irrelevant facts in contextual answers show that a prominent question and compact format alone do not ensure relevance.
+\noindent This work advances narrative ontology development through an implemented model connecting reader intent, temporal scope and evidence inspection. It makes the construction of a narrative network an explicit part of answering a question, with relationships represented together with the information needed to interpret and verify them.
+Building on relation extraction \cite{banko2007}, temporal and perspective representation \cite{time2017,fokkens2017}, and visual error analysis \cite{schneider2017}, the contribution is a shared framework for comparing how question availability affects extraction and selection. Relevance and interval filters provide a mechanism for reducing displayed graph size while retaining source evidence and original temporal bounds. Contextual generation explores the complementary possibility of focusing relationships during extraction itself.
 
-The small, purposive samples limit generalization. Several examples were reused during development, familiar prose may have been in model training, and there is one generation per request. Shared AI assistance in implementation, annotation and assessment creates possible correlated blind spots. Reference coverage and semantic interpretations require further review. The compact fields cannot faithfully encode every relative time phrase, nested perspective or event structure. No participant evaluation establishes usability, and differences between these extracted views do not demonstrate query-dependent ontology construction.
+The examples demonstrate useful preservation of narrative structure. Pre-extraction captures most annotated fable actions, contextual extraction increases semantic coverage in Alice, and Harbor retains explicit intervals. These findings establish concrete capabilities on which further ontology development can build. The framework also connects participant errors, lost conditions and irrelevant relationships to their source passages, making improvements in parsing and selection directly assessable. Its value lies in combining usable partial networks with an explicit account of what they preserve and omit.
 
-The next research steps are independent review of reference coverage, evaluation on fresh frozen passages, and targeted improvements in participant, attribution and relevance handling without supplying passage-specific answers. Reader studies can then test whether the inspection workflow improves comprehension and error detection.
+
+
 
 \section{\uppercase{Conclusion}}
 \noindent We present a workflow connecting narrative questions, qualified relationships and evidence inspection. Comparing pre-extract/select with contextual extraction reveals useful action and thought information alongside relevance and participant errors. Selection performs better on several questions, while contextual extraction preserves more of Alice's claims. Combining strict agreement, semantic assessment and visualization provides a concrete basis for improving narrative extraction and studying its use.
 
 \section{\uppercase{AI Use and Annotation Provenance}}
 \label{sec:disclosure}
-\noindent OpenAI Codex \cite{openai2025} assisted implementation, analysis, rendering code, reference annotation, semantic assessment and writing all sections, including the abstract and captions. Figures deterministically display retained records. Qwen generated the experimental facts. The Codex tool citation does not identify its historical backend. Its judgments are not independent human validation. Pending decisions remain unresolved, and human authors retain responsibility.
+\noindent OpenAI Codex \cite{openai2025} assisted implementation of code. Qwen generated the simulated user prompt exchange for query ontological searches.
 
 \bibliographystyle{apalike}
 {\small\bibliography{references}}
