@@ -1,6 +1,6 @@
 # ICAART 2027 local Position Paper package
 
-[Anonymous main PDF](ICAART2027_submission.pdf) · [Main LaTeX](main.tex) · [Local companion PDF](ICAART2027_companion.pdf) · [Author actions](author_actions.md) · [Requirements](submission_requirements.md)
+[Anonymous main PDF](ICAART2027_submission.pdf) · [Main LaTeX](ICAART2027_submission.tex) · [Local companion PDF](ICAART2027_companion.pdf) · [Companion LaTeX](ICAART2027_companion.tex) · [Author actions](author_actions.md) · [Requirements](submission_requirements.md)
 
 **No submission, email, registration or push is performed by these commands.** The main PDF is the intended anonymous submission artifact, subject to author review and eligibility clarification. The companion and its data are locally prepared anonymous supporting material; separate upload permission is unconfirmed. The source ZIP is for compilation/reproducibility, not an assertion that initial-review source upload is required.
 
@@ -25,7 +25,9 @@ For an already-generated source directory, compile without Python or repository 
 sh build.sh --submission-only
 ```
 
-The clean ZIP contains only the main source, generated inputs, three figure PDFs, bibliography, four official formatting files and build command. It excludes companion, author notes, paths, source history, logs, old examples, the downloaded archive, and prior PDFs. Unzip into a new directory and use that command; it does not contact the conference.
+The clean ZIP contains the root `ICAART2027_submission.tex`, generated inputs, three figure PDFs, bibliography, four official formatting files and build command. It excludes companion, author notes, paths, source history, logs, old examples, the downloaded archive, and prior PDFs. Unzip into a new directory and use that command; it does not contact the conference.
+
+Both root sources compile under their own basenames: `ICAART2027_submission.tex` produces `ICAART2027_submission.pdf`, and `ICAART2027_companion.tex` produces `ICAART2027_companion.pdf`. The build keeps auxiliary files in `build/` and copies the completed PDFs to this directory without renaming them or overriding job names. To rebuild both PDFs from the existing assets, run `sh paper/icaart2027/build.sh` from the repository root. No Python or asset regeneration is needed for a manuscript-only edit.
 
 ## Editing and provenance
 
@@ -33,7 +35,7 @@ The conference [references.bib](references.bib) is now directly editable and is 
 
 Figure regeneration requires licensed local **Times New Roman** regular and bold faces. Both were already installed. The renderer requires these exact faces without fallback, uses them for wrapping and drawing, embeds document subsets in PDFs, and records font hashes. Editable SVGs retain searchable text with local font references without redistributing font software. PDFs and PNGs are portable viewing artifacts. Recompiling the source ZIP uses the embedded figure PDFs and does not require these local figure-generation fonts.
 
-Edit `main.tex`, `abstract.tex`, `figure_blocks.tex` and `companion.tex`. Numerical commands and tables are generated from retained canonical tables by `build_assets.py`; do not transcribe or change scores. The figure renderer reuses the established exact-record display helpers, but uses the actual template width and new layouts. PDF/SVG/400-dpi PNG figures are in `figures/`. Literal model values, assessment statuses and omitted display indices are in `manifest.json`. The three compact historical figures, general manuscript, general supplement and eight original plates are untouched.
+Edit `ICAART2027_submission.tex` (including its inline abstract), `figure_blocks.tex`, `ICAART2027_companion.tex` and `companion_source.tex`. These files are not generated or overwritten from an earlier manuscript. Asset generation checks that they remain unchanged. Numerical commands and tables are generated from retained canonical tables by `build_assets.py`; do not transcribe or change scores. The figure renderer reuses the established exact-record display helpers, but uses the actual template width and new layouts. PDF/SVG/400-dpi PNG figures are in `figures/`. Literal model values, assessment statuses and omitted display indices are in `manifest.json`. The three compact historical figures, general manuscript, general supplement and eight original plates are untouched.
 
 ## Network figures and concise companion
 

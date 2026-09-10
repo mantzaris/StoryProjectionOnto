@@ -374,6 +374,9 @@ def companion(datasets, requests):
         'no_evidence_removed':True})
 
 def main():
+    # Editable conference manuscripts are inputs, never generated from an older draft.
+    roots = {'submission':'ICAART2027_submission.tex', 'companion':'ICAART2027_companion.tex'}
+    before = {p:digest(HERE/p) for p in [*roots.values(), 'companion_source.tex', 'figure_blocks.tex']}
     for folder in ['figures','tables','generated','data']:(HERE/folder).mkdir(exist_ok=True)
     _,data,panels,hashes=graph.load_inputs()
     datasets={'compact':data['synthetic'],'prose':data['real']}
@@ -383,6 +386,7 @@ def main():
     from network_figures import load_panels, network_assets
     figs.update(network_assets(sys.modules[__name__], datasets, load_panels(datasets)))
     companion(datasets,req)
+    assert all(digest(HERE/p)==h for p,h in before.items()), 'Editable manuscript changed during asset generation'
     # The audited conference bibliography is editable, not overwritten from the
     # historical general manuscript. Official apalike files remain byte-identical.
     write_json(HERE/'manifest.json',dict(source_editorial_commit='dafabd0fd5258b68965ec4b11a870ac5773d66d6',
@@ -390,6 +394,7 @@ def main():
                template_archive_sha256=digest(HERE/'vendor/SCITEPRESS_Conference_Latex.zip'),
                template_files={p:digest(HERE/p) for p in ['article.cls','SCITEPRESS.sty','apalike.sty','apalike.bst']},
                conference_bibliography_sha256=digest(HERE/'references.bib'),
+               manuscript_roots=roots,
                reference_audit_sha256=digest(HERE/'REFERENCE_AUDIT.md'),
                figures=figs,numerical_claims=nums,
                rendering_source_hashes={p:digest(HERE/p) for p in ['build_assets.py','network_figures.py','companion_source.tex','figure_blocks.tex']},

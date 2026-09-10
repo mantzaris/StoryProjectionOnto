@@ -26,6 +26,10 @@
     "apalike.bst": "6977bea0847e4b850fd5bdc948beeaa50cd4d0c2a275e74a5fd68309a9628191"
   },
   "conference_bibliography_sha256": "b3751d829fe94961e805553659f7df7f2f8ecc6156dbd8e768dbb113a76b6f06",
+  "manuscript_roots": {
+    "submission": "ICAART2027_submission.tex",
+    "companion": "ICAART2027_companion.tex"
+  },
   "reference_audit_sha256": "74ba030d2cf3a11f20396ecc8cdf215d5008d32b509766e581c658a35cfc2283",
   "figures": {
     "fable": {
@@ -3344,7 +3348,7 @@
     "AliceBCoverage": "3 of 4"
   },
   "rendering_source_hashes": {
-    "build_assets.py": "bdd32853575a755f9322a2ec86fcff1ec5f756f5a73d6ac52227d5e419b04535",
+    "build_assets.py": "1309a0baccbd3c24ef9c5c9d20b6aa20e4cbb74e6c660632195ccd8ae910a9ce",
     "network_figures.py": "7ff9a6058b1ded98e428fea38e39555ad242b56b55d85c7c8f1d40ccaf35d58e",
     "companion_source.tex": "7f97ca3e65b80553a8520b3dce442e0c06cbd22e848b292ac9d3ae7062d59e06",
     "figure_blocks.tex": "9e61bfaff35c2b4514123995ee331d5b92fe4b7a0e17776d2390ceb33068616a"

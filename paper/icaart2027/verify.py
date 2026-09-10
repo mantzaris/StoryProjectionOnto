@@ -22,6 +22,13 @@ def normalized(s):
     return re.sub(r'\s+','',unicodedata.normalize('NFKC',s))
 
 
+def abstract_body(source):
+    """Read the inline declaration before the template's title-layout command."""
+    match = re.search(r'(?ms)^\\abstract\{(.*?)\}\s*\\onecolumn', source)
+    assert match, 'Expected inline abstract immediately before the title layout'
+    return match[1]
+
+
 def pdf_check(path, *, main):
     info=command('pdfinfo',str(path))
     text=command('pdftotext','-enc','UTF-8',str(path),'-')
@@ -71,6 +78,9 @@ def pdf_check(path, *, main):
 
 def main():
     manifest=read(HERE/'manifest.json')
+    for kind, filename in manifest['manuscript_roots'].items():
+        assert filename == f'ICAART2027_{kind}.tex'
+        assert (HERE/filename).is_file() and (HERE/filename).with_suffix('.pdf').is_file()
     assert digest(HERE/'references.bib')==manifest['conference_bibliography_sha256']
     assert digest(HERE/'REFERENCE_AUDIT.md')==manifest['reference_audit_sha256']
     for path,h in manifest['source_hashes'].items():assert digest(ROOT/path)==h,path
@@ -148,7 +158,7 @@ def main():
         svg=(HERE/f'figures/{name}.svg').read_text()
         assert '@font-face' in svg and '<text' in svg
         assert "local('Times New Roman')" in svg and 'data:font/' not in svg
-    for filename in ['main.log','companion.log']:
+    for filename in ['ICAART2027_submission.log','ICAART2027_companion.log']:
         log=(HERE/'build'/filename).read_text()
         assert 'Overfull \\hbox' not in log and 'Overfull \\vbox' not in log,filename
         assert 'undefined' not in log.lower(),filename
@@ -161,20 +171,20 @@ def main():
     # even though it is already in main PDF extraction; no graph labels are excluded.
     conservative=report['nonwhitespace_characters']+fig_chars
     assert 8000<=report['nonwhitespace_characters']<=conservative<40000
-    abstract=(HERE/'abstract.tex').read_text().strip().removeprefix('\\abstract{')[:-1]
+    abstract=abstract_body((HERE/'ICAART2027_submission.tex').read_text())
     for k,v in manifest['numerical_claims'].items():abstract=abstract.replace('\\'+k,v)
     abstract=abstract.replace('\\cite{openai2025}','(OpenAI, 2025)').replace('\\ ',' ')
     assert '\\' not in abstract,abstract
     aw=len(abstract.split())
     assert 70<=aw<=200,aw
     # Cite-to-entry correspondence; every entry must be used. No unverified self-citations.
-    source='\n'.join((HERE/p).read_text() for p in ['main.tex','abstract.tex','figure_blocks.tex'])
+    source='\n'.join((HERE/p).read_text() for p in ['ICAART2027_submission.tex','figure_blocks.tex'])
     cited={k.strip() for group in re.findall(r'\\cite\{([^}]+)\}',source) for k in group.split(',')}
     entries=set(re.findall(r'@\w+\{([^,]+),',(HERE/'references.bib').read_text()))
     assert cited==entries,(cited,entries)
     for number in ['0.625','0.308','454.82','79','249.45','205.37']:assert number in text,number
     # Honest anonymous package of only compilation inputs. Reproducible archive timestamps.
-    files=['main.tex','abstract.tex','figure_blocks.tex','references.bib','build.sh',
+    files=['ICAART2027_submission.tex','figure_blocks.tex','references.bib','build.sh',
            'article.cls','SCITEPRESS.sty','apalike.sty','apalike.bst','generated/numbers.tex',
            'tables/compact.tex','tables/prose.tex']+[f'figures/{n}.pdf' for n in manifest['main_figures']]
     archive=HERE/'ICAART2027_source.zip'
@@ -218,7 +228,7 @@ def main():
         reference_audit_sha256=manifest['reference_audit_sha256'],
         source_zip=dict(sha256=digest(archive),files=files,isolated_compilation='pass',pdf_text_identical=True),
         no_new_inference=True,visual_inspection='See visual_inspection.md; generated after rendering, not asserted by automated checks.',
-        outputs={str(p.relative_to(HERE)):digest(p) for p in [HERE/'main.tex',HERE/'abstract.tex',HERE/'references.bib',HERE/'figure_blocks.tex',HERE/'companion_source.tex',HERE/'generated/companion_facts.tex']})
+        outputs={str(p.relative_to(HERE)):digest(p) for p in [HERE/'ICAART2027_submission.tex',HERE/'ICAART2027_companion.tex',HERE/'references.bib',HERE/'figure_blocks.tex',HERE/'companion_source.tex',HERE/'generated/companion_facts.tex']})
     write_json(HERE/'verification.json',verification)
     print(json.dumps({k:verification[k] for k in ['abstract_words','conservative_double_counted_figure_bound']},indent=2))
     print('Submission:',report['pages'],'pages;',report['nonwhitespace_characters'],'non-whitespace characters. Companion:',supp['pages'],'pages. Clean source ZIP compiled; text identical.')

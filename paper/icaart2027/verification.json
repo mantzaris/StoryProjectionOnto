@@ -62,7 +62,7 @@
         "y_min_pdf_points": 97.563781
       }
     ],
-    "sha256": "b197615309b2cf4b476e5a991073d03512e2f877c0fd847e1a53785d5886dbef"
+    "sha256": "96ebc8613e5c70cda80745c41c3ce9af8b8a2f5a9070599d254232ed24b259cd"
   },
   "companion": {
     "pages": 7,
@@ -116,7 +116,7 @@
     "author_metadata_empty": true,
     "identifying_string_scan": "pass",
     "top_table_captions": [],
-    "sha256": "0fa3061bc6c47e591724af0bf11bed8fb825bc604b13d2c9476129889c0ebd0d"
+    "sha256": "a5fe1bef857b9408398f9d82b6c362339828fce8f7a697c31c722bd82d181766"
   },
   "abstract_words": 159,
   "character_count_method": "pdftotext UTF-8, remove every Unicode whitespace character; includes title, abstract, captions, tables, searchable vector graph text, references and appendix. PDF discretionary hyphens retained. Counts are local, not a claimed PRIMORIS count.",
@@ -193,10 +193,9 @@
   "figure_typeface": "Times New Roman, embedded PDF subsets; editable SVG uses local faces",
   "reference_audit_sha256": "74ba030d2cf3a11f20396ecc8cdf215d5008d32b509766e581c658a35cfc2283",
   "source_zip": {
-    "sha256": "c874d8f730f11da13ca6b302f75ab4f7be44be6487e46813b655c3a1198d72f7",
+    "sha256": "2b6ca956535352e66e5d0b7b160a390ef13b194ced73f5becb0a8e5cad81d673",
     "files": [
-      "main.tex",
-      "abstract.tex",
+      "ICAART2027_submission.tex",
       "figure_blocks.tex",
       "references.bib",
       "build.sh",
@@ -217,8 +216,8 @@
   "no_new_inference": true,
   "visual_inspection": "See visual_inspection.md; generated after rendering, not asserted by automated checks.",
   "outputs": {
-    "main.tex": "b0fc3637806214f4d7bf407c6068d114cc598eb149af60256372d544351cbcca",
-    "abstract.tex": "9b51ed2e15094f6d5913f4a7a6f561072f731396eac1d633d4d5a241d0124907",
+    "ICAART2027_submission.tex": "97f5b1031924a3626169a8e505a3827c52f2d1c4077ca89239361b409d7f58fb",
+    "ICAART2027_companion.tex": "6e89bf436392861a4c5d74948ca43ed735cacc2d34ab71db3f7afc770a0468dc",
     "references.bib": "b3751d829fe94961e805553659f7df7f2f8ecc6156dbd8e768dbb113a76b6f06",
     "figure_blocks.tex": "9e61bfaff35c2b4514123995ee331d5b92fe4b7a0e17776d2390ceb33068616a",
     "companion_source.tex": "7f97ca3e65b80553a8520b3dce442e0c06cbd22e848b292ac9d3ae7062d59e06",
