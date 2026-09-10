@@ -1,0 +1,257 @@
+\documentclass[a4paper,10pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{mathptmx}
+\usepackage{courier}
+\usepackage[margin=24mm]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{url}
+\usepackage{fvextra}
+\usepackage{ragged2e}
+\usepackage[hidelinks,pdfauthor={},pdftitle={Inspectable Narrative Graphs: Local Companion},pdfcreator={LaTeX}]{hyperref}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{3pt}
+\newcolumntype{L}[1]{>{\RaggedRight\arraybackslash}p{#1}}
+\emergencystretch=3em
+\title{Contextual Ontology Extraction and Inspection of Temporal Narrative Networks\\[0.5em]
+{\large Supplementary Material}}
+\author{}
+\date{}
+% Inline numerical values and exact executed questions. Verification checks retained data; builds never rewrite this source.
+\newcommand{\Temperature}{0.7}
+\newcommand{\TopP}{0.8}
+\newcommand{\TopK}{20}
+\newcommand{\Seed}{1988649846}
+\newcommand{\OutputTokens}{2,048}
+\newcommand{\ContextTokens}{12,288}
+\newcommand{\StorySentences}{14}
+\newcommand{\FableWords}{133}
+\newcommand{\AliceWords}{112}
+\newcommand{\HolmesWords}{159}
+\newcommand{\CompactCalls}{12}
+\newcommand{\ProseCalls}{9}
+\newcommand{\ProseParsed}{7}
+\newcommand{\IntervalsKept}{79}
+\newcommand{\IntervalsEligible}{79}
+\newcommand{\OrchardLocationRecall}{0.750}
+\newcommand{\MainCalls}{21}
+\newcommand{\MainAllocation}{454.82}
+\newcommand{\CompactAllocation}{249.45}
+\newcommand{\ProseAllocation}{205.37}
+\newcommand{\CompactRequest}{104.72}
+\newcommand{\ProseRequest}{57.24}
+\newcommand{\FableAFone}{0.625}
+\newcommand{\FableACoverage}{6 of 8}
+\newcommand{\FableBFone}{0.308}
+\newcommand{\FableBCoverage}{4 of 8}
+\newcommand{\AliceAFone}{0.000}
+\newcommand{\AliceACoverage}{1 of 4}
+\newcommand{\AliceBFone}{0.000}
+\newcommand{\AliceBCoverage}{3 of 4}
+\newcommand{\FableQuestion}{Which physical running/waking, capture, binding, rope-gnawing and release relationships involve the Lion, Mouse, hunters and ropes? Exclude dialogue, intentions, laughter and the moral.}
+\newcommand{\HarborQuestion}{Which directly narrated location relationships have an explicitly stated interval overlapping day 2 up to but not including day 4? Return all of them with their full evidence-stated intervals, not clipped to the question window. Exclude undated locations and beliefs.}
+\newcommand{\OrchardQuestion}{Who owns or carries what? Return all and only directly narrated ownership and carrying relationships, retaining every stated interval.}
+\newcommand{\OrchardBeliefQuestion}{Who explicitly believes what, and what reality is separately narrated about those same objects? Return each underlying believed relationship with its attribution and each matching narrated reality without attribution. Omit unrelated facts.}
+\newcommand{\AliceActionQuestion}{Which sitting/location, reading/inspection and running relationships involve Alice, her sister, the book, bank and Rabbit? Exclude thoughts, feelings, appearance and book-content properties.}
+\newcommand{\AliceClaimQuestion}{What does the passage say about the book's absent content and Alice's thoughts about the usefulness of such books and making a daisy-chain? Exclude physical actions, locations, appearance and the Rabbit; preserve questions and consideration without treating them as decisions.}
+% Inline retained examples, assessments and scores.
+\newcommand{\OrchardAScore}{5/5 matched, 5 targets. P/R/F1 = 1.000/1.000/1.000.}
+\newcommand{\OrchardBScore}{5/12 matched, 5 targets. P/R/F1 = 0.417/1.000/0.588.}
+\newcommand{\OrchardBeliefScore}{4/4 matched, 4 targets. P/R/F1 = 1.000/1.000/1.000.}
+\newcommand{\FableOne}{A LION was awakened from sleep by a Mouse running over his face.}
+\newcommand{\FableTwo}{ Rising
+up angrily, he caught him and was about to kill him, when the Mouse
+piteously entreated, saying: ``If you would only spare my life, I would
+be sure to repay your kindness.''}
+\newcommand{\FableFour}{ It
+happened shortly after this that the Lion was caught by some hunters,
+who bound him by strong ropes to the ground.}
+\newcommand{\FableFive}{ The Mouse, recognizing his
+roar, came and gnawed the rope with his teeth, and set him free,
+exclaiming:}
+\newcommand{\AliceOne}{Alice was beginning to get very tired of sitting by her sister on the
+bank, and of having nothing to do: once or twice she had peeped into
+the book her sister was reading, but it had no pictures or
+conversations in it, ``and what is the use of a book,'' thought Alice
+``without pictures or conversations?''}
+\newcommand{\PassiveExample}{Lion | caught\_by | hunters | S4}
+\newcommand{\PassiveExampleAssessment}{S4 supports this passive capture relation exactly in meaning. The frozen strict matcher lacks the inverse caught\_by alternative; its strict failure is not a falsehood judgment.}
+\newcommand{\PartialExample}{Mouse | running\_over | Lion | S1}
+\newcommand{\PartialExampleAssessment}{S1 says running over the Lion's face. Running over Lion retains the actor and broad action but loses the explicit body-part endpoint. This receives partial support, not full coverage of the frozen face-specific target.}
+\newcommand{\FableBScore}{P/R/F1 = 0.400/0.250/0.308.}
+\newcommand{\FableAScore}{P/R/F1 = 0.625/0.625/0.625.}
+\newcommand{\HolmesParseError}{Extra data: line 1 column 1683 (char 1682)}
+\begin{document}
+\RaggedRight
+\maketitle
+
+
+
+
+
+% Editable companion prose. The entire document is maintained in this root source.
+\section*{1. Reading the networks}
+The figures show which relationships the model extracted, how they relate to a reader's question, and where errors remain. They use the same outputs, reference answers and assessments reported in the main paper. No additional experiments were performed.
+
+\textbf{The two approaches.}
+\begin{itemize}
+\item \textbf{Pre-extract/select (A)} first extracts relationships without seeing the question. Fixed filters then select records for that question.
+\item \textbf{Contextual extraction (B)} receives the text and question together and generates its own relationships.
+\end{itemize}
+A and B are alternative approaches. B does not modify or continue A's graph.
+
+\textbf{Reading an arrow.}
+Each arrow runs from the subject to the object. Its label describes their relationship and identifies the supporting text. Labels also show any recorded time interval or attribution, such as whose belief is represented. A believer label describes the existing relationship and does not add another extracted link. In the figures, underscores appear as spaces and \texttt{loc} means \texttt{located\_in}.
+
+Within each panel, exactly matching names share a node. Different names remain separate, even when they might refer to the same entity. Multiple records connecting the same nodes remain separate arrows. Omitted time or attribution fields are \texttt{null}, meaning unspecified. A missing time interval does not mean that a relationship holds forever.
+
+\textbf{Understanding the assessment labels.}
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+$+$         & Meaning supported by the text \\
+$\sim$      & Meaning partly supported \\
+\texttt{x}  & Meaning unsupported \\
+?           & Interpretation unresolved \\
+\texttt{I}  & Supported, but outside the question's scope \\
+\end{tabular}
+\end{center}
+Symbols and line styles accompany the colours, so colour alone is not needed to read the assessments.
+
+In Orchard, node colours distinguish people, objects and places. These categories were added for display and were not inferred by the model. The broad extraction shown in the main paper has no assessment labels. It displays the model's output rather than a verified reference answer.
+
+
+
+
+
+\subsection*{Compact index of retained examples}
+\begin{tabular}{L{27mm}L{58mm}L{60mm}}
+\toprule
+Example & What to inspect & Complete record location\\\midrule
+Harbor & Source intervals versus query window (p.~4) & Compact calls 1, 4--6\\
+Orchard & Connected ownership slice, extra locations and attribution (pp.~2--3) & Compact calls 2, 7--9\\
+Museum & Fresh synthetic comparison, including relevance errors & Compact calls 3, 10--12\\
+Fable & Parallel actions, passive wording and conditional scope (pp.~5--6) & Prose calls 1, 4--5\\
+Alice & Wrong reading participant and literal thought object (p.~6 and main paper) & Prose calls 2, 6--7\\
+Holmes & Syntax failure and unresolved interpretation (pp.~6--7) & Prose calls 3, 8--9\\
+\bottomrule
+\end{tabular}
+
+Call numbers are local to their batch. Three pre-extractions precede contextual requests in each batch. A pre-extraction reused for several questions is still one model call. The main paper contains the complete aggregate tables. This supplement retains selected explanations instead of repeating every prompt and record. Page~7 gives exact file and field paths for the complete data.
+
+The main Orchard figure is an illustrative selection from an existing evaluation, not a prospectively sampled new success. The views below include extra irrelevant predictions, partial meanings and failures. No record was repaired for display, and no score was recomputed.
+
+
+
+
+
+
+
+\section*{2. Orchard: correct relationships can still be irrelevant}
+\textbf{Exact executed ownership/carrying question:} \OrchardQuestion
+
+\begin{center}
+\includegraphics[width=158.0134mm]{figures/orchard_comparison.pdf}
+\end{center}
+\textbf{A:} \OrchardAScore\quad \textbf{B:} \OrchardBScore
+
+Both views preserve all five requested facts. The contextual output also returns seven locations. These are supported by the supplied story but outside this question. They remain visible and in the precision denominator. No belief records are present in this contextual ownership output. The panels share horizontal anchors and node categories, not an inferred identity mapping across different strings.
+
+\clearpage
+\section*{3. Orchard: attribution belongs to the assertion}
+\textbf{Exact executed question:} \OrchardBeliefQuestion
+
+\begin{center}
+\includegraphics[width=158.0134mm]{figures/orchard_beliefs.pdf}
+\end{center}
+\textbf{Fixed-selection score:} \OrchardBeliefScore
+
+Each object connects to two places under different epistemic scopes. Copper Book's South Loft location is attributed to Soren's belief, while River Room is narrated reality. Ivory Vase similarly separates Jun's belief from narration. Holder names remain edge metadata even though the names also occur elsewhere in the broader extraction. This selected graph has two disconnected components. No connector has been invented to make it appear more cohesive.
+
+
+
+\section*{4. Harbor: preserve source duration, select by overlap}
+\textbf{Exact executed question:} \HarborQuestion
+
+\begin{center}
+\includegraphics[width=158.0134mm]{figures/harbor.pdf}
+\end{center}
+The blue band is the requested window $[2,4)$, not rewritten validity. Filled starts and open ends mark the full generated intervals. All four selected A location records coincide with four B records. The two carrying records below are additional B predictions, not part of the location answer. All six B records remain scored. No relationship is given extra temporal precision because it was observed during the question window.
+
+Source display: S5-S8 of the fourteen supplied sentences. Complete evidence and both outputs remain in the compact records. The main paper reports their unchanged strict scores in Table~1.
+
+
+
+
+\section*{5. Fable: parallel actions and separate endpoint identities}
+\begin{center}
+\includegraphics[width=158.0134mm]{figures/fable_networks.pdf}
+\end{center}
+\textbf{Same executed question as main Figure~2:} \FableQuestion
+
+\textbf{A:} \FableAScore\quad \textbf{B:} \FableBScore
+
+All eight A and five B action records appear. A's five nodes preserve its two different rope strings. B's four nodes use a single literal ropes endpoint. This is not a corrected alias alignment. The complete source is the 133-word fable retained in the prose dataset. A's ambiguous awakening and partial conditional plea remain in the graph.
+
+\clearpage
+\section*{6. Agreement, preserved meaning and substantive errors}
+\subsection*{A worked example from the fable}
+\textbf{Exact supplied S4:} \FableFour
+
+\textbf{Actual contextual record:} \PassiveExample.
+Its bounds, holder and attitude are all null. The retained assessment is:
+\begin{quote}\PassiveExampleAssessment\end{quote}
+The passive relationship preserves the narrated participants and meaning. The frozen strict matcher does not accept that inverse wording. This is a strict mismatch without a semantic falsehood verdict. It is not changed into a matching record for these figures.
+
+\textbf{Exact supplied S1:} \FableOne
+
+\textbf{Actual contextual record:} \PartialExample.
+The retained assessment is:
+\begin{quote}\PartialExampleAssessment\end{quote}
+The broad action survives, but the face-specific endpoint does not. Partial support therefore does not count as complete target coverage. Neither this case nor the passive example is newly scored.
+
+\subsection*{Compact failure and uncertainty guide}
+\begin{tabular}{L{29mm}L{54mm}L{62mm}}
+\toprule
+Issue & Retained example & Interpretation\\\midrule
+Wrong participant & Alice contextual actions, record 4: Alice reading the book & Her sister reads. Alice peeps into the book. This is unsupported participant attribution, not merely a synonym mismatch.\\
+Belief representation & Alice contextual claims, record 2: literal thought object & Meaning is supported, while the requested decomposed structure is absent. The daisy-chain record remains unresolved.\\
+Irrelevant additions & Orchard contextual possession, seven locations & Supported relationships outside the question. Counted as precision errors, not silently removed.\\
+Conditional scope & Fable A action record 3: spare & The Mouse's conditional plea is not an unconditional release. The misspelled temporal key also remains.\\
+Syntax failure & Holmes pre-extraction and contextual actions & Extra closing brace. No parsed graph scores and no invented empty network.\\
+\bottomrule
+\end{tabular}
+
+Pending author judgments remain pending, including Holmes's vocative and speaker attribution. Unresolved wording is not assumed true or false.
+
+\clearpage
+\section*{7. Reproducibility without repeated data dumps}
+\subsection*{Complete records remain available}
+Paths below are relative to the conference package unless prefixed by \emph{repository}. They contain the full information that the former 36-page companion printed repeatedly. The data are unchanged.
+
+\begin{tabular}{L{46mm}L{104mm}}
+\toprule
+File & What to read\\\midrule
+\path{data/requests.json} & Exact transmitted payloads, including system and user messages. Select \texttt{compact} or \texttt{prose}, then the string call ID. Request hashes are validated.\\
+\path{data/retained_outputs.json} & Complete evidence under \texttt{stories}. Exact raw response strings and parsed records under \texttt{calls}. Full frozen reference alternatives under \texttt{references}. Actual selected/contextual records and evaluations under \texttt{results}.\\
+\path{data/evaluation_rules.json} & Frozen normalization, scope and matching rules for each batch.\\
+\path{manifest.json} & Exact displayed facts, assessment labels, source call/record mappings, endpoint identities and layout coordinates. Display subsets do not change denominators.\\
+\path{generated/reproducibility_index.json} & Hashes and field-level paths connecting this reader guide to complete retained evidence and historical companion version.\\
+Repository \path{reports/tables/real_text_proof_of_concept.json} & Complete Codex semantic judgments under \texttt{results[].semantic\_assessments}, plus pre-extraction assessments and syntax diagnoses.\\
+Repository \path{reports/tables/compact_story_v2_results.json} & Complete synthetic results, source-support evaluations, selection traces and all historical syntax-recovery categories.\\
+\bottomrule
+\end{tabular}
+
+The published prose is preserved verbatim with section, edition, retrieval and hash metadata. Project Gutenberg notices remain in \path{data/pg21_notices.txt}, \path{data/pg11_notices.txt} and \path{data/pg1661_notices.txt}. Aesop uses Townsend's translation of \emph{The Lion and the Mouse}; Alice is from Chapter~I, and Holmes from \emph{The Red-Headed League}. Neither familiar context nor later plot information is used to resolve a model record.
+
+\subsection*{A syntax failure is not an empty graph}
+\textbf{Holmes contextual actions, retained call 8.} Display excerpt: the final 200 characters, unchanged:
+\begin{Verbatim}[fontsize=\small,breaklines=true,breakanywhere=true]
+l,"valid_until":null,"holder":null,"attitude":null},{"subject":"Holmes","relation":"said","object":"Watson","evidence_ids":["S7"],"valid_from":null,"valid_until":null,"holder":null,"attitude":null}]}}
+\end{Verbatim}
+\textbf{Original parser diagnosis:} \HolmesParseError
+
+Only the display is excerpted. The complete raw response remains in \path{data/prose_call_8_raw.txt} and the JSON record. The narrow permitted trailing-comma recovery does not remove an extra closing brace. No graph is reconstructed here.
+
+\end{document}
