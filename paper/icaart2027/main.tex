@@ -32,14 +32,14 @@
 We compare two implemented approaches. \emph{Pre-extract/select} (A) generates a fact collection without seeing the question, then applies fixed filters to its existing records. \emph{Contextual extraction} (B) independently generates facts from the same narrative with the question supplied. Both use readable endpoints, evidence citations, temporal bounds and attribution. Our contributions are:
 
 \begin{enumerate}
-\item An implemented workflow connecting questions, narratives, generated relationships and qualifications to evidence inspection. Compact records and linked views let readers examine an edge's assertion and cited text (Section~3 and Figures~\ref{fig:fable}--\ref{fig:alice}).
+\item An implemented workflow connecting questions, narratives, generated relationships and qualifications to evidence inspection. Compact records and linked views let readers examine an edge's assertion and cited text (Section~3 and Figures~\ref{fig:orchard}--\ref{fig:alice}).
 \item An empirical comparison of extraction before and after question disclosure over identical evidence. Synthetic and prose results help researchers distinguish extraction errors from selection errors (Section~5).
 \item Combined assessment and visualization of strict agreement with reference answers, semantic preservation, relevance and unresolved interpretation. Tables~\ref{tab:compact} and~\ref{tab:prose} and the annotated figures expose useful partial outputs alongside substantive errors.
 \end{enumerate}
 
 Our position is that these dimensions should be assessed together: a single agreement score cannot explain which narrative meanings survive. We study the implemented prototype through small development comparisons.
 
-\FableFigure
+\OrchardFigure
 \section{\uppercase{Related Work}}
 \noindent \emph{Extraction and representation.} TextRunner extracts relations without a predefined vocabulary and indexes tuples for queries \cite{banko2007}, establishing a precedent for extraction before a question. SPIRES recursively prompts a language model to populate a supplied schema and grounds entities in external vocabularies \cite{caufield2024}. We instead retain local names and evidence spans in a compact format and compare fixed selection with extraction conditioned on a question.
 
@@ -72,9 +72,9 @@ Contextual extraction (B) receives the same complete evidence and one question, 
 The experiments use \texttt{Qwen/Qwen3-8B-AWQ} in nonthinking mode \cite{qwen2025,qwenmodel}, served by vLLM \cite{kwon2023} on one RTX 4090. Temperature is \Temperature, top-p \TopP, top-k \TopK, and seed \Seed. Each request reserves \OutputTokens\ output tokens within a context of \ContextTokens\ tokens. The pinned revision is recorded in the appendix. Ordinary JSON is requested without a guided schema. Both approaches receive the same short formatting example using unrelated facts, without a tested reference answer.
 
 \subsection{Inspecting Actual Output}
-\noindent Graph edges retain generated direction, names, citations and qualifications. Only identical endpoint strings share a display identity. Aliases are not inferred to tidy the picture, and objects containing sentences remain literal nodes. Colours, symbols and line styles distinguish supported, partial, unsupported, unresolved, and supported but irrelevant content. A citation highlight is a navigation aid, not verification. Errors and missing targets appear alongside the graph, not as corrected model edges. Labelled display subsets do not change scoring denominators. The figures arrange edges in rows to keep long names readable at publication size.
+\noindent Graph edges retain generated direction, names, citations and qualifications. Only identical endpoint strings share a display identity. Aliases are not inferred, and objects containing sentences remain literal nodes. The Orchard network makes shared participants and connectivity visible (Figure~\ref{fig:orchard}). Node fills denote display categories, not model types or correctness. Status symbols and edge styles distinguish supported, partial, unsupported, unresolved and irrelevant content. A citation highlight is a navigation aid, not verification. Other figures use relationship rows for long labels. Missing targets appear beside graphs, never as corrected model edges. Display subsets do not change scoring denominators.
 
-\HarborFigure
+\FableFigure
 \section{\uppercase{Evaluation}}
 \subsection{Materials and Annotation}
 \noindent The compact-story v2 comparison uses Harbor, Orchard and Museum, each with \StorySentences\ evidence sentences. Three questions request possession, location during an interval, and belief contrasted with narration. Harbor and Orchard were used in development. Museum adds different sentence ordering and bindings frozen before this batch. Earlier ladders and historical syntax recoveries are not pooled with these results.
@@ -99,7 +99,9 @@ The analysis is descriptive. These are purposively selected development examples
 
 \input{tables/compact}
 
-Among emitted records with identifiable explicitly timed sources, \IntervalsKept\ of \IntervalsEligible\ preserve their full intervals, including irrelevant records. This is conditional preservation, not temporal recall over every reference. Figure~\ref{fig:harbor} shows how an intact interval can coexist with a relevance error. Attribution is less stable: Orchard's pre-extraction decomposes beliefs correctly, whereas Harbor and Museum use sentence-valued belief objects that disrupt selection. This explains why the physical-fact result does not extend to every belief view.
+Orchard illustrates actual selection from a broader model extraction (Figure~\ref{fig:orchard}). Its five ownership/carrying records connect six nodes, retaining explicit carrying intervals. This illustration does not establish a construction effect. The companion contrasts this slice with the twelve-record contextual answer, which also retains seven irrelevant locations.
+
+Among emitted records with identifiable explicitly timed sources, \IntervalsKept\ of \IntervalsEligible\ preserve their full intervals, including irrelevant records. This is conditional preservation, not temporal recall over every reference. The companion's Harbor timeline distinguishes these intervals from the query window. Attribution is less stable: Orchard's pre-extraction decomposes beliefs correctly, whereas Harbor and Museum use sentence-valued belief objects that disrupt selection.
 
 \subsection{Published Prose and Partial Meaning}
 \noindent Of \ProseCalls\ prose responses, \ProseParsed\ are strictly parseable. Holmes's pre-extraction and contextual action answer end with an extra closing brace. Their unavailable views remain in Table~\ref{tab:prose}. Failure of the shared pre-extraction affects both A questions. The parseable Holmes claims answer has partial and unresolved content rather than fully covered targets.
@@ -111,7 +113,7 @@ For fable actions, pre-extract/select has strict F1 \FableAFone\ versus \FableBF
 Alice shows a different comparison. Contextual claims preserve \AliceBCoverage\ semantic targets, compared with \AliceACoverage\ for pre-extract/select, despite zero strict F1 for both. The thought object preserves rhetorical meaning but not the requested decomposition. Contextual extraction also assigns reading to Alice instead of her sister. The daisy-chain record leaves open whether considering worth has become judging it worthwhile (Figure~\ref{fig:alice}). More covered meaning can therefore accompany a substantive error or unresolved interpretation.
 
 \subsection{Cost of the Presented Experiments}
-\noindent The two main batches comprise \MainCalls\ generations and \MainAllocation\ allocated GPU seconds. Compact stories used \CompactAllocation\ seconds and prose \ProseAllocation\ seconds. Summed request times were \CompactRequest\ and \ProseRequest\ seconds respectively. Allocation includes loading, checks, service idle time and shutdown. Pre-extractions reused across questions are counted once. These costs cover the presented batches, not earlier development, and do not estimate production latency.
+\noindent The two main batches comprise \MainCalls\ generations and \MainAllocation\ allocated GPU seconds. Compact stories used \CompactAllocation\ seconds and prose \ProseAllocation\ seconds. Summed request times were \CompactRequest\ and \ProseRequest\ seconds respectively. Allocation includes loading, checks, service idle time and shutdown. Reused pre-extractions count once. These batch costs exclude earlier development and do not measure production latency.
 
 \section{\uppercase{Discussion and Limitations}}
 \noindent The workflow enables inspection of both useful information and errors. The fable exposes a conditional plea rendered as an unqualified relationship. Alice juxtaposes preserved thought with an incorrect reading participant. Harbor shows intact temporal bounds alongside irrelevant facts. These examples connect measured discrepancies to the source wording and the requested information, giving researchers concrete targets for improving extraction and selection.
@@ -132,5 +134,5 @@ The next research steps are independent review of reference coverage, evaluation
 \bibliographystyle{apalike}
 {\small\bibliography{references}}
 \section*{APPENDIX}
-\noindent Qwen3-8B-AWQ revision: \texttt{4da05a8edb55c6046cce9585}\allowbreak\texttt{86c33b61da07bb79}. Software: vLLM 0.10.2, Transformers 4.55.2. The pinned template uses \texttt{enable\_thinking=False}. The companion retains complete requests, outputs, reference alternatives and assessments.
+\noindent Qwen3-8B-AWQ revision: \texttt{4da05a8edb55c6046cce9585}\allowbreak\texttt{86c33b61da07bb79}. Software: vLLM 0.10.2, Transformers 4.55.2. The pinned template uses \texttt{enable\_thinking=False}. The concise companion indexes complete machine-readable requests, outputs, reference alternatives and assessments.
 \end{document}

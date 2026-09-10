@@ -35,6 +35,29 @@ Figure regeneration requires licensed local **Times New Roman** regular and bold
 
 Edit `main.tex`, `abstract.tex`, `figure_blocks.tex` and `companion.tex`. Numerical commands and tables are generated from retained canonical tables by `build_assets.py`; do not transcribe or change scores. The figure renderer reuses the established exact-record display helpers, but uses the actual template width and new layouts. PDF/SVG/400-dpi PNG figures are in `figures/`. Literal model values, assessment statuses and omitted display indices are in `manifest.json`. The three compact historical figures, general manuscript, general supplement and eight original plates are untouched.
 
+## Network figures and concise companion
+
+The main paper now has three figures: Orchard's full model extraction and actual fixed-selection slice, the fable action comparison, and Alice's action/thought comparison. The Harbor timeline moves to the companion. The two main numerical tables and all scores are unchanged.
+
+`network_figures.py` is a small adapter to the existing Matplotlib renderer, not a new graph framework. Each panel has one visual node per literal endpoint string and one arrow per retained record. Author-chosen coordinates and node categories are display annotations. Directed, parallel edges retain citations, intervals and holder/attitude fields. Holder badges do not add nodes or relationships. The main Orchard broad extraction is not labelled as gold or retrospectively given a query-specific assessment. Fixed-selection membership is checked against actual call 2, while the contextual ownership panel uses independent call 7. The manifest records source indices, identities, coordinates, statuses and complete facts. All network panels are complete, with zero display omissions.
+
+The current companion has seven pages rather than 36, with four supplementary figures: Orchard A/B ownership networks, Orchard belief/reality selection, Harbor intervals, and complete fable action networks. It does not repeat the main figures unchanged. Edit its narrative in `companion_source.tex`. Selected literal examples and numerical summaries are generated into `generated/companion_facts.tex`. Regeneration no longer emits the old raw-record dump or rewrites the complete evidence files.
+
+Complete evidence remains in [data/retained_outputs.json](data/retained_outputs.json), exact payloads in [data/requests.json](data/requests.json), and rules in [data/evaluation_rules.json](data/evaluation_rules.json). Full semantic assessments remain in the unchanged [published-prose result artifact](../../reports/tables/real_text_proof_of_concept.json), alongside the [compact-story results](../../reports/tables/compact_story_v2_results.json). The [reproducibility index](generated/reproducibility_index.json) gives field paths and hashes. The deletion of the generated 1,918-line PDF dump does not delete these records. Strict matching, partial meaning and failures are explained once in the reader-oriented companion.
+
+The 36-page companion and its old generated source are preserved at commit `48c0def1bfe8880029d88e9539462302d77833c7`. To inspect the archival PDF without creating a second current supplement, run this read-only command from the repository root:
+
+```bash
+git show 48c0def1bfe8880029d88e9539462302d77833c7:paper/icaart2027/ICAART2027_companion.pdf | pdftotext -layout - -
+```
+
+The normal build commands above regenerate every current PDF, SVG and PNG, both documents and the clean main-paper source ZIP. Focused checks:
+
+```bash
+python -m pytest -q tests/unit/test_icaart_networks.py tests/unit/test_paper_figures.py
+python paper/icaart2027/verify.py
+```
+
 `vendor/` preserves the official archive and example for local provenance only. Never edit the supplied class/style/BibTeX files to alter layout. `verification.json` records template hashes, numerical consistency, anonymity, embedded fonts, page/abstract/character counts, text bounds and source-package reproduction. `rendered/` is ignored and contains inspection images. Build timestamps are fixed for reproducibility, not represented as experiment times. Companion raw records and requests are under `data/`; Gutenberg notices remain attached there.
 
 ## Before public distribution

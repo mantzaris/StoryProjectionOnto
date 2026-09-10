@@ -5,18 +5,23 @@
 \usepackage{courier}
 \usepackage[margin=24mm]{geometry}
 \usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
 \usepackage{url}
 \usepackage{fvextra}
 \usepackage{ragged2e}
 \usepackage[hidelinks,pdfauthor={},pdftitle={Inspectable Narrative Graphs: Local Companion},pdfcreator={LaTeX}]{hyperref}
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{3pt}
+\newcolumntype{L}[1]{>{\RaggedRight\arraybackslash}p{#1}}
 \emergencystretch=3em
 \title{Inspectable Narrative Graphs\\Local Anonymous Companion}
 \author{}
 \date{Retained evidence, requests, outputs and assessments}
+\input{generated/numbers}
+\input{generated/companion_facts}
 \begin{document}
 \RaggedRight
 \maketitle
-\input{generated/companion_content}
+\input{companion_source}
 \end{document}

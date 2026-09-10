@@ -1,0 +1,26 @@
+\newcommand{\OrchardAScore}{5/5 matched, 5 targets. P/R/F1 = 1.000/1.000/1.000.}
+\newcommand{\OrchardBScore}{5/12 matched, 5 targets. P/R/F1 = 0.417/1.000/0.588.}
+\newcommand{\OrchardBeliefScore}{4/4 matched, 4 targets. P/R/F1 = 1.000/1.000/1.000.}
+\newcommand{\FableOne}{A LION was awakened from sleep by a Mouse running over his face.}
+\newcommand{\FableTwo}{ Rising
+up angrily, he caught him and was about to kill him, when the Mouse
+piteously entreated, saying: ``If you would only spare my life, I would
+be sure to repay your kindness.''}
+\newcommand{\FableFour}{ It
+happened shortly after this that the Lion was caught by some hunters,
+who bound him by strong ropes to the ground.}
+\newcommand{\FableFive}{ The Mouse, recognizing his
+roar, came and gnawed the rope with his teeth, and set him free,
+exclaiming:}
+\newcommand{\AliceOne}{Alice was beginning to get very tired of sitting by her sister on the
+bank, and of having nothing to do: once or twice she had peeped into
+the book her sister was reading, but it had no pictures or
+conversations in it, ``and what is the use of a book,'' thought Alice
+``without pictures or conversations?''}
+\newcommand{\PassiveExample}{Lion | caught\_by | hunters | S4}
+\newcommand{\PassiveExampleAssessment}{S4 supports this passive capture relation exactly in meaning. The frozen strict matcher lacks the inverse caught\_by alternative; its strict failure is not a falsehood judgment.}
+\newcommand{\PartialExample}{Mouse | running\_over | Lion | S1}
+\newcommand{\PartialExampleAssessment}{S1 says running over the Lion's face. Running over Lion retains the actor and broad action but loses the explicit body-part endpoint. This receives partial support, not full coverage of the frozen face-specific target.}
+\newcommand{\FableBScore}{P/R/F1 = 0.400/0.250/0.308.}
+\newcommand{\FableAScore}{P/R/F1 = 0.625/0.625/0.625.}
+\newcommand{\HolmesParseError}{Extra data: line 1 column 1683 (char 1682)}

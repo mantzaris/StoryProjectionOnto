@@ -1,24 +1,34 @@
-# Publishing verification: focused revision, 9 September 2026
+# Publishing verification: network and companion revision, 10 September 2026
 
-The revised main PDF has **8 A4 pages**, a **159-word abstract**, and **25,142 non-whitespace characters** by UTF-8 PDF text extraction. Searchable figure text is included. Counting all figure text a second time gives a deliberately conservative bound of **27,360**, leaving 12,640 below 40,000 even under that overcount. The page limit and character range are separate checks. No paid extra pages or modified template margins are used. These are local counts, not a claim about PRIMORIS's exact implementation.
+The main submission has **8 A4 pages**, **3 figures**, **2 unchanged result tables**, a **159-word abstract** and **25,529 non-whitespace characters** by UTF-8 PDF text extraction, including searchable figure text. Counting all main-figure text a second time gives a conservative bound of **27,834**. The official template files, margins and font sizes are unchanged.
 
-The revised main PDF was rendered with Poppler at 1,600 pixels page height. Every page was visually inspected, including all three native-width graphs, both numerical tables and the expanded bibliography. The companion remains 36 pages. Its revised introductory page and three figure pages were rendered at 1,500 pixels and inspected. Extracted text on companion pages 5–36 is byte-identical to the previously inspected PDF at commit `24c0a429af14db4c5a16ab16d086b2ca27d09aed`. No renewed inspection of unchanged content is claimed. Renders are reproducible local inspection artifacts under ignored `rendered/`, not reviewer attachments.
+The current companion has **7 pages**, **4 supplementary figures** and three reader tables (example index, failure guide and record index). It replaces the 36-page repeated-record rendering, removing 29 pages, approximately 81%, without reducing its 10-point body text. The former PDF and generated source remain at commit `48c0def1bfe8880029d88e9539462302d77833c7`. Complete responses, prompts, references, evaluations and notices remain byte-identical in their existing machine-readable files. The generated reproducibility index records paths and hashes.
+
+Every main and companion page was rendered with Poppler at 1,600 pixels and inspected. After the last paragraph shortening, main pages 6–8 were rendered and inspected again. Local inspection images are ignored under `rendered/`.
 
 Main-page inspection:
 
-- 1: anonymous title block, keywords, 159-word abstract, three numbered contributions and the start of related work. No identifying author block or page number.
-- 2: fable artwork at native 158.0134 mm, correct directed edges and partial-status strokes; caption retains the executed question and omitted-record accounting.
-- 3: compact record example, null/interval/attribution interpretation, model settings and two distinct processing paths.
-- 4: Harbor source intervals, included/excluded endpoint markers, distinct shaded query window, and both irrelevant carrying assertions; no interval clipping or hidden predictions.
-- 5: evaluation definitions and mixed results, preserving parse failures and Codex annotation provenance.
-- 6: Alice's actual thought object, wrong reading participant and unresolved daisy-chain record; exact two questions and display omissions in caption.
-- 7: both numerical tables, unavailable Holmes views and discussion. No table overflow or missing row. The first caption now begins at y = 97.564 PDF points, below the nominal top text margin at approximately 94.68 points. Its previous y = 91.587 points was above that margin.
-- 8: conclusion, concise non-identifying substantive AI disclosure, fourteen author-date bibliography entries and appendix after references. DOI links, editor/status/date for OWL-Time, literary edition dates and model hash are readable. No author affiliation or repository link appears.
+- 1: anonymous title, unchanged abstract, explicit contributions and related work.
+- 2: Orchard full pre-extraction and actual selected network, with shared nodes, visible arrowheads and readable citations. The S14 curve bypasses unrelated nodes. Broad edges carry no retrospective scientific verdict. All 14 and five respective records appear. The caption retains the exact executed question and source-display omissions.
+- 3: representation, qualifiers, extraction paths and source evidence.
+- 4: evaluation and mixed synthetic findings, with the existing denominators and disclosures.
+- 5: retained fable action comparison, now Figure 2. Its subset and partial interpretations remain unchanged.
+- 6: retained Alice figure and caption, with the wrong reading participant, literal thought object and unresolved consideration. The cost paragraph now fits without an orphaned sentence after the tables.
+- 7: both unchanged result tables. The top caption remains within the nominal top margin. No row overflow, lost result or missing-data reinterpretation.
+- 8: conclusion, AI disclosure, bibliography and appendix. No identifying author metadata or new policy claim.
 
-Presentation corrections in this revision: figure wrapping and rendering now both use actual Times New Roman regular/bold faces. Their PDF subsets are embedded, and the 8.5-point minimum remains unchanged at 158.0134 mm width. Editable SVGs reference local faces without redistributing font software. Six points of space inside the table floats correct the top-caption position without changing the official layout. Captions retain exact executed questions, literal erroneous fields, status meanings and all omitted-record counts. No output, annotation, matcher or score was repaired. Existing source-order and request-reconstruction checks remain in place.
+Companion-page inspection:
 
-Automated checks (`python paper/icaart2027/verify.py`) pass for original formatting-file hashes, unchanged canonical/report artifacts, figure-record and assessment correspondence, actual request hashes, all-page text bounds, embedded fonts without Type 3 glyphs, anonymity scans and blank Author metadata, citation/entry correspondence, independent character/page/abstract limits, and isolated ZIP compilation with identical extracted PDF text. Final TeX logs contain no overfull boxes or undefined references. The companion's page-number footer is checked separately from body margins.
+- 1: short guide, readable six-example index, status legend and distinction between the two processing paths.
+- 2: complete separate Orchard possession outputs. A has six nodes/five records. B has ten nodes/twelve records, including all seven irrelevant locations. Common horizontal anchors aid comparison without merging outputs.
+- 3: Orchard belief/reality view has six endpoint nodes/four records and two disconnected components. Two holder/attitude badges remain edge metadata, not invented holder relationships.
+- 4: Harbor full source intervals and the distinct query window, retaining all four A and six B records, including irrelevant carrying.
+- 5: full fable A and B networks, respectively five nodes/eight records and four nodes/five records. All parallel and reverse arrows remain distinct. Rope endpoint wording and the missing temporal field are not repaired.
+- 6: one strict-versus-semantic worked explanation and a compact failure table. Literal retained judgments remain supported, partial, unsupported or unresolved as before.
+- 7: complete-record index and short literal Holmes output tail. The extra closing brace remains a parsing failure, not an empty or reconstructed graph.
 
-Additional focused checks: `python -m pytest -q tests/unit/test_paper_figures.py`: **8 passed**. Publishing-source `ruff` checks for syntax/undefined-name classes passed. New checks cover the demonstrated risks: figure typeface, table-caption top position, and audited bibliography hashes. The clean ZIP reproduces the submission text. No experimental suites or model calls were run. The general manuscript, canonical results, previous compact figures and eight original plates remain unchanged. All edits are inside `paper/icaart2027/`.
+All figure PDFs use embedded Times New Roman regular/bold subsets, native width 158.0134 mm and minimum 8.5-point labels. SVG text stays editable with local font references, and PNG exports use 400 dpi. Node categories and layout are explicitly display annotations. All new network panels have zero omitted records.
 
-Remaining uncertainty is editorial/policy, not an unfinished build: semantic author-review decisions, full author declarations, prior public-manuscript eligibility, remote presentation, separate supplementary-upload permission and anonymous AI-disclosure placement. These are listed in `author_actions.md`; the secretariat inquiry is unsent. Visual inspection is Codex work, not independent human review or conference certification.
+Focused verification passes for canonical/report and template hashes, exact source/response mappings, selection membership, node and edge counts, direction, qualifications and citations, rendering-source and export hashes, PDF bounds/fonts/anonymity, citation correspondence, numerical consistency and clean ZIP compilation with identical extracted submission text. Final TeX logs have no overfull boxes or undefined references. **12 focused tests passed** across the existing figure tests and four network-specific checks. Syntax/undefined-name lint checks passed. No experimental suite, inference, scoring change or GPU operation was performed.
+
+Remaining author and policy decisions stay in `author_actions.md`. This inspection is Codex work, not independent human review or conference certification. The general manuscript, original reports, frozen scores and eight historical plates remain unchanged.

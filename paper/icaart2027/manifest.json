@@ -350,7 +350,12 @@
           "note": "S5 explicitly says the Mouse set the Lion free. Lion freed_by Mouse is the same directed meaning in passive form, outside the frozen strict synonym set."
         }
       ],
-      "display_transformation": "Five of eight A facts, all five B facts. Full exact strings; underscore-to-space labels and whitespace reflow only. Omitted A indices 1,5,6. Bounds and attribution null except actual missing valid_until (key valid until). No node merging across conditions."
+      "display_transformation": "Five of eight A facts, all five B facts. Full exact strings; underscore-to-space labels and whitespace reflow only. Omitted A indices 1,5,6. Bounds and attribution null except actual missing valid_until (key valid until). No node merging across conditions.",
+      "output_sha256": {
+        "pdf": "8507ab059656cc7728c6037cb699bf09a9bf34a7ae0cb64ff2ec2a4bf8a87a83",
+        "svg": "860d9fff70064fae0a685ea9baa411e19271a62a0790f821a84d5b1d17e40658",
+        "png": "e917d1ee0aecbb7f2099b745c54186c275ac1eb0ed2aed728863243c038eb13f"
+      }
     },
     "harbor": {
       "width_mm": 158.0134,
@@ -656,7 +661,12 @@
           "note": "supported_but_irrelevant"
         }
       ],
-      "display_transformation": "All four A and six B facts. Four identical location records share labelled display rows only; both provenance records retained. Two B carrying extras shown. Source S5-S8 of fourteen; no bounds changed."
+      "display_transformation": "All four A and six B facts. Four identical location records share labelled display rows only; both provenance records retained. Two B carrying extras shown. Source S5-S8 of fourteen; no bounds changed.",
+      "output_sha256": {
+        "pdf": "94dea4dc0f4042777dde4dfb9060233cf7b55cd477b4d4420588c98036750d41",
+        "svg": "c4181672c5c311732f40dde84f7646a986a5ce1edbcb32ae0af60bb518ecc512",
+        "png": "619e7101eb1855ff82350bf528f802661e08413ae64b828ed7c7f080c7e924b7"
+      }
     },
     "alice": {
       "width_mm": 158.0134,
@@ -801,7 +811,2504 @@
           "note": "S2 says Alice is considering WHETHER making the chain would be worth the trouble. 'considered worth' may instead mean judged worthwhile. The missing attitude alongside holder Alice also violates the compact pairing rule. Source support for a settled positive judgment cannot be established; do not award the consideration target by guessing."
         }
       ],
-      "display_transformation": "Action indices 3,4 of five; claim indices 2,3 of three. Exact endpoint strings retained, including sentence-valued object. Predicate underscores printed as spaces. No reconstructed belief graph. Source excerpts marked."
+      "display_transformation": "Action indices 3,4 of five; claim indices 2,3 of three. Exact endpoint strings retained, including sentence-valued object. Predicate underscores printed as spaces. No reconstructed belief graph. Source excerpts marked.",
+      "output_sha256": {
+        "pdf": "56b375ddd02b6fbcb9344438f377d3c51f404172bd2578b67a0097f2eccb74b4",
+        "svg": "cce66082e443b2ca581b0c5a5bf0f0c8457d424bfda55b22a4bb362b79792dd1",
+        "png": "164959874c079675db1f867e2d94106b4f8d17294293b13e5b77ef37054b0e19"
+      }
+    },
+    "orchard_network": {
+      "width_mm": 158.0134,
+      "height_mm": 173.67249999999999,
+      "minimum_font_pt": 8.5,
+      "font_family": "Times New Roman",
+      "font_sha256": {
+        "normal": "4e98adeff8ccc8ef4e3ece8d4547e288ff85fdc9c7ca711a4599c234874bbe86",
+        "bold": "4357b63cef20c01661a53c5dae70ffd20cb4765503aaed6d38b17a57c5a90bff"
+      },
+      "svg_font_delivery": "licensed local face; no redistributed font software",
+      "text": [
+        "Orchard · text, model network and fixed query selection",
+        "S1 Vera owns Copper Book.",
+        "S3 Jun carries Copper Book from day 9 up to but not including day 17.",
+        "S11 Jun believes that Ivory Vase is in Hill Court.",
+        "Model extraction before the question · 10 nodes / 14 records",
+        "Copper Book",
+        "Elm Dock",
+        "Hill Court",
+        "Ivory Vase",
+        "Jade Drum",
+        "Jun",
+        "River Room",
+        "Soren",
+        "South Loft",
+        "Vera",
+        "owns · S1",
+        "owns · S2",
+        "carries · S3\n[9,17)",
+        "carries · S4\n[10,16)",
+        "loc · S5\n[10,14)",
+        "loc · S6\n[14,18)",
+        "loc · S7\n[11,16)",
+        "loc · S8\n[12,15)",
+        "loc · S9\nSoren / believes",
+        "loc · S10",
+        "loc · S11\nJun / believes",
+        "loc · S12",
+        "owns · S13",
+        "loc · S14\n[18,20)",
+        "Fixed selection: ownership/carrying · 6 nodes / 5 records",
+        "Copper Book",
+        "Ivory Vase",
+        "Jade Drum",
+        "Jun",
+        "Soren",
+        "Vera",
+        "+ owns · S1",
+        "+ owns · S2",
+        "+ carries · S3\n[9,17)",
+        "+ carries · S4\n[10,16)",
+        "+ owns · S13",
+        "Blue fill: person. Cream: object. Grey: place (display categories). loc = located in. Dashed broad edges carry holder /\nattitude, not extra relationships. + supported. Unprinted bounds and attribution are null. Source excerpted: all 14\nsentences supplied."
+      ],
+      "records": [
+        {
+          "id": "edge-orchard_network-orchard_pre-1",
+          "artist_ids": [
+            "edge-orchard_network-orchard_pre-1-0",
+            "edge-orchard_network-orchard_pre-1-1"
+          ],
+          "panel": "orchard_pre",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 1,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "Copper Book",
+            "relation": "owns",
+            "subject": "Vera",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "not_assessed_in_this_view",
+          "note": "Literal model pre-extraction, not a reference graph.",
+          "source_call": "2",
+          "source_indices": [
+            1
+          ],
+          "display_label": "owns · S1",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_network-orchard_pre-2",
+          "artist_ids": [
+            "edge-orchard_network-orchard_pre-2-0",
+            "edge-orchard_network-orchard_pre-2-1"
+          ],
+          "panel": "orchard_pre",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 2,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S2"
+            ],
+            "holder": null,
+            "object": "Ivory Vase",
+            "relation": "owns",
+            "subject": "Soren",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "not_assessed_in_this_view",
+          "note": "Literal model pre-extraction, not a reference graph.",
+          "source_call": "2",
+          "source_indices": [
+            2
+          ],
+          "display_label": "owns · S2",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_network-orchard_pre-3",
+          "artist_ids": [
+            "edge-orchard_network-orchard_pre-3-0",
+            "edge-orchard_network-orchard_pre-3-1"
+          ],
+          "panel": "orchard_pre",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 3,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S3"
+            ],
+            "holder": null,
+            "object": "Copper Book",
+            "relation": "carries",
+            "subject": "Jun",
+            "valid_from": 9,
+            "valid_until": 17
+          },
+          "status": "not_assessed_in_this_view",
+          "note": "Literal model pre-extraction, not a reference graph.",
+          "source_call": "2",
+          "source_indices": [
+            3
+          ],
+          "display_label": "carries · S3\n[9,17)",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_network-orchard_pre-4",
+          "artist_ids": [
+            "edge-orchard_network-orchard_pre-4-0",
+            "edge-orchard_network-orchard_pre-4-1"
+          ],
+          "panel": "orchard_pre",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 4,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S4"
+            ],
+            "holder": null,
+            "object": "Ivory Vase",
+            "relation": "carries",
+            "subject": "Vera",
+            "valid_from": 10,
+            "valid_until": 16
+          },
+          "status": "not_assessed_in_this_view",
+          "note": "Literal model pre-extraction, not a reference graph.",
+          "source_call": "2",
+          "source_indices": [
+            4
+          ],
+          "display_label": "carries · S4\n[10,16)",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_network-orchard_pre-5",
+          "artist_ids": [
+            "edge-orchard_network-orchard_pre-5-0",
+            "edge-orchard_network-orchard_pre-5-1"
+          ],
+          "panel": "orchard_pre",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 5,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S5"
+            ],
+            "holder": null,
+            "object": "River Room",
+            "relation": "located_in",
+            "subject": "Jun",
+            "valid_from": 10,
+            "valid_until": 14
+          },
+          "status": "not_assessed_in_this_view",
+          "note": "Literal model pre-extraction, not a reference graph.",
+          "source_call": "2",
+          "source_indices": [
+            5
+          ],
+          "display_label": "loc · S5\n[10,14)",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_network-orchard_pre-6",
+          "artist_ids": [
+            "edge-orchard_network-orchard_pre-6-0",
+            "edge-orchard_network-orchard_pre-6-1"
+          ],
+          "panel": "orchard_pre",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 6,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S6"
+            ],
+            "holder": null,
+            "object": "Hill Court",
+            "relation": "located_in",
+            "subject": "Soren",
+            "valid_from": 14,
+            "valid_until": 18
+          },
+          "status": "not_assessed_in_this_view",
+          "note": "Literal model pre-extraction, not a reference graph.",
+          "source_call": "2",
+          "source_indices": [
+            6
+          ],
+          "display_label": "loc · S6\n[14,18)",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_network-orchard_pre-7",
+          "artist_ids": [
+            "edge-orchard_network-orchard_pre-7-0",
+            "edge-orchard_network-orchard_pre-7-1"
+          ],
+          "panel": "orchard_pre",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 7,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S7"
+            ],
+            "holder": null,
+            "object": "South Loft",
+            "relation": "located_in",
+            "subject": "Vera",
+            "valid_from": 11,
+            "valid_until": 16
+          },
+          "status": "not_assessed_in_this_view",
+          "note": "Literal model pre-extraction, not a reference graph.",
+          "source_call": "2",
+          "source_indices": [
+            7
+          ],
+          "display_label": "loc · S7\n[11,16)",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_network-orchard_pre-8",
+          "artist_ids": [
+            "edge-orchard_network-orchard_pre-8-0",
+            "edge-orchard_network-orchard_pre-8-1"
+          ],
+          "panel": "orchard_pre",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 8,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S8"
+            ],
+            "holder": null,
+            "object": "Elm Dock",
+            "relation": "located_in",
+            "subject": "Jade Drum",
+            "valid_from": 12,
+            "valid_until": 15
+          },
+          "status": "not_assessed_in_this_view",
+          "note": "Literal model pre-extraction, not a reference graph.",
+          "source_call": "2",
+          "source_indices": [
+            8
+          ],
+          "display_label": "loc · S8\n[12,15)",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_network-orchard_pre-9",
+          "artist_ids": [
+            "edge-orchard_network-orchard_pre-9-0",
+            "edge-orchard_network-orchard_pre-9-1"
+          ],
+          "panel": "orchard_pre",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 9,
+          "fact": {
+            "attitude": "believes",
+            "evidence_ids": [
+              "S9"
+            ],
+            "holder": "Soren",
+            "object": "South Loft",
+            "relation": "located_in",
+            "subject": "Copper Book",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "not_assessed_in_this_view",
+          "note": "Literal model pre-extraction, not a reference graph.",
+          "source_call": "2",
+          "source_indices": [
+            9
+          ],
+          "display_label": "loc · S9\nSoren / believes",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": -0.1
+          }
+        },
+        {
+          "id": "edge-orchard_network-orchard_pre-10",
+          "artist_ids": [
+            "edge-orchard_network-orchard_pre-10-0",
+            "edge-orchard_network-orchard_pre-10-1"
+          ],
+          "panel": "orchard_pre",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 10,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S10"
+            ],
+            "holder": null,
+            "object": "River Room",
+            "relation": "located_in",
+            "subject": "Copper Book",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "not_assessed_in_this_view",
+          "note": "Literal model pre-extraction, not a reference graph.",
+          "source_call": "2",
+          "source_indices": [
+            10
+          ],
+          "display_label": "loc · S10",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_network-orchard_pre-11",
+          "artist_ids": [
+            "edge-orchard_network-orchard_pre-11-0",
+            "edge-orchard_network-orchard_pre-11-1"
+          ],
+          "panel": "orchard_pre",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 11,
+          "fact": {
+            "attitude": "believes",
+            "evidence_ids": [
+              "S11"
+            ],
+            "holder": "Jun",
+            "object": "Hill Court",
+            "relation": "located_in",
+            "subject": "Ivory Vase",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "not_assessed_in_this_view",
+          "note": "Literal model pre-extraction, not a reference graph.",
+          "source_call": "2",
+          "source_indices": [
+            11
+          ],
+          "display_label": "loc · S11\nJun / believes",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_network-orchard_pre-12",
+          "artist_ids": [
+            "edge-orchard_network-orchard_pre-12-0",
+            "edge-orchard_network-orchard_pre-12-1"
+          ],
+          "panel": "orchard_pre",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 12,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S12"
+            ],
+            "holder": null,
+            "object": "Elm Dock",
+            "relation": "located_in",
+            "subject": "Ivory Vase",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "not_assessed_in_this_view",
+          "note": "Literal model pre-extraction, not a reference graph.",
+          "source_call": "2",
+          "source_indices": [
+            12
+          ],
+          "display_label": "loc · S12",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_network-orchard_pre-13",
+          "artist_ids": [
+            "edge-orchard_network-orchard_pre-13-0",
+            "edge-orchard_network-orchard_pre-13-1"
+          ],
+          "panel": "orchard_pre",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 13,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S13"
+            ],
+            "holder": null,
+            "object": "Jade Drum",
+            "relation": "owns",
+            "subject": "Jun",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "not_assessed_in_this_view",
+          "note": "Literal model pre-extraction, not a reference graph.",
+          "source_call": "2",
+          "source_indices": [
+            13
+          ],
+          "display_label": "owns · S13",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_network-orchard_pre-14",
+          "artist_ids": [
+            "edge-orchard_network-orchard_pre-14-0",
+            "edge-orchard_network-orchard_pre-14-1"
+          ],
+          "panel": "orchard_pre",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 14,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S14"
+            ],
+            "holder": null,
+            "object": "South Loft",
+            "relation": "located_in",
+            "subject": "Jun",
+            "valid_from": 18,
+            "valid_until": 20
+          },
+          "status": "not_assessed_in_this_view",
+          "note": "Literal model pre-extraction, not a reference graph.",
+          "source_call": "2",
+          "source_indices": [
+            14
+          ],
+          "display_label": "loc · S14\n[18,20)",
+          "display_route": {
+            "kind": "two_quadratics",
+            "vertices": [
+              [
+                79.41345959706881,
+                204.47505909124644
+              ],
+              [
+                200,
+                241.14999999999998
+              ],
+              [
+                337,
+                219.45
+              ],
+              [
+                418,
+                199.14999999999998
+              ],
+              [
+                385.82939906696663,
+                120.0277112187558
+              ]
+            ],
+            "note": "Routing waypoints are not nodes. Endpoints clipped to actual node borders."
+          }
+        },
+        {
+          "id": "edge-orchard_network-orchard_A-1",
+          "artist_ids": [
+            "edge-orchard_network-orchard_A-1-0",
+            "edge-orchard_network-orchard_A-1-1"
+          ],
+          "panel": "orchard_A",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 1,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "Copper Book",
+            "relation": "owns",
+            "subject": "Vera",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "correct_complete_fact",
+          "source_call": "2",
+          "source_indices": [
+            1
+          ],
+          "display_label": "+ owns · S1",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_network-orchard_A-2",
+          "artist_ids": [
+            "edge-orchard_network-orchard_A-2-0",
+            "edge-orchard_network-orchard_A-2-1"
+          ],
+          "panel": "orchard_A",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 2,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S2"
+            ],
+            "holder": null,
+            "object": "Ivory Vase",
+            "relation": "owns",
+            "subject": "Soren",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "correct_complete_fact",
+          "source_call": "2",
+          "source_indices": [
+            2
+          ],
+          "display_label": "+ owns · S2",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_network-orchard_A-3",
+          "artist_ids": [
+            "edge-orchard_network-orchard_A-3-0",
+            "edge-orchard_network-orchard_A-3-1"
+          ],
+          "panel": "orchard_A",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 3,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S3"
+            ],
+            "holder": null,
+            "object": "Copper Book",
+            "relation": "carries",
+            "subject": "Jun",
+            "valid_from": 9,
+            "valid_until": 17
+          },
+          "status": "supported",
+          "note": "correct_complete_fact",
+          "source_call": "2",
+          "source_indices": [
+            3
+          ],
+          "display_label": "+ carries · S3\n[9,17)",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_network-orchard_A-4",
+          "artist_ids": [
+            "edge-orchard_network-orchard_A-4-0",
+            "edge-orchard_network-orchard_A-4-1"
+          ],
+          "panel": "orchard_A",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 4,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S4"
+            ],
+            "holder": null,
+            "object": "Ivory Vase",
+            "relation": "carries",
+            "subject": "Vera",
+            "valid_from": 10,
+            "valid_until": 16
+          },
+          "status": "supported",
+          "note": "correct_complete_fact",
+          "source_call": "2",
+          "source_indices": [
+            4
+          ],
+          "display_label": "+ carries · S4\n[10,16)",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_network-orchard_A-5",
+          "artist_ids": [
+            "edge-orchard_network-orchard_A-5-0",
+            "edge-orchard_network-orchard_A-5-1"
+          ],
+          "panel": "orchard_A",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 5,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S13"
+            ],
+            "holder": null,
+            "object": "Jade Drum",
+            "relation": "owns",
+            "subject": "Jun",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "correct_complete_fact",
+          "source_call": "2",
+          "source_indices": [
+            13
+          ],
+          "display_label": "+ owns · S13",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        }
+      ],
+      "display_transformation": "All 14 pre-extraction records and all five actually selected records. Only exact endpoint strings share glyphs. Broad graph is ungraded, not gold. Sparse panel compresses vertical spacing; x anchors remain fixed. Source excerpt S1,S3,S11.",
+      "output_sha256": {
+        "pdf": "8e6d1f015a23815ba4a7c4d779645f59c765c3279c314d5e7cb2d2c3fff6685a",
+        "svg": "046969dae57c71af019a9f32bfab7449131b355a16e5421798e2b5f9e5b4d545",
+        "png": "ea1056ada440344b70c0572da08165553a9fe695b326c6b9821b2a302b537d72"
+      },
+      "network_panels": [
+        {
+          "id": "orchard_pre",
+          "source_panel": "orchard_pre",
+          "nodes": [
+            {
+              "identity": "Copper Book",
+              "x": 204,
+              "y": 129.14999999999998,
+              "category": "object"
+            },
+            {
+              "identity": "Elm Dock",
+              "x": 166,
+              "y": 308.34999999999997,
+              "category": "place"
+            },
+            {
+              "identity": "Hill Court",
+              "x": 406,
+              "y": 304.15,
+              "category": "place"
+            },
+            {
+              "identity": "Ivory Vase",
+              "x": 260,
+              "y": 269.15,
+              "category": "object"
+            },
+            {
+              "identity": "Jade Drum",
+              "x": 48,
+              "y": 279.65,
+              "category": "object"
+            },
+            {
+              "identity": "Jun",
+              "x": 55,
+              "y": 197.04999999999998,
+              "category": "person"
+            },
+            {
+              "identity": "River Room",
+              "x": 54,
+              "y": 108.14999999999999,
+              "category": "place"
+            },
+            {
+              "identity": "Soren",
+              "x": 410,
+              "y": 203.34999999999997,
+              "category": "person"
+            },
+            {
+              "identity": "South Loft",
+              "x": 381,
+              "y": 108.14999999999999,
+              "category": "place"
+            },
+            {
+              "identity": "Vera",
+              "x": 307,
+              "y": 182.34999999999997,
+              "category": "person"
+            }
+          ],
+          "node_count": 10,
+          "edge_count": 14,
+          "indices": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ],
+          "omitted_record_count": 0,
+          "identity_rule": "Exact endpoint string equality only. No holder-generated edges.",
+          "position_rule": "Declared fixed display coordinates; vertical scale recorded.",
+          "yscale": 0.7
+        },
+        {
+          "id": "orchard_A",
+          "source_panel": "orchard_A",
+          "nodes": [
+            {
+              "identity": "Copper Book",
+              "x": 204,
+              "y": 358.15,
+              "category": "object"
+            },
+            {
+              "identity": "Ivory Vase",
+              "x": 260,
+              "y": 428.15,
+              "category": "object"
+            },
+            {
+              "identity": "Jade Drum",
+              "x": 48,
+              "y": 433.4,
+              "category": "object"
+            },
+            {
+              "identity": "Jun",
+              "x": 55,
+              "y": 392.09999999999997,
+              "category": "person"
+            },
+            {
+              "identity": "Soren",
+              "x": 410,
+              "y": 395.25,
+              "category": "person"
+            },
+            {
+              "identity": "Vera",
+              "x": 307,
+              "y": 384.75,
+              "category": "person"
+            }
+          ],
+          "node_count": 6,
+          "edge_count": 5,
+          "indices": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "omitted_record_count": 0,
+          "identity_rule": "Exact endpoint string equality only. No holder-generated edges.",
+          "position_rule": "Declared fixed display coordinates; vertical scale recorded.",
+          "yscale": 0.35
+        }
+      ]
+    },
+    "orchard_comparison": {
+      "width_mm": 158.0134,
+      "height_mm": 190.1825,
+      "minimum_font_pt": 8.5,
+      "font_family": "Times New Roman",
+      "font_sha256": {
+        "normal": "4e98adeff8ccc8ef4e3ece8d4547e288ff85fdc9c7ca711a4599c234874bbe86",
+        "bold": "4357b63cef20c01661a53c5dae70ffd20cb4765503aaed6d38b17a57c5a90bff"
+      },
+      "svg_font_delivery": "licensed local face; no redistributed font software",
+      "text": [
+        "Orchard ownership · fixed selection versus contextual extraction",
+        "A: five selected records from call 2",
+        "Copper Book",
+        "Ivory Vase",
+        "Jade Drum",
+        "Jun",
+        "Soren",
+        "Vera",
+        "+ owns · S1",
+        "+ owns · S2",
+        "+ carries · S3\n[9,17)",
+        "+ carries · S4\n[10,16)",
+        "+ owns · S13",
+        "B: independent contextual call 7 · all twelve records",
+        "Copper Book",
+        "Elm Dock",
+        "Hill Court",
+        "Ivory Vase",
+        "Jade Drum",
+        "Jun",
+        "River Room",
+        "Soren",
+        "South Loft",
+        "Vera",
+        "+ owns · S1",
+        "+ owns · S2",
+        "+ carries · S3\n[9,17)",
+        "+ carries · S4\n[10,16)",
+        "I loc · S5\n[10,14)",
+        "I loc · S6\n[14,18)",
+        "I loc · S7\n[11,16)",
+        "I loc · S8\n[12,15)",
+        "I loc · S10",
+        "I loc · S12",
+        "+ owns · S13",
+        "I loc · S14\n[18,20)",
+        "+ supported and relevant. I supported but irrelevant (dashed). Colours assess records, not selection. Node fills are display\ncategories. loc = located in. All holder/attitude values null. Unprinted bounds null."
+      ],
+      "records": [
+        {
+          "id": "edge-orchard_comparison-orchard_A-1",
+          "artist_ids": [
+            "edge-orchard_comparison-orchard_A-1-0",
+            "edge-orchard_comparison-orchard_A-1-1"
+          ],
+          "panel": "orchard_A",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 1,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "Copper Book",
+            "relation": "owns",
+            "subject": "Vera",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "correct_complete_fact",
+          "source_call": "2",
+          "source_indices": [
+            1
+          ],
+          "display_label": "+ owns · S1",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_comparison-orchard_A-2",
+          "artist_ids": [
+            "edge-orchard_comparison-orchard_A-2-0",
+            "edge-orchard_comparison-orchard_A-2-1"
+          ],
+          "panel": "orchard_A",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 2,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S2"
+            ],
+            "holder": null,
+            "object": "Ivory Vase",
+            "relation": "owns",
+            "subject": "Soren",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "correct_complete_fact",
+          "source_call": "2",
+          "source_indices": [
+            2
+          ],
+          "display_label": "+ owns · S2",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_comparison-orchard_A-3",
+          "artist_ids": [
+            "edge-orchard_comparison-orchard_A-3-0",
+            "edge-orchard_comparison-orchard_A-3-1"
+          ],
+          "panel": "orchard_A",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 3,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S3"
+            ],
+            "holder": null,
+            "object": "Copper Book",
+            "relation": "carries",
+            "subject": "Jun",
+            "valid_from": 9,
+            "valid_until": 17
+          },
+          "status": "supported",
+          "note": "correct_complete_fact",
+          "source_call": "2",
+          "source_indices": [
+            3
+          ],
+          "display_label": "+ carries · S3\n[9,17)",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_comparison-orchard_A-4",
+          "artist_ids": [
+            "edge-orchard_comparison-orchard_A-4-0",
+            "edge-orchard_comparison-orchard_A-4-1"
+          ],
+          "panel": "orchard_A",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 4,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S4"
+            ],
+            "holder": null,
+            "object": "Ivory Vase",
+            "relation": "carries",
+            "subject": "Vera",
+            "valid_from": 10,
+            "valid_until": 16
+          },
+          "status": "supported",
+          "note": "correct_complete_fact",
+          "source_call": "2",
+          "source_indices": [
+            4
+          ],
+          "display_label": "+ carries · S4\n[10,16)",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_comparison-orchard_A-5",
+          "artist_ids": [
+            "edge-orchard_comparison-orchard_A-5-0",
+            "edge-orchard_comparison-orchard_A-5-1"
+          ],
+          "panel": "orchard_A",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 5,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S13"
+            ],
+            "holder": null,
+            "object": "Jade Drum",
+            "relation": "owns",
+            "subject": "Jun",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "correct_complete_fact",
+          "source_call": "2",
+          "source_indices": [
+            13
+          ],
+          "display_label": "+ owns · S13",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_comparison-orchard_B-1",
+          "artist_ids": [
+            "edge-orchard_comparison-orchard_B-1-0",
+            "edge-orchard_comparison-orchard_B-1-1"
+          ],
+          "panel": "orchard_B",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 1,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "Copper Book",
+            "relation": "owns",
+            "subject": "Vera",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "correct_complete_fact",
+          "source_call": "7",
+          "source_indices": [
+            1
+          ],
+          "display_label": "+ owns · S1",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_comparison-orchard_B-2",
+          "artist_ids": [
+            "edge-orchard_comparison-orchard_B-2-0",
+            "edge-orchard_comparison-orchard_B-2-1"
+          ],
+          "panel": "orchard_B",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 2,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S2"
+            ],
+            "holder": null,
+            "object": "Ivory Vase",
+            "relation": "owns",
+            "subject": "Soren",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "correct_complete_fact",
+          "source_call": "7",
+          "source_indices": [
+            2
+          ],
+          "display_label": "+ owns · S2",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_comparison-orchard_B-3",
+          "artist_ids": [
+            "edge-orchard_comparison-orchard_B-3-0",
+            "edge-orchard_comparison-orchard_B-3-1"
+          ],
+          "panel": "orchard_B",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 3,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S3"
+            ],
+            "holder": null,
+            "object": "Copper Book",
+            "relation": "carries",
+            "subject": "Jun",
+            "valid_from": 9,
+            "valid_until": 17
+          },
+          "status": "supported",
+          "note": "correct_complete_fact",
+          "source_call": "7",
+          "source_indices": [
+            3
+          ],
+          "display_label": "+ carries · S3\n[9,17)",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_comparison-orchard_B-4",
+          "artist_ids": [
+            "edge-orchard_comparison-orchard_B-4-0",
+            "edge-orchard_comparison-orchard_B-4-1"
+          ],
+          "panel": "orchard_B",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 4,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S4"
+            ],
+            "holder": null,
+            "object": "Ivory Vase",
+            "relation": "carries",
+            "subject": "Vera",
+            "valid_from": 10,
+            "valid_until": 16
+          },
+          "status": "supported",
+          "note": "correct_complete_fact",
+          "source_call": "7",
+          "source_indices": [
+            4
+          ],
+          "display_label": "+ carries · S4\n[10,16)",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_comparison-orchard_B-5",
+          "artist_ids": [
+            "edge-orchard_comparison-orchard_B-5-0",
+            "edge-orchard_comparison-orchard_B-5-1"
+          ],
+          "panel": "orchard_B",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 5,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S5"
+            ],
+            "holder": null,
+            "object": "River Room",
+            "relation": "located_in",
+            "subject": "Jun",
+            "valid_from": 10,
+            "valid_until": 14
+          },
+          "status": "irrelevant",
+          "note": "supported_but_irrelevant",
+          "source_call": "7",
+          "source_indices": [
+            5
+          ],
+          "display_label": "I loc · S5\n[10,14)",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_comparison-orchard_B-6",
+          "artist_ids": [
+            "edge-orchard_comparison-orchard_B-6-0",
+            "edge-orchard_comparison-orchard_B-6-1"
+          ],
+          "panel": "orchard_B",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 6,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S6"
+            ],
+            "holder": null,
+            "object": "Hill Court",
+            "relation": "located_in",
+            "subject": "Soren",
+            "valid_from": 14,
+            "valid_until": 18
+          },
+          "status": "irrelevant",
+          "note": "supported_but_irrelevant",
+          "source_call": "7",
+          "source_indices": [
+            6
+          ],
+          "display_label": "I loc · S6\n[14,18)",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_comparison-orchard_B-7",
+          "artist_ids": [
+            "edge-orchard_comparison-orchard_B-7-0",
+            "edge-orchard_comparison-orchard_B-7-1"
+          ],
+          "panel": "orchard_B",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 7,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S7"
+            ],
+            "holder": null,
+            "object": "South Loft",
+            "relation": "located_in",
+            "subject": "Vera",
+            "valid_from": 11,
+            "valid_until": 16
+          },
+          "status": "irrelevant",
+          "note": "supported_but_irrelevant",
+          "source_call": "7",
+          "source_indices": [
+            7
+          ],
+          "display_label": "I loc · S7\n[11,16)",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_comparison-orchard_B-8",
+          "artist_ids": [
+            "edge-orchard_comparison-orchard_B-8-0",
+            "edge-orchard_comparison-orchard_B-8-1"
+          ],
+          "panel": "orchard_B",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 8,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S8"
+            ],
+            "holder": null,
+            "object": "Elm Dock",
+            "relation": "located_in",
+            "subject": "Jade Drum",
+            "valid_from": 12,
+            "valid_until": 15
+          },
+          "status": "irrelevant",
+          "note": "supported_but_irrelevant",
+          "source_call": "7",
+          "source_indices": [
+            8
+          ],
+          "display_label": "I loc · S8\n[12,15)",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_comparison-orchard_B-9",
+          "artist_ids": [
+            "edge-orchard_comparison-orchard_B-9-0",
+            "edge-orchard_comparison-orchard_B-9-1"
+          ],
+          "panel": "orchard_B",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 9,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S10"
+            ],
+            "holder": null,
+            "object": "River Room",
+            "relation": "located_in",
+            "subject": "Copper Book",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "irrelevant",
+          "note": "supported_but_irrelevant",
+          "source_call": "7",
+          "source_indices": [
+            9
+          ],
+          "display_label": "I loc · S10",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_comparison-orchard_B-10",
+          "artist_ids": [
+            "edge-orchard_comparison-orchard_B-10-0",
+            "edge-orchard_comparison-orchard_B-10-1"
+          ],
+          "panel": "orchard_B",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 10,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S12"
+            ],
+            "holder": null,
+            "object": "Elm Dock",
+            "relation": "located_in",
+            "subject": "Ivory Vase",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "irrelevant",
+          "note": "supported_but_irrelevant",
+          "source_call": "7",
+          "source_indices": [
+            10
+          ],
+          "display_label": "I loc · S12",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_comparison-orchard_B-11",
+          "artist_ids": [
+            "edge-orchard_comparison-orchard_B-11-0",
+            "edge-orchard_comparison-orchard_B-11-1"
+          ],
+          "panel": "orchard_B",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 11,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S13"
+            ],
+            "holder": null,
+            "object": "Jade Drum",
+            "relation": "owns",
+            "subject": "Jun",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "correct_complete_fact",
+          "source_call": "7",
+          "source_indices": [
+            11
+          ],
+          "display_label": "+ owns · S13",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_comparison-orchard_B-12",
+          "artist_ids": [
+            "edge-orchard_comparison-orchard_B-12-0",
+            "edge-orchard_comparison-orchard_B-12-1"
+          ],
+          "panel": "orchard_B",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 12,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S14"
+            ],
+            "holder": null,
+            "object": "South Loft",
+            "relation": "located_in",
+            "subject": "Jun",
+            "valid_from": 18,
+            "valid_until": 20
+          },
+          "status": "irrelevant",
+          "note": "supported_but_irrelevant",
+          "source_call": "7",
+          "source_indices": [
+            12
+          ],
+          "display_label": "I loc · S14\n[18,20)",
+          "display_route": {
+            "kind": "two_quadratics",
+            "vertices": [
+              [
+                79.37614443280832,
+                370.45236230604746
+              ],
+              [
+                200,
+                415.0
+              ],
+              [
+                337,
+                388.65
+              ],
+              [
+                418,
+                364.0
+              ],
+              [
+                384.99181672364733,
+                265.4215067017035
+              ]
+            ],
+            "note": "Routing waypoints are not nodes. Endpoints clipped to actual node borders."
+          }
+        }
+      ],
+      "display_transformation": "Complete separate A and B possession outputs. No combined graph. Common x coordinates and relative y order. All seven B extras remain visible and scored.",
+      "output_sha256": {
+        "pdf": "445b5aec269d0ea1ba5b8f32454cab3b6b9e6bef25a8b415794b1c92af53fe4d",
+        "svg": "bc772b47f5f92049d0960c8302dd6d5eb23450f0b788a3e91947c102eacb3824",
+        "png": "c42641d3a38dbf849ec8e5ff9c6589ef9176f31f4ee6ac1415e6f56cb45b3709"
+      },
+      "network_panels": [
+        {
+          "id": "orchard_A",
+          "source_panel": "orchard_A",
+          "nodes": [
+            {
+              "identity": "Copper Book",
+              "x": 204,
+              "y": 52.0,
+              "category": "object"
+            },
+            {
+              "identity": "Ivory Vase",
+              "x": 260,
+              "y": 142.0,
+              "category": "object"
+            },
+            {
+              "identity": "Jade Drum",
+              "x": 48,
+              "y": 148.75,
+              "category": "object"
+            },
+            {
+              "identity": "Jun",
+              "x": 55,
+              "y": 95.65,
+              "category": "person"
+            },
+            {
+              "identity": "Soren",
+              "x": 410,
+              "y": 99.7,
+              "category": "person"
+            },
+            {
+              "identity": "Vera",
+              "x": 307,
+              "y": 86.2,
+              "category": "person"
+            }
+          ],
+          "node_count": 6,
+          "edge_count": 5,
+          "indices": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "omitted_record_count": 0,
+          "identity_rule": "Exact endpoint string equality only. No holder-generated edges.",
+          "position_rule": "Declared fixed display coordinates; vertical scale recorded.",
+          "yscale": 0.45
+        },
+        {
+          "id": "orchard_B",
+          "source_panel": "orchard_B",
+          "nodes": [
+            {
+              "identity": "Copper Book",
+              "x": 204,
+              "y": 279.0,
+              "category": "object"
+            },
+            {
+              "identity": "Elm Dock",
+              "x": 166,
+              "y": 496.59999999999997,
+              "category": "place"
+            },
+            {
+              "identity": "Hill Court",
+              "x": 406,
+              "y": 491.5,
+              "category": "place"
+            },
+            {
+              "identity": "Ivory Vase",
+              "x": 260,
+              "y": 449.0,
+              "category": "object"
+            },
+            {
+              "identity": "Jade Drum",
+              "x": 48,
+              "y": 461.75,
+              "category": "object"
+            },
+            {
+              "identity": "Jun",
+              "x": 55,
+              "y": 361.45,
+              "category": "person"
+            },
+            {
+              "identity": "River Room",
+              "x": 54,
+              "y": 253.5,
+              "category": "place"
+            },
+            {
+              "identity": "Soren",
+              "x": 410,
+              "y": 369.1,
+              "category": "person"
+            },
+            {
+              "identity": "South Loft",
+              "x": 381,
+              "y": 253.5,
+              "category": "place"
+            },
+            {
+              "identity": "Vera",
+              "x": 307,
+              "y": 343.6,
+              "category": "person"
+            }
+          ],
+          "node_count": 10,
+          "edge_count": 12,
+          "indices": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12
+          ],
+          "omitted_record_count": 0,
+          "identity_rule": "Exact endpoint string equality only. No holder-generated edges.",
+          "position_rule": "Declared fixed display coordinates; vertical scale recorded.",
+          "yscale": 0.85
+        }
+      ]
+    },
+    "orchard_beliefs": {
+      "width_mm": 158.0134,
+      "height_mm": 176.35361111111112,
+      "minimum_font_pt": 8.5,
+      "font_family": "Times New Roman",
+      "font_sha256": {
+        "normal": "4e98adeff8ccc8ef4e3ece8d4547e288ff85fdc9c7ca711a4599c234874bbe86",
+        "bold": "4357b63cef20c01661a53c5dae70ffd20cb4765503aaed6d38b17a57c5a90bff"
+      },
+      "svg_font_delivery": "licensed local face; no redistributed font software",
+      "text": [
+        "Orchard · believed and narrated locations",
+        "S9 Soren believes that Copper Book is in South Loft.",
+        "S10 In reality, Copper Book is in River Room.",
+        "S11 Jun believes that Ivory Vase is in Hill Court.",
+        "S12 In reality, Ivory Vase is in Elm Dock.",
+        "Copper Book",
+        "Elm Dock",
+        "Hill Court",
+        "Ivory Vase",
+        "River Room",
+        "South Loft",
+        "+ loc · S9\nSoren / believes",
+        "+ loc · S10",
+        "+ loc · S11\nJun / believes",
+        "+ loc · S12",
+        "A: fixed selection from call 2. All four records on six endpoint nodes. Holder names are qualifications, not additional\nnodes or edges. All validity bounds null. + supported under the frozen evaluation. loc = located in."
+      ],
+      "records": [
+        {
+          "id": "edge-orchard_beliefs-orchard_belief-1",
+          "artist_ids": [
+            "edge-orchard_beliefs-orchard_belief-1-0",
+            "edge-orchard_beliefs-orchard_belief-1-1"
+          ],
+          "panel": "orchard_belief",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 1,
+          "fact": {
+            "attitude": "believes",
+            "evidence_ids": [
+              "S9"
+            ],
+            "holder": "Soren",
+            "object": "South Loft",
+            "relation": "located_in",
+            "subject": "Copper Book",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "correct_complete_fact",
+          "source_call": "2",
+          "source_indices": [
+            9
+          ],
+          "display_label": "+ loc · S9\nSoren / believes",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_beliefs-orchard_belief-2",
+          "artist_ids": [
+            "edge-orchard_beliefs-orchard_belief-2-0",
+            "edge-orchard_beliefs-orchard_belief-2-1"
+          ],
+          "panel": "orchard_belief",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 2,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S10"
+            ],
+            "holder": null,
+            "object": "River Room",
+            "relation": "located_in",
+            "subject": "Copper Book",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "correct_complete_fact",
+          "source_call": "2",
+          "source_indices": [
+            10
+          ],
+          "display_label": "+ loc · S10",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_beliefs-orchard_belief-3",
+          "artist_ids": [
+            "edge-orchard_beliefs-orchard_belief-3-0",
+            "edge-orchard_beliefs-orchard_belief-3-1"
+          ],
+          "panel": "orchard_belief",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 3,
+          "fact": {
+            "attitude": "believes",
+            "evidence_ids": [
+              "S11"
+            ],
+            "holder": "Jun",
+            "object": "Hill Court",
+            "relation": "located_in",
+            "subject": "Ivory Vase",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "correct_complete_fact",
+          "source_call": "2",
+          "source_indices": [
+            11
+          ],
+          "display_label": "+ loc · S11\nJun / believes",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        },
+        {
+          "id": "edge-orchard_beliefs-orchard_belief-4",
+          "artist_ids": [
+            "edge-orchard_beliefs-orchard_belief-4-0",
+            "edge-orchard_beliefs-orchard_belief-4-1"
+          ],
+          "panel": "orchard_belief",
+          "story": "orchard",
+          "dataset": "synthetic",
+          "index": 4,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S12"
+            ],
+            "holder": null,
+            "object": "Elm Dock",
+            "relation": "located_in",
+            "subject": "Ivory Vase",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "correct_complete_fact",
+          "source_call": "2",
+          "source_indices": [
+            12
+          ],
+          "display_label": "+ loc · S12",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0
+          }
+        }
+      ],
+      "display_transformation": "Complete belief/reality selection. Two disconnected object-centred components. Explicit holder/attitude preserved on two attributed edges. No invented holder edges.",
+      "output_sha256": {
+        "pdf": "b8cb614cc03e217670972b87181b2bdd3b485fad286d056e024942d57ecb9d1c",
+        "svg": "2c09f670f4f69ecd15d63ca3c5fcbd9d4f763e0b414f63db79959d2ba296ec3a",
+        "png": "ed783c6961b14d8aac5fa1fe8358d3466dc95aa419db45d3a260e2fa95ed94e2"
+      },
+      "network_panels": [
+        {
+          "id": "orchard_belief",
+          "source_panel": "orchard_belief",
+          "nodes": [
+            {
+              "identity": "Copper Book",
+              "x": 80,
+              "y": 180.8,
+              "category": "object"
+            },
+            {
+              "identity": "Elm Dock",
+              "x": 325,
+              "y": 435.8,
+              "category": "place"
+            },
+            {
+              "identity": "Hill Court",
+              "x": 325,
+              "y": 318.8,
+              "category": "place"
+            },
+            {
+              "identity": "Ivory Vase",
+              "x": 80,
+              "y": 377.8,
+              "category": "object"
+            },
+            {
+              "identity": "River Room",
+              "x": 325,
+              "y": 238.8,
+              "category": "place"
+            },
+            {
+              "identity": "South Loft",
+              "x": 325,
+              "y": 122.80000000000001,
+              "category": "place"
+            }
+          ],
+          "node_count": 6,
+          "edge_count": 4,
+          "indices": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "omitted_record_count": 0,
+          "identity_rule": "Exact endpoint string equality only. No holder-generated edges.",
+          "position_rule": "Declared fixed display coordinates; vertical scale recorded.",
+          "yscale": 1
+        }
+      ]
+    },
+    "fable_networks": {
+      "width_mm": 158.0134,
+      "height_mm": 195.13902777777776,
+      "minimum_font_pt": 8.5,
+      "font_family": "Times New Roman",
+      "font_sha256": {
+        "normal": "4e98adeff8ccc8ef4e3ece8d4547e288ff85fdc9c7ca711a4599c234874bbe86",
+        "bold": "4357b63cef20c01661a53c5dae70ffd20cb4765503aaed6d38b17a57c5a90bff"
+      },
+      "svg_font_delivery": "licensed local face; no redistributed font software",
+      "text": [
+        "Fable actions · full networks with literal endpoint identities",
+        "A: fixed selection · all eight records",
+        "A LION",
+        "a Mouse",
+        "some hunters",
+        "strong ropes",
+        "the rope",
+        "? awakened from sleep · S1",
+        "+ caught · S2",
+        "~ spare · S2\nvalid_until MISSING",
+        "+ let go · S3",
+        "+ caught by · S4",
+        "+ bound by · S4",
+        "+ gnawed · S5",
+        "+ set free · S5",
+        "B: independent contextual extraction · all five records",
+        "Lion",
+        "Mouse",
+        "hunters",
+        "ropes",
+        "~ running over · S1",
+        "+ caught by · S4",
+        "+ bound by · S4",
+        "+ gnawed · S5",
+        "+ freed by · S5",
+        "+ supported meaning. ~ partial. ? unresolved. Exact endpoint strings remain separate: A has “strong ropes” and “the\nrope”, whereas B uses “ropes”. All attribution and bounds null except A’s missing valid_until field on spare (literal extra\nkey “valid until”)."
+      ],
+      "records": [
+        {
+          "id": "edge-fable_networks-fable_A_network-1",
+          "artist_ids": [
+            "edge-fable_networks-fable_A_network-1-0",
+            "edge-fable_networks-fable_A_network-1-1"
+          ],
+          "panel": "fable_A_network",
+          "story": "fable",
+          "dataset": "real",
+          "index": 1,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "a Mouse",
+            "relation": "awakened_from_sleep",
+            "subject": "A LION",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "unresolved",
+          "note": "S1 supports the Mouse waking the Lion. The predicate awakened_from_sleep lacks 'by', leaving the Mouse object's role ambiguous. Do not guess active versus passive direction; no full relationship credit.",
+          "source_call": "1",
+          "source_indices": [
+            1
+          ],
+          "display_label": "? awakened from sleep · S1",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": -0.7200000000000001
+          }
+        },
+        {
+          "id": "edge-fable_networks-fable_A_network-2",
+          "artist_ids": [
+            "edge-fable_networks-fable_A_network-2-0",
+            "edge-fable_networks-fable_A_network-2-1"
+          ],
+          "panel": "fable_A_network",
+          "story": "fable",
+          "dataset": "real",
+          "index": 2,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S2"
+            ],
+            "holder": null,
+            "object": "a Mouse",
+            "relation": "caught",
+            "subject": "A LION",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "Frozen reference match, not independent verification.",
+          "source_call": "1",
+          "source_indices": [
+            2
+          ],
+          "display_label": "+ caught · S2",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": -0.32000000000000006
+          }
+        },
+        {
+          "id": "edge-fable_networks-fable_A_network-3",
+          "artist_ids": [
+            "edge-fable_networks-fable_A_network-3-0",
+            "edge-fable_networks-fable_A_network-3-1"
+          ],
+          "panel": "fable_A_network",
+          "story": "fable",
+          "dataset": "real",
+          "index": 3,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S2"
+            ],
+            "holder": null,
+            "object": "a Mouse",
+            "relation": "spare",
+            "subject": "A LION",
+            "valid until": null,
+            "valid_from": null
+          },
+          "status": "partial",
+          "note": "S2 contains a conditional request to spare, not the accomplished release (which is in S3). The answer asserts spare without the request/conditional scope and cites S2. It also spells valid_until as 'valid until'. No repair or inferred bound is applied.",
+          "source_call": "1",
+          "source_indices": [
+            4
+          ],
+          "display_label": "~ spare · S2\nvalid_until MISSING",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0.0
+          }
+        },
+        {
+          "id": "edge-fable_networks-fable_A_network-4",
+          "artist_ids": [
+            "edge-fable_networks-fable_A_network-4-0",
+            "edge-fable_networks-fable_A_network-4-1"
+          ],
+          "panel": "fable_A_network",
+          "story": "fable",
+          "dataset": "real",
+          "index": 4,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S3"
+            ],
+            "holder": null,
+            "object": "a Mouse",
+            "relation": "let_go",
+            "subject": "A LION",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "Frozen reference match, not independent verification.",
+          "source_call": "1",
+          "source_indices": [
+            6
+          ],
+          "display_label": "+ let go · S3",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0.27999999999999997
+          }
+        },
+        {
+          "id": "edge-fable_networks-fable_A_network-5",
+          "artist_ids": [
+            "edge-fable_networks-fable_A_network-5-0",
+            "edge-fable_networks-fable_A_network-5-1"
+          ],
+          "panel": "fable_A_network",
+          "story": "fable",
+          "dataset": "real",
+          "index": 5,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S4"
+            ],
+            "holder": null,
+            "object": "some hunters",
+            "relation": "caught_by",
+            "subject": "A LION",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "S4 explicitly says the Lion was caught by hunters. This passive relation preserves participants and direction; frozen strict synonyms do not include this inverse form. No graph rewriting was performed.",
+          "source_call": "1",
+          "source_indices": [
+            7
+          ],
+          "display_label": "+ caught by · S4",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0.0
+          }
+        },
+        {
+          "id": "edge-fable_networks-fable_A_network-6",
+          "artist_ids": [
+            "edge-fable_networks-fable_A_network-6-0",
+            "edge-fable_networks-fable_A_network-6-1"
+          ],
+          "panel": "fable_A_network",
+          "story": "fable",
+          "dataset": "real",
+          "index": 6,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S4"
+            ],
+            "holder": null,
+            "object": "strong ropes",
+            "relation": "bound_by",
+            "subject": "A LION",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "Frozen reference match, not independent verification.",
+          "source_call": "1",
+          "source_indices": [
+            8
+          ],
+          "display_label": "+ bound by · S4",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0.0
+          }
+        },
+        {
+          "id": "edge-fable_networks-fable_A_network-7",
+          "artist_ids": [
+            "edge-fable_networks-fable_A_network-7-0",
+            "edge-fable_networks-fable_A_network-7-1"
+          ],
+          "panel": "fable_A_network",
+          "story": "fable",
+          "dataset": "real",
+          "index": 7,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S5"
+            ],
+            "holder": null,
+            "object": "the rope",
+            "relation": "gnawed",
+            "subject": "a Mouse",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "Frozen reference match, not independent verification.",
+          "source_call": "1",
+          "source_indices": [
+            10
+          ],
+          "display_label": "+ gnawed · S5",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0.0
+          }
+        },
+        {
+          "id": "edge-fable_networks-fable_A_network-8",
+          "artist_ids": [
+            "edge-fable_networks-fable_A_network-8-0",
+            "edge-fable_networks-fable_A_network-8-1"
+          ],
+          "panel": "fable_A_network",
+          "story": "fable",
+          "dataset": "real",
+          "index": 8,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S5"
+            ],
+            "holder": null,
+            "object": "A LION",
+            "relation": "set_free",
+            "subject": "a Mouse",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "Frozen reference match, not independent verification.",
+          "source_call": "1",
+          "source_indices": [
+            11
+          ],
+          "display_label": "+ set free · S5",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": -0.6400000000000001
+          }
+        },
+        {
+          "id": "edge-fable_networks-fable_B_network-1",
+          "artist_ids": [
+            "edge-fable_networks-fable_B_network-1-0",
+            "edge-fable_networks-fable_B_network-1-1"
+          ],
+          "panel": "fable_B_network",
+          "story": "fable",
+          "dataset": "real",
+          "index": 1,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "Lion",
+            "relation": "running_over",
+            "subject": "Mouse",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "partial",
+          "note": "S1 says running over the Lion's face. Running over Lion retains the actor and broad action but loses the explicit body-part endpoint. This receives partial support, not full coverage of the frozen face-specific target.",
+          "source_call": "4",
+          "source_indices": [
+            1
+          ],
+          "display_label": "~ running over · S1",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0.2964
+          }
+        },
+        {
+          "id": "edge-fable_networks-fable_B_network-2",
+          "artist_ids": [
+            "edge-fable_networks-fable_B_network-2-0",
+            "edge-fable_networks-fable_B_network-2-1"
+          ],
+          "panel": "fable_B_network",
+          "story": "fable",
+          "dataset": "real",
+          "index": 2,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S4"
+            ],
+            "holder": null,
+            "object": "hunters",
+            "relation": "caught_by",
+            "subject": "Lion",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "S4 supports this passive capture relation exactly in meaning. The frozen strict matcher lacks the inverse caught_by alternative; its strict failure is not a falsehood judgment.",
+          "source_call": "4",
+          "source_indices": [
+            2
+          ],
+          "display_label": "+ caught by · S4",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0.0
+          }
+        },
+        {
+          "id": "edge-fable_networks-fable_B_network-3",
+          "artist_ids": [
+            "edge-fable_networks-fable_B_network-3-0",
+            "edge-fable_networks-fable_B_network-3-1"
+          ],
+          "panel": "fable_B_network",
+          "story": "fable",
+          "dataset": "real",
+          "index": 3,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S4"
+            ],
+            "holder": null,
+            "object": "ropes",
+            "relation": "bound_by",
+            "subject": "Lion",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "Frozen reference match, not independent verification.",
+          "source_call": "4",
+          "source_indices": [
+            3
+          ],
+          "display_label": "+ bound by · S4",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0.0
+          }
+        },
+        {
+          "id": "edge-fable_networks-fable_B_network-4",
+          "artist_ids": [
+            "edge-fable_networks-fable_B_network-4-0",
+            "edge-fable_networks-fable_B_network-4-1"
+          ],
+          "panel": "fable_B_network",
+          "story": "fable",
+          "dataset": "real",
+          "index": 4,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S5"
+            ],
+            "holder": null,
+            "object": "ropes",
+            "relation": "gnawed",
+            "subject": "Mouse",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "Frozen reference match, not independent verification.",
+          "source_call": "4",
+          "source_indices": [
+            4
+          ],
+          "display_label": "+ gnawed · S5",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0.0
+          }
+        },
+        {
+          "id": "edge-fable_networks-fable_B_network-5",
+          "artist_ids": [
+            "edge-fable_networks-fable_B_network-5-0",
+            "edge-fable_networks-fable_B_network-5-1"
+          ],
+          "panel": "fable_B_network",
+          "story": "fable",
+          "dataset": "real",
+          "index": 5,
+          "fact": {
+            "attitude": null,
+            "evidence_ids": [
+              "S5"
+            ],
+            "holder": null,
+            "object": "Mouse",
+            "relation": "freed_by",
+            "subject": "Lion",
+            "valid_from": null,
+            "valid_until": null
+          },
+          "status": "supported",
+          "note": "S5 explicitly says the Mouse set the Lion free. Lion freed_by Mouse is the same directed meaning in passive form, outside the frozen strict synonym set.",
+          "source_call": "4",
+          "source_indices": [
+            5
+          ],
+          "display_label": "+ freed by · S5",
+          "display_route": {
+            "kind": "arc3",
+            "curvature": 0.31200000000000006
+          }
+        }
+      ],
+      "display_transformation": "All A and B action records, as separate networks. Parallel and reverse edges remain separate. No lexical aliases merged. A ambiguous awakening and conditional spare retained.",
+      "output_sha256": {
+        "pdf": "3f9780896d0bda18254122b7293090fa807aabca4a2573286770357486fc6006",
+        "svg": "fd636d3bdd766c0da6296d07392798eecead3336055fd7a9d1959238d0feb2ea",
+        "png": "359c8c1d55cae07e17090792ccf2ff3f03a4a52639eab7106bc5b463c54b40b0"
+      },
+      "network_panels": [
+        {
+          "id": "fable_A_network",
+          "source_panel": "fable_A_network",
+          "nodes": [
+            {
+              "identity": "A LION",
+              "x": 113,
+              "y": 168.4,
+              "category": "endpoint"
+            },
+            {
+              "identity": "a Mouse",
+              "x": 335,
+              "y": 168.4,
+              "category": "endpoint"
+            },
+            {
+              "identity": "some hunters",
+              "x": 57,
+              "y": 67.6,
+              "category": "endpoint"
+            },
+            {
+              "identity": "strong ropes",
+              "x": 62,
+              "y": 273.20000000000005,
+              "category": "endpoint"
+            },
+            {
+              "identity": "the rope",
+              "x": 365,
+              "y": 273.20000000000005,
+              "category": "endpoint"
+            }
+          ],
+          "node_count": 5,
+          "edge_count": 8,
+          "indices": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "omitted_record_count": 0,
+          "identity_rule": "Exact endpoint string equality only. No holder-generated edges.",
+          "position_rule": "Declared fixed display coordinates; vertical scale recorded.",
+          "yscale": 0.8
+        },
+        {
+          "id": "fable_B_network",
+          "source_panel": "fable_B_network",
+          "nodes": [
+            {
+              "identity": "Lion",
+              "x": 115,
+              "y": 392.9,
+              "category": "endpoint"
+            },
+            {
+              "identity": "Mouse",
+              "x": 340,
+              "y": 392.9,
+              "category": "endpoint"
+            },
+            {
+              "identity": "hunters",
+              "x": 46,
+              "y": 478.70000000000005,
+              "category": "endpoint"
+            },
+            {
+              "identity": "ropes",
+              "x": 313,
+              "y": 494.3,
+              "category": "endpoint"
+            }
+          ],
+          "node_count": 4,
+          "edge_count": 5,
+          "indices": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "omitted_record_count": 0,
+          "identity_rule": "Exact endpoint string equality only. No holder-generated edges.",
+          "position_rule": "Declared fixed display coordinates; vertical scale recorded.",
+          "yscale": 0.78
+        }
+      ]
     }
   },
   "numerical_claims": {
@@ -836,9 +3343,52 @@
     "AliceBFone": "0.000",
     "AliceBCoverage": "3 of 4"
   },
+  "rendering_source_hashes": {
+    "build_assets.py": "bdd32853575a755f9322a2ec86fcff1ec5f756f5a73d6ac52227d5e419b04535",
+    "network_figures.py": "7ff9a6058b1ded98e428fea38e39555ad242b56b55d85c7c8f1d40ccaf35d58e",
+    "companion_source.tex": "7f97ca3e65b80553a8520b3dce442e0c06cbd22e848b292ac9d3ae7062d59e06",
+    "figure_blocks.tex": "9e61bfaff35c2b4514123995ee331d5b92fe4b7a0e17776d2390ceb33068616a"
+  },
+  "main_figures": [
+    "orchard_network",
+    "fable",
+    "alice"
+  ],
+  "supplementary_figures": [
+    "orchard_comparison",
+    "orchard_beliefs",
+    "harbor",
+    "fable_networks"
+  ],
+  "evidence_preservation": {
+    "historical_companion_commit": "48c0def1bfe8880029d88e9539462302d77833c7",
+    "historical_companion_pages": 36,
+    "complete_evidence_files": {
+      "paper/icaart2027/data/prose_system_message.txt": "36347721d66a46630338bcd586d9aa9a0470f9ca2a9ca5140295540ca4dcfa69",
+      "paper/icaart2027/data/pg11_notices.txt": "4fbb8532981a76abd1727974b486b5d3320849bf8343c755706b06e1596fe4f1",
+      "paper/icaart2027/data/prose_call_8_raw.txt": "59ffd0b39271c747e0948d2474464359cd4fdf1b339b8fac2843c321e3374b56",
+      "paper/icaart2027/data/compact_system_message.txt": "5f60e11a1aa742ce97eb3d8a436038f11029bad777ab4009724ab4fa272fd43b",
+      "paper/icaart2027/data/prose_call_3_raw.txt": "e665e82f839f8ec4dd32a61b66093a376aab4fcc7fd27e4bb62ecf2184ea6195",
+      "paper/icaart2027/data/evaluation_rules.json": "d1a1f196ee33719ba79875124e36b91d963e26febab5974e14536fa20da3c9f7",
+      "paper/icaart2027/data/retained_outputs.json": "484d2fd81bc7b00b6e90115887b6f184aad12a7e7490ff68353627f5e61a6609",
+      "paper/icaart2027/data/pg1661_notices.txt": "9ee74de7c76ef61492fc440d4be0bb0deb4d2491d026d012f7f6bfb9bee78a4b",
+      "paper/icaart2027/data/pg21_notices.txt": "d233805fdb891a571f4385f6923c4200eab8bd748a8c121be0b97a4867b720d0",
+      "paper/icaart2027/data/requests.json": "8aab00a958bf10870cf318fc2f27eb2c223e53abdd0b2184bf89e64f05daef71",
+      "reports/tables/compact_story_v2_results.json": "aa790aa69c049dd400c1ea2228b782b08ec33bbbc8c399ed51ecc16af6b8e77a",
+      "reports/tables/real_text_proof_of_concept.json": "ad118e8aca4b2b3d7ed19abda1879bdfb2f8fac4f21e3f34c541056084742e59"
+    },
+    "requests": "data/requests.json, dataset key compact/prose, then case ID",
+    "raw_responses": "data/retained_outputs.json, dataset, calls, raw_text",
+    "reference_alternatives": "data/retained_outputs.json, dataset, references",
+    "selected_records": "data/retained_outputs.json, dataset, results, parsed.facts",
+    "semantic_assessments": "reports/tables/real_text_proof_of_concept.json, results[].semantic_assessments",
+    "mappings": "manifest.json, figures[].records: exact fact, source call and record index",
+    "no_evidence_removed": true
+  },
   "regeneration": "python paper/icaart2027/build_assets.py && sh paper/icaart2027/build.sh && python paper/icaart2027/verify.py",
   "selection_rationale": {
     "fable": "Simple actions, conditional-scope loss and a comparison favouring A.",
+    "orchard": "User-selected illustrative retained call 2: actual connected query slice. Supplement contrasts separate call 7 and the belief/reality selection.",
     "harbor": "Source intervals versus question window with all B relevance errors visible.",
     "alice": "Useful thought content beside a wrong participant and unresolved interpretation."
   }

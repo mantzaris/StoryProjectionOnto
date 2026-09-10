@@ -1,0 +1,25 @@
+{
+  "historical_companion_commit": "48c0def1bfe8880029d88e9539462302d77833c7",
+  "historical_companion_pages": 36,
+  "complete_evidence_files": {
+    "paper/icaart2027/data/prose_system_message.txt": "36347721d66a46630338bcd586d9aa9a0470f9ca2a9ca5140295540ca4dcfa69",
+    "paper/icaart2027/data/pg11_notices.txt": "4fbb8532981a76abd1727974b486b5d3320849bf8343c755706b06e1596fe4f1",
+    "paper/icaart2027/data/prose_call_8_raw.txt": "59ffd0b39271c747e0948d2474464359cd4fdf1b339b8fac2843c321e3374b56",
+    "paper/icaart2027/data/compact_system_message.txt": "5f60e11a1aa742ce97eb3d8a436038f11029bad777ab4009724ab4fa272fd43b",
+    "paper/icaart2027/data/prose_call_3_raw.txt": "e665e82f839f8ec4dd32a61b66093a376aab4fcc7fd27e4bb62ecf2184ea6195",
+    "paper/icaart2027/data/evaluation_rules.json": "d1a1f196ee33719ba79875124e36b91d963e26febab5974e14536fa20da3c9f7",
+    "paper/icaart2027/data/retained_outputs.json": "484d2fd81bc7b00b6e90115887b6f184aad12a7e7490ff68353627f5e61a6609",
+    "paper/icaart2027/data/pg1661_notices.txt": "9ee74de7c76ef61492fc440d4be0bb0deb4d2491d026d012f7f6bfb9bee78a4b",
+    "paper/icaart2027/data/pg21_notices.txt": "d233805fdb891a571f4385f6923c4200eab8bd748a8c121be0b97a4867b720d0",
+    "paper/icaart2027/data/requests.json": "8aab00a958bf10870cf318fc2f27eb2c223e53abdd0b2184bf89e64f05daef71",
+    "reports/tables/compact_story_v2_results.json": "aa790aa69c049dd400c1ea2228b782b08ec33bbbc8c399ed51ecc16af6b8e77a",
+    "reports/tables/real_text_proof_of_concept.json": "ad118e8aca4b2b3d7ed19abda1879bdfb2f8fac4f21e3f34c541056084742e59"
+  },
+  "requests": "data/requests.json, dataset key compact/prose, then case ID",
+  "raw_responses": "data/retained_outputs.json, dataset, calls, raw_text",
+  "reference_alternatives": "data/retained_outputs.json, dataset, references",
+  "selected_records": "data/retained_outputs.json, dataset, results, parsed.facts",
+  "semantic_assessments": "reports/tables/real_text_proof_of_concept.json, results[].semantic_assessments",
+  "mappings": "manifest.json, figures[].records: exact fact, source call and record index",
+  "no_evidence_removed": true
+}

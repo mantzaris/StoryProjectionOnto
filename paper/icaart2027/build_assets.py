@@ -148,6 +148,9 @@ def save_plate(p, height, note):
                   svg_font_delivery="licensed local face; no redistributed font software",
                   text=[t.get_text() for t in p.text_items], records=p.edges,
                   display_transformation=note)
+    record['output_sha256'] = {ext:digest(out.with_suffix('.'+ext)) for ext in ['pdf','svg','png']}
+    if hasattr(p, 'network_panels'):
+        record['network_panels'] = p.network_panels
     graph.plt.close(p.fig)
     return record
 
@@ -259,7 +262,7 @@ def numbers_and_tables(compact, prose):
         numbers[prefix+'Fone']=f"{r['strict_qualified_f1']:.3f}"
         numbers[prefix+'Coverage']=f"{r['semantic_targets_covered']} of {r['references']}"
     q={}
-    for name,ds,sid,task in [('FableQuestion',prose,'fable','actions'),('HarborQuestion',compact,'harbor','locations'),('AliceActionQuestion',prose,'alice','actions'),('AliceClaimQuestion',prose,'alice','claims')]:
+    for name,ds,sid,task in [('FableQuestion',prose,'fable','actions'),('HarborQuestion',compact,'harbor','locations'),('OrchardQuestion',compact,'orchard','possession'),('OrchardBeliefQuestion',compact,'orchard','belief'),('AliceActionQuestion',prose,'alice','actions'),('AliceClaimQuestion',prose,'alice','claims')]:
         q[name]=next(r['question'] for r in ds['results'] if r['story_id']==sid and r['task']==task)
     (HERE/'generated/numbers.tex').write_text('\n'.join('\\newcommand{\\'+k+'}{'+tex(v)+'}' for k,v in {**numbers,**q}.items())+'\n')
     write_json(HERE/'generated/numerical_claims.json',numbers)
@@ -323,109 +326,52 @@ def retained_requests(datasets):
 
 
 def companion(datasets, requests):
-    """Literal records and assessment, without duplicating each pre-extraction per view."""
-    def fact_line(f):
-        vals=[]
-        for k in ['subject','relation','object','evidence_ids','valid_from','valid_until','holder','attitude']:
-            vals.append(json.dumps(f[k],ensure_ascii=False) if k in f else '[MISSING '+k+']')
-        extras={k:v for k,v in f.items() if k not in ['subject','relation','object','evidence_ids','valid_from','valid_until','holder','attitude']}
-        line=tex(' | '.join(vals))
-        if extras:line+='; '+tex('EXTRA FIELDS: '+json.dumps(extras,ensure_ascii=False))
-        return line+r'\par\smallskip'
-
-    out=[r'\section*{Reader Guide}',
-         'Locally prepared anonymous supporting material. '
-         'This document preserves the retained evidence, executed questions, reference alternatives and actual outputs. '
-         'Reference answers and semantic judgments are Codex-authored, not independent human review. '
-         'No semantic correction, new inference or rescoring is performed. '
-         'Pre-extract/select (A) filters an extraction made without the question. Contextual extraction (B) independently uses text and question. '
-         'AI assistance in implementation, annotation, analysis, writing and rendering was substantive. '
-         r'OpenAI Codex (2025): \url{https://openai.com/index/introducing-codex/}. '
-         'Exact request messages are factored without changing content: the common system message per batch, then each printed task and complete evidence under the wrapper below. '
-         r'The accompanying data/requests.json preserves every actual HTTP payload, validated by its retained request hash; data/retained\_outputs.json preserves raw bytes as JSON strings. '
-         'Printed record order is subject | relation | object | evidence IDs | valid from | valid until | holder | attitude. '
-         'Null is unspecified, not false or timeless; missing keys and extras are explicit. This is a lossless presentation, not a repaired graph.',
-         r'\subsection*{Exact User-Message Wrapper}',
-         r'\begin{verbatim}TASK: {executed question}'+'\n\nCOMPLETE EVIDENCE:\n{evidence_id}: {verbatim span}\n'+r'\end{verbatim}',
-         'Braces above mark substitution, not transmitted characters. Spans are joined in their printed source order by a single newline with no final newline; their internal retained whitespace is preserved in data/requests.json. No author paths or credentials are included.',
-         r'\section*{Conference Figures}']
-    for name in ['fable','harbor','alice']:
-        out += [r'\begin{center}\includegraphics[width=158.0134mm]{figures/'+name+r'.pdf}\end{center}']
-    for name,ds in datasets.items():
-        (HERE/f'data/{name}_system_message.txt').write_text(requests[name]['1']['messages'][0]['content'])
-        out += [r'\clearpage\section*{'+('Compact Stories v2' if name=='compact' else 'Published Prose')+'}',
-                r'\subsection*{Common System Message (Exact Content)}',r'\VerbatimInput[fontsize=\small,breaklines=true,breakanywhere=true]{data/'+name+'_system_message.txt}',
-                r'\subsection*{Generation Settings}',tex(json.dumps({k:v for k,v in requests[name]['1'].items() if k!='messages'},sort_keys=True)),
-                'Input is the pinned Qwen template, nonthinking; maximum context 12,288, maximum output 2,048. '
-                'Strict agreement uses one-to-one normalized matching of relationships, citation sets and qualifications. '
-                'All predictions remain in denominators. A valid citation is not support. '
-                r'All frozen rules, including exact aliases, are provided in data/evaluation\_rules.json. '
-                'The main paper reports strict F1 separately from semantic support and target coverage.']
-        for sid,story in ds['stories'].items():
-            out += [r'\clearpage\subsection*{'+tex(story['title'])+'}',r'\subsubsection*{Complete Supplied Evidence}']
-            if name=='prose':
-                out += [tex(f"{story['author']}; translator: {story['translator'] or 'not applicable'}; {story['section']}. ")+r'\url{'+story['source_url']+'}. '+tex(f"Retrieved {story['retrieval_date']}. {story['rights']}")]
-            # Canonical JSON sorts object keys lexically; execution used numeric sentence order.
-            ordered=sorted(story['evidence'],key=lambda eid:int(eid[1:]))
-            for eid in ordered:
-                out.append(r'\noindent\textbf{'+eid+'} '+tex(story['evidence'][eid])+r'\par\smallskip')
-            for r in (r for r in ds['results'] if r['story_id']==sid):
-                out += [r'\subsubsection*{'+tex(r['approach']+' / '+r['task'])+'}',r'\noindent\textbf{Exact question:} '+tex(r['question'])+r'\par',
-                        r'\noindent\textbf{Assessment:} '+tex('Parseable: '+str(r['parseable'])+'; finish reason: '+str(r['finish_reason'])+'.')]
-                if r['parseable']:
-                    ev=r['evaluation']; full=ev.get('full',{})
-                    out += [tex(f"Qualified matches {full['true_positive']}/{full['predicted']} predictions, {full['reference_count']} targets; P/R/F1 (rounded) {full['precision']:.3f}/{full['recall']:.3f}/{full['f1']:.3f}.")+r'\par']
-                    call=next(c for c in ds['calls'] if c['case_id']==r['source_case_id'])
-                    out += [tex('Actual output: call '+r['source_case_id']+'. The records are printed in full in the retained-calls section below. Selected-view record mapping (one-based):')]
-                    for i,f in enumerate(r['parsed']['facts'],1):
-                        matches=[j+1 for j,cf in enumerate(call['parsed']['facts']) if f==cf]
-                        out += [tex(f'View record {i}: source record(s) '+','.join(map(str,matches)))+r'\par']
-                    for a in r.get('semantic_assessments',[]):
-                        idx=r['parsed']['facts'].index(a['fact'])+1
-                        out += [r'\noindent '+tex(f"Record {idx}: {a['support']}; qualifications {a['qualifications']}; relevant {a['relevant']}. "+a['note'])+r'\par\smallskip']
-                    if name=='compact':
-                        for a in ev.get('rows',[]):
-                            out += [tex(f"Record {a['index']+1}: {a['status']}; valid citation {a['citation_valid']}; temporal {a['temporal_correct']}; epistemic {a['epistemic_correct']}; issues "+json.dumps(a['issues']))+r'\par']
-                else:
-                    out += [r'\noindent No graph is assembled. Original syntax failure retained; scores unavailable.']
-                if r['approach'].startswith('B'):
-                    out += [r'\noindent\textbf{Reference alternatives for this question, shared by A and B (not model output):}']
-                    for i,alt in enumerate(ds['references'][r['source_case_id']],1):
-                        out += [r'\noindent Alternative '+str(i)+':']
-                        out += [fact_line(f) for f in alt]
-            out += [r'\subsubsection*{Retained Calls: Exact Tasks and Complete Output Records}']
-            for c in ds['calls']:
-                peers=[r for r in ds['results'] if r['story_id']==sid and r['source_case_id']==c['case_id']]
-                if not peers:continue
-                req=requests[name][c['case_id']]
-                assert len(req['messages'])==2
-                task=req['messages'][1]['content'].split('\n\nCOMPLETE EVIDENCE:\n')[0]
-                assert req['messages'][1]['content']==task+'\n\nCOMPLETE EVIDENCE:\n'+'\n'.join(eid+': '+story['evidence'][eid] for eid in ordered)
-                out += [r'\subsubsection*{Call '+c['case_id']+'}',
-                        tex('Input/output tokens: '+str(c['response']['prompt_tokens'])+'/'+str(c['response']['completion_tokens'])+'; request seconds '+str(c['request_seconds'])+'; finish '+str(c['response']['finish_reason'])+'.'),
-                        r'\noindent\textbf{Exact task (insert in the printed wrapper with this complete source):}\par '+tex(req['messages'][1]['content'].split('\n\nCOMPLETE EVIDENCE:\n')[0].removeprefix('TASK: '))]
-                if c['parsed'] is not None:
-                    for i,f in enumerate(c['parsed']['facts'],1):out += [r'\noindent\textbf{'+str(i)+'.} '+fact_line(f)]
-                else:
-                    rawfile=HERE/f'data/{name}_call_{c["case_id"]}_raw.txt'
-                    rawfile.write_text(c['raw_text'])
-                    out += [r'\noindent\textbf{Unparseable raw response; not an empty graph:}',
-                            r'\VerbatimInput[fontsize=\small,breaklines=true,breakanywhere=true]{data/'+rawfile.name+'}',tex(str(c['parse_error']))]
-                    diagnosis=ds.get('manual_diagnosis',{}).get('cases',{}).get(c['case_id'])
-                    if diagnosis:
-                        out += [r'\noindent\textbf{Retained Codex manual diagnosis (not parsed-graph scoring or human review):}',tex(diagnosis['syntax'])]
-                        out += [tex(finding)+r'\par' for finding in diagnosis['manual_findings']]
-    (HERE/'generated/companion_content.tex').write_text('\n\n'.join(out)+'\n')
-    # Safe data release is intentionally whitelisted; no paths, logs, ledgers, author names or credentials.
-    write_json(HERE/'data/retained_outputs.json',{name:{'stories':{sid:{k:v for k,v in s.items() if k not in ['notice_file','download_url']} for sid,s in ds['stories'].items()},
-                 'calls':[{k:c[k] for k in ['case_id','raw_text','parsed','parse_error','request_seconds','response','request_hash']} for c in ds['calls']],
-                 'references':ds['references'],
-                 'results':[{k:r[k] for k in ['approach','story_id','task','question','parsed','evaluation','source_case_id','parseable']} for r in ds['results']]}
-                 for name,ds in datasets.items()})
-    write_json(HERE/'data/evaluation_rules.json',{name:ds['rules'] for name,ds in datasets.items()})
-    for f in (ROOT/'data/published_prose').glob('*_notices.txt'):
-        (HERE/'data'/f.name).write_bytes(f.read_bytes())
-
+    """Build selected reader aids only. Full retained machine records are not rewritten."""
+    from network_figures import load_panels
+    panels = load_panels(datasets)
+    parts = []
+    def macro(name, value):
+        parts.append('\\newcommand{\\'+name+'}{'+tex(value)+'}')
+    for name,key in [('OrchardA','orchard_A'),('OrchardB','orchard_B'),('OrchardBelief','orchard_belief')]:
+        ev=panels[key]['result']['evaluation']['full']
+        macro(name+'Score',f"{ev['true_positive']}/{ev['predicted']} matched, {ev['reference_count']} targets. "
+              f"P/R/F1 = {ev['precision']:.3f}/{ev['recall']:.3f}/{ev['f1']:.3f}.")
+    real=datasets['prose']
+    # Literal strings and frozen assessments are copied, never reinterpreted.
+    for name,story,eid in [('FableOne','fable','S1'),('FableTwo','fable','S2'),
+                           ('FableFour','fable','S4'),('FableFive','fable','S5'),
+                           ('AliceOne','alice','S1')]:
+        macro(name,real['stories'][story]['evidence'][eid])
+    b=panels['fable_B_network']['result']
+    for name,index in [('PassiveExample',2),('PartialExample',1)]:
+        f=b['parsed']['facts'][index-1]
+        a=b['semantic_assessments'][index-1]
+        macro(name,' | '.join([f['subject'],f['relation'],f['object'],','.join(f['evidence_ids'])]))
+        macro(name+'Assessment',a['note'])
+    ev=b['evaluation']['full']
+    macro('FableBScore',f"P/R/F1 = {ev['precision']:.3f}/{ev['recall']:.3f}/{ev['f1']:.3f}.")
+    a=panels['fable_A_network']['result']['evaluation']['full']
+    macro('FableAScore',f"P/R/F1 = {a['precision']:.3f}/{a['recall']:.3f}/{a['f1']:.3f}.")
+    # Truncated DISPLAY excerpt of a complete, historically unparseable response.
+    # It is never parsed as a recovered graph.
+    c=next(c for c in real['calls'] if c['case_id']=='8')
+    (HERE/'generated/holmes_tail.txt').write_text(c['raw_text'][-200:])
+    macro('HolmesParseError',str(c['parse_error']))
+    (HERE/'generated/companion_facts.tex').write_text('\n'.join(parts)+'\n')
+    paths=list((HERE/'data').glob('*'))+[
+        ROOT/'reports/tables/compact_story_v2_results.json',
+        ROOT/'reports/tables/real_text_proof_of_concept.json']
+    write_json(HERE/'generated/reproducibility_index.json',{
+        'historical_companion_commit':'48c0def1bfe8880029d88e9539462302d77833c7',
+        'historical_companion_pages':36,
+        'complete_evidence_files':{str(p.relative_to(ROOT)):digest(p) for p in paths if p.is_file()},
+        'requests':'data/requests.json, dataset key compact/prose, then case ID',
+        'raw_responses':'data/retained_outputs.json, dataset, calls, raw_text',
+        'reference_alternatives':'data/retained_outputs.json, dataset, references',
+        'selected_records':'data/retained_outputs.json, dataset, results, parsed.facts',
+        'semantic_assessments':'reports/tables/real_text_proof_of_concept.json, results[].semantic_assessments',
+        'mappings':'manifest.json, figures[].records: exact fact, source call and record index',
+        'no_evidence_removed':True})
 
 def main():
     for folder in ['figures','tables','generated','data']:(HERE/folder).mkdir(exist_ok=True)
@@ -434,6 +380,8 @@ def main():
     req=retained_requests(datasets)
     nums=numbers_and_tables(**datasets)
     figs=figures(datasets,panels)
+    from network_figures import load_panels, network_assets
+    figs.update(network_assets(sys.modules[__name__], datasets, load_panels(datasets)))
     companion(datasets,req)
     # The audited conference bibliography is editable, not overwritten from the
     # historical general manuscript. Official apalike files remain byte-identical.
@@ -444,11 +392,16 @@ def main():
                conference_bibliography_sha256=digest(HERE/'references.bib'),
                reference_audit_sha256=digest(HERE/'REFERENCE_AUDIT.md'),
                figures=figs,numerical_claims=nums,
+               rendering_source_hashes={p:digest(HERE/p) for p in ['build_assets.py','network_figures.py','companion_source.tex','figure_blocks.tex']},
+               main_figures=['orchard_network','fable','alice'],
+               supplementary_figures=['orchard_comparison','orchard_beliefs','harbor','fable_networks'],
+               evidence_preservation=read(HERE/'generated/reproducibility_index.json'),
                regeneration='python paper/icaart2027/build_assets.py && sh paper/icaart2027/build.sh && python paper/icaart2027/verify.py',
                selection_rationale={'fable':'Simple actions, conditional-scope loss and a comparison favouring A.',
+                                    'orchard':'User-selected illustrative retained call 2: actual connected query slice. Supplement contrasts separate call 7 and the belief/reality selection.',
                                     'harbor':'Source intervals versus question window with all B relevance errors visible.',
                                     'alice':'Useful thought content beside a wrong participant and unresolved interpretation.'}))
-    print('Conference assets, retained request hashes, numerical tables and literal-record companion prepared.')
+    print('Conference networks, unchanged tables and selected reader aids prepared. Complete evidence files retained.')
 
 
 if __name__=='__main__':main()

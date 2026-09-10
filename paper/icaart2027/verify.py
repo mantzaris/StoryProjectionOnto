@@ -74,6 +74,7 @@ def main():
     assert digest(HERE/'references.bib')==manifest['conference_bibliography_sha256']
     assert digest(HERE/'REFERENCE_AUDIT.md')==manifest['reference_audit_sha256']
     for path,h in manifest['source_hashes'].items():assert digest(ROOT/path)==h,path
+    for path,h in manifest['rendering_source_hashes'].items():assert digest(HERE/path)==h,path
     for path,h in manifest['template_files'].items():
         assert digest(HERE/path)==h==digest(HERE/'vendor/original'/path),path
     assert digest(HERE/'vendor/SCITEPRESS_Conference_Latex.zip')==manifest['template_archive_sha256']
@@ -83,8 +84,20 @@ def main():
     for stem in ['compact_story_v2','real_text_proof_of_concept']:
         original=read(ROOT/f'reports/tables/{stem}_manifest.json')
         for path,h in original.items():assert digest(ROOT/'reports'/path)==h,path
-    _,_,panels,_=__import__('scripts.build_paper_figures',fromlist=['load_inputs']).load_inputs()
+    _,datasets,panels,_=__import__('scripts.build_paper_figures',fromlist=['load_inputs']).load_inputs()
+    from network_figures import load_panels
+    panels.update(load_panels({'compact':datasets['synthetic'],'prose':datasets['real']}))
+    for path,h in manifest['evidence_preservation']['complete_evidence_files'].items():
+        assert digest(ROOT/path)==h,path
+    for name,ds in [('compact',datasets['synthetic']),('prose',datasets['real'])]:
+        stored=read(HERE/'data/retained_outputs.json')[name]
+        for call in stored['calls']:
+            original=next(c for c in ds['calls'] if c['case_id']==call['case_id'])
+            assert all(original[k]==v for k,v in call.items()),call['case_id']
+        assert stored['references']==ds['references']
+    network_counts={}
     for name,f in manifest['figures'].items():
+        for ext,h in f['output_sha256'].items():assert digest(HERE/f'figures/{name}.{ext}')==h
         assert abs(f['width_mm']-158.0134)<.001
         assert f['minimum_font_pt']>=8.5
         assert f['font_family']=='Times New Roman'
@@ -96,6 +109,42 @@ def main():
         for record in f['records']:
             original=next(r for r in panels[record['panel']]['records'] if r['index']==record['index'])
             assert record['fact']==original['fact'] and record['status']==original['status']
+            if 'source_indices' in record:
+                assert record['source_indices']==original['source_indices']
+                assert record['source_call']==panels[record['panel']]['source_call']
+                fact=record['fact']
+                label=record['display_label']
+                assert all(e in label for e in fact['evidence_ids'])
+                if fact.get('valid_from') is not None or fact.get('valid_until') is not None:
+                    assert f"[{fact.get('valid_from')},{fact.get('valid_until')})" in label
+                if fact.get('holder') is not None:
+                    assert f"{fact['holder']} / {fact['attitude']}" in label
+        for panel in f.get('network_panels',[]):
+            source=panels[panel['source_panel']]
+            records=[r for r in f['records'] if r['panel']==panel['source_panel']]
+            assert [r['index'] for r in records]==panel['indices']
+            identities={r['fact'][k] for r in records for k in ('subject','object')}
+            assert sorted(identities)==sorted(n['identity'] for n in panel['nodes'])
+            assert len(identities)==panel['node_count']
+            assert len(records)==panel['edge_count']==source['original_count']
+            assert panel['omitted_record_count']==0
+            # An index per retained record, never deduplication of parallel assertions.
+            assert len(set(r['index'] for r in records))==len(records)
+            adjacency={n:set() for n in identities}
+            for r in records:
+                a,b=r['fact']['subject'],r['fact']['object']
+                adjacency[a].add(b);adjacency[b].add(a)
+            remaining=set(identities); components=0
+            while remaining:
+                todo=[remaining.pop()];components+=1
+                while todo:
+                    adjacent=adjacency[todo.pop()] & remaining
+                    remaining-=adjacent;todo.extend(adjacent)
+            network_counts[name+'/'+panel['id']]=dict(nodes=len(identities),records=len(records),components=components)
+            if panel['source_panel']=='orchard_A':
+                assert (len(identities),len(records),components)==(6,5,1)
+                pre=panels['orchard_pre']['records']
+                assert all(r['fact']==pre[r['source_indices'][0]-1]['fact'] for r in records)
         svg=(HERE/f'figures/{name}.svg').read_text()
         assert '@font-face' in svg and '<text' in svg
         assert "local('Times New Roman')" in svg and 'data:font/' not in svg
@@ -106,7 +155,8 @@ def main():
         assert 'Label(s) may have changed' not in log,filename
     report,text=pdf_check(HERE/'ICAART2027_submission.pdf',main=True)
     supp,_=pdf_check(HERE/'ICAART2027_companion.pdf',main=False)
-    fig_chars=sum(len(re.sub(r'\s','',command('pdftotext',str(HERE/f'figures/{n}.pdf'),'-'))) for n in manifest['figures'])
+    assert 6<=supp['pages']<=8,supp['pages']
+    fig_chars=sum(len(re.sub(r'\s','',command('pdftotext',str(HERE/f'figures/{n}.pdf'),'-'))) for n in manifest['main_figures'])
     # All figures use searchable embedded text. Count again as a conservative upper estimate,
     # even though it is already in main PDF extraction; no graph labels are excluded.
     conservative=report['nonwhitespace_characters']+fig_chars
@@ -126,7 +176,7 @@ def main():
     # Honest anonymous package of only compilation inputs. Reproducible archive timestamps.
     files=['main.tex','abstract.tex','figure_blocks.tex','references.bib','build.sh',
            'article.cls','SCITEPRESS.sty','apalike.sty','apalike.bst','generated/numbers.tex',
-           'tables/compact.tex','tables/prose.tex']+[f'figures/{n}.pdf' for n in manifest['figures']]
+           'tables/compact.tex','tables/prose.tex']+[f'figures/{n}.pdf' for n in manifest['main_figures']]
     archive=HERE/'ICAART2027_source.zip'
     with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED) as z:
         for f in files:
@@ -159,11 +209,16 @@ def main():
         scheduled_character_range=[8000,40000],ordinary_page_limit=8,
         template_files_unmodified=True,retained_source_hashes='pass',canonical_tables='unchanged',
         record_and_assessment_correspondence='pass',references_cited_and_defined=sorted(cited),
+        network_panels=network_counts,
+        main_figures=len(manifest['main_figures']),main_result_tables=2,
+        supplementary_figures=len(manifest['supplementary_figures']),
+        historical_companion_pages=36,companion_pages_removed=36-supp['pages'],
+        underlying_evidence_preserved='exact raw, parsed and reference comparison passed',
         figure_typeface='Times New Roman, embedded PDF subsets; editable SVG uses local faces',
         reference_audit_sha256=manifest['reference_audit_sha256'],
         source_zip=dict(sha256=digest(archive),files=files,isolated_compilation='pass',pdf_text_identical=True),
         no_new_inference=True,visual_inspection='See visual_inspection.md; generated after rendering, not asserted by automated checks.',
-        outputs={str(p.relative_to(HERE)):digest(p) for p in [HERE/'main.tex',HERE/'abstract.tex',HERE/'references.bib',HERE/'figure_blocks.tex',HERE/'generated/companion_content.tex']})
+        outputs={str(p.relative_to(HERE)):digest(p) for p in [HERE/'main.tex',HERE/'abstract.tex',HERE/'references.bib',HERE/'figure_blocks.tex',HERE/'companion_source.tex',HERE/'generated/companion_facts.tex']})
     write_json(HERE/'verification.json',verification)
     print(json.dumps({k:verification[k] for k in ['abstract_words','conservative_double_counted_figure_bound']},indent=2))
     print('Submission:',report['pages'],'pages;',report['nonwhitespace_characters'],'non-whitespace characters. Companion:',supp['pages'],'pages. Clean source ZIP compiled; text identical.')
