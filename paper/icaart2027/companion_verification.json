@@ -1,7 +1,7 @@
 {
   "single_editable_source": "ICAART2027_companion.tex",
-  "source_sha256": "c02d2b40f94fa5af874368f383947b2aa9567e8860df219ec37f3a57582bc560",
-  "pdf_sha256": "a5fe1bef857b9408398f9d82b6c362339828fce8f7a697c31c722bd82d181766",
+  "source_sha256": "c5987fc3f12385c1d28fe9e8e3a668f915c0da3d10a5b9651fd75cc2a7639724",
+  "pdf_sha256": "17af1918bb531ec60330cbfac6660eec33da6a6ba976f2339b26472948228bff",
   "initial_isolated_files": [
     "ICAART2027_companion.tex",
     "article.cls",
@@ -12,23 +12,43 @@
   ],
   "no_external_content_commands": true,
   "no_repository_files_loaded": true,
-  "inline_data_and_listing": "pass",
+  "inline_data_checks": "pass",
+  "raw_listing": "not displayed in the edited companion",
+  "source_zip": {
+    "filename": "ICAART2027_companion_source.zip",
+    "sha256": "00113b38b171dc15b26caab803c77294cdfa16b9e224c03f644f3fb8c91f28c6",
+    "files": [
+      "ICAART2027_companion.tex",
+      "article.cls",
+      "figures/orchard_comparison.pdf",
+      "figures/orchard_beliefs.pdf",
+      "figures/harbor.pdf",
+      "figures/fable_networks.pdf"
+    ],
+    "isolated_compilation": "pass"
+  },
   "isolated_compilation": "pass",
   "pdf": {
     "pages": 7,
-    "nonwhitespace_characters": 12591,
+    "nonwhitespace_characters": 10124,
     "page_bounds_pdf_points": [
       [
         68.031,
         108.164959,
-        524.199529,
-        757.435922
+        524.706621,
+        642.586922
       ],
       [
         68.031,
-        68.095122,
+        69.744912,
+        519.335913,
+        419.079922
+      ],
+      [
+        68.031,
+        70.23603,
         523.451295,
-        748.308922
+        685.030922
       ],
       [
         68.031,
@@ -53,12 +73,6 @@
         68.095122,
         526.818693,
         618.954922
-      ],
-      [
-        68.031,
-        68.095122,
-        526.548942,
-        765.698922
       ]
     ],
     "all_fonts_embedded": true,
@@ -66,122 +80,63 @@
     "author_metadata_empty": true,
     "identifying_string_scan": "pass",
     "top_table_captions": [],
-    "sha256": "3fafe2e7af7c56857876ca21fd28aa571535ea2af20499c2de19763684366193"
+    "sha256": "6502328f16f70c4ef107efd704445725089090518fdb74f5f8b21a109c98ef98"
   },
   "isolated_comparison": {
     "pages": 7,
     "text_identical": true,
     "pixels_identical": true,
     "dpi": 150,
-    "layout_text_sha256": "b03674c8ecdfba245c7c740f5c3edaf4f5d7957a0678d83e54d6d91125438662",
+    "layout_text_sha256": "5df5e7f1fa12780ffbb8fed6cf1762cab32f5d4f6a6e922ccea88761c328071e",
     "rendered_pages": [
       {
         "size_px": [
           1241,
           1754
         ],
-        "rgb_sha256": "ee956760c88cde47044c894093cfc5eda3e245ccd40f8552def9b114d1c06a2e"
+        "rgb_sha256": "def92259b9a2fd24ad7d363d8a32e90332b150d862d0ba86a0de960e05bb7e38"
       },
       {
         "size_px": [
           1241,
           1754
         ],
-        "rgb_sha256": "472a081441bc207623bdfc3802b5c69d135b61df6b761f5331912c41ce0c520c"
+        "rgb_sha256": "41f80433b04983f2111e66bf93f4067bb604d4ffe59e80d7f62e9ce04e8aa6d9"
       },
       {
         "size_px": [
           1241,
           1754
         ],
-        "rgb_sha256": "b4bb5b1674a64628453c6079c8b3b3fed77fc32ede0802f5512e51df20d1bf93"
+        "rgb_sha256": "99c89f321332c7a793a776b0571a61596a66911de18892b45169377507c7873e"
       },
       {
         "size_px": [
           1241,
           1754
         ],
-        "rgb_sha256": "30a09dd26674b0866476dc147c7d535350bc2a843856c6bdc26aaf52788ce668"
+        "rgb_sha256": "43410adf578d266eb8ba638b09eeb5e6bf4c8cb25f0d829327655192db93c929"
       },
       {
         "size_px": [
           1241,
           1754
         ],
-        "rgb_sha256": "7be17b3e5d1a67a7d5ac8f9dc983544e06b4187b06d926b173188eb1e9d0d9b6"
+        "rgb_sha256": "c135dd7e46d8c588ece899ba979f458b5ee24cf90338ef0bd2ff9ad7d9b4a3a4"
       },
       {
         "size_px": [
           1241,
           1754
         ],
-        "rgb_sha256": "c62a461b6470f94298a8ef05d16ea46bd106acf30f90a36f9d9e70145cc3533a"
+        "rgb_sha256": "be3d2a02d1ec398bae57d27ca36f206bef0afba37584be9c85f3a43953dadf69"
       },
       {
         "size_px": [
           1241,
           1754
         ],
-        "rgb_sha256": "7de7af79372bde22a0767fa4b2f8c9627b9e5ae274ab0e47c2c44f57d8924dc5"
-      }
-    ]
-  },
-  "prior_pdf_sha256": "a5fe1bef857b9408398f9d82b6c362339828fce8f7a697c31c722bd82d181766",
-  "prior_pdf_comparison": {
-    "pages": 7,
-    "text_identical": true,
-    "pixels_identical": true,
-    "dpi": 150,
-    "layout_text_sha256": "b03674c8ecdfba245c7c740f5c3edaf4f5d7957a0678d83e54d6d91125438662",
-    "rendered_pages": [
-      {
-        "size_px": [
-          1241,
-          1754
-        ],
-        "rgb_sha256": "ee956760c88cde47044c894093cfc5eda3e245ccd40f8552def9b114d1c06a2e"
-      },
-      {
-        "size_px": [
-          1241,
-          1754
-        ],
-        "rgb_sha256": "472a081441bc207623bdfc3802b5c69d135b61df6b761f5331912c41ce0c520c"
-      },
-      {
-        "size_px": [
-          1241,
-          1754
-        ],
-        "rgb_sha256": "b4bb5b1674a64628453c6079c8b3b3fed77fc32ede0802f5512e51df20d1bf93"
-      },
-      {
-        "size_px": [
-          1241,
-          1754
-        ],
-        "rgb_sha256": "30a09dd26674b0866476dc147c7d535350bc2a843856c6bdc26aaf52788ce668"
-      },
-      {
-        "size_px": [
-          1241,
-          1754
-        ],
-        "rgb_sha256": "7be17b3e5d1a67a7d5ac8f9dc983544e06b4187b06d926b173188eb1e9d0d9b6"
-      },
-      {
-        "size_px": [
-          1241,
-          1754
-        ],
-        "rgb_sha256": "c62a461b6470f94298a8ef05d16ea46bd106acf30f90a36f9d9e70145cc3533a"
-      },
-      {
-        "size_px": [
-          1241,
-          1754
-        ],
-        "rgb_sha256": "7de7af79372bde22a0767fa4b2f8c9627b9e5ae274ab0e47c2c44f57d8924dc5"
+        "rgb_sha256": "1bf00d0aaaecb662328e4dbd73898fdcefb55e6883c79bb9fff0df90466153ba"
       }
     ]
   }

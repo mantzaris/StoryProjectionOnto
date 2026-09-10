@@ -31,7 +31,17 @@ Both root sources compile under their own basenames: `ICAART2027_submission.tex`
 
 ### Single-source companion
 
-`ICAART2027_companion.tex` is the complete, authoritative editable source. It contains all prose, commands, numerical macros, tables, captions and the verbatim diagnostic listing. It has no external content or bibliography inputs. Compilation requires only standard installed LaTeX packages, the unchanged supplied `article.cls`, and these four images in `figures/`: `orchard_comparison.pdf`, `orchard_beliefs.pdf`, `harbor.pdf` and `fable_networks.pdf`.
+`ICAART2027_companion.tex` is the complete, authoritative editable source. Its currently displayed prose, commands, numerical macros, tables and captions are inline. It has no external content or bibliography inputs. Compilation requires only standard installed LaTeX packages, the unchanged supplied `article.cls`, and these four images in `figures/`: `orchard_comparison.pdf`, `orchard_beliefs.pdf`, `harbor.pdf` and `fable_networks.pdf`.
+
+For sharing or uploading source, use [ICAART2027_companion_source.zip](ICAART2027_companion_source.zip), not the `.tex` file alone. The archive contains the current edited source, its class and all four actual figure PDFs with their `figures/` paths intact. No placeholders are used. Extract the whole archive before compiling.
+
+From the repository root, this command resolves image paths by changing to the document directory:
+
+```bash
+latexmk -pdf -cd paper/icaart2027/ICAART2027_companion.tex
+```
+
+In an extracted companion source package, use `latexmk -pdf -cd ICAART2027_companion.tex`. A complete root document must end with `\end{document}`. If compilation still fails, inspect the first `!` error in `ICAART2027_companion.log`; a missing image and an end-of-file emergency stop are different failures.
 
 Build and verify only the companion, preserving the submission and any ongoing manuscript edits:
 
@@ -46,7 +56,7 @@ For a minimal copied directory containing the single root source, class and four
 pdflatex -no-shell-escape -interaction=nonstopmode -halt-on-error ICAART2027_companion.tex
 ```
 
-The companion check performs this isolated compilation automatically, checks inline values against retained records without rewriting them, and compares text and every rendered page with the built PDF. It writes `companion_verification.json`. For a source-only reorganization, add `--compare-with /path/to/prior-companion.pdf` to compare against the preceding PDF as well. Companion-only commands leave the main submission, its source ZIP and its last full-package verification record unchanged. The existing `ICAART2027_source.zip` contains only the main submission, not the companion.
+The companion check regenerates the companion source ZIP and tests that exact extracted package in isolation. It checks inline values against retained records without rewriting them and compares text and every rendered page with the built PDF. A diagnostic listing is checked if displayed; its omission is recorded rather than restoring text removed by the author. It writes `companion_verification.json`. For a source-only reorganization, add `--compare-with /path/to/prior-companion.pdf` to compare against the preceding PDF as well. Companion-only commands leave the main submission, its source ZIP and its last full-package verification record unchanged. The existing `ICAART2027_source.zip` contains only the main submission, not the companion.
 
 ## Editing and provenance
 

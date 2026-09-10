@@ -15,9 +15,10 @@
 \setlength{\parskip}{3pt}
 \newcolumntype{L}[1]{>{\RaggedRight\arraybackslash}p{#1}}
 \emergencystretch=3em
-\title{Inspectable Narrative Graphs\\Local Anonymous Companion}
+\title{Contextual Ontology Extraction and Inspection of Temporal Narrative Networks\\[0.5em]
+{\large Supplementary Material}}
 \author{}
-\date{Retained evidence, requests, outputs and assessments}
+\date{}
 % Inline numerical values and exact executed questions. Verification checks retained data; builds never rewrite this source.
 \newcommand{\Temperature}{0.7}
 \newcommand{\TopP}{0.8}
@@ -85,15 +86,44 @@ conversations in it, ``and what is the use of a book,'' thought Alice
 \begin{document}
 \RaggedRight
 \maketitle
+
+
+
+
+
 % Editable companion prose. The entire document is maintained in this root source.
 \section*{1. Reading the networks}
-This supplement adds connected graph views, a temporal explanation and a worked error analysis to the main paper. It is not a second experiment. All outputs, reference answers and assessments are retained from the two reported batches. Codex authored the reference annotations and semantic judgments. These are not independent human review.
+The figures show which relationships the model extracted, how they relate to a reader's question, and where errors remain. They use the same outputs, reference answers and assessments reported in the main paper. No additional experiments were performed.
 
-\textbf{Two paths.} Pre-extract/select (A) selects existing records from a model extraction made without the question. Contextual extraction (B) independently receives the text and question. A and B graphs are separate outputs, not stages of the same graph.
+\textbf{The two approaches.}
+\begin{itemize}
+\item \textbf{Pre-extract/select (A)} first extracts relationships without seeing the question. Fixed filters then select records for that question.
+\item \textbf{Contextual extraction (B)} receives the text and question together and generates its own relationships.
+\end{itemize}
+A and B are alternative approaches. B does not modify or continue A's graph.
 
-\textbf{How to read an edge.} Arrows retain subject-to-object direction. Labels show the actual relation (underscores displayed as spaces), citations and any stated bounds or holder/attitude. \texttt{loc} abbreviates \texttt{located\_in}. Identical endpoint strings share a node within a panel. Different strings are never merged for appearance. Parallel assertions remain separate edges. Unprinted qualifiers are null, not timeless truth. A holder badge is a qualification, not an extra model-generated relationship.
+\textbf{Reading an arrow.}
+Each arrow runs from the subject to the object. Its label describes their relationship and identifies the supporting text. Labels also show any recorded time interval or attribution, such as whose belief is represented. A believer label describes the existing relationship and does not add another extracted link. In the figures, underscores appear as spaces and \texttt{loc} means \texttt{located\_in}.
 
-\textbf{Assessment and relevance.} + denotes supported meaning, $\sim$ partial meaning, x unsupported and ? unresolved. I denotes supported but irrelevant material. Colour is redundant with labels and line styles. Node fills in Orchard distinguish people, objects and places as display annotations, not inferred ontology types. The broad main-paper extraction is deliberately ungraded rather than presented as a reference graph.
+Within each panel, exactly matching names share a node. Different names remain separate, even when they might refer to the same entity. Multiple records connecting the same nodes remain separate arrows. Omitted time or attribution fields are \texttt{null}, meaning unspecified. A missing time interval does not mean that a relationship holds forever.
+
+\textbf{Understanding the assessment labels.}
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+$+$         & Meaning supported by the text \\
+$\sim$      & Meaning partly supported \\
+\texttt{x}  & Meaning unsupported \\
+?           & Interpretation unresolved \\
+\texttt{I}  & Supported, but outside the question's scope \\
+\end{tabular}
+\end{center}
+Symbols and line styles accompany the colours, so colour alone is not needed to read the assessments.
+
+In Orchard, node colours distinguish people, objects and places. These categories were added for display and were not inferred by the model. The broad extraction shown in the main paper has no assessment labels. It displays the model's output rather than a verified reference answer.
+
+
+
+
 
 \subsection*{Compact index of retained examples}
 \begin{tabular}{L{27mm}L{58mm}L{60mm}}
@@ -112,7 +142,12 @@ Call numbers are local to their batch. Three pre-extractions precede contextual 
 
 The main Orchard figure is an illustrative selection from an existing evaluation, not a prospectively sampled new success. The views below include extra irrelevant predictions, partial meanings and failures. No record was repaired for display, and no score was recomputed.
 
-\clearpage
+
+
+
+
+
+
 \section*{2. Orchard: correct relationships can still be irrelevant}
 \textbf{Exact executed ownership/carrying question:} \OrchardQuestion
 
@@ -134,7 +169,8 @@ Both views preserve all five requested facts. The contextual output also returns
 
 Each object connects to two places under different epistemic scopes. Copper Book's South Loft location is attributed to Soren's belief, while River Room is narrated reality. Ivory Vase similarly separates Jun's belief from narration. Holder names remain edge metadata even though the names also occur elsewhere in the broader extraction. This selected graph has two disconnected components. No connector has been invented to make it appear more cohesive.
 
-\clearpage
+
+
 \section*{4. Harbor: preserve source duration, select by overlap}
 \textbf{Exact executed question:} \HarborQuestion
 
@@ -143,9 +179,11 @@ Each object connects to two places under different epistemic scopes. Copper Book
 \end{center}
 The blue band is the requested window $[2,4)$, not rewritten validity. Filled starts and open ends mark the full generated intervals. All four selected A location records coincide with four B records. The two carrying records below are additional B predictions, not part of the location answer. All six B records remain scored. No relationship is given extra temporal precision because it was observed during the question window.
 
-Source display: S5--S8 of the fourteen supplied sentences. Complete evidence and both outputs remain in the compact records. The main paper reports their unchanged strict scores in Table~1.
+Source display: S5-S8 of the fourteen supplied sentences. Complete evidence and both outputs remain in the compact records. The main paper reports their unchanged strict scores in Table~1.
 
-\clearpage
+
+
+
 \section*{5. Fable: parallel actions and separate endpoint identities}
 \begin{center}
 \includegraphics[width=158.0134mm]{figures/fable_networks.pdf}
@@ -187,37 +225,4 @@ Syntax failure & Holmes pre-extraction and contextual actions & Extra closing br
 
 Pending author judgments remain pending, including Holmes's vocative and speaker attribution. Unresolved wording is not assumed true or false.
 
-\clearpage
-\section*{7. Reproducibility without repeated data dumps}
-\subsection*{Complete records remain available}
-Paths below are relative to the conference package unless prefixed by \emph{repository}. They contain the full information that the former 36-page companion printed repeatedly. The data are unchanged.
-
-\begin{tabular}{L{46mm}L{104mm}}
-\toprule
-File & What to read\\\midrule
-\path{data/requests.json} & Exact transmitted payloads, including system and user messages. Select \texttt{compact} or \texttt{prose}, then the string call ID. Request hashes are validated.\\
-\path{data/retained_outputs.json} & Complete evidence under \texttt{stories}. Exact raw response strings and parsed records under \texttt{calls}. Full frozen reference alternatives under \texttt{references}. Actual selected/contextual records and evaluations under \texttt{results}.\\
-\path{data/evaluation_rules.json} & Frozen normalization, scope and matching rules for each batch.\\
-\path{manifest.json} & Exact displayed facts, assessment labels, source call/record mappings, endpoint identities and layout coordinates. Display subsets do not change denominators.\\
-\path{generated/reproducibility_index.json} & Hashes and field-level paths connecting this reader guide to complete retained evidence and historical companion version.\\
-Repository \path{reports/tables/real_text_proof_of_concept.json} & Complete Codex semantic judgments under \texttt{results[].semantic\_assessments}, plus pre-extraction assessments and syntax diagnoses.\\
-Repository \path{reports/tables/compact_story_v2_results.json} & Complete synthetic results, source-support evaluations, selection traces and all historical syntax-recovery categories.\\
-\bottomrule
-\end{tabular}
-
-The published prose is preserved verbatim with section, edition, retrieval and hash metadata. Project Gutenberg notices remain in \path{data/pg21_notices.txt}, \path{data/pg11_notices.txt} and \path{data/pg1661_notices.txt}. Aesop uses Townsend's translation of \emph{The Lion and the Mouse}; Alice is from Chapter~I, and Holmes from \emph{The Red-Headed League}. Neither familiar context nor later plot information is used to resolve a model record.
-
-\subsection*{A syntax failure is not an empty graph}
-\textbf{Holmes contextual actions, retained call 8.} Display excerpt: the final 200 characters, unchanged:
-\begin{Verbatim}[fontsize=\small,breaklines=true,breakanywhere=true]
-l,"valid_until":null,"holder":null,"attitude":null},{"subject":"Holmes","relation":"said","object":"Watson","evidence_ids":["S7"],"valid_from":null,"valid_until":null,"holder":null,"attitude":null}]}}
-\end{Verbatim}
-\textbf{Original parser diagnosis:} \HolmesParseError
-
-Only the display is excerpted. The complete raw response remains in \path{data/prose_call_8_raw.txt} and the JSON record. The narrow permitted trailing-comma recovery does not remove an extra closing brace. No graph is reconstructed here.
-
-\subsection*{Provenance and access}
-The previous 36-page companion remains in version history. There is one current concise companion. The README gives the portable build and archival retrieval commands. No underlying response, prompt, reference answer or assessment was deleted.
-
-Codex assisted implementation, annotation, assessment and writing. Qwen generated the experimental facts. Human authors retain responsibility, and these semantic judgments are not independent review. Tool citation: OpenAI (2025), \emph{Introducing Codex}, \url{https://openai.com/index/introducing-codex/}. The author checklist records unresolved submission-policy questions.
 \end{document}

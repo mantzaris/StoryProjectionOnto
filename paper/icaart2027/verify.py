@@ -5,7 +5,6 @@ import hashlib
 import json
 import re
 import os
-import shutil
 import subprocess
 import tempfile
 import unicodedata
@@ -123,13 +122,22 @@ def verify_companion(compare_with=None):
     for declaration in declarations:
         assert normalized(declaration) in normalized(source), declaration
     listing = re.search(r'\\begin\{Verbatim\}(?:\[[^\]]*\])?\n(.*?)\n\\end\{Verbatim\}', source, re.S)
-    assert listing and listing[1] == tail, 'Inline raw-output excerpt differs from retained bytes'
+    if listing:
+        assert listing[1] == tail, 'Inline raw-output excerpt differs from retained bytes'
     files = [filename, 'article.cls', *images]
+    # Distribute the figures with the source. A lone .tex attachment is not a
+    # complete compilation package even when all document text is inline.
+    archive = HERE/'ICAART2027_companion_source.zip'
+    with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as z:
+        for f in files:
+            item = zipfile.ZipInfo(f, (2026,9,9,0,0,0))
+            item.compress_type = zipfile.ZIP_DEFLATED
+            item.external_attr = 0o644 << 16
+            z.writestr(item, (HERE/f).read_bytes())
     with tempfile.TemporaryDirectory(prefix='icaart-companion-source-') as folder:
         clean = Path(folder)
-        for f in files:
-            (clean/f).parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(HERE/f, clean/f)
+        with zipfile.ZipFile(archive) as z:
+            z.extractall(clean)
         assert sorted(str(p.relative_to(clean)) for p in clean.rglob('*') if p.is_file()) == sorted(files)
         env = {**os.environ, 'TEXINPUTS':'.:', 'BIBINPUTS':'.:',
                'SOURCE_DATE_EPOCH':'1788912000', 'FORCE_SOURCE_DATE':'1'}
@@ -150,7 +158,10 @@ def verify_companion(compare_with=None):
     result = dict(single_editable_source=filename, source_sha256=digest(HERE/filename),
                   pdf_sha256=digest(HERE/'ICAART2027_companion.pdf'),
                   initial_isolated_files=files, no_external_content_commands=True,
-                  no_repository_files_loaded=True, inline_data_and_listing='pass',
+                  no_repository_files_loaded=True, inline_data_checks='pass',
+                  raw_listing='verified' if listing else 'not displayed in the edited companion',
+                  source_zip=dict(filename=archive.name, sha256=digest(archive), files=files,
+                                  isolated_compilation='pass'),
                   isolated_compilation='pass', pdf=info, isolated_comparison=comparison)
     if compare_with:
         result['prior_pdf_sha256'] = digest(compare_with)
