@@ -2,6 +2,13 @@
 
 [Anonymous main PDF](ICAART2027_submission.pdf) · [Main LaTeX](ICAART2027_submission.tex) · [Local companion PDF](ICAART2027_companion.pdf) · [Companion LaTeX](ICAART2027_companion.tex) · [Author actions](author_actions.md) · [Requirements](submission_requirements.md)
 
+**Main submission PDF: [ICAART2027_submission.pdf](ICAART2027_submission.pdf)** —
+*Contextual Ontology Extraction and Inspection of Temporal Narrative Networks*.
+From the repository root, run `sh paper/icaart2027/build.sh --submission-only`
+to compile the current source with its bibliography. The build writes intermediate
+files to `paper/icaart2027/build/`, updates this PDF beside its `.tex` source, and
+prints the full path to open. The companion is separate supporting material.
+
 **No submission, email, registration or push is performed by these commands.** The main PDF is the intended anonymous submission artifact, subject to author review and eligibility clarification. The companion and its data are locally prepared anonymous supporting material; separate upload permission is unconfirmed. The source ZIP is for compilation/reproducibility, not an assertion that initial-review source upload is required.
 
 ## Portable build

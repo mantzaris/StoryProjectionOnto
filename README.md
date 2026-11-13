@@ -1,6 +1,26 @@
 # StoryProjectionOnto
 Projecting stories onto temporal ontological maps
 
+## ICAART 2027 submission PDF
+
+**[Open the main submission PDF](paper/icaart2027/ICAART2027_submission.pdf)**
+
+*Contextual Ontology Extraction and Inspection of Temporal Narrative Networks*
+
+The compiled main paper is `paper/icaart2027/ICAART2027_submission.pdf`.
+Its editable source is [ICAART2027_submission.tex](paper/icaart2027/ICAART2027_submission.tex).
+The separate [companion PDF](paper/icaart2027/ICAART2027_companion.pdf) contains supporting material.
+
+To rebuild the main paper from the repository root:
+
+```bash
+sh paper/icaart2027/build.sh --submission-only
+```
+
+This runs LaTeX and BibTeX, then updates the linked PDF. Intermediate files and
+logs go in `paper/icaart2027/build/`. See the [paper package instructions](paper/icaart2027/README.md)
+for dependencies and verification.
+
 ## Authoritative plans
 
 Implementation and scientific decisions are governed only by:
