@@ -1,0 +1,346 @@
+{
+  "budget_accounting": {
+    "assertions_used": 2,
+    "display_assertions_used": 2,
+    "display_nodes_used": 4,
+    "input_tokens": 0,
+    "nodes_used": 4,
+    "output_tokens": 0
+  },
+  "contextual_interpretation": "Selection-only credential-chain view of sealed C1.",
+  "decisions": [
+    {
+      "decided_at": "2026-09-03T12:00:21Z",
+      "decision_id": "d-fixed-select",
+      "evidence_ids": [
+        "ev-04",
+        "ev-06"
+      ],
+      "input_object_ids": [
+        "s-c1",
+        "t-c1",
+        "t-c1-event",
+        "p-c1-chain",
+        "p-c1-credential-enabled",
+        "ent-c1-lio",
+        "ent-c1-seal",
+        "event-c1-delivery",
+        "event-c1-opening",
+        "assert-c1-chain",
+        "assert-c1-enabled"
+      ],
+      "operator": "selection",
+      "rationale": "Select a closed subset of sealed C1 objects."
+    },
+    {
+      "decided_at": "2026-09-03T12:00:22Z",
+      "decision_id": "d-fixed-compress",
+      "evidence_ids": [
+        "ev-04",
+        "ev-06"
+      ],
+      "input_object_ids": [
+        "assert-c1-chain",
+        "assert-c1-enabled"
+      ],
+      "operator": "compression",
+      "rationale": "Use the sealed assertions as the compact display."
+    },
+    {
+      "decided_at": "2026-09-03T12:00:23Z",
+      "decision_id": "d-fixed-describe",
+      "evidence_ids": [
+        "ev-04",
+        "ev-06"
+      ],
+      "input_object_ids": [
+        "ent-c1-lio",
+        "ent-c1-seal",
+        "event-c1-delivery",
+        "event-c1-opening"
+      ],
+      "operator": "supported_description",
+      "rationale": "Retain only descriptions already supported in C1."
+    }
+  ],
+  "instance_graph": {
+    "assertions": [
+      {
+        "assertion_id": "assert-c1-chain",
+        "confidence": 1,
+        "contextual_relevance": 1,
+        "evidence_ids": [
+          "ev-04"
+        ],
+        "narrative_commitment": "world_committed",
+        "predicate_id": "p-c1-chain",
+        "provenance": [
+          {
+            "confidence": 1,
+            "evidence_id": "ev-04",
+            "extraction_method": "hand fixture",
+            "locator": "ev-04",
+            "provenance_id": "v-c1-chain-04"
+          }
+        ],
+        "roles": [
+          {
+            "evidence_ids": [
+              "ev-04"
+            ],
+            "object_id": "event-c1-delivery",
+            "role": "delivery"
+          },
+          {
+            "evidence_ids": [
+              "ev-04"
+            ],
+            "object_id": "event-c1-opening",
+            "role": "opening"
+          },
+          {
+            "evidence_ids": [
+              "ev-04"
+            ],
+            "object_id": "ent-c1-lio",
+            "role": "courier"
+          },
+          {
+            "evidence_ids": [
+              "ev-04"
+            ],
+            "object_id": "ent-c1-seal",
+            "role": "seal"
+          }
+        ],
+        "temporal_scope": {
+          "discourse_position": {
+            "passage_order": 4
+          },
+          "revelation_position": {
+            "revelation_order": 4
+          },
+          "story_time": {
+            "kind": "point",
+            "label": "day 2",
+            "point": 2
+          },
+          "validity_time": {
+            "kind": "point",
+            "label": "day 2",
+            "point": 2
+          }
+        },
+        "why_matters": "Shows roles and temporal order.",
+        "why_matters_evidence_ids": [
+          "ev-04"
+        ]
+      },
+      {
+        "assertion_id": "assert-c1-enabled",
+        "confidence": 1,
+        "contextual_relevance": 1,
+        "evidence_ids": [
+          "ev-04",
+          "ev-06"
+        ],
+        "narrative_commitment": "world_committed",
+        "object_id": "event-c1-opening",
+        "predicate_id": "p-c1-credential-enabled",
+        "provenance": [
+          {
+            "confidence": 1,
+            "evidence_id": "ev-04",
+            "extraction_method": "hand fixture",
+            "locator": "ev-04",
+            "provenance_id": "v-c1-enabled-04"
+          },
+          {
+            "confidence": 1,
+            "evidence_id": "ev-06",
+            "extraction_method": "hand fixture",
+            "locator": "ev-06",
+            "provenance_id": "v-c1-enabled-06"
+          }
+        ],
+        "subject_id": "ent-c1-seal",
+        "temporal_scope": {
+          "discourse_position": {
+            "passage_order": 6
+          },
+          "revelation_position": {
+            "revelation_order": 6
+          },
+          "story_time": {
+            "kind": "point",
+            "label": "day 2",
+            "point": 2
+          },
+          "validity_time": {
+            "kind": "point",
+            "label": "day 2",
+            "point": 2
+          }
+        },
+        "why_matters": "The rare mark explains opening.",
+        "why_matters_evidence_ids": [
+          "ev-04",
+          "ev-06"
+        ]
+      }
+    ],
+    "entities": [
+      {
+        "abstraction": "event_role",
+        "confidence": 1,
+        "contextual_role": "credential courier",
+        "contextual_type_id": "t-c1",
+        "description": "Lio delivered the marked seal.",
+        "description_assertion_ids": [
+          "assert-c1-chain"
+        ],
+        "entity_id": "ent-c1-lio",
+        "evidence_ids": [
+          "ev-02",
+          "ev-04"
+        ],
+        "label": "Lio",
+        "supported_mention_candidate_ids": [
+          "m-lio-04",
+          "m-ash-courier"
+        ],
+        "temporal_state": {
+          "kind": "point",
+          "label": "day 2",
+          "point": 2
+        },
+        "uncertainty": "known"
+      },
+      {
+        "abstraction": "event_role",
+        "confidence": 1,
+        "contextual_role": "rare credential",
+        "contextual_type_id": "t-c1",
+        "description": "Its rare mark enabled opening.",
+        "description_assertion_ids": [
+          "assert-c1-chain",
+          "assert-c1-enabled"
+        ],
+        "entity_id": "ent-c1-seal",
+        "evidence_ids": [
+          "ev-04",
+          "ev-06"
+        ],
+        "label": "Marked seal",
+        "supported_mention_candidate_ids": [
+          "m-seal-04",
+          "m-mark-06"
+        ],
+        "temporal_state": {
+          "kind": "point",
+          "label": "day 2",
+          "point": 2
+        },
+        "uncertainty": "known"
+      }
+    ],
+    "events": [
+      {
+        "confidence": 1,
+        "contextual_type_id": "t-c1-event",
+        "description": "Delivery preceded opening.",
+        "description_assertion_ids": [
+          "assert-c1-chain"
+        ],
+        "event_id": "event-c1-delivery",
+        "evidence_ids": [
+          "ev-04"
+        ],
+        "label": "Seal delivery",
+        "occurrence_time": {
+          "kind": "point",
+          "label": "day 2",
+          "point": 2
+        },
+        "reification_reason": "Needed for temporal roles.",
+        "uncertainty": "known"
+      },
+      {
+        "confidence": 1,
+        "contextual_type_id": "t-c1-event",
+        "description": "Opening required the rare mark.",
+        "description_assertion_ids": [
+          "assert-c1-chain",
+          "assert-c1-enabled"
+        ],
+        "event_id": "event-c1-opening",
+        "evidence_ids": [
+          "ev-04"
+        ],
+        "label": "Floodgate opening",
+        "occurrence_time": {
+          "kind": "point",
+          "label": "day 2",
+          "point": 2
+        },
+        "reification_reason": "Needed for temporal roles.",
+        "uncertainty": "known"
+      }
+    ]
+  },
+  "local_schema": {
+    "abstraction": "event_role",
+    "contextual_types": [
+      {
+        "abstraction": "event_role",
+        "definition": "A context-specific narrative role.",
+        "evidence_ids": [
+          "ev-04"
+        ],
+        "label": "Role",
+        "parent_upper_type": "entity",
+        "type_id": "t-c1"
+      },
+      {
+        "abstraction": "event_role",
+        "definition": "A reified occurrence in the local event chain.",
+        "evidence_ids": [
+          "ev-04"
+        ],
+        "label": "Narrative event",
+        "parent_upper_type": "event",
+        "type_id": "t-c1-event"
+      }
+    ],
+    "predicates": [
+      {
+        "arity": 4,
+        "definition": "Delivery precedes opening.",
+        "evidence_ids": [
+          "ev-04"
+        ],
+        "label": "credential chain",
+        "parent_upper_relation": "precedes",
+        "predicate_id": "p-c1-chain",
+        "role_names": [
+          "delivery",
+          "opening",
+          "courier",
+          "seal"
+        ]
+      },
+      {
+        "arity": 2,
+        "definition": "A rare mark enabled opening.",
+        "evidence_ids": [
+          "ev-04",
+          "ev-06"
+        ],
+        "label": "enabled",
+        "parent_upper_relation": "causes",
+        "predicate_id": "p-c1-credential-enabled"
+      }
+    ],
+    "schema_id": "s-c1"
+  }
+}

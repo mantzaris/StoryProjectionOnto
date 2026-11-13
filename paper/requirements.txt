@@ -1,0 +1,8 @@
+# CPU-only publishing environment; no model dependencies.
+matplotlib==3.11.1
+reportlab==4.5.1
+fonttools==4.64.0
+markdown-it-py==4.2.0
+pdfrw==0.4
+numpy==2.5.2
+pillow==12.3.0

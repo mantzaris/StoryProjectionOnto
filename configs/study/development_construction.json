@@ -1,0 +1,85 @@
+{
+  "schema_version": "1.0.0",
+  "configuration_id": "development-construction-v1",
+  "upper_ontology": {
+    "ontology_id": "upper-narrative-v1",
+    "primitive_types": [
+      "entity",
+      "person",
+      "collective",
+      "place",
+      "artifact",
+      "infrastructure",
+      "event",
+      "proposition",
+      "state"
+    ],
+    "primitive_relations": [
+      "related_to",
+      "participates_in",
+      "located_at",
+      "precedes",
+      "causes",
+      "has_status",
+      "reports"
+    ],
+    "temporal_terms": [
+      "story_time",
+      "validity_time",
+      "discourse_position",
+      "revelation_position",
+      "spoiler_horizon"
+    ],
+    "epistemic_terms": [
+      "known",
+      "believed",
+      "reported",
+      "denied",
+      "uncertain"
+    ],
+    "revision": "phase1-upper-v1"
+  },
+  "preconstruction_budgets": {
+    "node_budget": 30,
+    "assertion_budget": 60,
+    "display_node_budget": 20,
+    "display_assertion_budget": 60,
+    "repair_attempt_budget": 1
+  },
+  "projection_budgets_by_unit": {
+    "dev-unit-01": {
+      "node_budget": 10,
+      "assertion_budget": 30,
+      "display_node_budget": 10,
+      "display_assertion_budget": 30,
+      "repair_attempt_budget": 1
+    },
+    "dev-unit-02": {
+      "node_budget": 10,
+      "assertion_budget": 30,
+      "display_node_budget": 10,
+      "display_assertion_budget": 30,
+      "repair_attempt_budget": 1
+    },
+    "dev-unit-03": {
+      "node_budget": 15,
+      "assertion_budget": 45,
+      "display_node_budget": 15,
+      "display_assertion_budget": 45,
+      "repair_attempt_budget": 1
+    },
+    "dev-unit-04": {
+      "node_budget": 20,
+      "assertion_budget": 60,
+      "display_node_budget": 20,
+      "display_assertion_budget": 60,
+      "repair_attempt_budget": 1
+    }
+  },
+  "retrieval_policy": "complete_admissible_snapshot_v1",
+  "first_pass_input_tokens": 10240,
+  "first_pass_output_tokens": 2048,
+  "repair_input_tokens": 10752,
+  "repair_output_tokens": 1536,
+  "maximum_model_tokens": 12288
+}

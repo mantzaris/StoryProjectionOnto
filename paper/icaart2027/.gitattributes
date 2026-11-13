@@ -1,0 +1,10 @@
+# Official files and source notices are preserved byte-for-byte, including CRLF
+# and upstream whitespace. Do not normalize them on checkout or fix their style.
+vendor/** -text -whitespace
+article.cls -text -whitespace
+SCITEPRESS.sty -text -whitespace
+apalike.sty -text -whitespace
+apalike.bst -text -whitespace
+data/*_notices.txt -text -whitespace
+# Generated source embeds the published prose's original CRLF spans verbatim.
+generated/companion_content.tex -text -whitespace

@@ -1,0 +1,2895 @@
+%PDF-1.4
+%“Œ‹ž ReportLab Generated PDF document (opensource)
+1 0 obj
+<<
+/F1 2 0 R /F2 3 0 R /F3 6 0 R
+>>
+endobj
+2 0 obj
+<<
+/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font
+>>
+endobj
+3 0 obj
+<<
+/BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding /Name /F2 /Subtype /Type1 /Type /Font
+>>
+endobj
+4 0 obj
+<<
+/Contents 16 0 R /MediaBox [ 0 0 612 792 ] /Parent 15 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+5 0 obj
+<<
+/Contents 17 0 R /MediaBox [ 0 0 612 792 ] /Parent 15 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+6 0 obj
+<<
+/BaseFont /Times-Roman /Encoding /WinAnsiEncoding /Name /F3 /Subtype /Type1 /Type /Font
+>>
+endobj
+7 0 obj
+<<
+/Contents 18 0 R /MediaBox [ 0 0 612 792 ] /Parent 15 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+8 0 obj
+<<
+/Contents 19 0 R /MediaBox [ 0 0 612 792 ] /Parent 15 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+9 0 obj
+<<
+/Contents 20 0 R /MediaBox [ 0 0 612 792 ] /Parent 15 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+10 0 obj
+<<
+/Contents 21 0 R /MediaBox [ 0 0 612 792 ] /Parent 15 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+11 0 obj
+<<
+/Contents 22 0 R /MediaBox [ 0 0 612 792 ] /Parent 15 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+12 0 obj
+<<
+/Contents 23 0 R /MediaBox [ 0 0 612 792 ] /Parent 15 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+13 0 obj
+<<
+/PageMode /UseNone /Pages 15 0 R /Type /Catalog
+>>
+endobj
+14 0 obj
+<<
+/Author (StoryProjectionOnto reproducible reporting pipeline) /CreationDate (D:20000101000000+00'00') /Creator (\(unspecified\)) /Keywords () /ModDate (D:20000101000000+00'00') /Producer (ReportLab PDF Library - \(opensource\)) 
+  /Subject (source manifest 157a5261a5847af75a5831e96fc97d62eb87a35ef5b457075dff409d168411e7) /Title (StoryProjectionOnto: Conference-Study Results Report) /Trapped /False
+>>
+endobj
+15 0 obj
+<<
+/Count 8 /Kids [ 4 0 R 5 0 R 7 0 R 8 0 R 9 0 R 10 0 R 11 0 R 12 0 R ] /Type /Pages
+>>
+endobj
+16 0 obj
+<<
+/Length 5808
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+q
+1 0 0 1 45.6 724.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 18 Tf 22 TL 22.872 0 Td (StoryProjectionOnto: Conference-Study Results Report) Tj T* -22.872 0 Td ET
+Q
+Q
+q
+1 0 0 1 45.6 682.4 cm
+q
+.545098 .117647 .247059 RG
+.8 w
+.972549 .913725 .933333 rg
+n -8 -8 536.8 52 re B*
+Q
+q
+BT 1 0 0 1 0 26 Tm -0.036923 Tw 12 TL /F1 10 Tf 0 0 0 rg (Study status: ) Tj /F2 10 Tf (INCOMPLETE) Tj /F1 10 Tf ( \227 Recovery interim through the zero-GPU fallback-v4 control-plane incident: the primary) Tj T* 0 Tw (14B pilots and fallback attempts were rejected, no scientific generation was accepted, and fallback acceptance,) Tj T* (development execution, independent review, held-out runs, and the lawful first-novel study remain incomplete.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 648.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (This report is generated from hash-verified canonical tables. Missing results are marked incomplete; no values are) Tj T* (imputed.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 638.4 cm
+Q
+q
+1 0 0 1 45.6 616.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 18 Tf 22 TL (Study overview) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 574.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 26 Tm /F1 10 Tf 12 TL (Narrative evidence does not determine one universally useful ontology. This study tests whether revealing a user's) Tj T* (context before ontology construction changes the semantic fidelity and organization of the resulting) Tj T* (evidence-grounded graph.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 544.4 cm
+q
+BT 1 0 0 1 0 14 Tm 12 TL /F2 10 Tf 0 0 0 rg (RQ1:) Tj /F1 10 Tf ( Does query-dependent LLM construction improve qualified-assertion and ontology-decision fidelity relative to) Tj T* (query-blind LLM and classical construction?) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 514.4 cm
+q
+BT 1 0 0 1 0 14 Tm 12 TL /F2 10 Tf 0 0 0 rg (RQ2:) Tj /F1 10 Tf ( How does construction timing change entropy and directly measured visual clutter when semantic and) Tj T* (rare-pivotal safeguards remain visible?) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 496.4 cm
+q
+BT 1 0 0 1 0 2 Tm 12 TL /F2 10 Tf 0 0 0 rg (RQ3:) Tj /F1 10 Tf ( How does construction timing change gold-aligned community structure and cross-seed cluster stability?) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 454.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 26 Tm /F1 10 Tf 12 TL (The query-blind evidence index stores only source-grounded evidence and retrieval metadata; it is not a hidden) Tj T* (ontology. C2 forms contextual entities, events, schema, relations, abstractions, and qualified assertions after query) Tj T* (reveal.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 444.4 cm
+Q
+q
+1 0 0 1 45.6 422.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 18 Tf 22 TL (1. Research questions and hypotheses) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 392.4 cm
+q
+.545098 .117647 .247059 RG
+.8 w
+.972549 .913725 .933333 rg
+n -8 -8 536.8 40 re B*
+Q
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (STATUS: INCOMPLETE \227 Contracts, resource controls, and GPU pilot: The 14B candidate was rejected and) Tj T* (fallback acceptance has not completed.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 370.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (No confirmatory or descriptive outcome is available for this section.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 340.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (H1-semantic registers strict qualified-assertion F1 and H1-organization registers ontology-decision macro F1 for C2) Tj T* (versus C1. Rare-pivotal recall is a noncompensable safeguard, not another optimization target.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 335.4 cm
+Q
+q
+1 0 0 1 45.6 313.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 18 Tf 22 TL (2. Experimental conditions and construction timing) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 283.4 cm
+q
+.545098 .117647 .247059 RG
+.8 w
+.972549 .913725 .933333 rg
+n -8 -8 536.8 40 re B*
+Q
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (STATUS: INCOMPLETE \227 Conditions and primary comparisons: Development and held-out GPU condition outputs) Tj T* (are not complete.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 261.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (No confirmatory or descriptive outcome is available for this section.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 231.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (C0 and C1 construct before query reveal; C2 actively constructs after query reveal; A-FixedSelect uses query-time) Tj T* (LLM selection over the complete sealed C1 ontology while construction operations are mechanically forbidden.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 226.4 cm
+Q
+q
+1 0 0 1 45.6 204.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 18 Tf 22 TL (3. Temporal qualified-assertion representation) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 174.4 cm
+q
+.545098 .117647 .247059 RG
+.8 w
+.972549 .913725 .933333 rg
+n -8 -8 536.8 40 re B*
+Q
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (STATUS: INCOMPLETE \227 Contracts, resource controls, and GPU pilot: The 14B candidate was rejected and) Tj T* (fallback acceptance has not completed.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 152.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (No confirmatory or descriptive outcome is available for this section.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 122.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (Assertions separate story time, validity time, discourse order, proposition revelation position, spoiler horizon,) Tj T* (holder-level epistemic status, confidence, provenance, contextual relevance, and supported why-it-matters text.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 117.4 cm
+Q
+q
+1 0 0 1 45.6 95.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 18 Tf 22 TL (4. Synthetic benchmark construction and split) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 65.4 cm
+q
+.545098 .117647 .247059 RG
+.8 w
+.972549 .913725 .933333 rg
+n -8 -8 536.8 40 re B*
+Q
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (STATUS: INCOMPLETE \227 Synthetic benchmark: The mandatory independent condition-blind review has not been) Tj T* (supplied or adjudicated.) Tj T* ET
+Q
+Q
+ 
+endstream
+endobj
+17 0 obj
+<<
+/Length 11834
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+q
+1 0 0 1 45.6 734.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (No confirmatory or descriptive outcome is available for this section.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 704.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (The registered design contains four development worlds and twelve held-out worlds with three same-evidence) Tj T* (contexts per held-out world. Held-out execution remains gated on independent condition-blind review.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 699.4 cm
+Q
+q
+1 0 0 1 45.6 677.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 18 Tf 22 TL (5. Resource and reproducibility controls) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 635.4 cm
+q
+.545098 .117647 .247059 RG
+.8 w
+.972549 .913725 .933333 rg
+n -8 -8 536.8 52 re B*
+Q
+q
+0 0 0 rg
+BT 1 0 0 1 0 26 Tm /F1 10 Tf 12 TL (STATUS: INCOMPLETE \227 Contracts, resource controls, and GPU pilot: The 14B candidate was rejected and) Tj T* (fallback acceptance has not completed.; Results and conference artifacts: The reporting substrate exists, but final) Tj T* (immutable result inputs do not.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 613.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (No confirmatory or descriptive outcome is available for this section.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 583.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (GPU time includes loading, warm-up, failures, repairs, restarts, and inference. Occupied project storage targets at) Tj T* (most 25 GB with 5 GB protected headroom.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 578.4 cm
+Q
+q
+1 0 0 1 45.6 560.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (Interim verified table. It is not a completed section outcome.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 530.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 14 Tf 18 TL (Machine-readable phase status at this recovery-interim build) Tj T* ET
+Q
+Q
+q
+1 0 0 1 43.2 412.4 cm
+q
+.141176 .231373 .32549 rg
+n 0 112 525.6 -14 re f*
+1 1 1 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 3 101 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 1.3 Tm /F2 6.7 Tf 8 TL (phase_id) Tj T* ET
+Q
+Q
+q
+1 0 0 1 87.096 101 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 1.3 Tm /F2 6.7 Tf 8 TL (status) Tj T* ET
+Q
+Q
+q
+1 0 0 1 192.216 101 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 1.3 Tm /F2 6.7 Tf 8 TL (reason) Tj T* ET
+Q
+Q
+0 0 0 rg
+q
+1 0 0 1 3 87 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (phase_1) Tj T* ET
+Q
+Q
+q
+1 0 0 1 87.096 87 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (incomplete) Tj T* ET
+Q
+Q
+q
+1 0 0 1 192.216 87 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (The 14B candidate was rejected and fallback acceptance has not completed.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 3 73 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (phase_2) Tj T* ET
+Q
+Q
+q
+1 0 0 1 87.096 73 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (incomplete) Tj T* ET
+Q
+Q
+q
+1 0 0 1 192.216 73 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (The mandatory independent condition-blind review has not been supplied or adjudicated.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 3 59 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (phase_3) Tj T* ET
+Q
+Q
+q
+1 0 0 1 87.096 59 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (incomplete) Tj T* ET
+Q
+Q
+q
+1 0 0 1 192.216 59 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (Development and held-out GPU condition outputs are not complete.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 3 45 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (phase_4) Tj T* ET
+Q
+Q
+q
+1 0 0 1 87.096 45 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (incomplete) Tj T* ET
+Q
+Q
+q
+1 0 0 1 192.216 45 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (No registered held-out condition table exists to analyze.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 3 31 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (phase_5) Tj T* ET
+Q
+Q
+q
+1 0 0 1 87.096 31 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (incomplete) Tj T* ET
+Q
+Q
+q
+1 0 0 1 192.216 31 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (GPU-backed scripted feedback and researcher traces have not executed.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 3 17 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (phase_6) Tj T* ET
+Q
+Q
+q
+1 0 0 1 87.096 17 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (incomplete) Tj T* ET
+Q
+Q
+q
+1 0 0 1 192.216 17 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (No lawful local novel path has been supplied and no case-study output exists.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 3 3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (phase_7) Tj T* ET
+Q
+Q
+q
+1 0 0 1 87.096 3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (incomplete) Tj T* ET
+Q
+Q
+q
+1 0 0 1 192.216 3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (The reporting substrate exists, but final immutable result inputs do not.) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.623529 .701961 .784314 RG
+.3 w
+n 0 112 m 525.6 112 l S
+n 0 0 m 525.6 0 l S
+n 0 0 m 0 112 l S
+n 525.6 0 m 525.6 112 l S
+n 0 98 m 525.6 98 l S
+n 0 84 m 525.6 84 l S
+n 0 70 m 525.6 70 l S
+n 0 56 m 525.6 56 l S
+n 0 42 m 525.6 42 l S
+n 0 28 m 525.6 28 l S
+n 0 14 m 525.6 14 l S
+n 84.096 0 m 84.096 112 l S
+n 189.216 0 m 189.216 112 l S
+Q
+Q
+Q
+q
+1 0 0 1 45.6 404.4 cm
+Q
+q
+1 0 0 1 45.6 386.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (Interim verified table. It is not a completed section outcome.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 356.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 14 Tf 18 TL (Verified cumulative accounting through rejected fallback v3 \(interim, not final\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 43.2 136.4 cm
+q
+.141176 .231373 .32549 rg
+n 0 214 525.6 -14 re f*
+1 1 1 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 3 203 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 1.3 Tm /F2 6.7 Tf 8 TL (scope) Tj T* ET
+Q
+Q
+q
+1 0 0 1 119.2832 203 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 1.3 Tm /F2 6.7 Tf 8 TL (metric) Tj T* ET
+Q
+Q
+q
+1 0 0 1 249.5204 203 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 1.3 Tm /F2 6.7 Tf 8 TL (value) Tj T* ET
+Q
+Q
+q
+1 0 0 1 300.685 203 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 1.3 Tm /F2 6.7 Tf 8 TL (unit) Tj T* ET
+Q
+Q
+q
+1 0 0 1 333.2442 203 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 1.3 Tm /F2 6.7 Tf 8 TL (status) Tj T* ET
+Q
+Q
+q
+1 0 0 1 379.7575 203 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 1.3 Tm /F2 6.7 Tf 8 TL (source_note) Tj T* ET
+Q
+Q
+0 0 0 rg
+q
+1 0 0 1 3 189 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (study_through_fallback_v3) Tj T* ET
+Q
+Q
+q
+1 0 0 1 119.2832 189 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (actual_allocated_gpu_time) Tj T* ET
+Q
+Q
+q
+1 0 0 1 249.5204 189 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (815.215409) Tj T* ET
+Q
+Q
+q
+1 0 0 1 300.685 189 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (seconds) Tj T* ET
+Q
+Q
+q
+1 0 0 1 333.2442 189 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (observed) Tj T* ET
+Q
+Q
+q
+1 0 0 1 379.7575 165 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 25.3 Tm /F1 6.7 Tf 8 TL (Exact cumulative allocation through the) Tj T* (rejected fallback-v3 attempt; includes all four) Tj T* (service sessions and every failure, timeout,) Tj T* (startup, and service-overhead event.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 3 151 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (study_through_fallback_v3) Tj T* ET
+Q
+Q
+q
+1 0 0 1 119.2832 151 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (actual_allocated_gpu_time) Tj T* ET
+Q
+Q
+q
+1 0 0 1 249.5204 151 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (0.226448725) Tj T* ET
+Q
+Q
+q
+1 0 0 1 300.685 151 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (hours) Tj T* ET
+Q
+Q
+q
+1 0 0 1 333.2442 151 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (observed) Tj T* ET
+Q
+Q
+q
+1 0 0 1 379.7575 143 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 9.3 Tm /F1 6.7 Tf 8 TL (Derived exactly from cumulative allocated) Tj T* (microseconds for display only.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 3 129 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (study_through_fallback_v3) Tj T* ET
+Q
+Q
+q
+1 0 0 1 119.2832 129 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (peak_gpu_vram) Tj T* ET
+Q
+Q
+q
+1 0 0 1 249.5204 129 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (22525509632) Tj T* ET
+Q
+Q
+q
+1 0 0 1 300.685 129 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (bytes) Tj T* ET
+Q
+Q
+q
+1 0 0 1 333.2442 129 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (observed) Tj T* ET
+Q
+Q
+q
+1 0 0 1 379.7575 121 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 9.3 Tm /F1 6.7 Tf 8 TL (Recovered cumulative maximum authenticated) Tj T* (by the fallback-v3 incident record.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 3 107 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (study_through_fallback_v3) Tj T* ET
+Q
+Q
+q
+1 0 0 1 119.2832 107 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (peak_process_ram) Tj T* ET
+Q
+Q
+q
+1 0 0 1 249.5204 107 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (2955644928) Tj T* ET
+Q
+Q
+q
+1 0 0 1 300.685 107 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (bytes) Tj T* ET
+Q
+Q
+q
+1 0 0 1 333.2442 107 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (observed) Tj T* ET
+Q
+Q
+q
+1 0 0 1 379.7575 99 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 9.3 Tm /F1 6.7 Tf 8 TL (Recovered cumulative maximum authenticated) Tj T* (by the fallback-v3 incident record.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 3 85 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (study_through_fallback_v3) Tj T* ET
+Q
+Q
+q
+1 0 0 1 119.2832 85 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (peak_project_storage) Tj T* ET
+Q
+Q
+q
+1 0 0 1 249.5204 85 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (13623907840) Tj T* ET
+Q
+Q
+q
+1 0 0 1 300.685 85 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (bytes) Tj T* ET
+Q
+Q
+q
+1 0 0 1 333.2442 85 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (observed) Tj T* ET
+Q
+Q
+q
+1 0 0 1 379.7575 77 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 9.3 Tm /F1 6.7 Tf 8 TL (Recovered cumulative maximum authenticated) Tj T* (by the fallback-v3 incident record.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 3 63 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (study) Tj T* ET
+Q
+Q
+q
+1 0 0 1 119.2832 63 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (current_vllm_service_stopped) Tj T* ET
+Q
+Q
+q
+1 0 0 1 249.5204 63 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (true) Tj T* ET
+Q
+Q
+q
+1 0 0 1 300.685 63 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (boolean) Tj T* ET
+Q
+Q
+q
+1 0 0 1 333.2442 63 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (observed) Tj T* ET
+Q
+Q
+q
+1 0 0 1 379.7575 55 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 9.3 Tm /F1 6.7 Tf 8 TL (The fallback-v3 terminal result and incident) Tj T* (record both verify that the service stopped.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 3 41 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (study) Tj T* ET
+Q
+Q
+q
+1 0 0 1 119.2832 41 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (final_scheduled_gpu_forecast) Tj T* ET
+Q
+Q
+q
+1 0 0 1 249.5204 49 cm
+Q
+q
+1 0 0 1 300.685 41 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (hours) Tj T* ET
+Q
+Q
+q
+1 0 0 1 333.2442 41 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (incomplete) Tj T* ET
+Q
+Q
+q
+1 0 0 1 379.7575 25 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 17.3 Tm /F1 6.7 Tf 8 TL (The v3 incident invalidates its published) Tj T* (forecast; a corrected gate-admitted timing) Tj T* (result is still required.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 3 11 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (study) Tj T* ET
+Q
+Q
+q
+1 0 0 1 119.2832 11 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (final_total_runpod_wall_time) Tj T* ET
+Q
+Q
+q
+1 0 0 1 249.5204 19 cm
+Q
+q
+1 0 0 1 300.685 11 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (hours) Tj T* ET
+Q
+Q
+q
+1 0 0 1 333.2442 11 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (incomplete) Tj T* ET
+Q
+Q
+q
+1 0 0 1 379.7575 3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 9.3 Tm /F1 6.7 Tf 8 TL (No final pod-session accounting artifact exists) Tj T* (yet.) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.623529 .701961 .784314 RG
+.3 w
+n 0 214 m 525.6 214 l S
+n 0 0 m 525.6 0 l S
+n 0 0 m 0 214 l S
+n 525.6 0 m 525.6 214 l S
+n 0 200 m 525.6 200 l S
+n 0 162 m 525.6 162 l S
+n 0 140 m 525.6 140 l S
+n 0 118 m 525.6 118 l S
+n 0 96 m 525.6 96 l S
+n 0 74 m 525.6 74 l S
+n 0 52 m 525.6 52 l S
+n 0 22 m 525.6 22 l S
+n 116.2832 0 m 116.2832 214 l S
+n 246.5204 0 m 246.5204 214 l S
+n 297.685 0 m 297.685 214 l S
+n 330.2442 0 m 330.2442 214 l S
+n 376.7575 0 m 376.7575 214 l S
+Q
+Q
+Q
+q
+1 0 0 1 45.6 128.4 cm
+Q
+ 
+endstream
+endobj
+18 0 obj
+<<
+/Length 4811
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+q
+1 0 0 1 45.6 728.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 14 Tf 18 TL (Registered study phase status) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 414.4 cm
+q
+1 0 0 1 0 0 cm
+0 0 0 RG
+1 w
+0 J
+0 j
+[] 0 d
+0 0 0 rg
+BT /F3 10 Tf 12 TL ET
+BT /F3 10 Tf 12 TL ET
+q
+1 0 0 1 0 0 cm
+q
+.84 .55 .12 rg
+1 w
+0 J
+0 j
+[] 0 d
+n
+7 266 m
+93 266 l
+94.6584 266 96 267.3416 96 269 c
+96 283 l
+96 284.6584 94.6584 286 93 286 c
+7 286 l
+5.3416 286 4 284.6584 4 283 c
+4 269 l
+4 267.3416 5.3416 266 7 266 c
+h
+f*
+Q
+q
+BT /F2 7.5 Tf 9 TL ET
+BT /F2 7.5 Tf 9 TL ET
+1 1 1 rg
+BT 1 0 0 1 25.415 272 Tm (INCOMPLETE) Tj T* ET
+Q
+q
+BT /F2 8.5 Tf 10.2 TL ET
+BT /F2 8.5 Tf 10.2 TL ET
+.062745 .164706 .262745 rg
+BT 1 0 0 1 108 277 Tm (Contracts, resource controls, and GPU pilot) Tj T* ET
+Q
+q
+BT /F1 6.5 Tf 7.8 TL ET
+BT /F1 6.5 Tf 7.8 TL ET
+.282353 .396078 .505882 rg
+BT 1 0 0 1 108 266 Tm (The 14B candidate was rejected and fallback acceptance has not completed.) Tj T* ET
+Q
+q
+.84 .55 .12 rg
+1 w
+0 J
+0 j
+[] 0 d
+n
+7 228 m
+93 228 l
+94.6584 228 96 229.3416 96 231 c
+96 245 l
+96 246.6584 94.6584 248 93 248 c
+7 248 l
+5.3416 248 4 246.6584 4 245 c
+4 231 l
+4 229.3416 5.3416 228 7 228 c
+h
+f*
+Q
+q
+BT /F2 7.5 Tf 9 TL ET
+BT /F2 7.5 Tf 9 TL ET
+1 1 1 rg
+BT 1 0 0 1 25.415 234 Tm (INCOMPLETE) Tj T* ET
+Q
+q
+BT /F2 8.5 Tf 10.2 TL ET
+BT /F2 8.5 Tf 10.2 TL ET
+.062745 .164706 .262745 rg
+BT 1 0 0 1 108 239 Tm (Synthetic benchmark) Tj T* ET
+Q
+q
+BT /F1 6.5 Tf 7.8 TL ET
+BT /F1 6.5 Tf 7.8 TL ET
+.282353 .396078 .505882 rg
+BT 1 0 0 1 108 228 Tm (The mandatory independent condition-blind review has not been supplied or adjudicated.) Tj T* ET
+Q
+q
+.84 .55 .12 rg
+1 w
+0 J
+0 j
+[] 0 d
+n
+7 190 m
+93 190 l
+94.6584 190 96 191.3416 96 193 c
+96 207 l
+96 208.6584 94.6584 210 93 210 c
+7 210 l
+5.3416 210 4 208.6584 4 207 c
+4 193 l
+4 191.3416 5.3416 190 7 190 c
+h
+f*
+Q
+q
+BT /F2 7.5 Tf 9 TL ET
+BT /F2 7.5 Tf 9 TL ET
+1 1 1 rg
+BT 1 0 0 1 25.415 196 Tm (INCOMPLETE) Tj T* ET
+Q
+q
+BT /F2 8.5 Tf 10.2 TL ET
+BT /F2 8.5 Tf 10.2 TL ET
+.062745 .164706 .262745 rg
+BT 1 0 0 1 108 201 Tm (Conditions and primary comparisons) Tj T* ET
+Q
+q
+BT /F1 6.5 Tf 7.8 TL ET
+BT /F1 6.5 Tf 7.8 TL ET
+.282353 .396078 .505882 rg
+BT 1 0 0 1 108 190 Tm (Development and held-out GPU condition outputs are not complete.) Tj T* ET
+Q
+q
+.84 .55 .12 rg
+1 w
+0 J
+0 j
+[] 0 d
+n
+7 152 m
+93 152 l
+94.6584 152 96 153.3416 96 155 c
+96 169 l
+96 170.6584 94.6584 172 93 172 c
+7 172 l
+5.3416 172 4 170.6584 4 169 c
+4 155 l
+4 153.3416 5.3416 152 7 152 c
+h
+f*
+Q
+q
+BT /F2 7.5 Tf 9 TL ET
+BT /F2 7.5 Tf 9 TL ET
+1 1 1 rg
+BT 1 0 0 1 25.415 158 Tm (INCOMPLETE) Tj T* ET
+Q
+q
+BT /F2 8.5 Tf 10.2 TL ET
+BT /F2 8.5 Tf 10.2 TL ET
+.062745 .164706 .262745 rg
+BT 1 0 0 1 108 163 Tm (Metrics, statistics, and ablations) Tj T* ET
+Q
+q
+BT /F1 6.5 Tf 7.8 TL ET
+BT /F1 6.5 Tf 7.8 TL ET
+.282353 .396078 .505882 rg
+BT 1 0 0 1 108 152 Tm (No registered held-out condition table exists to analyze.) Tj T* ET
+Q
+q
+.84 .55 .12 rg
+1 w
+0 J
+0 j
+[] 0 d
+n
+7 114 m
+93 114 l
+94.6584 114 96 115.3416 96 117 c
+96 131 l
+96 132.6584 94.6584 134 93 134 c
+7 134 l
+5.3416 134 4 132.6584 4 131 c
+4 117 l
+4 115.3416 5.3416 114 7 114 c
+h
+f*
+Q
+q
+BT /F2 7.5 Tf 9 TL ET
+BT /F2 7.5 Tf 9 TL ET
+1 1 1 rg
+BT 1 0 0 1 25.415 120 Tm (INCOMPLETE) Tj T* ET
+Q
+q
+BT /F2 8.5 Tf 10.2 TL ET
+BT /F2 8.5 Tf 10.2 TL ET
+.062745 .164706 .262745 rg
+BT 1 0 0 1 108 125 Tm (Visualization and feedback) Tj T* ET
+Q
+q
+BT /F1 6.5 Tf 7.8 TL ET
+BT /F1 6.5 Tf 7.8 TL ET
+.282353 .396078 .505882 rg
+BT 1 0 0 1 108 114 Tm (GPU-backed scripted feedback and researcher traces have not executed.) Tj T* ET
+Q
+q
+.84 .55 .12 rg
+1 w
+0 J
+0 j
+[] 0 d
+n
+7 76 m
+93 76 l
+94.6584 76 96 77.3416 96 79 c
+96 93 l
+96 94.6584 94.6584 96 93 96 c
+7 96 l
+5.3416 96 4 94.6584 4 93 c
+4 79 l
+4 77.3416 5.3416 76 7 76 c
+h
+f*
+Q
+q
+BT /F2 7.5 Tf 9 TL ET
+BT /F2 7.5 Tf 9 TL ET
+1 1 1 rg
+BT 1 0 0 1 25.415 82 Tm (INCOMPLETE) Tj T* ET
+Q
+q
+BT /F2 8.5 Tf 10.2 TL ET
+BT /F2 8.5 Tf 10.2 TL ET
+.062745 .164706 .262745 rg
+BT 1 0 0 1 108 87 Tm (First-novel case study) Tj T* ET
+Q
+q
+BT /F1 6.5 Tf 7.8 TL ET
+BT /F1 6.5 Tf 7.8 TL ET
+.282353 .396078 .505882 rg
+BT 1 0 0 1 108 76 Tm (No lawful local novel path has been supplied and no case-study output exists.) Tj T* ET
+Q
+q
+.84 .55 .12 rg
+1 w
+0 J
+0 j
+[] 0 d
+n
+7 38 m
+93 38 l
+94.6584 38 96 39.3416 96 41 c
+96 55 l
+96 56.6584 94.6584 58 93 58 c
+7 58 l
+5.3416 58 4 56.6584 4 55 c
+4 41 l
+4 39.3416 5.3416 38 7 38 c
+h
+f*
+Q
+q
+BT /F2 7.5 Tf 9 TL ET
+BT /F2 7.5 Tf 9 TL ET
+1 1 1 rg
+BT 1 0 0 1 25.415 44 Tm (INCOMPLETE) Tj T* ET
+Q
+q
+BT /F2 8.5 Tf 10.2 TL ET
+BT /F2 8.5 Tf 10.2 TL ET
+.062745 .164706 .262745 rg
+BT 1 0 0 1 108 49 Tm (Results and conference artifacts) Tj T* ET
+Q
+q
+BT /F1 6.5 Tf 7.8 TL ET
+BT /F1 6.5 Tf 7.8 TL ET
+.282353 .396078 .505882 rg
+BT 1 0 0 1 108 38 Tm (The reporting substrate exists, but final immutable result inputs do not.) Tj T* ET
+Q
+Q
+Q
+Q
+q
+1 0 0 1 45.6 406.4 cm
+Q
+ 
+endstream
+endobj
+19 0 obj
+<<
+/Length 4846
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+q
+1 0 0 1 45.6 724.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 18 Tf 22 TL (6. Primary C2 versus C1 results) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 694.4 cm
+q
+.545098 .117647 .247059 RG
+.8 w
+.972549 .913725 .933333 rg
+n -8 -8 536.8 40 re B*
+Q
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (STATUS: INCOMPLETE \227 Conditions and primary comparisons: Development and held-out GPU condition outputs) Tj T* (are not complete.; Metrics, statistics, and ablations: No registered held-out condition table exists to analyze.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 672.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (No confirmatory or descriptive outcome is available for this section.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 642.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (This confirmatory section will use twelve worlds as independent units, two one-sided paired t-tests, Holm correction,) Tj T* (two-sided paired intervals, all 4096 sign-flip assignments, and the registered bootstrap sensitivity.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 637.4 cm
+Q
+q
+1 0 0 1 45.6 615.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 18 Tf 22 TL (7. Required C2 versus C0 results) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 585.4 cm
+q
+.545098 .117647 .247059 RG
+.8 w
+.972549 .913725 .933333 rg
+n -8 -8 536.8 40 re B*
+Q
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (STATUS: INCOMPLETE \227 Conditions and primary comparisons: Development and held-out GPU condition outputs) Tj T* (are not complete.; Metrics, statistics, and ablations: No registered held-out condition table exists to analyze.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 563.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (No confirmatory or descriptive outcome is available for this section.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 545.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (C2 versus the credible deterministic C0 baseline is a required secondary comparison on all retained endpoints.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 540.4 cm
+Q
+q
+1 0 0 1 45.6 518.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 18 Tf 22 TL (8. Gated C2 versus A-FixedSelect mechanism results) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 488.4 cm
+q
+.545098 .117647 .247059 RG
+.8 w
+.972549 .913725 .933333 rg
+n -8 -8 536.8 40 re B*
+Q
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (STATUS: INCOMPLETE \227 Conditions and primary comparisons: Development and held-out GPU condition outputs) Tj T* (are not complete.; Metrics, statistics, and ablations: No registered held-out condition table exists to analyze.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 466.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (No confirmatory or descriptive outcome is available for this section.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 436.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (The mechanism claim is eligible only after the C2-versus-C1 organization gate passes and C2 exceeds mechanically) Tj T* (construction-disabled A-FixedSelect on the registered endpoint.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 431.4 cm
+Q
+q
+1 0 0 1 45.6 409.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 18 Tf 22 TL (9. Rare-pivotal preservation) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 379.4 cm
+q
+.545098 .117647 .247059 RG
+.8 w
+.972549 .913725 .933333 rg
+n -8 -8 536.8 40 re B*
+Q
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (STATUS: INCOMPLETE \227 Conditions and primary comparisons: Development and held-out GPU condition outputs) Tj T* (are not complete.; Metrics, statistics, and ablations: No registered held-out condition table exists to analyze.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 357.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (No confirmatory or descriptive outcome is available for this section.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 327.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (Any favorable claim must accompany rare-pivotal qualified-assertion recall and support-path survival; the registered) Tj T* (noninferiority loss margin is 0.05.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 322.4 cm
+Q
+q
+1 0 0 1 45.6 300.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 18 Tf 22 TL (10. Entropy and visual-clutter profiles) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 270.4 cm
+q
+.545098 .117647 .247059 RG
+.8 w
+.972549 .913725 .933333 rg
+n -8 -8 536.8 40 re B*
+Q
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (STATUS: INCOMPLETE \227 Metrics, statistics, and ablations: No registered held-out condition table exists to analyze.;) Tj T* (Visualization and feedback: GPU-backed scripted feedback and researcher traces have not executed.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 248.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (No confirmatory or descriptive outcome is available for this section.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 218.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (No entropy direction, node count, crossing count, or cluster count is inherently better. Structural profiles must remain) Tj T* (beside fidelity, grounding, validity, and rare-pivotal preservation.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 213.4 cm
+Q
+ 
+endstream
+endobj
+20 0 obj
+<<
+/Length 4457
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+q
+1 0 0 1 45.6 724.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 18 Tf 22 TL (11. Community and cluster organization) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 706.4 cm
+q
+.545098 .117647 .247059 RG
+.8 w
+.972549 .913725 .933333 rg
+n -8 -8 536.8 28 re B*
+Q
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (STATUS: INCOMPLETE \227 Metrics, statistics, and ablations: No registered held-out condition table exists to analyze.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 684.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (No confirmatory or descriptive outcome is available for this section.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 654.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (The registered panel uses Leiden-CPM with AMI, purity, conductance, fragmentation, merging error, descriptive) Tj T* (cluster count and modularity, and cross-seed stability.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 649.4 cm
+Q
+q
+1 0 0 1 45.6 627.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 18 Tf 22 TL (12. Paraphrase and contrastive behavior) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 597.4 cm
+q
+.545098 .117647 .247059 RG
+.8 w
+.972549 .913725 .933333 rg
+n -8 -8 536.8 40 re B*
+Q
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (STATUS: INCOMPLETE \227 Conditions and primary comparisons: Development and held-out GPU condition outputs) Tj T* (are not complete.; Metrics, statistics, and ablations: No registered held-out condition table exists to analyze.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 575.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (No confirmatory or descriptive outcome is available for this section.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 545.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (Contrastive decision-change scoring operates over identical evidence and nonselection ontology changes.) Tj T* (Paraphrase stability is interpreted conditional on correctness.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 540.4 cm
+Q
+q
+1 0 0 1 45.6 518.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 18 Tf 22 TL (13. Reduced ablation results) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 500.4 cm
+q
+.545098 .117647 .247059 RG
+.8 w
+.972549 .913725 .933333 rg
+n -8 -8 536.8 28 re B*
+Q
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (STATUS: INCOMPLETE \227 Metrics, statistics, and ablations: No registered held-out condition table exists to analyze.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 478.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (No confirmatory or descriptive outcome is available for this section.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 448.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (Only A-NoContext \(12 calls\), A-NoTemporalEpistemic \(8\), and A-NoRareGuard \(8\) are registered, each with a) Tj T* (one-switch-only configuration audit.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 443.4 cm
+Q
+q
+1 0 0 1 45.6 421.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 18 Tf 22 TL (14. Feedback and interface demonstrations) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 391.4 cm
+q
+.545098 .117647 .247059 RG
+.8 w
+.972549 .913725 .933333 rg
+n -8 -8 536.8 40 re B*
+Q
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (STATUS: INCOMPLETE \227 Visualization and feedback: GPU-backed scripted feedback and researcher traces have) Tj T* (not executed.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 369.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (No confirmatory or descriptive outcome is available for this section.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 339.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (Six known-answer scripts and three researcher traces demonstrate REFINE_CONTEXT and) Tj T* (REQUEST_MERGE_SPLIT. They do not support participant or usability claims.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 334.4 cm
+Q
+q
+1 0 0 1 45.6 312.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 18 Tf 22 TL (15. Bounded first-novel transfer study) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 282.4 cm
+q
+.545098 .117647 .247059 RG
+.8 w
+.972549 .913725 .933333 rg
+n -8 -8 536.8 40 re B*
+Q
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (STATUS: INCOMPLETE \227 First-novel case study: No lawful local novel path has been supplied and no case-study) Tj T* (output exists.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 260.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (No confirmatory or descriptive outcome is available for this section.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 230.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (The planned transfer study uses four preregistered windows, eight bounded same-evidence queries, and one) Tj T* (separately labeled full-index operational C2 query. Public examples must use paraphrases and opaque evidence IDs.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 225.4 cm
+Q
+ 
+endstream
+endobj
+21 0 obj
+<<
+/Length 8777
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+q
+1 0 0 1 45.6 702.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 26 Tm /F2 18 Tf 22 TL (16. Runtime, GPU, storage, invalid-output, repair, and failure) Tj T* (accounting) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 660.4 cm
+q
+.545098 .117647 .247059 RG
+.8 w
+.972549 .913725 .933333 rg
+n -8 -8 536.8 52 re B*
+Q
+q
+0 0 0 rg
+BT 1 0 0 1 0 26 Tm /F1 10 Tf 12 TL (STATUS: INCOMPLETE \227 Contracts, resource controls, and GPU pilot: The 14B candidate was rejected and) Tj T* (fallback acceptance has not completed.; Results and conference artifacts: The reporting substrate exists, but final) Tj T* (immutable result inputs do not.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 638.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (No confirmatory or descriptive outcome is available for this section.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 608.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (Failures and invalid or unrepaired outputs remain visible and intention-to-treat. Final accounting is cumulative across) Tj T* (every registered base call, repair, failure, timeout, and GPU-service allocation.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 603.4 cm
+Q
+q
+1 0 0 1 45.6 585.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (Interim verified table. It is not a completed section outcome.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 537.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 22 Tm /F2 14 Tf 18 TL (Observed rejected-attempt allocations through fallback v3 plus the) Tj T* (zero-second fallback-v4 control-plane failure \(interim, not final\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 43.2 263.4 cm
+q
+.141176 .231373 .32549 rg
+n 0 268 525.6 -30 re f*
+1 1 1 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 3 257 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 1.3 Tm /F2 6.7 Tf 8 TL (run_id) Tj T* ET
+Q
+Q
+q
+1 0 0 1 78.08571 249 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 9.3 Tm /F2 6.7 Tf 8 TL (model_rep) Tj T* (ository) Tj T* ET
+Q
+Q
+q
+1 0 0 1 120.3214 257 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 1.3 Tm /F2 6.7 Tf 8 TL (immutable_revision) Tj T* ET
+Q
+Q
+q
+1 0 0 1 195.4071 257 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 1.3 Tm /F2 6.7 Tf 8 TL (failure_type) Tj T* ET
+Q
+Q
+q
+1 0 0 1 270.4929 249 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 9.3 Tm /F2 6.7 Tf 8 TL (completed_gene) Tj T* (ration_calls) Tj T* ET
+Q
+Q
+q
+1 0 0 1 331.5 241 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 17.3 Tm /F2 6.7 Tf 8 TL (gate_) Tj T* (passe) Tj T* (d) Tj T* ET
+Q
+Q
+q
+1 0 0 1 357.3107 249 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 9.3 Tm /F2 6.7 Tf 8 TL (vllm_service) Tj T* (_stopped) Tj T* ET
+Q
+Q
+q
+1 0 0 1 404.2393 249 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 9.3 Tm /F2 6.7 Tf 8 TL (allocated_gp) Tj T* (u_seconds) Tj T* ET
+Q
+Q
+q
+1 0 0 1 453.5143 257 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 1.3 Tm /F2 6.7 Tf 8 TL (interpretation) Tj T* ET
+Q
+Q
+0 0 0 rg
+q
+1 0 0 1 3 219 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 9.3 Tm /F1 6.7 Tf 8 TL (phase1-qwen3-14b-aw) Tj T* (q-v1) Tj T* ET
+Q
+Q
+q
+1 0 0 1 78.08571 211 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 17.3 Tm /F1 6.7 Tf 8 TL (Qwen/Qwe) Tj T* (n3-14B-AW) Tj T* (Q) Tj T* ET
+Q
+Q
+q
+1 0 0 1 120.3214 211 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 17.3 Tm /F1 6.7 Tf 8 TL (1a6fe1ecf891437a270) Tj T* (cce11ad54d796c4f56c) Tj T* (e0) Tj T* ET
+Q
+Q
+q
+1 0 0 1 195.4071 227 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (TypeError) Tj T* ET
+Q
+Q
+q
+1 0 0 1 270.4929 227 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (0) Tj T* ET
+Q
+Q
+q
+1 0 0 1 331.5 227 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (false) Tj T* ET
+Q
+Q
+q
+1 0 0 1 357.3107 227 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (true) Tj T* ET
+Q
+Q
+q
+1 0 0 1 404.2393 227 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (0.096330) Tj T* ET
+Q
+Q
+q
+1 0 0 1 453.5143 211 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 17.3 Tm /F1 6.7 Tf 8 TL (Rejected primary-mod) Tj T* (el lifecycle start; not a) Tj T* (scientific model output.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 3 189 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 9.3 Tm /F1 6.7 Tf 8 TL (phase1-qwen3-14b-aw) Tj T* (q-v2) Tj T* ET
+Q
+Q
+q
+1 0 0 1 78.08571 181 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 17.3 Tm /F1 6.7 Tf 8 TL (Qwen/Qwe) Tj T* (n3-14B-AW) Tj T* (Q) Tj T* ET
+Q
+Q
+q
+1 0 0 1 120.3214 181 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 17.3 Tm /F1 6.7 Tf 8 TL (1a6fe1ecf891437a270) Tj T* (cce11ad54d796c4f56c) Tj T* (e0) Tj T* ET
+Q
+Q
+q
+1 0 0 1 195.4071 189 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 9.3 Tm /F1 6.7 Tf 8 TL (RuntimeWatchdogTim) Tj T* (eout) Tj T* ET
+Q
+Q
+q
+1 0 0 1 270.4929 197 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (0) Tj T* ET
+Q
+Q
+q
+1 0 0 1 331.5 197 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (false) Tj T* ET
+Q
+Q
+q
+1 0 0 1 357.3107 197 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (true) Tj T* ET
+Q
+Q
+q
+1 0 0 1 404.2393 197 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (212.185448) Tj T* ET
+Q
+Q
+q
+1 0 0 1 453.5143 181 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 17.3 Tm /F1 6.7 Tf 8 TL (Rejected primary-mod) Tj T* (el lifecycle start; not a) Tj T* (scientific model output.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 3 159 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 9.3 Tm /F1 6.7 Tf 8 TL (fallback-qwen3-8b-awq) Tj T* (-development-v1) Tj T* ET
+Q
+Q
+q
+1 0 0 1 78.08571 159 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 9.3 Tm /F1 6.7 Tf 8 TL (Qwen/Qwe) Tj T* (n3-8B-AWQ) Tj T* ET
+Q
+Q
+q
+1 0 0 1 120.3214 151 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 17.3 Tm /F1 6.7 Tf 8 TL (4da05a8edb55c6046c) Tj T* (ce958586c33b61da07) Tj T* (bb79) Tj T* ET
+Q
+Q
+q
+1 0 0 1 195.4071 159 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 9.3 Tm /F1 6.7 Tf 8 TL (RuntimeWatchdogTim) Tj T* (eout) Tj T* ET
+Q
+Q
+q
+1 0 0 1 270.4929 167 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (0) Tj T* ET
+Q
+Q
+q
+1 0 0 1 331.5 167 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (false) Tj T* ET
+Q
+Q
+q
+1 0 0 1 357.3107 167 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (true) Tj T* ET
+Q
+Q
+q
+1 0 0 1 404.2393 167 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (210.680208) Tj T* ET
+Q
+Q
+q
+1 0 0 1 453.5143 143 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 25.3 Tm /F1 6.7 Tf 8 TL (Rejected fallback-mod) Tj T* (el watchdog start; not) Tj T* (a scientific model) Tj T* (output.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 3 121 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 9.3 Tm /F1 6.7 Tf 8 TL (fallback-qwen3-8b-awq) Tj T* (-development-v3) Tj T* ET
+Q
+Q
+q
+1 0 0 1 78.08571 121 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 9.3 Tm /F1 6.7 Tf 8 TL (Qwen/Qwe) Tj T* (n3-8B-AWQ) Tj T* ET
+Q
+Q
+q
+1 0 0 1 120.3214 113 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 17.3 Tm /F1 6.7 Tf 8 TL (4da05a8edb55c6046c) Tj T* (ce958586c33b61da07) Tj T* (bb79) Tj T* ET
+Q
+Q
+q
+1 0 0 1 195.4071 129 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (RuntimeTransportError) Tj T* ET
+Q
+Q
+q
+1 0 0 1 270.4929 129 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (0) Tj T* ET
+Q
+Q
+q
+1 0 0 1 331.5 129 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (false) Tj T* ET
+Q
+Q
+q
+1 0 0 1 357.3107 129 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (true) Tj T* ET
+Q
+Q
+q
+1 0 0 1 404.2393 129 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (392.253423) Tj T* ET
+Q
+Q
+q
+1 0 0 1 453.5143 81 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 49.3 Tm /F1 6.7 Tf 8 TL (Fallback-v3 request) Tj T* (was rejected by) Tj T* (decoder-schema) Tj T* (validation before) Tj T* (generation; no) Tj T* (scientific model output) Tj T* (was accepted.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 3 59 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 9.3 Tm /F1 6.7 Tf 8 TL (fallback-qwen3-8b-awq) Tj T* (-development-v4) Tj T* ET
+Q
+Q
+q
+1 0 0 1 78.08571 59 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 9.3 Tm /F1 6.7 Tf 8 TL (not_applica) Tj T* (ble) Tj T* ET
+Q
+Q
+q
+1 0 0 1 120.3214 67 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (not_applicable) Tj T* ET
+Q
+Q
+q
+1 0 0 1 195.4071 51 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 17.3 Tm /F1 6.7 Tf 8 TL (guardian_outer_result_) Tj T* (path_identity_mismatc) Tj T* (h_before_readiness) Tj T* ET
+Q
+Q
+q
+1 0 0 1 270.4929 67 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (0) Tj T* ET
+Q
+Q
+q
+1 0 0 1 331.5 67 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (false) Tj T* ET
+Q
+Q
+q
+1 0 0 1 357.3107 67 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (true) Tj T* ET
+Q
+Q
+q
+1 0 0 1 404.2393 67 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (0.000000) Tj T* ET
+Q
+Q
+q
+1 0 0 1 453.5143 3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 65.3 Tm /F1 6.7 Tf 8 TL (Operational control-pla) Tj T* (ne failure before) Tj T* (guardian readiness;) Tj T* (no model process,) Tj T* (service start, GPU) Tj T* (allocation, inference) Tj T* (attempt, authorized) Tj T* (retry slot, or scientific) Tj T* (generation.) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.623529 .701961 .784314 RG
+.3 w
+n 0 268 m 525.6 268 l S
+n 0 0 m 525.6 0 l S
+n 0 0 m 0 268 l S
+n 525.6 0 m 525.6 268 l S
+n 0 238 m 525.6 238 l S
+n 0 208 m 525.6 208 l S
+n 0 178 m 525.6 178 l S
+n 0 140 m 525.6 140 l S
+n 0 78 m 525.6 78 l S
+n 75.08571 0 m 75.08571 268 l S
+n 117.3214 0 m 117.3214 268 l S
+n 192.4071 0 m 192.4071 268 l S
+n 267.4929 0 m 267.4929 268 l S
+n 328.5 0 m 328.5 268 l S
+n 354.3107 0 m 354.3107 268 l S
+n 401.2393 0 m 401.2393 268 l S
+n 450.5143 0 m 450.5143 268 l S
+Q
+Q
+Q
+q
+1 0 0 1 45.6 255.4 cm
+Q
+q
+1 0 0 1 45.6 237.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (Interim verified table. It is not a completed section outcome.) Tj T* ET
+Q
+Q
+ 
+endstream
+endobj
+22 0 obj
+<<
+/Length 10126
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+q
+1 0 0 1 45.6 728.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 14 Tf 18 TL (Verified cumulative accounting through rejected fallback v3 \(interim, not final\)) Tj T* ET
+Q
+Q
+q
+1 0 0 1 43.2 508.4 cm
+q
+.141176 .231373 .32549 rg
+n 0 214 525.6 -14 re f*
+1 1 1 rg
+BT /F1 10 Tf 12 TL ET
+q
+1 0 0 1 3 203 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 1.3 Tm /F2 6.7 Tf 8 TL (scope) Tj T* ET
+Q
+Q
+q
+1 0 0 1 119.2832 203 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 1.3 Tm /F2 6.7 Tf 8 TL (metric) Tj T* ET
+Q
+Q
+q
+1 0 0 1 249.5204 203 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 1.3 Tm /F2 6.7 Tf 8 TL (value) Tj T* ET
+Q
+Q
+q
+1 0 0 1 300.685 203 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 1.3 Tm /F2 6.7 Tf 8 TL (unit) Tj T* ET
+Q
+Q
+q
+1 0 0 1 333.2442 203 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 1.3 Tm /F2 6.7 Tf 8 TL (status) Tj T* ET
+Q
+Q
+q
+1 0 0 1 379.7575 203 cm
+q
+1 1 1 rg
+BT 1 0 0 1 0 1.3 Tm /F2 6.7 Tf 8 TL (source_note) Tj T* ET
+Q
+Q
+0 0 0 rg
+q
+1 0 0 1 3 189 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (study_through_fallback_v3) Tj T* ET
+Q
+Q
+q
+1 0 0 1 119.2832 189 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (actual_allocated_gpu_time) Tj T* ET
+Q
+Q
+q
+1 0 0 1 249.5204 189 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (815.215409) Tj T* ET
+Q
+Q
+q
+1 0 0 1 300.685 189 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (seconds) Tj T* ET
+Q
+Q
+q
+1 0 0 1 333.2442 189 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (observed) Tj T* ET
+Q
+Q
+q
+1 0 0 1 379.7575 165 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 25.3 Tm /F1 6.7 Tf 8 TL (Exact cumulative allocation through the) Tj T* (rejected fallback-v3 attempt; includes all four) Tj T* (service sessions and every failure, timeout,) Tj T* (startup, and service-overhead event.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 3 151 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (study_through_fallback_v3) Tj T* ET
+Q
+Q
+q
+1 0 0 1 119.2832 151 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (actual_allocated_gpu_time) Tj T* ET
+Q
+Q
+q
+1 0 0 1 249.5204 151 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (0.226448725) Tj T* ET
+Q
+Q
+q
+1 0 0 1 300.685 151 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (hours) Tj T* ET
+Q
+Q
+q
+1 0 0 1 333.2442 151 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (observed) Tj T* ET
+Q
+Q
+q
+1 0 0 1 379.7575 143 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 9.3 Tm /F1 6.7 Tf 8 TL (Derived exactly from cumulative allocated) Tj T* (microseconds for display only.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 3 129 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (study_through_fallback_v3) Tj T* ET
+Q
+Q
+q
+1 0 0 1 119.2832 129 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (peak_gpu_vram) Tj T* ET
+Q
+Q
+q
+1 0 0 1 249.5204 129 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (22525509632) Tj T* ET
+Q
+Q
+q
+1 0 0 1 300.685 129 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (bytes) Tj T* ET
+Q
+Q
+q
+1 0 0 1 333.2442 129 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (observed) Tj T* ET
+Q
+Q
+q
+1 0 0 1 379.7575 121 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 9.3 Tm /F1 6.7 Tf 8 TL (Recovered cumulative maximum authenticated) Tj T* (by the fallback-v3 incident record.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 3 107 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (study_through_fallback_v3) Tj T* ET
+Q
+Q
+q
+1 0 0 1 119.2832 107 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (peak_process_ram) Tj T* ET
+Q
+Q
+q
+1 0 0 1 249.5204 107 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (2955644928) Tj T* ET
+Q
+Q
+q
+1 0 0 1 300.685 107 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (bytes) Tj T* ET
+Q
+Q
+q
+1 0 0 1 333.2442 107 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (observed) Tj T* ET
+Q
+Q
+q
+1 0 0 1 379.7575 99 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 9.3 Tm /F1 6.7 Tf 8 TL (Recovered cumulative maximum authenticated) Tj T* (by the fallback-v3 incident record.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 3 85 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (study_through_fallback_v3) Tj T* ET
+Q
+Q
+q
+1 0 0 1 119.2832 85 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (peak_project_storage) Tj T* ET
+Q
+Q
+q
+1 0 0 1 249.5204 85 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (13623907840) Tj T* ET
+Q
+Q
+q
+1 0 0 1 300.685 85 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (bytes) Tj T* ET
+Q
+Q
+q
+1 0 0 1 333.2442 85 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (observed) Tj T* ET
+Q
+Q
+q
+1 0 0 1 379.7575 77 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 9.3 Tm /F1 6.7 Tf 8 TL (Recovered cumulative maximum authenticated) Tj T* (by the fallback-v3 incident record.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 3 63 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (study) Tj T* ET
+Q
+Q
+q
+1 0 0 1 119.2832 63 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (current_vllm_service_stopped) Tj T* ET
+Q
+Q
+q
+1 0 0 1 249.5204 63 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (true) Tj T* ET
+Q
+Q
+q
+1 0 0 1 300.685 63 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (boolean) Tj T* ET
+Q
+Q
+q
+1 0 0 1 333.2442 63 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (observed) Tj T* ET
+Q
+Q
+q
+1 0 0 1 379.7575 55 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 9.3 Tm /F1 6.7 Tf 8 TL (The fallback-v3 terminal result and incident) Tj T* (record both verify that the service stopped.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 3 41 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (study) Tj T* ET
+Q
+Q
+q
+1 0 0 1 119.2832 41 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (final_scheduled_gpu_forecast) Tj T* ET
+Q
+Q
+q
+1 0 0 1 249.5204 49 cm
+Q
+q
+1 0 0 1 300.685 41 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (hours) Tj T* ET
+Q
+Q
+q
+1 0 0 1 333.2442 41 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (incomplete) Tj T* ET
+Q
+Q
+q
+1 0 0 1 379.7575 25 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 17.3 Tm /F1 6.7 Tf 8 TL (The v3 incident invalidates its published) Tj T* (forecast; a corrected gate-admitted timing) Tj T* (result is still required.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 3 11 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (study) Tj T* ET
+Q
+Q
+q
+1 0 0 1 119.2832 11 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (final_total_runpod_wall_time) Tj T* ET
+Q
+Q
+q
+1 0 0 1 249.5204 19 cm
+Q
+q
+1 0 0 1 300.685 11 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (hours) Tj T* ET
+Q
+Q
+q
+1 0 0 1 333.2442 11 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 1.3 Tm /F1 6.7 Tf 8 TL (incomplete) Tj T* ET
+Q
+Q
+q
+1 0 0 1 379.7575 3 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 9.3 Tm /F1 6.7 Tf 8 TL (No final pod-session accounting artifact exists) Tj T* (yet.) Tj T* ET
+Q
+Q
+q
+1 J
+1 j
+.623529 .701961 .784314 RG
+.3 w
+n 0 214 m 525.6 214 l S
+n 0 0 m 525.6 0 l S
+n 0 0 m 0 214 l S
+n 525.6 0 m 525.6 214 l S
+n 0 200 m 525.6 200 l S
+n 0 162 m 525.6 162 l S
+n 0 140 m 525.6 140 l S
+n 0 118 m 525.6 118 l S
+n 0 96 m 525.6 96 l S
+n 0 74 m 525.6 74 l S
+n 0 52 m 525.6 52 l S
+n 0 22 m 525.6 22 l S
+n 116.2832 0 m 116.2832 214 l S
+n 246.5204 0 m 246.5204 214 l S
+n 297.685 0 m 297.685 214 l S
+n 330.2442 0 m 330.2442 214 l S
+n 376.7575 0 m 376.7575 214 l S
+Q
+Q
+Q
+q
+1 0 0 1 45.6 500.4 cm
+Q
+q
+1 0 0 1 45.6 478.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 18 Tf 22 TL (17. Error analysis, negative results, and limitations) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 424.4 cm
+q
+.545098 .117647 .247059 RG
+.8 w
+.972549 .913725 .933333 rg
+n -8 -8 536.8 64 re B*
+Q
+q
+0 0 0 rg
+BT 1 0 0 1 0 38 Tm /F1 10 Tf 12 TL (STATUS: INCOMPLETE \227 Conditions and primary comparisons: Development and held-out GPU condition outputs) Tj T* (are not complete.; Metrics, statistics, and ablations: No registered held-out condition table exists to analyze.;) Tj T* (First-novel case study: No lawful local novel path has been supplied and no case-study output exists.; Results and) Tj T* (conference artifacts: The reporting substrate exists, but final immutable result inputs do not.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 402.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (No confirmatory or descriptive outcome is available for this section.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 372.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (The final analysis must retain null and negative findings, all declared error categories, the twelve-world sample) Tj T* (limitation, one-model and one-prompt dependence, compute asymmetry, and descriptive-only transfer scope.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 367.4 cm
+Q
+q
+1 0 0 1 45.6 345.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 18 Tf 22 TL (18. Exact claim boundaries) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 315.4 cm
+q
+.545098 .117647 .247059 RG
+.8 w
+.972549 .913725 .933333 rg
+n -8 -8 536.8 40 re B*
+Q
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL -0.115 Tw (STATUS: INCOMPLETE \227 Results and conference artifacts: The reporting substrate exists, but final immutable result) Tj T* 0 Tw (inputs do not.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 293.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (No confirmatory or descriptive outcome is available for this section.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 263.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (Claims are conditional on registered gates and confined to the benchmark, pinned model, frozen prompt, and) Tj T* (bounded narrative transfer study.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 258.4 cm
+Q
+q
+1 0 0 1 45.6 228.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 14 Tf 18 TL (Exact boundaries) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 210.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (\177 Aggregate 12-world comparisons are confirmatory efficacy evidence; qualitative examples are illustrations only.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 192.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (\177 Development examples are pedagogical and cannot support held-out efficacy claims.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 174.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (\177 Narrative transfer is descriptive and is not pooled with the synthetic population estimate.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 156.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (\177 No result implies general LLM superiority, human usability, complete novel truth, or series-wide generalization.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 138.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (\177 Lower entropy, fewer nodes, fewer crossings, and fewer clusters are never inherently better.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 108.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 14 Tm /F1 10 Tf 12 TL (\177 Construction-freedom attribution requires the gated C2 versus A-FixedSelect mechanism result and rare-pivotal) Tj T* (safeguards.) Tj T* ET
+Q
+Q
+ 
+endstream
+endobj
+23 0 obj
+<<
+/Length 4821
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+q
+1 0 0 1 45.6 724.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 18 Tf 22 TL (19. Easy-to-interpret qualitative illustrations) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 670.4 cm
+q
+.545098 .117647 .247059 RG
+.8 w
+.972549 .913725 .933333 rg
+n -8 -8 536.8 64 re B*
+Q
+q
+0 0 0 rg
+BT 1 0 0 1 0 38 Tm /F1 10 Tf 12 TL (STATUS: INCOMPLETE \227 Synthetic benchmark: The mandatory independent condition-blind review has not been) Tj T* (supplied or adjudicated.; Conditions and primary comparisons: Development and held-out GPU condition outputs are) Tj T* (not complete.; Visualization and feedback: GPU-backed scripted feedback and researcher traces have not executed.;) Tj T* (First-novel case study: No lawful local novel path has been supplied and no case-study output exists.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 648.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (No confirmatory or descriptive outcome is available for this section.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 606.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 26 Tm /F1 10 Tf 12 TL (The final report reserves distinct slots for the development tutorial, rare-pivotal fact, temporal or epistemic case, fixed) Tj T* (held-out illustration, deterministic failure case, and one or two narrative illustrations. These do not substitute for) Tj T* (aggregate efficacy evidence.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 601.4 cm
+Q
+q
+1 0 0 1 45.6 571.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 14 Tf 18 TL (Pre-output selection rules) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 529.4 cm
+q
+BT 1 0 0 1 0 26 Tm 12 TL /F2 10 Tf 0 0 0 rg (development_tutorial \227 pedagogical development example:) Tj /F1 10 Tf ( Use syn-dev-01 \(easy\) and its registered A/B) Tj T* (contrast in query-assignment order to explain identical evidence under two contexts and all four condition capabilities.) Tj T* (Tie-break: Not applicable: the world and query ordinals are fixed here before output inspection.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 525.4 cm
+Q
+q
+1 0 0 1 45.6 483.4 cm
+q
+BT 1 0 0 1 0 26 Tm 12 TL /F2 10 Tf 0 0 0 rg (rare_pivotal \227 pedagogical development example:) Tj /F1 10 Tf ( Choose the lexicographically first development world/context) Tj T* (whose frozen scorer gold has a positive rare-pivotal denominator and complete support path. Tie-break: Ascending) Tj T* (world_id, then context_id, then rare-pivotal assertion anchor.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 479.4 cm
+Q
+q
+1 0 0 1 45.6 437.4 cm
+q
+BT 1 0 0 1 0 26 Tm 12 TL /F2 10 Tf 0 0 0 rg (temporal_epistemic \227 pedagogical development example:) Tj /F1 10 Tf ( Choose the lexicographically first development) Tj T* -0.135 Tw (context eligible for the frozen A-NoTemporalEpistemic probe, preferring holder-attributed evidence when eligibility ties.) Tj T* 0 Tw (Tie-break: Holder-attributed before temporal-only, then ascending world_id and context_id.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 433.4 cm
+Q
+q
+1 0 0 1 45.6 379.4 cm
+q
+BT 1 0 0 1 0 38 Tm 12 TL /F2 10 Tf 0 0 0 rg (held_out_illustration \227 qualitative held-out illustration:) Tj /F1 10 Tf ( Use the easy world selected by the independent-review) Tj T* (seed \(syn-test-03\), then its context at registered query ordinal A \(ctx_556b0577875afcad7419\). This selection does) Tj T* (not inspect any condition output. Tie-break: The review seed and ordinal-A rule are frozen; no outcome-based tie is) Tj T* (permitted.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 375.4 cm
+Q
+q
+1 0 0 1 45.6 309.4 cm
+q
+BT 1 0 0 1 0 50 Tm 12 TL /F2 10 Tf 0 0 0 rg (counterexample \227 qualitative failure illustration:) Tj /F1 10 Tf ( After intention-to-treat scoring, select the hard-stratum) Tj T* (world-context with the minimum mean C2 strict qualified-assertion F1 across the two registered seeds; include invalid) Tj T* (and timed-out outputs as registered zeros. Show C0, C1, C2, and A-FixedSelect for the selected unit regardless of) Tj T* (which is best. Tie-break: Ascending world_id, then context_id. Within the selected context, display seed blocks in) Tj T* (registered order; never pick the worse seed post hoc.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 305.4 cm
+Q
+q
+1 0 0 1 45.6 251.4 cm
+q
+BT 1 0 0 1 0 38 Tm 12 TL /F2 10 Tf 0 0 0 rg (narrative_illustration \227 descriptive narrative illustration:) Tj /F1 10 Tf ( After the four windows are preregistered and before) Tj T* (condition output inspection, use the lowest registered window ordinal and both of its contexts; publish only high-level) Tj T* (paraphrases and opaque evidence IDs. Tie-break: Ascending preregistered window ordinal, then registered context) Tj T* (ordinal.) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 247.4 cm
+Q
+q
+1 0 0 1 45.6 225.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 4 Tm /F2 18 Tf 22 TL (Machine-readable provenance) Tj T* ET
+Q
+Q
+q
+1 0 0 1 45.6 207.4 cm
+q
+0 0 0 rg
+BT 1 0 0 1 0 2 Tm /F1 10 Tf 12 TL (Source manifest SHA-256: 157a5261a5847af75a5831e96fc97d62eb87a35ef5b457075dff409d168411e7) Tj T* ET
+Q
+Q
+ 
+endstream
+endobj
+xref
+0 24
+0000000000 65535 f 
+0000000061 00000 n 
+0000000112 00000 n 
+0000000219 00000 n 
+0000000331 00000 n 
+0000000526 00000 n 
+0000000721 00000 n 
+0000000830 00000 n 
+0000001025 00000 n 
+0000001220 00000 n 
+0000001415 00000 n 
+0000001611 00000 n 
+0000001807 00000 n 
+0000002003 00000 n 
+0000002073 00000 n 
+0000002496 00000 n 
+0000002601 00000 n 
+0000008461 00000 n 
+0000020348 00000 n 
+0000025211 00000 n 
+0000030109 00000 n 
+0000034618 00000 n 
+0000043447 00000 n 
+0000053626 00000 n 
+trailer
+<<
+/ID 
+[<7bf534beaf2024fe07dbd8756561f4b0><7bf534beaf2024fe07dbd8756561f4b0>]
+% ReportLab generated PDF document -- digest (opensource)
+
+/Info 14 0 R
+/Root 13 0 R
+/Size 24
+>>
+startxref
+58499
+%%EOF

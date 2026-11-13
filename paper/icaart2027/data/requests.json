@@ -1,0 +1,783 @@
+{
+  "compact": {
+    "5": {
+      "best_of": 1,
+      "chat_template_kwargs": {
+        "enable_thinking": false
+      },
+      "frequency_penalty": 0.0,
+      "ignore_eos": false,
+      "max_tokens": 2048,
+      "messages": [
+        {
+          "content": "Return only JSON {\"facts\":[...]} answering the TASK. Every fact must explicitly contain all eight fields: subject, relation, object, evidence_ids, valid_from, valid_until, holder, attitude. Use short consistent endpoint names and a list of supplied string evidence IDs. No trailing commas.\nFor unstated bounds, use null; for direct narration, holder and attitude are null. Null means unspecified/not attributed here, never false, timeless, or lack of knowledge. For explicit intervals include the actual numeric start and end: [valid_from,valid_until), start included, end excluded. Never clip source bounds to the question window.\nFor belief, subject/relation/object express the underlying believed relationship; holder is its named believer and attitude is \"believes\". Do not put a proposition sentence inside object or use believes as the underlying relation. Do not infer knowledge or other relationships. In a contextual task return ONLY needed relationships, not every story fact.\nUnrelated worked example (not evidence for your answer): Z1 Tavi carries Plum Token from day 2 up to but not including day 5. Z2 Miro believes Plum Token is in Blue Cabin. Z3 Lusa owns Red Bowl. Example TASK: return carrying and explicit belief only.\nExample answer: {\"facts\":[{\"subject\":\"Tavi\",\"relation\":\"carries\",\"object\":\"Plum Token\",\"evidence_ids\":[\"Z1\"],\"valid_from\":2,\"valid_until\":5,\"holder\":null,\"attitude\":null},{\"subject\":\"Plum Token\",\"relation\":\"located_in\",\"object\":\"Blue Cabin\",\"evidence_ids\":[\"Z2\"],\"valid_from\":null,\"valid_until\":null,\"holder\":\"Miro\",\"attitude\":\"believes\"}]}\nZ3 is excluded because ownership does not answer that example TASK. Never copy example names, facts or IDs into your answer.",
+          "role": "system"
+        },
+        {
+          "content": "TASK: Which directly narrated location relationships have an explicitly stated interval overlapping day 2 up to but not including day 4? Return all of them with their full evidence-stated intervals, not clipped to the question window. Exclude undated locations and beliefs.\n\nCOMPLETE EVIDENCE:\nS1: Lena owns Cobalt Compass.\nS2: Omar owns Amber Lantern.\nS3: Priya carries Cobalt Compass from day 0 up to but not including day 6.\nS4: Lena carries Amber Lantern from day 1 up to but not including day 5.\nS5: Lena is in North Hall from day 1 up to but not including day 5.\nS6: Omar is in East Garden from day 0 up to but not including day 3.\nS7: Priya is in Stone Shed from day 3 up to but not including day 6.\nS8: Silver Flute is in West Pier from day 2 up to but not including day 4.\nS9: Lena believes that Cobalt Compass is in North Hall.\nS10: In reality, Cobalt Compass is in East Garden.\nS11: Omar believes that Amber Lantern is in Stone Shed.\nS12: In reality, Amber Lantern is in West Pier.\nS13: Priya owns Silver Flute.\nS14: Lena is in Stone Shed from day 7 up to but not including day 9.",
+          "role": "user"
+        }
+      ],
+      "min_p": 0.0,
+      "model": "qwen3-8b-awq-fallback",
+      "n": 1,
+      "presence_penalty": 0.0,
+      "repetition_penalty": 1.0,
+      "seed": 1988649846,
+      "stop_token_ids": [
+        151645
+      ],
+      "stream": true,
+      "stream_options": {
+        "continuous_usage_stats": false,
+        "include_usage": true
+      },
+      "temperature": 0.7,
+      "top_k": 20,
+      "top_p": 0.8,
+      "use_beam_search": false
+    },
+    "10": {
+      "best_of": 1,
+      "chat_template_kwargs": {
+        "enable_thinking": false
+      },
+      "frequency_penalty": 0.0,
+      "ignore_eos": false,
+      "max_tokens": 2048,
+      "messages": [
+        {
+          "content": "Return only JSON {\"facts\":[...]} answering the TASK. Every fact must explicitly contain all eight fields: subject, relation, object, evidence_ids, valid_from, valid_until, holder, attitude. Use short consistent endpoint names and a list of supplied string evidence IDs. No trailing commas.\nFor unstated bounds, use null; for direct narration, holder and attitude are null. Null means unspecified/not attributed here, never false, timeless, or lack of knowledge. For explicit intervals include the actual numeric start and end: [valid_from,valid_until), start included, end excluded. Never clip source bounds to the question window.\nFor belief, subject/relation/object express the underlying believed relationship; holder is its named believer and attitude is \"believes\". Do not put a proposition sentence inside object or use believes as the underlying relation. Do not infer knowledge or other relationships. In a contextual task return ONLY needed relationships, not every story fact.\nUnrelated worked example (not evidence for your answer): Z1 Tavi carries Plum Token from day 2 up to but not including day 5. Z2 Miro believes Plum Token is in Blue Cabin. Z3 Lusa owns Red Bowl. Example TASK: return carrying and explicit belief only.\nExample answer: {\"facts\":[{\"subject\":\"Tavi\",\"relation\":\"carries\",\"object\":\"Plum Token\",\"evidence_ids\":[\"Z1\"],\"valid_from\":2,\"valid_until\":5,\"holder\":null,\"attitude\":null},{\"subject\":\"Plum Token\",\"relation\":\"located_in\",\"object\":\"Blue Cabin\",\"evidence_ids\":[\"Z2\"],\"valid_from\":null,\"valid_until\":null,\"holder\":\"Miro\",\"attitude\":\"believes\"}]}\nZ3 is excluded because ownership does not answer that example TASK. Never copy example names, facts or IDs into your answer.",
+          "role": "system"
+        },
+        {
+          "content": "TASK: Who owns or carries what? Return all and only directly narrated ownership and carrying relationships, retaining every stated interval.\n\nCOMPLETE EVIDENCE:\nS1: Niko believes that Pearl Box is in Glass Room.\nS2: Esme owns Ruby Medal.\nS3: Dario is in Upper Court from day 20 up to but not including day 23.\nS4: In reality, Pearl Box is in Brick Store.\nS5: Niko carries Ruby Medal from day 19 up to but not including day 26.\nS6: Onyx Bell is in Cedar Gate from day 23 up to but not including day 27.\nS7: Esme believes that Ruby Medal is in Cedar Gate.\nS8: Dario owns Onyx Bell.\nS9: Esme is in Glass Room from day 21 up to but not including day 25.\nS10: In reality, Ruby Medal is in Upper Court.\nS11: Niko owns Pearl Box.\nS12: Niko is in Brick Store from day 24 up to but not including day 28.\nS13: Esme carries Pearl Box from day 20 up to but not including day 24.\nS14: Dario is in Cedar Gate from day 28 up to but not including day 30.",
+          "role": "user"
+        }
+      ],
+      "min_p": 0.0,
+      "model": "qwen3-8b-awq-fallback",
+      "n": 1,
+      "presence_penalty": 0.0,
+      "repetition_penalty": 1.0,
+      "seed": 1988649846,
+      "stop_token_ids": [
+        151645
+      ],
+      "stream": true,
+      "stream_options": {
+        "continuous_usage_stats": false,
+        "include_usage": true
+      },
+      "temperature": 0.7,
+      "top_k": 20,
+      "top_p": 0.8,
+      "use_beam_search": false
+    },
+    "3": {
+      "best_of": 1,
+      "chat_template_kwargs": {
+        "enable_thinking": false
+      },
+      "frequency_penalty": 0.0,
+      "ignore_eos": false,
+      "max_tokens": 2048,
+      "messages": [
+        {
+          "content": "Return only JSON {\"facts\":[...]} answering the TASK. Every fact must explicitly contain all eight fields: subject, relation, object, evidence_ids, valid_from, valid_until, holder, attitude. Use short consistent endpoint names and a list of supplied string evidence IDs. No trailing commas.\nFor unstated bounds, use null; for direct narration, holder and attitude are null. Null means unspecified/not attributed here, never false, timeless, or lack of knowledge. For explicit intervals include the actual numeric start and end: [valid_from,valid_until), start included, end excluded. Never clip source bounds to the question window.\nFor belief, subject/relation/object express the underlying believed relationship; holder is its named believer and attitude is \"believes\". Do not put a proposition sentence inside object or use believes as the underlying relation. Do not infer knowledge or other relationships. In a contextual task return ONLY needed relationships, not every story fact.\nUnrelated worked example (not evidence for your answer): Z1 Tavi carries Plum Token from day 2 up to but not including day 5. Z2 Miro believes Plum Token is in Blue Cabin. Z3 Lusa owns Red Bowl. Example TASK: return carrying and explicit belief only.\nExample answer: {\"facts\":[{\"subject\":\"Tavi\",\"relation\":\"carries\",\"object\":\"Plum Token\",\"evidence_ids\":[\"Z1\"],\"valid_from\":2,\"valid_until\":5,\"holder\":null,\"attitude\":null},{\"subject\":\"Plum Token\",\"relation\":\"located_in\",\"object\":\"Blue Cabin\",\"evidence_ids\":[\"Z2\"],\"valid_from\":null,\"valid_until\":null,\"holder\":\"Miro\",\"attitude\":\"believes\"}]}\nZ3 is excluded because ownership does not answer that example TASK. Never copy example names, facts or IDs into your answer.",
+          "role": "system"
+        },
+        {
+          "content": "TASK: Extract every explicitly stated relationship in all supplied sentences, including each belief and separately narrated reality. Retain all explicitly stated intervals. Do not infer additional relationships.\n\nCOMPLETE EVIDENCE:\nS1: Niko believes that Pearl Box is in Glass Room.\nS2: Esme owns Ruby Medal.\nS3: Dario is in Upper Court from day 20 up to but not including day 23.\nS4: In reality, Pearl Box is in Brick Store.\nS5: Niko carries Ruby Medal from day 19 up to but not including day 26.\nS6: Onyx Bell is in Cedar Gate from day 23 up to but not including day 27.\nS7: Esme believes that Ruby Medal is in Cedar Gate.\nS8: Dario owns Onyx Bell.\nS9: Esme is in Glass Room from day 21 up to but not including day 25.\nS10: In reality, Ruby Medal is in Upper Court.\nS11: Niko owns Pearl Box.\nS12: Niko is in Brick Store from day 24 up to but not including day 28.\nS13: Esme carries Pearl Box from day 20 up to but not including day 24.\nS14: Dario is in Cedar Gate from day 28 up to but not including day 30.",
+          "role": "user"
+        }
+      ],
+      "min_p": 0.0,
+      "model": "qwen3-8b-awq-fallback",
+      "n": 1,
+      "presence_penalty": 0.0,
+      "repetition_penalty": 1.0,
+      "seed": 1988649846,
+      "stop_token_ids": [
+        151645
+      ],
+      "stream": true,
+      "stream_options": {
+        "continuous_usage_stats": false,
+        "include_usage": true
+      },
+      "temperature": 0.7,
+      "top_k": 20,
+      "top_p": 0.8,
+      "use_beam_search": false
+    },
+    "9": {
+      "best_of": 1,
+      "chat_template_kwargs": {
+        "enable_thinking": false
+      },
+      "frequency_penalty": 0.0,
+      "ignore_eos": false,
+      "max_tokens": 2048,
+      "messages": [
+        {
+          "content": "Return only JSON {\"facts\":[...]} answering the TASK. Every fact must explicitly contain all eight fields: subject, relation, object, evidence_ids, valid_from, valid_until, holder, attitude. Use short consistent endpoint names and a list of supplied string evidence IDs. No trailing commas.\nFor unstated bounds, use null; for direct narration, holder and attitude are null. Null means unspecified/not attributed here, never false, timeless, or lack of knowledge. For explicit intervals include the actual numeric start and end: [valid_from,valid_until), start included, end excluded. Never clip source bounds to the question window.\nFor belief, subject/relation/object express the underlying believed relationship; holder is its named believer and attitude is \"believes\". Do not put a proposition sentence inside object or use believes as the underlying relation. Do not infer knowledge or other relationships. In a contextual task return ONLY needed relationships, not every story fact.\nUnrelated worked example (not evidence for your answer): Z1 Tavi carries Plum Token from day 2 up to but not including day 5. Z2 Miro believes Plum Token is in Blue Cabin. Z3 Lusa owns Red Bowl. Example TASK: return carrying and explicit belief only.\nExample answer: {\"facts\":[{\"subject\":\"Tavi\",\"relation\":\"carries\",\"object\":\"Plum Token\",\"evidence_ids\":[\"Z1\"],\"valid_from\":2,\"valid_until\":5,\"holder\":null,\"attitude\":null},{\"subject\":\"Plum Token\",\"relation\":\"located_in\",\"object\":\"Blue Cabin\",\"evidence_ids\":[\"Z2\"],\"valid_from\":null,\"valid_until\":null,\"holder\":\"Miro\",\"attitude\":\"believes\"}]}\nZ3 is excluded because ownership does not answer that example TASK. Never copy example names, facts or IDs into your answer.",
+          "role": "system"
+        },
+        {
+          "content": "TASK: Who explicitly believes what, and what reality is separately narrated about those same objects? Return each underlying believed relationship with its attribution and each matching narrated reality without attribution. Omit unrelated facts.\n\nCOMPLETE EVIDENCE:\nS1: Vera owns Copper Book.\nS2: Soren owns Ivory Vase.\nS3: Jun carries Copper Book from day 9 up to but not including day 17.\nS4: Vera carries Ivory Vase from day 10 up to but not including day 16.\nS5: Jun is in River Room from day 10 up to but not including day 14.\nS6: Soren is in Hill Court from day 14 up to but not including day 18.\nS7: Vera is in South Loft from day 11 up to but not including day 16.\nS8: Jade Drum is in Elm Dock from day 12 up to but not including day 15.\nS9: Soren believes that Copper Book is in South Loft.\nS10: In reality, Copper Book is in River Room.\nS11: Jun believes that Ivory Vase is in Hill Court.\nS12: In reality, Ivory Vase is in Elm Dock.\nS13: Jun owns Jade Drum.\nS14: Jun is in South Loft from day 18 up to but not including day 20.",
+          "role": "user"
+        }
+      ],
+      "min_p": 0.0,
+      "model": "qwen3-8b-awq-fallback",
+      "n": 1,
+      "presence_penalty": 0.0,
+      "repetition_penalty": 1.0,
+      "seed": 1988649846,
+      "stop_token_ids": [
+        151645
+      ],
+      "stream": true,
+      "stream_options": {
+        "continuous_usage_stats": false,
+        "include_usage": true
+      },
+      "temperature": 0.7,
+      "top_k": 20,
+      "top_p": 0.8,
+      "use_beam_search": false
+    },
+    "2": {
+      "best_of": 1,
+      "chat_template_kwargs": {
+        "enable_thinking": false
+      },
+      "frequency_penalty": 0.0,
+      "ignore_eos": false,
+      "max_tokens": 2048,
+      "messages": [
+        {
+          "content": "Return only JSON {\"facts\":[...]} answering the TASK. Every fact must explicitly contain all eight fields: subject, relation, object, evidence_ids, valid_from, valid_until, holder, attitude. Use short consistent endpoint names and a list of supplied string evidence IDs. No trailing commas.\nFor unstated bounds, use null; for direct narration, holder and attitude are null. Null means unspecified/not attributed here, never false, timeless, or lack of knowledge. For explicit intervals include the actual numeric start and end: [valid_from,valid_until), start included, end excluded. Never clip source bounds to the question window.\nFor belief, subject/relation/object express the underlying believed relationship; holder is its named believer and attitude is \"believes\". Do not put a proposition sentence inside object or use believes as the underlying relation. Do not infer knowledge or other relationships. In a contextual task return ONLY needed relationships, not every story fact.\nUnrelated worked example (not evidence for your answer): Z1 Tavi carries Plum Token from day 2 up to but not including day 5. Z2 Miro believes Plum Token is in Blue Cabin. Z3 Lusa owns Red Bowl. Example TASK: return carrying and explicit belief only.\nExample answer: {\"facts\":[{\"subject\":\"Tavi\",\"relation\":\"carries\",\"object\":\"Plum Token\",\"evidence_ids\":[\"Z1\"],\"valid_from\":2,\"valid_until\":5,\"holder\":null,\"attitude\":null},{\"subject\":\"Plum Token\",\"relation\":\"located_in\",\"object\":\"Blue Cabin\",\"evidence_ids\":[\"Z2\"],\"valid_from\":null,\"valid_until\":null,\"holder\":\"Miro\",\"attitude\":\"believes\"}]}\nZ3 is excluded because ownership does not answer that example TASK. Never copy example names, facts or IDs into your answer.",
+          "role": "system"
+        },
+        {
+          "content": "TASK: Extract every explicitly stated relationship in all supplied sentences, including each belief and separately narrated reality. Retain all explicitly stated intervals. Do not infer additional relationships.\n\nCOMPLETE EVIDENCE:\nS1: Vera owns Copper Book.\nS2: Soren owns Ivory Vase.\nS3: Jun carries Copper Book from day 9 up to but not including day 17.\nS4: Vera carries Ivory Vase from day 10 up to but not including day 16.\nS5: Jun is in River Room from day 10 up to but not including day 14.\nS6: Soren is in Hill Court from day 14 up to but not including day 18.\nS7: Vera is in South Loft from day 11 up to but not including day 16.\nS8: Jade Drum is in Elm Dock from day 12 up to but not including day 15.\nS9: Soren believes that Copper Book is in South Loft.\nS10: In reality, Copper Book is in River Room.\nS11: Jun believes that Ivory Vase is in Hill Court.\nS12: In reality, Ivory Vase is in Elm Dock.\nS13: Jun owns Jade Drum.\nS14: Jun is in South Loft from day 18 up to but not including day 20.",
+          "role": "user"
+        }
+      ],
+      "min_p": 0.0,
+      "model": "qwen3-8b-awq-fallback",
+      "n": 1,
+      "presence_penalty": 0.0,
+      "repetition_penalty": 1.0,
+      "seed": 1988649846,
+      "stop_token_ids": [
+        151645
+      ],
+      "stream": true,
+      "stream_options": {
+        "continuous_usage_stats": false,
+        "include_usage": true
+      },
+      "temperature": 0.7,
+      "top_k": 20,
+      "top_p": 0.8,
+      "use_beam_search": false
+    },
+    "4": {
+      "best_of": 1,
+      "chat_template_kwargs": {
+        "enable_thinking": false
+      },
+      "frequency_penalty": 0.0,
+      "ignore_eos": false,
+      "max_tokens": 2048,
+      "messages": [
+        {
+          "content": "Return only JSON {\"facts\":[...]} answering the TASK. Every fact must explicitly contain all eight fields: subject, relation, object, evidence_ids, valid_from, valid_until, holder, attitude. Use short consistent endpoint names and a list of supplied string evidence IDs. No trailing commas.\nFor unstated bounds, use null; for direct narration, holder and attitude are null. Null means unspecified/not attributed here, never false, timeless, or lack of knowledge. For explicit intervals include the actual numeric start and end: [valid_from,valid_until), start included, end excluded. Never clip source bounds to the question window.\nFor belief, subject/relation/object express the underlying believed relationship; holder is its named believer and attitude is \"believes\". Do not put a proposition sentence inside object or use believes as the underlying relation. Do not infer knowledge or other relationships. In a contextual task return ONLY needed relationships, not every story fact.\nUnrelated worked example (not evidence for your answer): Z1 Tavi carries Plum Token from day 2 up to but not including day 5. Z2 Miro believes Plum Token is in Blue Cabin. Z3 Lusa owns Red Bowl. Example TASK: return carrying and explicit belief only.\nExample answer: {\"facts\":[{\"subject\":\"Tavi\",\"relation\":\"carries\",\"object\":\"Plum Token\",\"evidence_ids\":[\"Z1\"],\"valid_from\":2,\"valid_until\":5,\"holder\":null,\"attitude\":null},{\"subject\":\"Plum Token\",\"relation\":\"located_in\",\"object\":\"Blue Cabin\",\"evidence_ids\":[\"Z2\"],\"valid_from\":null,\"valid_until\":null,\"holder\":\"Miro\",\"attitude\":\"believes\"}]}\nZ3 is excluded because ownership does not answer that example TASK. Never copy example names, facts or IDs into your answer.",
+          "role": "system"
+        },
+        {
+          "content": "TASK: Who owns or carries what? Return all and only directly narrated ownership and carrying relationships, retaining every stated interval.\n\nCOMPLETE EVIDENCE:\nS1: Lena owns Cobalt Compass.\nS2: Omar owns Amber Lantern.\nS3: Priya carries Cobalt Compass from day 0 up to but not including day 6.\nS4: Lena carries Amber Lantern from day 1 up to but not including day 5.\nS5: Lena is in North Hall from day 1 up to but not including day 5.\nS6: Omar is in East Garden from day 0 up to but not including day 3.\nS7: Priya is in Stone Shed from day 3 up to but not including day 6.\nS8: Silver Flute is in West Pier from day 2 up to but not including day 4.\nS9: Lena believes that Cobalt Compass is in North Hall.\nS10: In reality, Cobalt Compass is in East Garden.\nS11: Omar believes that Amber Lantern is in Stone Shed.\nS12: In reality, Amber Lantern is in West Pier.\nS13: Priya owns Silver Flute.\nS14: Lena is in Stone Shed from day 7 up to but not including day 9.",
+          "role": "user"
+        }
+      ],
+      "min_p": 0.0,
+      "model": "qwen3-8b-awq-fallback",
+      "n": 1,
+      "presence_penalty": 0.0,
+      "repetition_penalty": 1.0,
+      "seed": 1988649846,
+      "stop_token_ids": [
+        151645
+      ],
+      "stream": true,
+      "stream_options": {
+        "continuous_usage_stats": false,
+        "include_usage": true
+      },
+      "temperature": 0.7,
+      "top_k": 20,
+      "top_p": 0.8,
+      "use_beam_search": false
+    },
+    "12": {
+      "best_of": 1,
+      "chat_template_kwargs": {
+        "enable_thinking": false
+      },
+      "frequency_penalty": 0.0,
+      "ignore_eos": false,
+      "max_tokens": 2048,
+      "messages": [
+        {
+          "content": "Return only JSON {\"facts\":[...]} answering the TASK. Every fact must explicitly contain all eight fields: subject, relation, object, evidence_ids, valid_from, valid_until, holder, attitude. Use short consistent endpoint names and a list of supplied string evidence IDs. No trailing commas.\nFor unstated bounds, use null; for direct narration, holder and attitude are null. Null means unspecified/not attributed here, never false, timeless, or lack of knowledge. For explicit intervals include the actual numeric start and end: [valid_from,valid_until), start included, end excluded. Never clip source bounds to the question window.\nFor belief, subject/relation/object express the underlying believed relationship; holder is its named believer and attitude is \"believes\". Do not put a proposition sentence inside object or use believes as the underlying relation. Do not infer knowledge or other relationships. In a contextual task return ONLY needed relationships, not every story fact.\nUnrelated worked example (not evidence for your answer): Z1 Tavi carries Plum Token from day 2 up to but not including day 5. Z2 Miro believes Plum Token is in Blue Cabin. Z3 Lusa owns Red Bowl. Example TASK: return carrying and explicit belief only.\nExample answer: {\"facts\":[{\"subject\":\"Tavi\",\"relation\":\"carries\",\"object\":\"Plum Token\",\"evidence_ids\":[\"Z1\"],\"valid_from\":2,\"valid_until\":5,\"holder\":null,\"attitude\":null},{\"subject\":\"Plum Token\",\"relation\":\"located_in\",\"object\":\"Blue Cabin\",\"evidence_ids\":[\"Z2\"],\"valid_from\":null,\"valid_until\":null,\"holder\":\"Miro\",\"attitude\":\"believes\"}]}\nZ3 is excluded because ownership does not answer that example TASK. Never copy example names, facts or IDs into your answer.",
+          "role": "system"
+        },
+        {
+          "content": "TASK: Who explicitly believes what, and what reality is separately narrated about those same objects? Return each underlying believed relationship with its attribution and each matching narrated reality without attribution. Omit unrelated facts.\n\nCOMPLETE EVIDENCE:\nS1: Niko believes that Pearl Box is in Glass Room.\nS2: Esme owns Ruby Medal.\nS3: Dario is in Upper Court from day 20 up to but not including day 23.\nS4: In reality, Pearl Box is in Brick Store.\nS5: Niko carries Ruby Medal from day 19 up to but not including day 26.\nS6: Onyx Bell is in Cedar Gate from day 23 up to but not including day 27.\nS7: Esme believes that Ruby Medal is in Cedar Gate.\nS8: Dario owns Onyx Bell.\nS9: Esme is in Glass Room from day 21 up to but not including day 25.\nS10: In reality, Ruby Medal is in Upper Court.\nS11: Niko owns Pearl Box.\nS12: Niko is in Brick Store from day 24 up to but not including day 28.\nS13: Esme carries Pearl Box from day 20 up to but not including day 24.\nS14: Dario is in Cedar Gate from day 28 up to but not including day 30.",
+          "role": "user"
+        }
+      ],
+      "min_p": 0.0,
+      "model": "qwen3-8b-awq-fallback",
+      "n": 1,
+      "presence_penalty": 0.0,
+      "repetition_penalty": 1.0,
+      "seed": 1988649846,
+      "stop_token_ids": [
+        151645
+      ],
+      "stream": true,
+      "stream_options": {
+        "continuous_usage_stats": false,
+        "include_usage": true
+      },
+      "temperature": 0.7,
+      "top_k": 20,
+      "top_p": 0.8,
+      "use_beam_search": false
+    },
+    "7": {
+      "best_of": 1,
+      "chat_template_kwargs": {
+        "enable_thinking": false
+      },
+      "frequency_penalty": 0.0,
+      "ignore_eos": false,
+      "max_tokens": 2048,
+      "messages": [
+        {
+          "content": "Return only JSON {\"facts\":[...]} answering the TASK. Every fact must explicitly contain all eight fields: subject, relation, object, evidence_ids, valid_from, valid_until, holder, attitude. Use short consistent endpoint names and a list of supplied string evidence IDs. No trailing commas.\nFor unstated bounds, use null; for direct narration, holder and attitude are null. Null means unspecified/not attributed here, never false, timeless, or lack of knowledge. For explicit intervals include the actual numeric start and end: [valid_from,valid_until), start included, end excluded. Never clip source bounds to the question window.\nFor belief, subject/relation/object express the underlying believed relationship; holder is its named believer and attitude is \"believes\". Do not put a proposition sentence inside object or use believes as the underlying relation. Do not infer knowledge or other relationships. In a contextual task return ONLY needed relationships, not every story fact.\nUnrelated worked example (not evidence for your answer): Z1 Tavi carries Plum Token from day 2 up to but not including day 5. Z2 Miro believes Plum Token is in Blue Cabin. Z3 Lusa owns Red Bowl. Example TASK: return carrying and explicit belief only.\nExample answer: {\"facts\":[{\"subject\":\"Tavi\",\"relation\":\"carries\",\"object\":\"Plum Token\",\"evidence_ids\":[\"Z1\"],\"valid_from\":2,\"valid_until\":5,\"holder\":null,\"attitude\":null},{\"subject\":\"Plum Token\",\"relation\":\"located_in\",\"object\":\"Blue Cabin\",\"evidence_ids\":[\"Z2\"],\"valid_from\":null,\"valid_until\":null,\"holder\":\"Miro\",\"attitude\":\"believes\"}]}\nZ3 is excluded because ownership does not answer that example TASK. Never copy example names, facts or IDs into your answer.",
+          "role": "system"
+        },
+        {
+          "content": "TASK: Who owns or carries what? Return all and only directly narrated ownership and carrying relationships, retaining every stated interval.\n\nCOMPLETE EVIDENCE:\nS1: Vera owns Copper Book.\nS2: Soren owns Ivory Vase.\nS3: Jun carries Copper Book from day 9 up to but not including day 17.\nS4: Vera carries Ivory Vase from day 10 up to but not including day 16.\nS5: Jun is in River Room from day 10 up to but not including day 14.\nS6: Soren is in Hill Court from day 14 up to but not including day 18.\nS7: Vera is in South Loft from day 11 up to but not including day 16.\nS8: Jade Drum is in Elm Dock from day 12 up to but not including day 15.\nS9: Soren believes that Copper Book is in South Loft.\nS10: In reality, Copper Book is in River Room.\nS11: Jun believes that Ivory Vase is in Hill Court.\nS12: In reality, Ivory Vase is in Elm Dock.\nS13: Jun owns Jade Drum.\nS14: Jun is in South Loft from day 18 up to but not including day 20.",
+          "role": "user"
+        }
+      ],
+      "min_p": 0.0,
+      "model": "qwen3-8b-awq-fallback",
+      "n": 1,
+      "presence_penalty": 0.0,
+      "repetition_penalty": 1.0,
+      "seed": 1988649846,
+      "stop_token_ids": [
+        151645
+      ],
+      "stream": true,
+      "stream_options": {
+        "continuous_usage_stats": false,
+        "include_usage": true
+      },
+      "temperature": 0.7,
+      "top_k": 20,
+      "top_p": 0.8,
+      "use_beam_search": false
+    },
+    "8": {
+      "best_of": 1,
+      "chat_template_kwargs": {
+        "enable_thinking": false
+      },
+      "frequency_penalty": 0.0,
+      "ignore_eos": false,
+      "max_tokens": 2048,
+      "messages": [
+        {
+          "content": "Return only JSON {\"facts\":[...]} answering the TASK. Every fact must explicitly contain all eight fields: subject, relation, object, evidence_ids, valid_from, valid_until, holder, attitude. Use short consistent endpoint names and a list of supplied string evidence IDs. No trailing commas.\nFor unstated bounds, use null; for direct narration, holder and attitude are null. Null means unspecified/not attributed here, never false, timeless, or lack of knowledge. For explicit intervals include the actual numeric start and end: [valid_from,valid_until), start included, end excluded. Never clip source bounds to the question window.\nFor belief, subject/relation/object express the underlying believed relationship; holder is its named believer and attitude is \"believes\". Do not put a proposition sentence inside object or use believes as the underlying relation. Do not infer knowledge or other relationships. In a contextual task return ONLY needed relationships, not every story fact.\nUnrelated worked example (not evidence for your answer): Z1 Tavi carries Plum Token from day 2 up to but not including day 5. Z2 Miro believes Plum Token is in Blue Cabin. Z3 Lusa owns Red Bowl. Example TASK: return carrying and explicit belief only.\nExample answer: {\"facts\":[{\"subject\":\"Tavi\",\"relation\":\"carries\",\"object\":\"Plum Token\",\"evidence_ids\":[\"Z1\"],\"valid_from\":2,\"valid_until\":5,\"holder\":null,\"attitude\":null},{\"subject\":\"Plum Token\",\"relation\":\"located_in\",\"object\":\"Blue Cabin\",\"evidence_ids\":[\"Z2\"],\"valid_from\":null,\"valid_until\":null,\"holder\":\"Miro\",\"attitude\":\"believes\"}]}\nZ3 is excluded because ownership does not answer that example TASK. Never copy example names, facts or IDs into your answer.",
+          "role": "system"
+        },
+        {
+          "content": "TASK: Which directly narrated location relationships have an explicitly stated interval overlapping day 12 up to but not including day 15? Return all of them with their full evidence-stated intervals, not clipped to the question window. Exclude undated locations and beliefs.\n\nCOMPLETE EVIDENCE:\nS1: Vera owns Copper Book.\nS2: Soren owns Ivory Vase.\nS3: Jun carries Copper Book from day 9 up to but not including day 17.\nS4: Vera carries Ivory Vase from day 10 up to but not including day 16.\nS5: Jun is in River Room from day 10 up to but not including day 14.\nS6: Soren is in Hill Court from day 14 up to but not including day 18.\nS7: Vera is in South Loft from day 11 up to but not including day 16.\nS8: Jade Drum is in Elm Dock from day 12 up to but not including day 15.\nS9: Soren believes that Copper Book is in South Loft.\nS10: In reality, Copper Book is in River Room.\nS11: Jun believes that Ivory Vase is in Hill Court.\nS12: In reality, Ivory Vase is in Elm Dock.\nS13: Jun owns Jade Drum.\nS14: Jun is in South Loft from day 18 up to but not including day 20.",
+          "role": "user"
+        }
+      ],
+      "min_p": 0.0,
+      "model": "qwen3-8b-awq-fallback",
+      "n": 1,
+      "presence_penalty": 0.0,
+      "repetition_penalty": 1.0,
+      "seed": 1988649846,
+      "stop_token_ids": [
+        151645
+      ],
+      "stream": true,
+      "stream_options": {
+        "continuous_usage_stats": false,
+        "include_usage": true
+      },
+      "temperature": 0.7,
+      "top_k": 20,
+      "top_p": 0.8,
+      "use_beam_search": false
+    },
+    "1": {
+      "best_of": 1,
+      "chat_template_kwargs": {
+        "enable_thinking": false
+      },
+      "frequency_penalty": 0.0,
+      "ignore_eos": false,
+      "max_tokens": 2048,
+      "messages": [
+        {
+          "content": "Return only JSON {\"facts\":[...]} answering the TASK. Every fact must explicitly contain all eight fields: subject, relation, object, evidence_ids, valid_from, valid_until, holder, attitude. Use short consistent endpoint names and a list of supplied string evidence IDs. No trailing commas.\nFor unstated bounds, use null; for direct narration, holder and attitude are null. Null means unspecified/not attributed here, never false, timeless, or lack of knowledge. For explicit intervals include the actual numeric start and end: [valid_from,valid_until), start included, end excluded. Never clip source bounds to the question window.\nFor belief, subject/relation/object express the underlying believed relationship; holder is its named believer and attitude is \"believes\". Do not put a proposition sentence inside object or use believes as the underlying relation. Do not infer knowledge or other relationships. In a contextual task return ONLY needed relationships, not every story fact.\nUnrelated worked example (not evidence for your answer): Z1 Tavi carries Plum Token from day 2 up to but not including day 5. Z2 Miro believes Plum Token is in Blue Cabin. Z3 Lusa owns Red Bowl. Example TASK: return carrying and explicit belief only.\nExample answer: {\"facts\":[{\"subject\":\"Tavi\",\"relation\":\"carries\",\"object\":\"Plum Token\",\"evidence_ids\":[\"Z1\"],\"valid_from\":2,\"valid_until\":5,\"holder\":null,\"attitude\":null},{\"subject\":\"Plum Token\",\"relation\":\"located_in\",\"object\":\"Blue Cabin\",\"evidence_ids\":[\"Z2\"],\"valid_from\":null,\"valid_until\":null,\"holder\":\"Miro\",\"attitude\":\"believes\"}]}\nZ3 is excluded because ownership does not answer that example TASK. Never copy example names, facts or IDs into your answer.",
+          "role": "system"
+        },
+        {
+          "content": "TASK: Extract every explicitly stated relationship in all supplied sentences, including each belief and separately narrated reality. Retain all explicitly stated intervals. Do not infer additional relationships.\n\nCOMPLETE EVIDENCE:\nS1: Lena owns Cobalt Compass.\nS2: Omar owns Amber Lantern.\nS3: Priya carries Cobalt Compass from day 0 up to but not including day 6.\nS4: Lena carries Amber Lantern from day 1 up to but not including day 5.\nS5: Lena is in North Hall from day 1 up to but not including day 5.\nS6: Omar is in East Garden from day 0 up to but not including day 3.\nS7: Priya is in Stone Shed from day 3 up to but not including day 6.\nS8: Silver Flute is in West Pier from day 2 up to but not including day 4.\nS9: Lena believes that Cobalt Compass is in North Hall.\nS10: In reality, Cobalt Compass is in East Garden.\nS11: Omar believes that Amber Lantern is in Stone Shed.\nS12: In reality, Amber Lantern is in West Pier.\nS13: Priya owns Silver Flute.\nS14: Lena is in Stone Shed from day 7 up to but not including day 9.",
+          "role": "user"
+        }
+      ],
+      "min_p": 0.0,
+      "model": "qwen3-8b-awq-fallback",
+      "n": 1,
+      "presence_penalty": 0.0,
+      "repetition_penalty": 1.0,
+      "seed": 1988649846,
+      "stop_token_ids": [
+        151645
+      ],
+      "stream": true,
+      "stream_options": {
+        "continuous_usage_stats": false,
+        "include_usage": true
+      },
+      "temperature": 0.7,
+      "top_k": 20,
+      "top_p": 0.8,
+      "use_beam_search": false
+    },
+    "6": {
+      "best_of": 1,
+      "chat_template_kwargs": {
+        "enable_thinking": false
+      },
+      "frequency_penalty": 0.0,
+      "ignore_eos": false,
+      "max_tokens": 2048,
+      "messages": [
+        {
+          "content": "Return only JSON {\"facts\":[...]} answering the TASK. Every fact must explicitly contain all eight fields: subject, relation, object, evidence_ids, valid_from, valid_until, holder, attitude. Use short consistent endpoint names and a list of supplied string evidence IDs. No trailing commas.\nFor unstated bounds, use null; for direct narration, holder and attitude are null. Null means unspecified/not attributed here, never false, timeless, or lack of knowledge. For explicit intervals include the actual numeric start and end: [valid_from,valid_until), start included, end excluded. Never clip source bounds to the question window.\nFor belief, subject/relation/object express the underlying believed relationship; holder is its named believer and attitude is \"believes\". Do not put a proposition sentence inside object or use believes as the underlying relation. Do not infer knowledge or other relationships. In a contextual task return ONLY needed relationships, not every story fact.\nUnrelated worked example (not evidence for your answer): Z1 Tavi carries Plum Token from day 2 up to but not including day 5. Z2 Miro believes Plum Token is in Blue Cabin. Z3 Lusa owns Red Bowl. Example TASK: return carrying and explicit belief only.\nExample answer: {\"facts\":[{\"subject\":\"Tavi\",\"relation\":\"carries\",\"object\":\"Plum Token\",\"evidence_ids\":[\"Z1\"],\"valid_from\":2,\"valid_until\":5,\"holder\":null,\"attitude\":null},{\"subject\":\"Plum Token\",\"relation\":\"located_in\",\"object\":\"Blue Cabin\",\"evidence_ids\":[\"Z2\"],\"valid_from\":null,\"valid_until\":null,\"holder\":\"Miro\",\"attitude\":\"believes\"}]}\nZ3 is excluded because ownership does not answer that example TASK. Never copy example names, facts or IDs into your answer.",
+          "role": "system"
+        },
+        {
+          "content": "TASK: Who explicitly believes what, and what reality is separately narrated about those same objects? Return each underlying believed relationship with its attribution and each matching narrated reality without attribution. Omit unrelated facts.\n\nCOMPLETE EVIDENCE:\nS1: Lena owns Cobalt Compass.\nS2: Omar owns Amber Lantern.\nS3: Priya carries Cobalt Compass from day 0 up to but not including day 6.\nS4: Lena carries Amber Lantern from day 1 up to but not including day 5.\nS5: Lena is in North Hall from day 1 up to but not including day 5.\nS6: Omar is in East Garden from day 0 up to but not including day 3.\nS7: Priya is in Stone Shed from day 3 up to but not including day 6.\nS8: Silver Flute is in West Pier from day 2 up to but not including day 4.\nS9: Lena believes that Cobalt Compass is in North Hall.\nS10: In reality, Cobalt Compass is in East Garden.\nS11: Omar believes that Amber Lantern is in Stone Shed.\nS12: In reality, Amber Lantern is in West Pier.\nS13: Priya owns Silver Flute.\nS14: Lena is in Stone Shed from day 7 up to but not including day 9.",
+          "role": "user"
+        }
+      ],
+      "min_p": 0.0,
+      "model": "qwen3-8b-awq-fallback",
+      "n": 1,
+      "presence_penalty": 0.0,
+      "repetition_penalty": 1.0,
+      "seed": 1988649846,
+      "stop_token_ids": [
+        151645
+      ],
+      "stream": true,
+      "stream_options": {
+        "continuous_usage_stats": false,
+        "include_usage": true
+      },
+      "temperature": 0.7,
+      "top_k": 20,
+      "top_p": 0.8,
+      "use_beam_search": false
+    },
+    "11": {
+      "best_of": 1,
+      "chat_template_kwargs": {
+        "enable_thinking": false
+      },
+      "frequency_penalty": 0.0,
+      "ignore_eos": false,
+      "max_tokens": 2048,
+      "messages": [
+        {
+          "content": "Return only JSON {\"facts\":[...]} answering the TASK. Every fact must explicitly contain all eight fields: subject, relation, object, evidence_ids, valid_from, valid_until, holder, attitude. Use short consistent endpoint names and a list of supplied string evidence IDs. No trailing commas.\nFor unstated bounds, use null; for direct narration, holder and attitude are null. Null means unspecified/not attributed here, never false, timeless, or lack of knowledge. For explicit intervals include the actual numeric start and end: [valid_from,valid_until), start included, end excluded. Never clip source bounds to the question window.\nFor belief, subject/relation/object express the underlying believed relationship; holder is its named believer and attitude is \"believes\". Do not put a proposition sentence inside object or use believes as the underlying relation. Do not infer knowledge or other relationships. In a contextual task return ONLY needed relationships, not every story fact.\nUnrelated worked example (not evidence for your answer): Z1 Tavi carries Plum Token from day 2 up to but not including day 5. Z2 Miro believes Plum Token is in Blue Cabin. Z3 Lusa owns Red Bowl. Example TASK: return carrying and explicit belief only.\nExample answer: {\"facts\":[{\"subject\":\"Tavi\",\"relation\":\"carries\",\"object\":\"Plum Token\",\"evidence_ids\":[\"Z1\"],\"valid_from\":2,\"valid_until\":5,\"holder\":null,\"attitude\":null},{\"subject\":\"Plum Token\",\"relation\":\"located_in\",\"object\":\"Blue Cabin\",\"evidence_ids\":[\"Z2\"],\"valid_from\":null,\"valid_until\":null,\"holder\":\"Miro\",\"attitude\":\"believes\"}]}\nZ3 is excluded because ownership does not answer that example TASK. Never copy example names, facts or IDs into your answer.",
+          "role": "system"
+        },
+        {
+          "content": "TASK: Which directly narrated location relationships have an explicitly stated interval overlapping day 22 up to but not including day 25? Return all of them with their full evidence-stated intervals, not clipped to the question window. Exclude undated locations and beliefs.\n\nCOMPLETE EVIDENCE:\nS1: Niko believes that Pearl Box is in Glass Room.\nS2: Esme owns Ruby Medal.\nS3: Dario is in Upper Court from day 20 up to but not including day 23.\nS4: In reality, Pearl Box is in Brick Store.\nS5: Niko carries Ruby Medal from day 19 up to but not including day 26.\nS6: Onyx Bell is in Cedar Gate from day 23 up to but not including day 27.\nS7: Esme believes that Ruby Medal is in Cedar Gate.\nS8: Dario owns Onyx Bell.\nS9: Esme is in Glass Room from day 21 up to but not including day 25.\nS10: In reality, Ruby Medal is in Upper Court.\nS11: Niko owns Pearl Box.\nS12: Niko is in Brick Store from day 24 up to but not including day 28.\nS13: Esme carries Pearl Box from day 20 up to but not including day 24.\nS14: Dario is in Cedar Gate from day 28 up to but not including day 30.",
+          "role": "user"
+        }
+      ],
+      "min_p": 0.0,
+      "model": "qwen3-8b-awq-fallback",
+      "n": 1,
+      "presence_penalty": 0.0,
+      "repetition_penalty": 1.0,
+      "seed": 1988649846,
+      "stop_token_ids": [
+        151645
+      ],
+      "stream": true,
+      "stream_options": {
+        "continuous_usage_stats": false,
+        "include_usage": true
+      },
+      "temperature": 0.7,
+      "top_k": 20,
+      "top_p": 0.8,
+      "use_beam_search": false
+    }
+  },
+  "prose": {
+    "5": {
+      "best_of": 1,
+      "chat_template_kwargs": {
+        "enable_thinking": false
+      },
+      "frequency_penalty": 0.0,
+      "ignore_eos": false,
+      "max_tokens": 2048,
+      "messages": [
+        {
+          "content": "Return only JSON {\"facts\":[...]} answering the TASK. Every fact must explicitly contain all eight fields: subject, relation, object, evidence_ids, valid_from, valid_until, holder, attitude. Use short consistent endpoint names and a list of supplied string evidence IDs. No trailing commas.\nFor unstated bounds, use null; for direct narration, holder and attitude are null. Null means unspecified/not attributed here, never false, timeless, or lack of knowledge. For explicit intervals include the actual numeric start and end: [valid_from,valid_until), start included, end excluded. Never clip source bounds to the question window.\nFor belief, subject/relation/object express the underlying believed relationship; holder is its named believer and attitude is \"believes\". Do not put a proposition sentence inside object or use believes as the underlying relation. Do not infer knowledge or other relationships. In a contextual task return ONLY needed relationships, not every story fact.\nUnrelated worked example (not evidence for your answer): Z1 Tavi carries Plum Token from day 2 up to but not including day 5. Z2 Miro believes Plum Token is in Blue Cabin. Z3 Lusa owns Red Bowl. Example TASK: return carrying and explicit belief only.\nExample answer: {\"facts\":[{\"subject\":\"Tavi\",\"relation\":\"carries\",\"object\":\"Plum Token\",\"evidence_ids\":[\"Z1\"],\"valid_from\":2,\"valid_until\":5,\"holder\":null,\"attitude\":null},{\"subject\":\"Plum Token\",\"relation\":\"located_in\",\"object\":\"Blue Cabin\",\"evidence_ids\":[\"Z2\"],\"valid_from\":null,\"valid_until\":null,\"holder\":\"Miro\",\"attitude\":\"believes\"}]}\nZ3 is excluded because ownership does not answer that example TASK. Never copy example names, facts or IDs into your answer.\nThis task is extraction from published narrative prose, not real-world verification. Use ONLY the supplied excerpt, never remembered book or plot information. Ordinary action relations are welcome. Resolve pronouns only when their referent is clear within this excerpt; otherwise preserve uncertainty in readable wording. Besides believes, use reported, promises, questions or considers only when that attribution is explicit. An external description of a speech/mental act may itself be a direct narrated relationship, but never assert its uncertain or promised content as accomplished reality. Do not invent numerical validity for 'once', 'later', 'that morning' or an event occurrence: leave unsupported bounds null. Keep answers concise; no inferred relationships.",
+          "role": "system"
+        },
+        {
+          "content": "TASK: How does the Lion capture and release the Mouse, and what does the Mouse explicitly promise or claim about repayment, ability to help, and the Lion's earlier ridicule? Exclude hunters, other physical actions and unspoken intentions.\n\nCOMPLETE EVIDENCE:\nS1: A LION was awakened from sleep by a Mouse running over his face.\nS2:  Rising\r\nup angrily, he caught him and was about to kill him, when the Mouse\r\npiteously entreated, saying: “If you would only spare my life, I would\r\nbe sure to repay your kindness.”\nS3:  The Lion laughed and let him go.\nS4:  It\r\nhappened shortly after this that the Lion was caught by some hunters,\r\nwho bound him by strong ropes to the ground.\nS5:  The Mouse, recognizing his\r\nroar, came and gnawed the rope with his teeth, and set him free,\r\nexclaiming:\nS6: \r\n\r\n“You ridiculed the idea of my ever being able to help you, not\r\nexpecting to receive from me any repayment of your favour; now you know\r\nthat it is possible for even a Mouse to confer benefits on a Lion.”\r\n",
+          "role": "user"
+        }
+      ],
+      "min_p": 0.0,
+      "model": "qwen3-8b-awq-fallback",
+      "n": 1,
+      "presence_penalty": 0.0,
+      "repetition_penalty": 1.0,
+      "seed": 1988649846,
+      "stop_token_ids": [
+        151645
+      ],
+      "stream": true,
+      "stream_options": {
+        "continuous_usage_stats": false,
+        "include_usage": true
+      },
+      "temperature": 0.7,
+      "top_k": 20,
+      "top_p": 0.8,
+      "use_beam_search": false
+    },
+    "3": {
+      "best_of": 1,
+      "chat_template_kwargs": {
+        "enable_thinking": false
+      },
+      "frequency_penalty": 0.0,
+      "ignore_eos": false,
+      "max_tokens": 2048,
+      "messages": [
+        {
+          "content": "Return only JSON {\"facts\":[...]} answering the TASK. Every fact must explicitly contain all eight fields: subject, relation, object, evidence_ids, valid_from, valid_until, holder, attitude. Use short consistent endpoint names and a list of supplied string evidence IDs. No trailing commas.\nFor unstated bounds, use null; for direct narration, holder and attitude are null. Null means unspecified/not attributed here, never false, timeless, or lack of knowledge. For explicit intervals include the actual numeric start and end: [valid_from,valid_until), start included, end excluded. Never clip source bounds to the question window.\nFor belief, subject/relation/object express the underlying believed relationship; holder is its named believer and attitude is \"believes\". Do not put a proposition sentence inside object or use believes as the underlying relation. Do not infer knowledge or other relationships. In a contextual task return ONLY needed relationships, not every story fact.\nUnrelated worked example (not evidence for your answer): Z1 Tavi carries Plum Token from day 2 up to but not including day 5. Z2 Miro believes Plum Token is in Blue Cabin. Z3 Lusa owns Red Bowl. Example TASK: return carrying and explicit belief only.\nExample answer: {\"facts\":[{\"subject\":\"Tavi\",\"relation\":\"carries\",\"object\":\"Plum Token\",\"evidence_ids\":[\"Z1\"],\"valid_from\":2,\"valid_until\":5,\"holder\":null,\"attitude\":null},{\"subject\":\"Plum Token\",\"relation\":\"located_in\",\"object\":\"Blue Cabin\",\"evidence_ids\":[\"Z2\"],\"valid_from\":null,\"valid_until\":null,\"holder\":\"Miro\",\"attitude\":\"believes\"}]}\nZ3 is excluded because ownership does not answer that example TASK. Never copy example names, facts or IDs into your answer.\nThis task is extraction from published narrative prose, not real-world verification. Use ONLY the supplied excerpt, never remembered book or plot information. Ordinary action relations are welcome. Resolve pronouns only when their referent is clear within this excerpt; otherwise preserve uncertainty in readable wording. Besides believes, use reported, promises, questions or considers only when that attribution is explicit. An external description of a speech/mental act may itself be a direct narrated relationship, but never assert its uncertain or promised content as accomplished reality. Do not invent numerical validity for 'once', 'later', 'that morning' or an event occurrence: leave unsupported bounds null. Keep answers concise; no inferred relationships.",
+          "role": "system"
+        },
+        {
+          "content": "TASK: Extract the explicitly supported relationships throughout this complete excerpt. No contextual question is supplied; distinguish narration from attributed or uncertain content.\n\nCOMPLETE EVIDENCE:\nS1:  I had called upon my friend, Mr. Sherlock Holmes, one day in the\r\n autumn of last year and found him in deep conversation with a very\r\n stout, florid-faced, elderly gentleman with fiery red hair.\nS2:  With an\r\n apology for my intrusion, I was about to withdraw when Holmes pulled\r\n me abruptly into the room and closed the door behind me.\nS3: \r\n\r\n“You could not possibly have come at a better time, my dear Watson,” he\r\nsaid cordially.\nS4: \r\n\r\n“I was afraid that you were engaged.”\nS5: \r\n\r\n“So I am. Very much so.”\nS6: \r\n\r\n“Then I can wait in the next room.”\nS7: \r\n\r\n“Not at all. This gentleman, Mr. Wilson, has been my partner and helper\r\nin many of my most successful cases, and I have no doubt that he will\r\nbe of the utmost use to me in yours also.”\nS8: \r\n\r\nThe stout gentleman half rose from his chair and gave a bob of\r\ngreeting, with a quick little questioning glance from his small\r\nfat-encircled eyes.",
+          "role": "user"
+        }
+      ],
+      "min_p": 0.0,
+      "model": "qwen3-8b-awq-fallback",
+      "n": 1,
+      "presence_penalty": 0.0,
+      "repetition_penalty": 1.0,
+      "seed": 1988649846,
+      "stop_token_ids": [
+        151645
+      ],
+      "stream": true,
+      "stream_options": {
+        "continuous_usage_stats": false,
+        "include_usage": true
+      },
+      "temperature": 0.7,
+      "top_k": 20,
+      "top_p": 0.8,
+      "use_beam_search": false
+    },
+    "9": {
+      "best_of": 1,
+      "chat_template_kwargs": {
+        "enable_thinking": false
+      },
+      "frequency_penalty": 0.0,
+      "ignore_eos": false,
+      "max_tokens": 2048,
+      "messages": [
+        {
+          "content": "Return only JSON {\"facts\":[...]} answering the TASK. Every fact must explicitly contain all eight fields: subject, relation, object, evidence_ids, valid_from, valid_until, holder, attitude. Use short consistent endpoint names and a list of supplied string evidence IDs. No trailing commas.\nFor unstated bounds, use null; for direct narration, holder and attitude are null. Null means unspecified/not attributed here, never false, timeless, or lack of knowledge. For explicit intervals include the actual numeric start and end: [valid_from,valid_until), start included, end excluded. Never clip source bounds to the question window.\nFor belief, subject/relation/object express the underlying believed relationship; holder is its named believer and attitude is \"believes\". Do not put a proposition sentence inside object or use believes as the underlying relation. Do not infer knowledge or other relationships. In a contextual task return ONLY needed relationships, not every story fact.\nUnrelated worked example (not evidence for your answer): Z1 Tavi carries Plum Token from day 2 up to but not including day 5. Z2 Miro believes Plum Token is in Blue Cabin. Z3 Lusa owns Red Bowl. Example TASK: return carrying and explicit belief only.\nExample answer: {\"facts\":[{\"subject\":\"Tavi\",\"relation\":\"carries\",\"object\":\"Plum Token\",\"evidence_ids\":[\"Z1\"],\"valid_from\":2,\"valid_until\":5,\"holder\":null,\"attitude\":null},{\"subject\":\"Plum Token\",\"relation\":\"located_in\",\"object\":\"Blue Cabin\",\"evidence_ids\":[\"Z2\"],\"valid_from\":null,\"valid_until\":null,\"holder\":\"Miro\",\"attitude\":\"believes\"}]}\nZ3 is excluded because ownership does not answer that example TASK. Never copy example names, facts or IDs into your answer.\nThis task is extraction from published narrative prose, not real-world verification. Use ONLY the supplied excerpt, never remembered book or plot information. Ordinary action relations are welcome. Resolve pronouns only when their referent is clear within this excerpt; otherwise preserve uncertainty in readable wording. Besides believes, use reported, promises, questions or considers only when that attribution is explicit. An external description of a speech/mental act may itself be a direct narrated relationship, but never assert its uncertain or promised content as accomplished reality. Do not invent numerical validity for 'once', 'later', 'that morning' or an event occurrence: leave unsupported bounds null. Keep answers concise; no inferred relationships.",
+          "role": "system"
+        },
+        {
+          "content": "TASK: What does the dialogue explicitly convey about being engaged, past partnership/help in cases and expected help in the present case? Keep each claim or concern attributed to its speaker. Exclude physical movements, appearance, offers to wait and politeness about the arrival time.\n\nCOMPLETE EVIDENCE:\nS1:  I had called upon my friend, Mr. Sherlock Holmes, one day in the\r\n autumn of last year and found him in deep conversation with a very\r\n stout, florid-faced, elderly gentleman with fiery red hair.\nS2:  With an\r\n apology for my intrusion, I was about to withdraw when Holmes pulled\r\n me abruptly into the room and closed the door behind me.\nS3: \r\n\r\n“You could not possibly have come at a better time, my dear Watson,” he\r\nsaid cordially.\nS4: \r\n\r\n“I was afraid that you were engaged.”\nS5: \r\n\r\n“So I am. Very much so.”\nS6: \r\n\r\n“Then I can wait in the next room.”\nS7: \r\n\r\n“Not at all. This gentleman, Mr. Wilson, has been my partner and helper\r\nin many of my most successful cases, and I have no doubt that he will\r\nbe of the utmost use to me in yours also.”\nS8: \r\n\r\nThe stout gentleman half rose from his chair and gave a bob of\r\ngreeting, with a quick little questioning glance from his small\r\nfat-encircled eyes.",
+          "role": "user"
+        }
+      ],
+      "min_p": 0.0,
+      "model": "qwen3-8b-awq-fallback",
+      "n": 1,
+      "presence_penalty": 0.0,
+      "repetition_penalty": 1.0,
+      "seed": 1988649846,
+      "stop_token_ids": [
+        151645
+      ],
+      "stream": true,
+      "stream_options": {
+        "continuous_usage_stats": false,
+        "include_usage": true
+      },
+      "temperature": 0.7,
+      "top_k": 20,
+      "top_p": 0.8,
+      "use_beam_search": false
+    },
+    "2": {
+      "best_of": 1,
+      "chat_template_kwargs": {
+        "enable_thinking": false
+      },
+      "frequency_penalty": 0.0,
+      "ignore_eos": false,
+      "max_tokens": 2048,
+      "messages": [
+        {
+          "content": "Return only JSON {\"facts\":[...]} answering the TASK. Every fact must explicitly contain all eight fields: subject, relation, object, evidence_ids, valid_from, valid_until, holder, attitude. Use short consistent endpoint names and a list of supplied string evidence IDs. No trailing commas.\nFor unstated bounds, use null; for direct narration, holder and attitude are null. Null means unspecified/not attributed here, never false, timeless, or lack of knowledge. For explicit intervals include the actual numeric start and end: [valid_from,valid_until), start included, end excluded. Never clip source bounds to the question window.\nFor belief, subject/relation/object express the underlying believed relationship; holder is its named believer and attitude is \"believes\". Do not put a proposition sentence inside object or use believes as the underlying relation. Do not infer knowledge or other relationships. In a contextual task return ONLY needed relationships, not every story fact.\nUnrelated worked example (not evidence for your answer): Z1 Tavi carries Plum Token from day 2 up to but not including day 5. Z2 Miro believes Plum Token is in Blue Cabin. Z3 Lusa owns Red Bowl. Example TASK: return carrying and explicit belief only.\nExample answer: {\"facts\":[{\"subject\":\"Tavi\",\"relation\":\"carries\",\"object\":\"Plum Token\",\"evidence_ids\":[\"Z1\"],\"valid_from\":2,\"valid_until\":5,\"holder\":null,\"attitude\":null},{\"subject\":\"Plum Token\",\"relation\":\"located_in\",\"object\":\"Blue Cabin\",\"evidence_ids\":[\"Z2\"],\"valid_from\":null,\"valid_until\":null,\"holder\":\"Miro\",\"attitude\":\"believes\"}]}\nZ3 is excluded because ownership does not answer that example TASK. Never copy example names, facts or IDs into your answer.\nThis task is extraction from published narrative prose, not real-world verification. Use ONLY the supplied excerpt, never remembered book or plot information. Ordinary action relations are welcome. Resolve pronouns only when their referent is clear within this excerpt; otherwise preserve uncertainty in readable wording. Besides believes, use reported, promises, questions or considers only when that attribution is explicit. An external description of a speech/mental act may itself be a direct narrated relationship, but never assert its uncertain or promised content as accomplished reality. Do not invent numerical validity for 'once', 'later', 'that morning' or an event occurrence: leave unsupported bounds null. Keep answers concise; no inferred relationships.",
+          "role": "system"
+        },
+        {
+          "content": "TASK: Extract the explicitly supported relationships throughout this complete excerpt. No contextual question is supplied; distinguish narration from attributed or uncertain content.\n\nCOMPLETE EVIDENCE:\nS1: Alice was beginning to get very tired of sitting by her sister on the\r\nbank, and of having nothing to do: once or twice she had peeped into\r\nthe book her sister was reading, but it had no pictures or\r\nconversations in it, “and what is the use of a book,” thought Alice\r\n“without pictures or conversations?”\nS2: \r\n\r\nSo she was considering in her own mind (as well as she could, for the\r\nhot day made her feel very sleepy and stupid), whether the pleasure of\r\nmaking a daisy-chain would be worth the trouble of getting up and\r\npicking the daisies, when suddenly a White Rabbit with pink eyes ran\r\nclose by her.",
+          "role": "user"
+        }
+      ],
+      "min_p": 0.0,
+      "model": "qwen3-8b-awq-fallback",
+      "n": 1,
+      "presence_penalty": 0.0,
+      "repetition_penalty": 1.0,
+      "seed": 1988649846,
+      "stop_token_ids": [
+        151645
+      ],
+      "stream": true,
+      "stream_options": {
+        "continuous_usage_stats": false,
+        "include_usage": true
+      },
+      "temperature": 0.7,
+      "top_k": 20,
+      "top_p": 0.8,
+      "use_beam_search": false
+    },
+    "4": {
+      "best_of": 1,
+      "chat_template_kwargs": {
+        "enable_thinking": false
+      },
+      "frequency_penalty": 0.0,
+      "ignore_eos": false,
+      "max_tokens": 2048,
+      "messages": [
+        {
+          "content": "Return only JSON {\"facts\":[...]} answering the TASK. Every fact must explicitly contain all eight fields: subject, relation, object, evidence_ids, valid_from, valid_until, holder, attitude. Use short consistent endpoint names and a list of supplied string evidence IDs. No trailing commas.\nFor unstated bounds, use null; for direct narration, holder and attitude are null. Null means unspecified/not attributed here, never false, timeless, or lack of knowledge. For explicit intervals include the actual numeric start and end: [valid_from,valid_until), start included, end excluded. Never clip source bounds to the question window.\nFor belief, subject/relation/object express the underlying believed relationship; holder is its named believer and attitude is \"believes\". Do not put a proposition sentence inside object or use believes as the underlying relation. Do not infer knowledge or other relationships. In a contextual task return ONLY needed relationships, not every story fact.\nUnrelated worked example (not evidence for your answer): Z1 Tavi carries Plum Token from day 2 up to but not including day 5. Z2 Miro believes Plum Token is in Blue Cabin. Z3 Lusa owns Red Bowl. Example TASK: return carrying and explicit belief only.\nExample answer: {\"facts\":[{\"subject\":\"Tavi\",\"relation\":\"carries\",\"object\":\"Plum Token\",\"evidence_ids\":[\"Z1\"],\"valid_from\":2,\"valid_until\":5,\"holder\":null,\"attitude\":null},{\"subject\":\"Plum Token\",\"relation\":\"located_in\",\"object\":\"Blue Cabin\",\"evidence_ids\":[\"Z2\"],\"valid_from\":null,\"valid_until\":null,\"holder\":\"Miro\",\"attitude\":\"believes\"}]}\nZ3 is excluded because ownership does not answer that example TASK. Never copy example names, facts or IDs into your answer.\nThis task is extraction from published narrative prose, not real-world verification. Use ONLY the supplied excerpt, never remembered book or plot information. Ordinary action relations are welcome. Resolve pronouns only when their referent is clear within this excerpt; otherwise preserve uncertainty in readable wording. Besides believes, use reported, promises, questions or considers only when that attribution is explicit. An external description of a speech/mental act may itself be a direct narrated relationship, but never assert its uncertain or promised content as accomplished reality. Do not invent numerical validity for 'once', 'later', 'that morning' or an event occurrence: leave unsupported bounds null. Keep answers concise; no inferred relationships.",
+          "role": "system"
+        },
+        {
+          "content": "TASK: Which physical running/waking, capture, binding, rope-gnawing and release relationships involve the Lion, Mouse, hunters and ropes? Exclude dialogue, intentions, laughter and the moral.\n\nCOMPLETE EVIDENCE:\nS1: A LION was awakened from sleep by a Mouse running over his face.\nS2:  Rising\r\nup angrily, he caught him and was about to kill him, when the Mouse\r\npiteously entreated, saying: “If you would only spare my life, I would\r\nbe sure to repay your kindness.”\nS3:  The Lion laughed and let him go.\nS4:  It\r\nhappened shortly after this that the Lion was caught by some hunters,\r\nwho bound him by strong ropes to the ground.\nS5:  The Mouse, recognizing his\r\nroar, came and gnawed the rope with his teeth, and set him free,\r\nexclaiming:\nS6: \r\n\r\n“You ridiculed the idea of my ever being able to help you, not\r\nexpecting to receive from me any repayment of your favour; now you know\r\nthat it is possible for even a Mouse to confer benefits on a Lion.”\r\n",
+          "role": "user"
+        }
+      ],
+      "min_p": 0.0,
+      "model": "qwen3-8b-awq-fallback",
+      "n": 1,
+      "presence_penalty": 0.0,
+      "repetition_penalty": 1.0,
+      "seed": 1988649846,
+      "stop_token_ids": [
+        151645
+      ],
+      "stream": true,
+      "stream_options": {
+        "continuous_usage_stats": false,
+        "include_usage": true
+      },
+      "temperature": 0.7,
+      "top_k": 20,
+      "top_p": 0.8,
+      "use_beam_search": false
+    },
+    "7": {
+      "best_of": 1,
+      "chat_template_kwargs": {
+        "enable_thinking": false
+      },
+      "frequency_penalty": 0.0,
+      "ignore_eos": false,
+      "max_tokens": 2048,
+      "messages": [
+        {
+          "content": "Return only JSON {\"facts\":[...]} answering the TASK. Every fact must explicitly contain all eight fields: subject, relation, object, evidence_ids, valid_from, valid_until, holder, attitude. Use short consistent endpoint names and a list of supplied string evidence IDs. No trailing commas.\nFor unstated bounds, use null; for direct narration, holder and attitude are null. Null means unspecified/not attributed here, never false, timeless, or lack of knowledge. For explicit intervals include the actual numeric start and end: [valid_from,valid_until), start included, end excluded. Never clip source bounds to the question window.\nFor belief, subject/relation/object express the underlying believed relationship; holder is its named believer and attitude is \"believes\". Do not put a proposition sentence inside object or use believes as the underlying relation. Do not infer knowledge or other relationships. In a contextual task return ONLY needed relationships, not every story fact.\nUnrelated worked example (not evidence for your answer): Z1 Tavi carries Plum Token from day 2 up to but not including day 5. Z2 Miro believes Plum Token is in Blue Cabin. Z3 Lusa owns Red Bowl. Example TASK: return carrying and explicit belief only.\nExample answer: {\"facts\":[{\"subject\":\"Tavi\",\"relation\":\"carries\",\"object\":\"Plum Token\",\"evidence_ids\":[\"Z1\"],\"valid_from\":2,\"valid_until\":5,\"holder\":null,\"attitude\":null},{\"subject\":\"Plum Token\",\"relation\":\"located_in\",\"object\":\"Blue Cabin\",\"evidence_ids\":[\"Z2\"],\"valid_from\":null,\"valid_until\":null,\"holder\":\"Miro\",\"attitude\":\"believes\"}]}\nZ3 is excluded because ownership does not answer that example TASK. Never copy example names, facts or IDs into your answer.\nThis task is extraction from published narrative prose, not real-world verification. Use ONLY the supplied excerpt, never remembered book or plot information. Ordinary action relations are welcome. Resolve pronouns only when their referent is clear within this excerpt; otherwise preserve uncertainty in readable wording. Besides believes, use reported, promises, questions or considers only when that attribution is explicit. An external description of a speech/mental act may itself be a direct narrated relationship, but never assert its uncertain or promised content as accomplished reality. Do not invent numerical validity for 'once', 'later', 'that morning' or an event occurrence: leave unsupported bounds null. Keep answers concise; no inferred relationships.",
+          "role": "system"
+        },
+        {
+          "content": "TASK: What does the passage say about the book's absent content and Alice's thoughts about the usefulness of such books and making a daisy-chain? Exclude physical actions, locations, appearance and the Rabbit; preserve questions and consideration without treating them as decisions.\n\nCOMPLETE EVIDENCE:\nS1: Alice was beginning to get very tired of sitting by her sister on the\r\nbank, and of having nothing to do: once or twice she had peeped into\r\nthe book her sister was reading, but it had no pictures or\r\nconversations in it, “and what is the use of a book,” thought Alice\r\n“without pictures or conversations?”\nS2: \r\n\r\nSo she was considering in her own mind (as well as she could, for the\r\nhot day made her feel very sleepy and stupid), whether the pleasure of\r\nmaking a daisy-chain would be worth the trouble of getting up and\r\npicking the daisies, when suddenly a White Rabbit with pink eyes ran\r\nclose by her.",
+          "role": "user"
+        }
+      ],
+      "min_p": 0.0,
+      "model": "qwen3-8b-awq-fallback",
+      "n": 1,
+      "presence_penalty": 0.0,
+      "repetition_penalty": 1.0,
+      "seed": 1988649846,
+      "stop_token_ids": [
+        151645
+      ],
+      "stream": true,
+      "stream_options": {
+        "continuous_usage_stats": false,
+        "include_usage": true
+      },
+      "temperature": 0.7,
+      "top_k": 20,
+      "top_p": 0.8,
+      "use_beam_search": false
+    },
+    "8": {
+      "best_of": 1,
+      "chat_template_kwargs": {
+        "enable_thinking": false
+      },
+      "frequency_penalty": 0.0,
+      "ignore_eos": false,
+      "max_tokens": 2048,
+      "messages": [
+        {
+          "content": "Return only JSON {\"facts\":[...]} answering the TASK. Every fact must explicitly contain all eight fields: subject, relation, object, evidence_ids, valid_from, valid_until, holder, attitude. Use short consistent endpoint names and a list of supplied string evidence IDs. No trailing commas.\nFor unstated bounds, use null; for direct narration, holder and attitude are null. Null means unspecified/not attributed here, never false, timeless, or lack of knowledge. For explicit intervals include the actual numeric start and end: [valid_from,valid_until), start included, end excluded. Never clip source bounds to the question window.\nFor belief, subject/relation/object express the underlying believed relationship; holder is its named believer and attitude is \"believes\". Do not put a proposition sentence inside object or use believes as the underlying relation. Do not infer knowledge or other relationships. In a contextual task return ONLY needed relationships, not every story fact.\nUnrelated worked example (not evidence for your answer): Z1 Tavi carries Plum Token from day 2 up to but not including day 5. Z2 Miro believes Plum Token is in Blue Cabin. Z3 Lusa owns Red Bowl. Example TASK: return carrying and explicit belief only.\nExample answer: {\"facts\":[{\"subject\":\"Tavi\",\"relation\":\"carries\",\"object\":\"Plum Token\",\"evidence_ids\":[\"Z1\"],\"valid_from\":2,\"valid_until\":5,\"holder\":null,\"attitude\":null},{\"subject\":\"Plum Token\",\"relation\":\"located_in\",\"object\":\"Blue Cabin\",\"evidence_ids\":[\"Z2\"],\"valid_from\":null,\"valid_until\":null,\"holder\":\"Miro\",\"attitude\":\"believes\"}]}\nZ3 is excluded because ownership does not answer that example TASK. Never copy example names, facts or IDs into your answer.\nThis task is extraction from published narrative prose, not real-world verification. Use ONLY the supplied excerpt, never remembered book or plot information. Ordinary action relations are welcome. Resolve pronouns only when their referent is clear within this excerpt; otherwise preserve uncertainty in readable wording. Besides believes, use reported, promises, questions or considers only when that attribution is explicit. An external description of a speech/mental act may itself be a direct narrated relationship, but never assert its uncertain or promised content as accomplished reality. Do not invent numerical validity for 'once', 'later', 'that morning' or an event occurrence: leave unsupported bounds null. Keep answers concise; no inferred relationships.",
+          "role": "system"
+        },
+        {
+          "content": "TASK: Which visit, conversation, pulling, door-closing, rising and greeting actions involve Watson, Holmes and the elderly gentleman? Exclude appearance and the content of dialogue.\n\nCOMPLETE EVIDENCE:\nS1:  I had called upon my friend, Mr. Sherlock Holmes, one day in the\r\n autumn of last year and found him in deep conversation with a very\r\n stout, florid-faced, elderly gentleman with fiery red hair.\nS2:  With an\r\n apology for my intrusion, I was about to withdraw when Holmes pulled\r\n me abruptly into the room and closed the door behind me.\nS3: \r\n\r\n“You could not possibly have come at a better time, my dear Watson,” he\r\nsaid cordially.\nS4: \r\n\r\n“I was afraid that you were engaged.”\nS5: \r\n\r\n“So I am. Very much so.”\nS6: \r\n\r\n“Then I can wait in the next room.”\nS7: \r\n\r\n“Not at all. This gentleman, Mr. Wilson, has been my partner and helper\r\nin many of my most successful cases, and I have no doubt that he will\r\nbe of the utmost use to me in yours also.”\nS8: \r\n\r\nThe stout gentleman half rose from his chair and gave a bob of\r\ngreeting, with a quick little questioning glance from his small\r\nfat-encircled eyes.",
+          "role": "user"
+        }
+      ],
+      "min_p": 0.0,
+      "model": "qwen3-8b-awq-fallback",
+      "n": 1,
+      "presence_penalty": 0.0,
+      "repetition_penalty": 1.0,
+      "seed": 1988649846,
+      "stop_token_ids": [
+        151645
+      ],
+      "stream": true,
+      "stream_options": {
+        "continuous_usage_stats": false,
+        "include_usage": true
+      },
+      "temperature": 0.7,
+      "top_k": 20,
+      "top_p": 0.8,
+      "use_beam_search": false
+    },
+    "1": {
+      "best_of": 1,
+      "chat_template_kwargs": {
+        "enable_thinking": false
+      },
+      "frequency_penalty": 0.0,
+      "ignore_eos": false,
+      "max_tokens": 2048,
+      "messages": [
+        {
+          "content": "Return only JSON {\"facts\":[...]} answering the TASK. Every fact must explicitly contain all eight fields: subject, relation, object, evidence_ids, valid_from, valid_until, holder, attitude. Use short consistent endpoint names and a list of supplied string evidence IDs. No trailing commas.\nFor unstated bounds, use null; for direct narration, holder and attitude are null. Null means unspecified/not attributed here, never false, timeless, or lack of knowledge. For explicit intervals include the actual numeric start and end: [valid_from,valid_until), start included, end excluded. Never clip source bounds to the question window.\nFor belief, subject/relation/object express the underlying believed relationship; holder is its named believer and attitude is \"believes\". Do not put a proposition sentence inside object or use believes as the underlying relation. Do not infer knowledge or other relationships. In a contextual task return ONLY needed relationships, not every story fact.\nUnrelated worked example (not evidence for your answer): Z1 Tavi carries Plum Token from day 2 up to but not including day 5. Z2 Miro believes Plum Token is in Blue Cabin. Z3 Lusa owns Red Bowl. Example TASK: return carrying and explicit belief only.\nExample answer: {\"facts\":[{\"subject\":\"Tavi\",\"relation\":\"carries\",\"object\":\"Plum Token\",\"evidence_ids\":[\"Z1\"],\"valid_from\":2,\"valid_until\":5,\"holder\":null,\"attitude\":null},{\"subject\":\"Plum Token\",\"relation\":\"located_in\",\"object\":\"Blue Cabin\",\"evidence_ids\":[\"Z2\"],\"valid_from\":null,\"valid_until\":null,\"holder\":\"Miro\",\"attitude\":\"believes\"}]}\nZ3 is excluded because ownership does not answer that example TASK. Never copy example names, facts or IDs into your answer.\nThis task is extraction from published narrative prose, not real-world verification. Use ONLY the supplied excerpt, never remembered book or plot information. Ordinary action relations are welcome. Resolve pronouns only when their referent is clear within this excerpt; otherwise preserve uncertainty in readable wording. Besides believes, use reported, promises, questions or considers only when that attribution is explicit. An external description of a speech/mental act may itself be a direct narrated relationship, but never assert its uncertain or promised content as accomplished reality. Do not invent numerical validity for 'once', 'later', 'that morning' or an event occurrence: leave unsupported bounds null. Keep answers concise; no inferred relationships.",
+          "role": "system"
+        },
+        {
+          "content": "TASK: Extract the explicitly supported relationships throughout this complete excerpt. No contextual question is supplied; distinguish narration from attributed or uncertain content.\n\nCOMPLETE EVIDENCE:\nS1: A LION was awakened from sleep by a Mouse running over his face.\nS2:  Rising\r\nup angrily, he caught him and was about to kill him, when the Mouse\r\npiteously entreated, saying: “If you would only spare my life, I would\r\nbe sure to repay your kindness.”\nS3:  The Lion laughed and let him go.\nS4:  It\r\nhappened shortly after this that the Lion was caught by some hunters,\r\nwho bound him by strong ropes to the ground.\nS5:  The Mouse, recognizing his\r\nroar, came and gnawed the rope with his teeth, and set him free,\r\nexclaiming:\nS6: \r\n\r\n“You ridiculed the idea of my ever being able to help you, not\r\nexpecting to receive from me any repayment of your favour; now you know\r\nthat it is possible for even a Mouse to confer benefits on a Lion.”\r\n",
+          "role": "user"
+        }
+      ],
+      "min_p": 0.0,
+      "model": "qwen3-8b-awq-fallback",
+      "n": 1,
+      "presence_penalty": 0.0,
+      "repetition_penalty": 1.0,
+      "seed": 1988649846,
+      "stop_token_ids": [
+        151645
+      ],
+      "stream": true,
+      "stream_options": {
+        "continuous_usage_stats": false,
+        "include_usage": true
+      },
+      "temperature": 0.7,
+      "top_k": 20,
+      "top_p": 0.8,
+      "use_beam_search": false
+    },
+    "6": {
+      "best_of": 1,
+      "chat_template_kwargs": {
+        "enable_thinking": false
+      },
+      "frequency_penalty": 0.0,
+      "ignore_eos": false,
+      "max_tokens": 2048,
+      "messages": [
+        {
+          "content": "Return only JSON {\"facts\":[...]} answering the TASK. Every fact must explicitly contain all eight fields: subject, relation, object, evidence_ids, valid_from, valid_until, holder, attitude. Use short consistent endpoint names and a list of supplied string evidence IDs. No trailing commas.\nFor unstated bounds, use null; for direct narration, holder and attitude are null. Null means unspecified/not attributed here, never false, timeless, or lack of knowledge. For explicit intervals include the actual numeric start and end: [valid_from,valid_until), start included, end excluded. Never clip source bounds to the question window.\nFor belief, subject/relation/object express the underlying believed relationship; holder is its named believer and attitude is \"believes\". Do not put a proposition sentence inside object or use believes as the underlying relation. Do not infer knowledge or other relationships. In a contextual task return ONLY needed relationships, not every story fact.\nUnrelated worked example (not evidence for your answer): Z1 Tavi carries Plum Token from day 2 up to but not including day 5. Z2 Miro believes Plum Token is in Blue Cabin. Z3 Lusa owns Red Bowl. Example TASK: return carrying and explicit belief only.\nExample answer: {\"facts\":[{\"subject\":\"Tavi\",\"relation\":\"carries\",\"object\":\"Plum Token\",\"evidence_ids\":[\"Z1\"],\"valid_from\":2,\"valid_until\":5,\"holder\":null,\"attitude\":null},{\"subject\":\"Plum Token\",\"relation\":\"located_in\",\"object\":\"Blue Cabin\",\"evidence_ids\":[\"Z2\"],\"valid_from\":null,\"valid_until\":null,\"holder\":\"Miro\",\"attitude\":\"believes\"}]}\nZ3 is excluded because ownership does not answer that example TASK. Never copy example names, facts or IDs into your answer.\nThis task is extraction from published narrative prose, not real-world verification. Use ONLY the supplied excerpt, never remembered book or plot information. Ordinary action relations are welcome. Resolve pronouns only when their referent is clear within this excerpt; otherwise preserve uncertainty in readable wording. Besides believes, use reported, promises, questions or considers only when that attribution is explicit. An external description of a speech/mental act may itself be a direct narrated relationship, but never assert its uncertain or promised content as accomplished reality. Do not invent numerical validity for 'once', 'later', 'that morning' or an event occurrence: leave unsupported bounds null. Keep answers concise; no inferred relationships.",
+          "role": "system"
+        },
+        {
+          "content": "TASK: Which sitting/location, reading/inspection and running relationships involve Alice, her sister, the book, bank and Rabbit? Exclude thoughts, feelings, appearance and book-content properties.\n\nCOMPLETE EVIDENCE:\nS1: Alice was beginning to get very tired of sitting by her sister on the\r\nbank, and of having nothing to do: once or twice she had peeped into\r\nthe book her sister was reading, but it had no pictures or\r\nconversations in it, “and what is the use of a book,” thought Alice\r\n“without pictures or conversations?”\nS2: \r\n\r\nSo she was considering in her own mind (as well as she could, for the\r\nhot day made her feel very sleepy and stupid), whether the pleasure of\r\nmaking a daisy-chain would be worth the trouble of getting up and\r\npicking the daisies, when suddenly a White Rabbit with pink eyes ran\r\nclose by her.",
+          "role": "user"
+        }
+      ],
+      "min_p": 0.0,
+      "model": "qwen3-8b-awq-fallback",
+      "n": 1,
+      "presence_penalty": 0.0,
+      "repetition_penalty": 1.0,
+      "seed": 1988649846,
+      "stop_token_ids": [
+        151645
+      ],
+      "stream": true,
+      "stream_options": {
+        "continuous_usage_stats": false,
+        "include_usage": true
+      },
+      "temperature": 0.7,
+      "top_k": 20,
+      "top_p": 0.8,
+      "use_beam_search": false
+    }
+  }
+}

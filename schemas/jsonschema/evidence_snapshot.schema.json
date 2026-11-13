@@ -1,0 +1,220 @@
+{
+  "$defs": {
+    "DiscoursePosition": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "passage_order": {
+          "minimum": 0,
+          "title": "Passage Order",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "sentence_order": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Sentence Order",
+          "type": "integer"
+        },
+        "token_order": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Token Order",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "passage_order"
+      ],
+      "title": "DiscoursePosition",
+      "type": "object"
+    },
+    "ReleaseClass": {
+      "enum": [
+        "public",
+        "restricted"
+      ],
+      "title": "ReleaseClass",
+      "type": "string"
+    },
+    "RevelationPosition": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "revelation_order": {
+          "minimum": 0,
+          "title": "Revelation Order",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "revelation_order"
+      ],
+      "title": "RevelationPosition",
+      "type": "object"
+    },
+    "SpoilerHorizon": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "horizon_id": {
+          "maxLength": 192,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+          "title": "Horizon Id",
+          "type": "string"
+        },
+        "max_discourse_position": {
+          "$ref": "#/$defs/DiscoursePosition"
+        },
+        "max_revelation_position": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RevelationPosition"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "withheld_after_horizon": {
+          "const": true,
+          "default": true,
+          "title": "Withheld After Horizon",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "horizon_id",
+        "max_discourse_position"
+      ],
+      "title": "SpoilerHorizon",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "content_hash": {
+      "default": "",
+      "pattern": "^(?:|[0-9a-f]{64})$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "corpus_id": {
+      "maxLength": 192,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+      "title": "Corpus Id",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "eligible_evidence_ids": {
+      "items": {
+        "maxLength": 192,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+        "type": "string"
+      },
+      "title": "Eligible Evidence Ids",
+      "type": "array"
+    },
+    "horizon": {
+      "$ref": "#/$defs/SpoilerHorizon"
+    },
+    "index_config_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Index Config Hash",
+      "type": "string"
+    },
+    "release_class": {
+      "$ref": "#/$defs/ReleaseClass"
+    },
+    "schema_version": {
+      "const": "1.0.0",
+      "default": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "sealed_at": {
+      "format": "date-time",
+      "title": "Sealed At",
+      "type": "string"
+    },
+    "snapshot_id": {
+      "maxLength": 192,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+      "title": "Snapshot Id",
+      "type": "string"
+    },
+    "world_or_window_id": {
+      "maxLength": 192,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+      "title": "World Or Window Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "snapshot_id",
+    "corpus_id",
+    "world_or_window_id",
+    "horizon",
+    "eligible_evidence_ids",
+    "index_config_hash",
+    "created_at",
+    "sealed_at",
+    "release_class"
+  ],
+  "title": "EvidenceSnapshot",
+  "type": "object"
+}

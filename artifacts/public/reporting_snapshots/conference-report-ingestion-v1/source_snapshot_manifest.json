@@ -1,0 +1,17 @@
+{
+  "entries": [
+    {
+      "artifact_id": "synthetic-benchmark-manifest",
+      "file_sha256": "02a3ef312a24d9f19387e5613a68568f002ad4c237ddac494a371a74e945bf14",
+      "original_relative_path": "data/synthetic/manifests/benchmark_manifest.json",
+      "snapshot_relative_path": "artifacts/public/reporting_snapshots/conference-report-ingestion-v1/data/synthetic/manifests/benchmark_manifest.json"
+    }
+  ],
+  "ingestion_manifest_file_sha256": "92cbfae90ab15b13ce2adaea44c02d0cdaf9e6cb93ccf2a1efc53c024f88782d",
+  "ingestion_manifest_sha256": "12c83b603ac1fca541677a24379297259c7972e6a1480e9189b73153264e6aa6",
+  "ingestion_receipt_file_sha256": "cac19c8da1c122e37eb957fd18d8a1836d3269851f878475c2af1124531b1451",
+  "ingestion_receipt_sha256": "dd64d597f3497c2b9ad7fc60205e90ad5540716e586f885b7aa0aada90b245fd",
+  "manifest_sha256": "ef86a28a89de4082032e6aba73ef7176c65bee18c30a8089eb7a0cf56719cbe4",
+  "schema_version": "1.0.0",
+  "snapshot_id": "conference-report-ingestion-v1-source-snapshot"
+}

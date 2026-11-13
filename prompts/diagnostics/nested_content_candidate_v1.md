@@ -1,0 +1,17 @@
+Construct 2–4 supported entity/event nodes, 1–3 qualified assertions, their local schema and substantive construction decisions from the complete evidence. Candidates are defeasible hints, not a graph. Return JSON with single spaces after colons/commas, no indentation. No expected answer is supplied.
+
+You choose identity, event boundaries, types, relations, roles, abstraction, qualifications, citations, confidence, relevance, descriptions and uncertainty. Runtime cannot supply missing semantics. Typed local IDs are nS(schema), nT(type), nR(predicate), nE(entity), nV(event), nA(assertion), nD(decision), each with an independent positive integer. Supplied IDs/upper terms are separate. Reuse exact IDs; do not generate nP.
+
+Inline content explicitly binds a predicate to binary endpoints or n-ary roles. Forward means predicate(subject,object); inverse reverses that reading. N-ary bindings use forward. Definition, upper parent, arity, domain/range and role order must agree. Events differ from participants and require event types; reification is optional when warranted.
+
+Choose attribution from evidence FIRST. Narration alone does not imply participant knowledge, belief, report, denial or uncertainty. No attribution: epistemic_scope=null, content_identity=null, supported world_committed/contested/unknown commitment. Attribution: explicit supported holder, attitude, holder time and evidence; holder_attributed/contested/unknown, never world_committed. Global endorsement requires a separate supported assertion.
+
+Nested attributed content creates its own proposition record. content_identity kind=distinct means separate identity, even for identical bodies. kind=shared with key c1, c2, etc. explicitly chooses shared identity; bodies must be identical. Runtime neither deduplicates nor merges meanings. unasserted_contents declares independent content with a key; matching shared keys explicitly select that identity. Empty lists are allowed.
+
+temporal_scope="content" explicitly copies content time; otherwise author its separate scope. Assertion evidence includes content and attribution evidence. Without attribution, content and assertion time/evidence must match exactly. Proposition targets/anchors use {"content_of_assertion":"nA1"} for an attributed assertion or {"unasserted_content":"c1"}; all other destinations retain typed IDs. Missing/ambiguous references are rejected.
+
+Separate occurrence, intrinsic validity, discourse, revelation, holder time and spoiler horizon. Observation is not onset; visibility is not duration; sequence/ID numbers are not clocks. Precision requires evidence. Unknown with a reason differs from not_applicable. Preserve supported relative/partial orders, open bounds and withheld/invalid states. Precedence alone is not causation.
+
+Node descriptions cite involving assertions supporting every factual clause; why_matters cites its evidence. Confidence, provenance confidence, omission confidence and relevance are your judgments; source-confidence ceilings apply. Record unsupported content as omissions/abstentions.
+
+Decisions must accurately report operations actually performed, with evidence, rationale and input/created/removed targets. Separate operation kinds. Supported descriptions, selection or declaration bookkeeping alone are not substantive construction; no particular operation is forced. The complete field guide specifies every field, type, enum, optional value and reference destination, not an answer.

@@ -1,0 +1,160 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:ns2="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" width="447.912pt" height="397.3pt" viewBox="0 0 447.912 397.3" version="1.1">
+ <metadata>
+  <rdf:RDF>
+   <ns2:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <ns2:Agent>
+      <dc:title>Matplotlib</dc:title>
+     </ns2:Agent>
+    </dc:creator>
+   </ns2:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ <style>@font-face{font-family:'Times New Roman';font-weight:normal;src:local('Times New Roman'),local('TimesNewRomanPSMT');}@font-face{font-family:'Times New Roman';font-weight:bold;src:local('Times New Roman Bold'),local('TimesNewRomanPS-BoldMT');}</style></defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 397.3  L 447.912 397.3  L 447.912 0  L 0 0  z " style="fill: #ffffff" />
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 9 98.15  L 81 98.15  Q 85 98.15 85 102.15  L 85 116.15  Q 85 120.15 81 120.15  L 9 120.15  Q 5 120.15 5 116.15  L 5 102.15  Q 5 98.15 9 98.15  z " clip-path="url(#p2a7ef8298d)" style="fill: #f4f7f8; stroke: #d8e0e5; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_3">
+    <path d="M 320.912 98.15  L 438.912 98.15  Q 442.912 98.15 442.912 102.15  L 442.912 116.15  Q 442.912 120.15 438.912 120.15  L 320.912 120.15  Q 316.912 120.15 316.912 116.15  L 316.912 102.15  Q 316.912 98.15 320.912 98.15  z " clip-path="url(#p2a7ef8298d)" style="fill: #f4f7f8; stroke: #d8e0e5; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_4">
+    <path d="M 9 140.15  L 81 140.15  Q 85 140.15 85 144.15  L 85 158.15  Q 85 162.15 81 162.15  L 9 162.15  Q 5 162.15 5 158.15  L 5 144.15  Q 5 140.15 9 140.15  z " clip-path="url(#p2a7ef8298d)" style="fill: #f4f7f8; stroke: #d8e0e5; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_5">
+    <path d="M 320.912 140.15  L 438.912 140.15  Q 442.912 140.15 442.912 144.15  L 442.912 158.15  Q 442.912 162.15 438.912 162.15  L 320.912 162.15  Q 316.912 162.15 316.912 158.15  L 316.912 144.15  Q 316.912 140.15 320.912 140.15  z " clip-path="url(#p2a7ef8298d)" style="fill: #f4f7f8; stroke: #d8e0e5; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_6">
+    <path d="M 9 239.15  L 86 239.15  Q 90 239.15 90 243.15  L 90 257.15  Q 90 261.15 86 261.15  L 9 261.15  Q 5 261.15 5 257.15  L 5 243.15  Q 5 239.15 9 239.15  z " clip-path="url(#p2a7ef8298d)" style="fill: #f4f7f8; stroke: #d8e0e5; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_7">
+    <path d="M 231.912 236.15  L 438.912 236.15  Q 442.912 236.15 442.912 240.15  L 442.912 260.15  Q 442.912 264.15 438.912 264.15  L 231.912 264.15  Q 227.912 264.15 227.912 260.15  L 227.912 240.15  Q 227.912 236.15 231.912 236.15  z " clip-path="url(#p2a7ef8298d)" style="fill: #f4f7f8; stroke: #d8e0e5; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_8">
+    <path d="M 9 304.15  L 86 304.15  Q 90 304.15 90 308.15  L 90 322.15  Q 90 326.15 86 326.15  L 9 326.15  Q 5 326.15 5 322.15  L 5 308.15  Q 5 304.15 9 304.15  z " clip-path="url(#p2a7ef8298d)" style="fill: #f4f7f8; stroke: #d8e0e5; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_9">
+    <path d="M 231.912 304.15  L 438.912 304.15  Q 442.912 304.15 442.912 308.15  L 442.912 322.15  Q 442.912 326.15 438.912 326.15  L 231.912 326.15  Q 227.912 326.15 227.912 322.15  L 227.912 308.15  Q 227.912 304.15 231.912 304.15  z " clip-path="url(#p2a7ef8298d)" style="fill: #f4f7f8; stroke: #d8e0e5; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="edge-alice-alice_B_actions-3-0" data-record="edge-alice-alice_B_actions-3" role="button" tabindex="0">
+    <path d="M 88.999655 115.15  Q 200.954431 115.15 311.791173 115.15  " clip-path="url(#p2a7ef8298d)" style="fill: none; stroke: #14776e; stroke-linecap: round" />
+    <path d="M 308.191173 113.35  L 311.791173 115.15  L 308.191173 116.95  z " clip-path="url(#p2a7ef8298d)" style="fill: #14776e; stroke: #14776e; stroke-linecap: round" />
+   <title>supported: {"attitude": null, "evidence_ids": ["S1"], "holder": null, "object": "the book", "relation": "peeped_into", "subject": "Alice", "valid_from": null, "valid_until": null}. Citation link only. Frozen reference match, not independent verification.</title></g>
+   <g id="edge-alice-alice_B_actions-4-0" data-record="edge-alice-alice_B_actions-4" role="button" tabindex="0">
+    <path d="M 88.999655 157.15  Q 200.954431 157.15 311.791173 157.15  " clip-path="url(#p2a7ef8298d)" style="fill: none; stroke-dasharray: 2,2; stroke-dashoffset: 0; stroke: #b33c3d; stroke-linecap: round" />
+    <path d="M 308.191173 155.35  L 311.791173 157.15  L 308.191173 158.95  z " clip-path="url(#p2a7ef8298d)" style="fill: #b33c3d; stroke-dasharray: 2,2; stroke-dashoffset: 0; stroke: #b33c3d; stroke-linecap: round" />
+   <title>unsupported: {"attitude": null, "evidence_ids": ["S1"], "holder": null, "object": "the book", "relation": "reading", "subject": "Alice", "valid_from": null, "valid_until": null}. Citation link only. S1 explicitly assigns reading to the sister and peeping to Alice. It does not support Alice reading the book. This is an unsupported participant/action assignment, not proof that Alice never read anything.</title></g>
+   <g id="edge-alice-alice_B_claims-2-0" data-record="edge-alice-alice_B_claims-2" role="button" tabindex="0">
+    <path d="M 93.998382 256.15  Q 158.954808 256.15 222.793201 256.15  " clip-path="url(#p2a7ef8298d)" style="fill: none; stroke: #14776e; stroke-linecap: round" />
+    <path d="M 219.193201 254.35  L 222.793201 256.15  L 219.193201 257.95  z " clip-path="url(#p2a7ef8298d)" style="fill: #14776e; stroke: #14776e; stroke-linecap: round" />
+   <title>supported: {"attitude": null, "evidence_ids": ["S1"], "holder": null, "object": "use of a book without pictures or conversations is questionable", "relation": "thinks", "subject": "Alice", "valid_from": null, "valid_until": null}. Citation link only. The subject Alice, mental predicate thinks, and object questioning the use of a pictureless/conversationless book preserve her rhetorical thought from S1. It is not asserted as objective uselessness. This semantically supported mental-act representation remains a strict wording mismatch.</title></g>
+   <g id="edge-alice-alice_B_claims-3-0" data-record="edge-alice-alice_B_claims-3" role="button" tabindex="0">
+    <path d="M 93.998382 321.15  Q 158.954808 321.15 222.793201 321.15  " clip-path="url(#p2a7ef8298d)" style="fill: none; stroke-dasharray: 6,2,1,2; stroke-dashoffset: 0; stroke: #735094; stroke-linecap: round" />
+    <path d="M 219.193201 319.35  L 222.793201 321.15  L 219.193201 322.95  z " clip-path="url(#p2a7ef8298d)" style="fill: #735094; stroke-dasharray: 6,2,1,2; stroke-dashoffset: 0; stroke: #735094; stroke-linecap: round" />
+   <title>unresolved: {"attitude": null, "evidence_ids": ["S2"], "holder": "Alice", "object": "worth the trouble of getting up and picking the daisies", "relation": "considered", "subject": "making a daisy-chain", "valid_from": null, "valid_until": null}. Citation link only. S2 says Alice is considering WHETHER making the chain would be worth the trouble. 'considered worth' may instead mean judged worthwhile. The missing attitude alongside holder Alice also violates the compact pairing rule. Source support for a settled positive judgment cannot be established; do not award the consideration target by guessing.</title></g>
+   <g id="text_1">
+    <text style="font-weight: 700; font-size: 10px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="5" y="11.115088" transform="rotate(-0 5 11.115088)">Alice · inspecting an action and a thought</text>
+   </g>
+   <g id="text_2">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="5" y="29.057241" transform="rotate(-0 5 29.057241)">S1 … once or twice she had peeped into the book her sister was reading …</text>
+   </g>
+   <g id="text_3">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="5" y="43.107241" transform="rotate(-0 5 43.107241)">S1 … "and what is the use of a book," thought Alice "without pictures or conversations?" …</text>
+   </g>
+   <g id="text_4">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="5" y="57.157241" transform="rotate(-0 5 57.157241)">S2 … whether the pleasure of making a daisy-chain would be worth the trouble of getting up and picking the daisies …</text>
+   </g>
+   <g id="text_5">
+    <text style="font-weight: 700; font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="5" y="78.047825" transform="rotate(-0 5 78.047825)">B action request: sitting, reading/inspection and running</text>
+   </g>
+   <g id="text_6">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="45" y="111.565874" transform="rotate(-0 45 111.565874)">Alice</text>
+   </g>
+   <g id="text_7">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="379.912" y="111.565874" transform="rotate(-0 379.912 111.565874)">the book</text>
+   </g>
+   <g id="edge-alice-alice_B_actions-3-1" data-record="edge-alice-alice_B_actions-3" role="button" tabindex="0">
+    <g id="patch_10">
+     <path d="M 177.363188 102.621436  L 224.548813 102.621436  L 224.548813 91.725  L 177.363188 91.725  z " style="fill: #ffffff" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #14776e" x="200.956" y="99.21521" transform="rotate(-0 200.956 99.21521)">+ peeped into</text>
+   <title>supported: {"attitude": null, "evidence_ids": ["S1"], "holder": null, "object": "the book", "relation": "peeped_into", "subject": "Alice", "valid_from": null, "valid_until": null}. Citation link only. Frozen reference match, not independent verification.</title></g>
+   <g id="edge-alice-alice_B_actions-3-2" data-record="edge-alice-alice_B_actions-3" role="button" tabindex="0">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #14776e" x="200.956" y="126.986851" transform="rotate(-0 200.956 126.986851)">S1</text>
+   <title>supported: {"attitude": null, "evidence_ids": ["S1"], "holder": null, "object": "the book", "relation": "peeped_into", "subject": "Alice", "valid_from": null, "valid_until": null}. Citation link only. Frozen reference match, not independent verification.</title></g>
+   <g id="text_8">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="45" y="153.565874" transform="rotate(-0 45 153.565874)">Alice</text>
+   </g>
+   <g id="text_9">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="379.912" y="153.565874" transform="rotate(-0 379.912 153.565874)">the book</text>
+   </g>
+   <g id="edge-alice-alice_B_actions-4-1" data-record="edge-alice-alice_B_actions-4" role="button" tabindex="0">
+    <g id="patch_11">
+     <path d="M 184.599477 144.621436  L 217.312523 144.621436  L 217.312523 133.725  L 184.599477 133.725  z " style="fill: #ffffff" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #b33c3d" x="200.956" y="141.207241" transform="rotate(-0 200.956 141.207241)">x reading</text>
+   <title>unsupported: {"attitude": null, "evidence_ids": ["S1"], "holder": null, "object": "the book", "relation": "reading", "subject": "Alice", "valid_from": null, "valid_until": null}. Citation link only. S1 explicitly assigns reading to the sister and peeping to Alice. It does not support Alice reading the book. This is an unsupported participant/action assignment, not proof that Alice never read anything.</title></g>
+   <g id="edge-alice-alice_B_actions-4-2" data-record="edge-alice-alice_B_actions-4" role="button" tabindex="0">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #b33c3d" x="200.956" y="168.986851" transform="rotate(-0 200.956 168.986851)">S1</text>
+   <title>unsupported: {"attitude": null, "evidence_ids": ["S1"], "holder": null, "object": "the book", "relation": "reading", "subject": "Alice", "valid_from": null, "valid_until": null}. Citation link only. S1 explicitly assigns reading to the sister and peeping to Alice. It does not support Alice reading the book. This is an unsupported participant/action assignment, not proof that Alice never read anything.</title></g>
+   <g id="text_10">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: start; fill: #b33c3d" x="5" y="183.21521" transform="rotate(-0 5 183.21521)">x The sister reads. Alice peeps. Same source, different participant.</text>
+   </g>
+   <g id="text_11">
+    <text style="font-weight: 700; font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="5" y="206.047825" transform="rotate(-0 5 206.047825)">B claims request: absent book content and Alice’s thoughts</text>
+   </g>
+   <g id="text_12">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="47.5" y="252.565874" transform="rotate(-0 47.5 252.565874)">Alice</text>
+   </g>
+   <g id="text_13">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #142d40" transform="translate(251.1345 246.21521)">use of a book without pictures or conversations is</text>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #142d40" transform="translate(313.930906 256.261646)">questionable</text>
+   </g>
+   <g id="edge-alice-alice_B_claims-2-1" data-record="edge-alice-alice_B_claims-2" role="button" tabindex="0">
+    <g id="patch_12">
+     <path d="M 144.681312 232.621436  L 173.230688 232.621436  L 173.230688 221.725  L 144.681312 221.725  z " style="fill: #ffffff" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #14776e" x="158.956" y="230.065874" transform="rotate(-0 158.956 230.065874)">+ thinks</text>
+   <title>supported: {"attitude": null, "evidence_ids": ["S1"], "holder": null, "object": "use of a book without pictures or conversations is questionable", "relation": "thinks", "subject": "Alice", "valid_from": null, "valid_until": null}. Citation link only. The subject Alice, mental predicate thinks, and object questioning the use of a pictureless/conversationless book preserve her rhetorical thought from S1. It is not asserted as objective uselessness. This semantically supported mental-act representation remains a strict wording mismatch.</title></g>
+   <g id="edge-alice-alice_B_claims-2-2" data-record="edge-alice-alice_B_claims-2" role="button" tabindex="0">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #14776e" x="158.956" y="278.986851" transform="rotate(-0 158.956 278.986851)">S1</text>
+   <title>supported: {"attitude": null, "evidence_ids": ["S1"], "holder": null, "object": "use of a book without pictures or conversations is questionable", "relation": "thinks", "subject": "Alice", "valid_from": null, "valid_until": null}. Citation link only. The subject Alice, mental predicate thinks, and object questioning the use of a pictureless/conversationless book preserve her rhetorical thought from S1. It is not asserted as objective uselessness. This semantically supported mental-act representation remains a strict wording mismatch.</title></g>
+   <g id="text_14">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="47.5" y="316.707241" transform="rotate(-0 47.5 316.707241)">making a daisy-chain</text>
+   </g>
+   <g id="text_15">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="335.412" y="316.707241" transform="rotate(-0 335.412 316.707241)">worth the trouble of getting up and picking the daisies</text>
+   </g>
+   <g id="edge-alice-alice_B_claims-3-1" data-record="edge-alice-alice_B_claims-3" role="button" tabindex="0">
+    <g id="patch_13">
+     <path d="M 137.172094 297.621436  L 180.739906 297.621436  L 180.739906 286.725  L 137.172094 286.725  z " style="fill: #ffffff" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #735094" x="158.956" y="295.065874" transform="rotate(-0 158.956 295.065874)">? considered</text>
+   <title>unresolved: {"attitude": null, "evidence_ids": ["S2"], "holder": "Alice", "object": "worth the trouble of getting up and picking the daisies", "relation": "considered", "subject": "making a daisy-chain", "valid_from": null, "valid_until": null}. Citation link only. S2 says Alice is considering WHETHER making the chain would be worth the trouble. 'considered worth' may instead mean judged worthwhile. The missing attitude alongside holder Alice also violates the compact pairing rule. Source support for a settled positive judgment cannot be established; do not award the consideration target by guessing.</title></g>
+   <g id="edge-alice-alice_B_claims-3-2" data-record="edge-alice-alice_B_claims-3" role="button" tabindex="0">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #735094" x="158.956" y="343.986851" transform="rotate(-0 158.956 343.986851)">S2</text>
+   <title>unresolved: {"attitude": null, "evidence_ids": ["S2"], "holder": "Alice", "object": "worth the trouble of getting up and picking the daisies", "relation": "considered", "subject": "making a daisy-chain", "valid_from": null, "valid_until": null}. Citation link only. S2 says Alice is considering WHETHER making the chain would be worth the trouble. 'considered worth' may instead mean judged worthwhile. The missing attitude alongside holder Alice also violates the compact pairing rule. Source support for a settled positive judgment cannot be established; do not award the consideration target by guessing.</title></g>
+   <g id="text_16">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #142d40" transform="translate(5 359.209233)">Final edge: holder = Alice, attitude = null. Other qualifiers null. Thought remains a sentence. Daisy-chain judgment</text>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #142d40" transform="translate(5 370.11231)">unresolved.</text>
+   </g>
+   <g id="text_17">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="5" y="386.307241" transform="rotate(-0 5 386.307241)">+ supported meaning x unsupported ? unresolved. Source excerpted. Full passage supplied to each independent request.</text>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p2a7ef8298d">
+   <rect x="0" y="0" width="447.912" height="397.3" />
+  </clipPath>
+ </defs>
+<metadata>Conference figure. Searchable Times New Roman text requires the local font. No font software is redistributed in this SVG. PDF embeds document subsets.</metadata></svg>

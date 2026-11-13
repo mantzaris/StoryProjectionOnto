@@ -1,0 +1,97 @@
+{
+  "actual_allocated_seconds": 2936.238858,
+  "all_in_with_proposed_attempt_seconds": 33523.58320194846,
+  "already_forecast_reserve_long_earmarked_seconds": 240,
+  "attempt_caps_enforced_in_existing_runner": false,
+  "checks_retained_after_release": [
+    "orchestrator authority",
+    "source hash",
+    "snapshot hash",
+    "GPU identity",
+    "storage",
+    "ledger",
+    "service identity",
+    "ordinary admission",
+    "live resource watchdog"
+  ],
+  "gpu_throughput_improvement_claimed": false,
+  "hard_margin_after_forecast_seconds": 2476.4167980515413,
+  "kind": "cpu_preparation_measurement_and_budget_proposal",
+  "local_medians_seconds": {
+    "module_import_seconds": 0.6616757799929474,
+    "policy_parsing_seconds": 0.0004545649862848222,
+    "process_to_prepared_seconds": 0.6967440829903353,
+    "provenance_loading_seconds": 0.010808103979798034
+  },
+  "manifest_sha256": "b46b6ce90ab3046bbdec5ee2f39d8ac19d4645f46f5ebeeebf5c56c4fd6b218a",
+  "measurement_scope": "local CPU only; not a RunPod or GPU timing observation",
+  "new_start_authorized": false,
+  "ordinary_admitted": false,
+  "ordinary_ceiling_seconds": 32400,
+  "ordinary_deficit_seconds": 1123.5832019484587,
+  "pod_preparation_savings_demonstrated_seconds": 0,
+  "proposal_approved": false,
+  "proposed_attempt_limits_seconds": {
+    "live_control_checks_cap_seconds": 120,
+    "shutdown_cap_seconds": 60,
+    "single_c1_retry_watchdog_seconds": 240,
+    "startup_timeout_seconds": 300,
+    "validation_and_resource_drain_cap_seconds": 120
+  },
+  "proposed_attempt_total_seconds": 840,
+  "proposed_scheduled_ceiling_hours": 9.35,
+  "proposed_scheduled_ceiling_seconds": 33660,
+  "proposed_scheduled_reserve_seconds": 136.41679805154126,
+  "python_version": "3.12.14",
+  "qualification": "Before any future launch, approve the amendment and enforce the proposed whole-attempt/live-control caps. No savings are deducted; no mandatory comparison or prior second is removed.",
+  "remaining_forecast_excluding_earmarked_retry_seconds": 29747.34434394846,
+  "remaining_registered_forecast_seconds": 29987.34434394846,
+  "samples": [
+    {
+      "module_import_seconds": 0.7978377220279071,
+      "policy_parsing_seconds": 0.00047975199413485825,
+      "process_to_prepared_seconds": 0.8391545439953916,
+      "provenance_loading_seconds": 0.010808103979798034
+    },
+    {
+      "module_import_seconds": 0.6462824659829494,
+      "policy_parsing_seconds": 0.00044218101538717747,
+      "process_to_prepared_seconds": 0.6798944019828923,
+      "provenance_loading_seconds": 0.010961164982290938
+    },
+    {
+      "module_import_seconds": 0.6880751079879701,
+      "policy_parsing_seconds": 0.0004995930066797882,
+      "process_to_prepared_seconds": 0.7257959829876199,
+      "provenance_loading_seconds": 0.012166378000983968
+    },
+    {
+      "module_import_seconds": 0.6540312280121725,
+      "policy_parsing_seconds": 0.0004541100061032921,
+      "process_to_prepared_seconds": 0.6889148449990898,
+      "provenance_loading_seconds": 0.010581176989944652
+    },
+    {
+      "module_import_seconds": 0.6616757799929474,
+      "policy_parsing_seconds": 0.0004545649862848222,
+      "process_to_prepared_seconds": 0.6967440829903353,
+      "provenance_loading_seconds": 0.010725318017648533
+    }
+  ],
+  "schema_version": "1.0.0",
+  "source_file_sha256": {
+    "scripts/measure_cpu_preparation.py": "ac4216025c3231f52650d61d461862b8737ff7996697ca62f2c0634d2f872361",
+    "src/story_projection_onto/controller_preparation.py": "368e292d43ff123c8ebf2ea8c625f9a827779efdcc6c978875c23cb7d07fa411",
+    "src/story_projection_onto/fallback_acceptance.py": "f00c859cdea5eeab8c05721ebace1811b10d10f51b933651859e221006717cd4",
+    "src/story_projection_onto/gpu_runtime.py": "9cd6f809adcc1c57a34ace9a73119838dfe5c81dbc720fca691d2a511084f179",
+    "src/story_projection_onto/http_diagnostics.py": "de20a063b14f8c966217f55cdbf6d9393803a624602673f4a06c67c0d7ea4add",
+    "src/story_projection_onto/phase1_acceptance.py": "de805112a47e56c14464e14cefe40e1b4989143e876fd726820e1babad5569a1"
+  },
+  "unchanged_hard_ceiling_exclusive_seconds": 36000,
+  "unmeasured_prepared_components": [
+    "pinned torch import",
+    "tokenizer loading/template capture",
+    "RunPod filesystem and scheduling costs"
+  ],
+  "v9_result_sha256": "dbd5c1f5defccba571879548b152de59ffd59e90e5e1a6a6ea6f22eede2a03dc"
+}

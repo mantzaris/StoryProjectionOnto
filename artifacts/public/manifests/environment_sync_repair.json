@@ -1,0 +1,40 @@
+{
+  "content_hash": "04cf66a1aefa06785d7fb09d702d2154090e1b7de1e232fa18456d8f630891b8",
+  "event_id": "runpod-environment-sync-repair-20260904",
+  "observed_at_utc": "2026-09-04T03:57:19Z",
+  "cause": "uv sync with the gpu extra attempted to duplicate immutable system CUDA and PyTorch packages in the project virtual environment",
+  "gpu_service_started": false,
+  "recovery": {
+    "exact_project_local_cuda_and_pytorch_paths_quarantined_before_verification": true,
+    "immutable_torch_version": "2.8.0+cu128",
+    "immutable_torch_path": "/usr/local/lib/python3.12/dist-packages/torch/__init__.py",
+    "pinned_spacy_model": "en_core_web_sm==3.8.0",
+    "pinned_spacy_pipeline_components": [
+      "tok2vec",
+      "tagger",
+      "parser",
+      "attribute_ruler",
+      "lemmatizer",
+      "ner"
+    ],
+    "quarantine_size_observed_by_du": "5.2G",
+    "uv_cache_clean_report": "Removed 13365 files (6.3GiB)",
+    "quarantine_deleted_after_import_verification": true,
+    "deleted_material_recoverable_from": [
+      "immutable container packages",
+      "uv.lock"
+    ]
+  },
+  "post_repair_storage": {
+    "project_allocated_kib": 13993808,
+    "virtual_environment_allocated_kib": 7592980,
+    "shared_model_cache_allocated_kib": 5990595,
+    "artifacts_allocated_kib": 156639,
+    "data_allocated_kib": 98898,
+    "project_apparent_bytes": 9753226843,
+    "container_total_bytes": 80530636800,
+    "container_used_bytes": 43655168,
+    "container_available_bytes": 80486981632
+  },
+  "schema_version": "1.0.0"
+}

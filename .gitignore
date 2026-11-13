@@ -1,0 +1,35 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.hypothesis/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+.venv/
+.cache/
+*.egg-info/
+dist/
+build/
+
+# Restricted/copyrighted inputs and derived private indexes never enter Git.
+.local_data/
+artifacts/restricted/
+artifacts/blobs/
+artifacts/tmp/
+artifacts/quarantine/
+# Generated scorer interpretations and human-review inputs stay restricted.
+# Prior versions remain in Git history and the semantic-amendment backup.
+data/synthetic/scorer_only/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# Local execution metadata that can contain host-specific paths.
+.env
+.runpod/
+
+# Recovered convenience aliases; canonical failed-attempt records are tracked.
+artifacts/public/results/phase1_gpu_acceptance.json
+artifacts/public/results/phase1_gpu_acceptance_v2.json

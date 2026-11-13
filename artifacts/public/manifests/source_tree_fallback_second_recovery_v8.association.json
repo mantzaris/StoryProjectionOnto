@@ -1,0 +1,19 @@
+{
+  "branch": "implementation/query-dependent-temporal-ontology",
+  "byte_identity_checks": [
+    "Local and remote manifest JSON bytes are identical.",
+    "Both declared source-tree hashes were independently recomputed from their inventories."
+  ],
+  "git_commit": "4b5b0cc768844f7661fc7ca316bd7e63cc15a2a6",
+  "kind": "local_remote_source_tree_association",
+  "local_manifest": "source_tree_fallback_second_recovery_v8.local.json",
+  "local_manifest_file_sha256": "806b237d29b78809f6a796c9c9671ec0c0b18e91a2571d289313fe02faae5150",
+  "local_tree_sha256": "3ac890be9fa0b13d2d4db5f28795287f2c1f62faed3db892fa33fc4ec7a7b194",
+  "manifest_sha256": "28e002f1b5eaa76fe0b1b753c0ebcee6f3b186ba23bca355b1a40035ce8dbd11",
+  "recorded_at": "2026-09-05T19:59:23Z",
+  "remote_manifest": "source_tree_fallback_second_recovery_v8.remote.json",
+  "remote_manifest_file_sha256": "806b237d29b78809f6a796c9c9671ec0c0b18e91a2571d289313fe02faae5150",
+  "remote_tree_sha256": "3ac890be9fa0b13d2d4db5f28795287f2c1f62faed3db892fa33fc4ec7a7b194",
+  "revision_label": "fallback-second-recovery-v8",
+  "schema_version": "1.0.0"
+}

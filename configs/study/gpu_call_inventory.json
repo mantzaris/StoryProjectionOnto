@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0.0",
+  "accounting_events": 286,
+  "maximum_inference_attempts": 278,
+  "classes": [
+    {"name": "gpu_session_start", "count": 8, "provisional_p95_seconds": 180},
+    {"name": "acceptance_c1", "count": 2, "provisional_p95_seconds": 180},
+    {"name": "acceptance_c2", "count": 3, "provisional_p95_seconds": 120},
+    {"name": "acceptance_fixed_select", "count": 2, "provisional_p95_seconds": 90},
+    {"name": "acceptance_repair", "count": 1, "provisional_p95_seconds": 90},
+    {"name": "development_c1", "count": 4, "provisional_p95_seconds": 180},
+    {"name": "development_c2", "count": 12, "provisional_p95_seconds": 120},
+    {"name": "development_fixed_select", "count": 4, "provisional_p95_seconds": 90},
+    {"name": "development_ablation", "count": 3, "provisional_p95_seconds": 120},
+    {"name": "development_repair", "count": 1, "provisional_p95_seconds": 90},
+    {"name": "test_c1", "count": 24, "provisional_p95_seconds": 180},
+    {"name": "test_c2", "count": 72, "provisional_p95_seconds": 95},
+    {"name": "test_fixed_select", "count": 72, "provisional_p95_seconds": 72},
+    {"name": "paraphrase_c2", "count": 12, "provisional_p95_seconds": 95},
+    {"name": "scripted_feedback_c2", "count": 6, "provisional_p95_seconds": 95},
+    {"name": "researcher_trace_c2", "count": 3, "provisional_p95_seconds": 95},
+    {"name": "ablation_no_context", "count": 12, "provisional_p95_seconds": 95},
+    {"name": "ablation_no_temporal_epistemic", "count": 8, "provisional_p95_seconds": 95},
+    {"name": "ablation_no_rare_guard", "count": 8, "provisional_p95_seconds": 95},
+    {"name": "case_c1", "count": 4, "provisional_p95_seconds": 240},
+    {"name": "case_c2", "count": 8, "provisional_p95_seconds": 150},
+    {"name": "case_full_index_c2", "count": 1, "provisional_p95_seconds": 150},
+    {"name": "reserve_long", "count": 4, "provisional_p95_seconds": 240},
+    {"name": "reserve_standard", "count": 8, "provisional_p95_seconds": 150},
+    {"name": "reserve_short", "count": 4, "provisional_p95_seconds": 90}
+  ]
+}

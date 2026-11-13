@@ -1,0 +1,14 @@
+{
+  "billing_time_equivalence_claimed": false,
+  "caveat": "PID-1 lifetime can differ from provider session and billable pod lifetime; scientific GPU-service time remains the append-only ledger total.",
+  "container_pid": 1,
+  "container_pid_1_started_at": "2026-09-03T20:21:02.060000+00:00",
+  "elapsed_microseconds": 45760523300,
+  "kind": "runpod_container_wall_time_sample",
+  "manifest_sha256": "116fade0be864bc4cbddc61024af72b11c76edf1dfa7a71b2d6f53cb6f54fd50",
+  "measurement_method": "linux_proc_boot_epoch_plus_pid1_start_ticks",
+  "sampled_at": "2026-09-04T09:03:42.583300+00:00",
+  "schema_version": "1.0.0",
+  "scientific_gpu_accounting": false,
+  "scope": "current_container_pid_1_lifetime"
+}

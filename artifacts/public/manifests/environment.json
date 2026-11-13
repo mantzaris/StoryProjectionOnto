@@ -1,0 +1,57 @@
+{
+  "captured_at": "2026-09-03T21:50:14Z",
+  "gpu": {
+    "count": 1,
+    "driver_version": "580.173.02",
+    "memory_mib": 24564,
+    "name": "NVIDIA GeForce RTX 4090",
+    "pci_bus_id": "00000000:01:00.0"
+  },
+  "locks": {
+    "environment_freeze_sha256": "40aee07d6852c1801e0ad937c9bcfb293b741e686f6eac42eca2215387be3413",
+    "uv_lock_sha256": "10f0882483ce8dfdd1d32b8e1ed5eb8de8785e5d3e356c17c035a1f176c3e0fb"
+  },
+  "platform": {
+    "available_cpu_affinity_count": 32,
+    "logical_cpu_count": 32,
+    "machine": "x86_64",
+    "physical_cpu_count": 16,
+    "python": "3.12.3",
+    "python_base_prefix": "/usr",
+    "python_executable": "/usr/bin/python3.12",
+    "python_prefix": "/workspace/StoryProjectionOnto/.venv",
+    "ram_total_bytes": 134123806720,
+    "system": "Linux"
+  },
+  "runtime": {
+    "pydantic": "2.13.5",
+    "torch": "2.8.0+cu128",
+    "torch_cuda": "12.8",
+    "torch_cuda_available": true,
+    "torch_path": "/usr/local/lib/python3.12/dist-packages/torch/__init__.py",
+    "transformers": "4.55.2",
+    "uv": "uv 0.9.0",
+    "vllm": "0.10.2",
+    "vllm_path": "/workspace/StoryProjectionOnto/.venv/lib/python3.12/site-packages/vllm/__init__.py"
+  },
+  "schema_version": "1.0.0",
+  "storage": {
+    "container_free_bytes": 80498409472,
+    "container_total_bytes": 80530636800,
+    "immutable_container_paths": [
+      "/usr/local/lib/python3.12/dist-packages",
+      "/opt/nvidia"
+    ],
+    "project_controlled_roots": [
+      "/workspace/StoryProjectionOnto"
+    ],
+    "project_filesystem_free_bytes": 652318353129472,
+    "project_filesystem_total_bytes": 2150053787467776
+  },
+  "study_limits": {
+    "cpu_weight_offload": false,
+    "cpu_workers": 8,
+    "peak_vram_bytes": 24696061952,
+    "process_ram_bytes": 25000000000
+  }
+}

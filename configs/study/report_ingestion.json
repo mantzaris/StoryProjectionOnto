@@ -1,0 +1,236 @@
+{
+  "schema_version": "1.0.0",
+  "ingestion_id": "conference-report-ingestion-v1",
+  "compiled_at_utc": "2026-09-05T15:10:14Z",
+  "predecessors": [
+    {
+      "family": "fallback",
+      "status": "incomplete",
+      "reason": "The permitted fallback is activated and downloaded, but fallback v3 was rejected by decoder-schema validation before generation, the subsequent v4 recovery failed in the control plane before model start, and the acceptance gate remains incomplete.",
+      "artifacts": [
+        {
+          "artifact_id": "fallback-activation",
+          "family": "fallback",
+          "relative_path": "artifacts/public/manifests/fallback_activation.json",
+          "file_sha256": "b458b368d4420dd1f8948893e8cdeb684cbf0f52cc558d9a9454b3c58ff17244",
+          "media_type": "application/json",
+          "release_class": "public",
+          "logical_hash": "84cd76f0de47a1ceb9154df150c8ead022aa4e544bd0a1c4e31cfee36aab9eb7",
+          "logical_hash_field": "manifest_sha256",
+          "logical_hash_mode": "canonical_without_field",
+          "required_json_fields": ["authorized", "fallback_repository", "fallback_revision"],
+          "measurement_domains": []
+        },
+        {
+          "artifact_id": "fallback-model-snapshot",
+          "family": "fallback",
+          "relative_path": "artifacts/public/manifests/model_snapshot_fallback.json",
+          "file_sha256": "b8c2f719d2e48d7190e8d4995bd31bc990ca288f6d0f13563171e9d4c940ca7b",
+          "media_type": "application/json",
+          "release_class": "public",
+          "logical_hash": "ea7a19bebd6cfd02d6f71846e0e46f2672ffff5e0ced607cc29e4ca1ce867f69",
+          "logical_hash_field": "manifest_sha256",
+          "logical_hash_mode": "canonical_without_field",
+          "required_json_fields": ["repository", "revision", "quantization", "license"],
+          "measurement_domains": []
+        }
+      ]
+    },
+    {
+      "family": "development",
+      "status": "incomplete",
+      "reason": "No accepted fallback development execution and assessment artifact exists yet.",
+      "artifacts": []
+    },
+    {
+      "family": "heldout",
+      "status": "incomplete",
+      "reason": "The synthetic benchmark is frozen, but independent review and held-out execution are incomplete.",
+      "artifacts": [
+        {
+          "artifact_id": "synthetic-benchmark-manifest",
+          "family": "heldout",
+          "relative_path": "data/synthetic/manifests/benchmark_manifest.json",
+          "file_sha256": "02a3ef312a24d9f19387e5613a68568f002ad4c237ddac494a371a74e945bf14",
+          "media_type": "application/json",
+          "release_class": "public",
+          "logical_hash": "c5bce978a9006b67f13c40701fca2d7b558d62239615c49a2c035221cd1b723f",
+          "logical_hash_field": "content_hash",
+          "logical_hash_mode": "declared",
+          "required_json_fields": ["held_out_world_count", "held_out_context_count", "review_complete", "held_out_launch_authorized"],
+          "measurement_domains": []
+        }
+      ]
+    },
+    {
+      "family": "ablations",
+      "status": "incomplete",
+      "reason": "No registered reduced-ablation execution artifact exists yet.",
+      "artifacts": []
+    },
+    {
+      "family": "feedback",
+      "status": "incomplete",
+      "reason": "No completed six-script and three-trace Phase 5 execution artifact exists yet.",
+      "artifacts": []
+    },
+    {
+      "family": "case_study",
+      "status": "blocked",
+      "reason": "No lawful local novel path or completed case-study execution artifact exists.",
+      "artifacts": []
+    },
+    {
+      "family": "runtime",
+      "status": "incomplete",
+      "reason": "The recovered cumulative ledger covers the rejected primary pilots, fallback-v1 watchdog attempt, and fallback-v3 decoder-schema rejection; the v4 control-plane incident added zero GPU seconds, attempts, retries, or service sessions; final runtime accounting is absent.",
+      "artifacts": [
+        {
+          "artifact_id": "primary-pilot-v1-failure",
+          "family": "runtime",
+          "relative_path": "artifacts/public/results/phase1_gpu_acceptance_v1_failed.json",
+          "file_sha256": "c978e75cef00ba7276055538c69d50b1a5396e628463ec25546b4bc97bd53ab9",
+          "media_type": "application/json",
+          "release_class": "public",
+          "logical_hash": "7bb9584798b519c8a8db0a331e051eb255365117454583d1c77607d35949b5f4",
+          "logical_hash_field": "manifest_sha256",
+          "logical_hash_mode": "canonical_without_field",
+          "required_json_fields": ["gate_passed", "vllm_service_stopped", "runtime", "failure_type"],
+          "measurement_domains": ["gpu_service_time"]
+        },
+        {
+          "artifact_id": "primary-pilot-v2-failure",
+          "family": "runtime",
+          "relative_path": "artifacts/public/results/phase1_gpu_acceptance_v2_failed.json",
+          "file_sha256": "4b870ec47668105badd32528d6fb6997fc0221618097e048ff28d27716f78050",
+          "media_type": "application/json",
+          "release_class": "public",
+          "logical_hash": "a3b64a4f4c4382886c154657d989bee6a25a037e252ccd39a9681cdc59b757ea",
+          "logical_hash_field": "manifest_sha256",
+          "logical_hash_mode": "canonical_without_field",
+          "required_json_fields": ["gate_passed", "vllm_service_stopped", "runtime", "failure_type"],
+          "measurement_domains": ["gpu_service_time", "gpu_memory", "process_memory", "project_storage"]
+        },
+        {
+          "artifact_id": "fallback-pilot-v1-failure",
+          "family": "runtime",
+          "relative_path": "artifacts/public/results/fallback_gpu_acceptance_development_v1.json.controller-handoff.json",
+          "file_sha256": "c2d84fe31a2e4da613b5d7af418ba9d5c11d1b1c8f8e22583fba5f47ecaa42c3",
+          "media_type": "application/json",
+          "release_class": "public",
+          "logical_hash": "d08ce5ba02e866768a715eee9758be7ef13e5ed3c8e9844457e8d38b20240c7c",
+          "logical_hash_field": "manifest_sha256",
+          "logical_hash_mode": "canonical_without_field",
+          "required_json_fields": ["gate_passed", "vllm_service_stopped", "runtime", "failure_type"],
+          "measurement_domains": ["gpu_service_time"]
+        },
+        {
+          "artifact_id": "fallback-pilot-v3-failure",
+          "family": "runtime",
+          "relative_path": "artifacts/public/results/fallback_gpu_acceptance_development_v3.json",
+          "file_sha256": "9279cdcb048be6bf44da6570d26df9ffd048d839a3bb9f5d76a328f6ea62108a",
+          "media_type": "application/json",
+          "release_class": "public",
+          "logical_hash": "6a76fae9bb970fdf11a9ae37cf785910cf6c270146ca7b752a6aedb678de3efd",
+          "logical_hash_field": "manifest_sha256",
+          "logical_hash_mode": "canonical_without_field",
+          "required_json_fields": ["gate_passed", "vllm_service_stopped", "runtime", "completed_base_call_count"],
+          "measurement_domains": ["gpu_service_time", "gpu_memory", "process_memory", "project_storage"]
+        },
+        {
+          "artifact_id": "fallback-pilot-v3-incident",
+          "family": "runtime",
+          "relative_path": "artifacts/public/manifests/fallback_gpu_acceptance_development_v3_incident.json",
+          "file_sha256": "fd42f197b88bef61ad5696280fd6b4a72f256fd3b0991a069771c5074c9b50e7",
+          "media_type": "application/json",
+          "release_class": "public",
+          "logical_hash": "2e33bcca745dfd5e85b02e5f0f1039444cb082cd7bb88ed252677414f83e249a",
+          "logical_hash_field": "manifest_sha256",
+          "logical_hash_mode": "canonical_without_field",
+          "required_json_fields": ["accounting", "diagnosis", "terminal_state", "resource_maxima", "run_id"],
+          "measurement_domains": []
+        },
+        {
+          "artifact_id": "fallback-v4-control-plane-incident",
+          "family": "runtime",
+          "relative_path": "artifacts/public/manifests/fallback_gpu_acceptance_development_v4_control_plane_incident.json",
+          "file_sha256": "ff74489a367c6e24c693ba8c00ccc3de505ef9af1f84f3a90518ef573ad06052",
+          "media_type": "application/json",
+          "release_class": "public",
+          "logical_hash": "e8b30397068a97f4f169395ec0a70ec1f709515c1df07b6a17400c7568c2993c",
+          "logical_hash_field": "manifest_sha256",
+          "logical_hash_mode": "canonical_without_field",
+          "required_json_fields": ["accounting", "failure", "terminal_state", "run_id"],
+          "measurement_domains": []
+        }
+      ]
+    },
+    {
+      "family": "storage",
+      "status": "incomplete",
+      "reason": "Host and initial storage facts are captured, but no final peak/headroom accounting artifact exists.",
+      "artifacts": [
+        {
+          "artifact_id": "phase1-environment",
+          "family": "storage",
+          "relative_path": "artifacts/public/manifests/environment.json",
+          "file_sha256": "90bbb5279e99bc9fe39d92332e70c2e431c42e2131df3cbb816db6ba43861bef",
+          "media_type": "application/json",
+          "release_class": "public",
+          "logical_hash": null,
+          "logical_hash_field": "none",
+          "logical_hash_mode": "none",
+          "required_json_fields": ["gpu", "runtime", "storage", "study_limits"],
+          "measurement_domains": ["project_storage"]
+        }
+      ]
+    }
+  ],
+  "tables": [
+    {
+      "table_id": "study_status",
+      "status": "complete",
+      "reason": "Exact current predecessor states; this is not a completed-study outcome.",
+      "scope": "interim",
+      "relative_path": "tables/study_status.csv",
+      "file_sha256": "d1cae85a93158406ed710d39a7b6eb69cb4eee6d69bb91b3a32b7bc16051143d",
+      "row_count": 7,
+      "required_columns": ["phase_id", "status", "reason"],
+      "source_artifact_ids": []
+    },
+    {
+      "table_id": "resource_accounting",
+      "status": "complete",
+      "reason": "Observed-to-date accounting through the rejected fallback-v3 attempt, with invalid or missing final fields explicit.",
+      "scope": "interim",
+      "relative_path": "tables/resource_accounting.csv",
+      "file_sha256": "228538ad967640a7d4919d95b3c86e4a43ca6ae167b4fcfb5eb1dc72eb004e7b",
+      "row_count": 8,
+      "required_columns": ["scope", "metric", "value", "unit", "status", "source_note"],
+      "source_artifact_ids": ["primary-pilot-v1-failure", "primary-pilot-v2-failure", "fallback-pilot-v1-failure", "fallback-pilot-v3-failure", "fallback-pilot-v3-incident", "phase1-environment"]
+    },
+    {
+      "table_id": "failure_accounting",
+      "status": "complete",
+      "reason": "Observed incremental allocations for the two rejected primary pilots, fallback-v1 watchdog attempt, and fallback-v3 decoder-schema rejection, plus the explicit zero-second fallback-v4 operational failure; this remains interim rather than final accounting.",
+      "scope": "interim",
+      "relative_path": "tables/failure_accounting.csv",
+      "file_sha256": "b268d277b6e992a4f50b68d718f7db05e5b22a084bb0ca25a16e8342dc2d45ef",
+      "row_count": 5,
+      "required_columns": ["run_id", "model_repository", "immutable_revision", "failure_type", "completed_generation_calls", "gate_passed", "vllm_service_stopped", "allocated_gpu_seconds", "interpretation"],
+      "source_artifact_ids": ["primary-pilot-v1-failure", "primary-pilot-v2-failure", "fallback-pilot-v1-failure", "fallback-pilot-v3-failure", "fallback-pilot-v3-incident", "fallback-v4-control-plane-incident"]
+    },
+    {"table_id": "primary_c2_vs_c1", "status": "incomplete", "reason": "No frozen held-out primary analysis table exists.", "scope": "final", "relative_path": null, "file_sha256": null, "row_count": null, "required_columns": [], "source_artifact_ids": []},
+    {"table_id": "secondary_c2_vs_c0", "status": "incomplete", "reason": "No frozen held-out secondary analysis table exists.", "scope": "final", "relative_path": null, "file_sha256": null, "row_count": null, "required_columns": [], "source_artifact_ids": []},
+    {"table_id": "mechanism_c2_vs_fixed", "status": "incomplete", "reason": "No gated mechanism analysis table exists.", "scope": "final", "relative_path": null, "file_sha256": null, "row_count": null, "required_columns": [], "source_artifact_ids": []},
+    {"table_id": "rare_pivotal", "status": "incomplete", "reason": "No rare-pivotal safeguard table exists.", "scope": "final", "relative_path": null, "file_sha256": null, "row_count": null, "required_columns": [], "source_artifact_ids": []},
+    {"table_id": "entropy_clutter", "status": "incomplete", "reason": "No frozen entropy and clutter table exists.", "scope": "final", "relative_path": null, "file_sha256": null, "row_count": null, "required_columns": [], "source_artifact_ids": []},
+    {"table_id": "community", "status": "incomplete", "reason": "No frozen community analysis table exists.", "scope": "final", "relative_path": null, "file_sha256": null, "row_count": null, "required_columns": [], "source_artifact_ids": []},
+    {"table_id": "paraphrase_contrastive", "status": "incomplete", "reason": "No frozen paraphrase or contrastive result table exists.", "scope": "final", "relative_path": null, "file_sha256": null, "row_count": null, "required_columns": [], "source_artifact_ids": []},
+    {"table_id": "ablations", "status": "incomplete", "reason": "No one-switch reduced-ablation result table exists.", "scope": "final", "relative_path": null, "file_sha256": null, "row_count": null, "required_columns": [], "source_artifact_ids": []},
+    {"table_id": "feedback", "status": "incomplete", "reason": "No completed Phase 5 feedback result table exists.", "scope": "final", "relative_path": null, "file_sha256": null, "row_count": null, "required_columns": [], "source_artifact_ids": []},
+    {"table_id": "novel_case", "status": "blocked", "reason": "The lawful first-novel study has not executed.", "scope": "final", "relative_path": null, "file_sha256": null, "row_count": null, "required_columns": [], "source_artifact_ids": []},
+    {"table_id": "qualitative_examples", "status": "incomplete", "reason": "Registered qualitative selections cannot be materialized before their source runs.", "scope": "final", "relative_path": null, "file_sha256": null, "row_count": null, "required_columns": [], "source_artifact_ids": []}
+  ],
+  "manifest_sha256": "12c83b603ac1fca541677a24379297259c7972e6a1480e9189b73153264e6aa6"
+}

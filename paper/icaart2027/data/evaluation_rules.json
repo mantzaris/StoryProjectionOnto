@@ -1,0 +1,924 @@
+{
+  "compact": {
+    "citation_rule": "nonempty distinct supplied string IDs; exact support set for complete-fact match",
+    "endpoint_normalization": "case and whitespace; optional leading 'the' only for exact declared names; no inferred aliases",
+    "error_policy": "complete explicit-only source inventory distinguishes supported irrelevant from unsupported normalized relationships; unknown predicate/endpoint wording is unresolved, not accepted",
+    "format": "all eight keys required; null only for unspecified bounds and absent attribution",
+    "historical_scoring": "unchanged v1 scorer for separately derived syntax-only recovery; no v2 normalization applied to old scores",
+    "inverses": {
+      "carried_by": "carries",
+      "is_carried_by": "carries",
+      "is_owned_by": "owns",
+      "owned_by": "owns"
+    },
+    "matching": "one-to-one multiset, all predictions in denominators; bare triples ignore qualifications/citations; full keys retain both",
+    "museum_targets": {
+      "belief": [
+        1,
+        4,
+        7,
+        10
+      ],
+      "locations": [
+        3,
+        6,
+        9,
+        12
+      ],
+      "possession": [
+        2,
+        5,
+        8,
+        11,
+        13
+      ]
+    },
+    "progression": "80% precision and recall is descriptive exploratory criterion only; every independent request runs once if healthy and time remains",
+    "qualification_rule": "null and missing nullable values both mean unspecified/not attributed; required-field compliance separately flags missing keys; known reference bounds/holders never inferred or filled",
+    "registered_protocol_changed": false,
+    "relations": {
+      "carries": [
+        "carries",
+        "carry",
+        "carrying"
+      ],
+      "located_in": [
+        "located_in",
+        "located_at",
+        "is_in",
+        "is_at",
+        "in",
+        "at",
+        "is_located_in"
+      ],
+      "owns": [
+        "owns",
+        "own",
+        "owner_of"
+      ]
+    },
+    "selection": "same record-only category/overlap/attributed-subject filters; null key presence is NOT attribution; no query clipping",
+    "syntax": "strict JSON rejects duplicate keys and non-JSON constants; only trailing commas outside strings removable after complete-document validation; edits separately logged",
+    "target_sentences": {
+      "all": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ],
+      "belief": [
+        9,
+        10,
+        11,
+        12
+      ],
+      "locations": [
+        5,
+        6,
+        7,
+        8
+      ],
+      "possession": [
+        1,
+        2,
+        3,
+        4,
+        13
+      ]
+    },
+    "version": "compact-story-v2-explicit-null"
+  },
+  "prose": {
+    "aliases": {
+      "alice": {
+        "a daisy-chain": "daisy-chain",
+        "a white rabbit": "white rabbit",
+        "alice’s sister": "alice's sister",
+        "daisy chain": "daisy-chain",
+        "her sister": "alice's sister",
+        "rabbit": "white rabbit",
+        "sister": "alice's sister"
+      },
+      "fable": {
+        "a lion": "lion",
+        "a mouse": "mouse",
+        "his face": "lion's face",
+        "lion’s face": "lion's face",
+        "rope": "ropes",
+        "some hunters": "hunters",
+        "strong ropes": "ropes"
+      },
+      "holmes": {
+        "busy": "engaged",
+        "dr. watson": "watson",
+        "elderly gentleman": "wilson",
+        "i": "watson",
+        "mr. holmes": "holmes",
+        "mr. sherlock holmes": "holmes",
+        "mr. watson": "watson",
+        "mr. wilson": "wilson",
+        "narrator": "watson",
+        "red-haired gentleman": "wilson",
+        "sherlock holmes": "holmes",
+        "stout gentleman": "wilson",
+        "wilson’s case": "wilson's case"
+      }
+    },
+    "alternatives": {
+      "alice": [
+        [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "Alice's sister",
+            "relation": "sits_by",
+            "subject": "Alice",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ],
+        [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "bank",
+            "relation": "located_on",
+            "subject": "Alice",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ],
+        [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "book",
+            "relation": "reads",
+            "subject": "Alice's sister",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ],
+        [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "book",
+            "relation": "peeps_into",
+            "subject": "Alice",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ],
+        [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S2"
+            ],
+            "holder": null,
+            "object": "Alice",
+            "relation": "runs_past",
+            "subject": "White Rabbit",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ],
+        [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "pictures",
+            "relation": "lacks",
+            "subject": "book",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ],
+        [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "conversations",
+            "relation": "lacks",
+            "subject": "book",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ],
+        [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "book without pictures or conversations",
+            "relation": "questions_usefulness_of",
+            "subject": "Alice",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "attitude": "questions",
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": "Alice",
+            "object": "Alice",
+            "relation": "is_useful_to",
+            "subject": "book without pictures or conversations",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ],
+        [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S2"
+            ],
+            "holder": null,
+            "object": "daisy-chain",
+            "relation": "considers_making",
+            "subject": "Alice",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "attitude": "considers",
+            "evidence_ids": [
+              "S2"
+            ],
+            "holder": "Alice",
+            "object": "daisy-chain",
+            "relation": "makes",
+            "subject": "Alice",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ]
+      ],
+      "fable": [
+        [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "Lion's face",
+            "relation": "runs_over",
+            "subject": "Mouse",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ],
+        [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "Lion",
+            "relation": "awakens",
+            "subject": "Mouse",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ],
+        [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S2"
+            ],
+            "holder": null,
+            "object": "Mouse",
+            "relation": "catches",
+            "subject": "Lion",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ],
+        [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S3"
+            ],
+            "holder": null,
+            "object": "Mouse",
+            "relation": "releases",
+            "subject": "Lion",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ],
+        [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S4"
+            ],
+            "holder": null,
+            "object": "Lion",
+            "relation": "catches",
+            "subject": "hunters",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ],
+        [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S4"
+            ],
+            "holder": null,
+            "object": "ropes",
+            "relation": "bound_by",
+            "subject": "Lion",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ],
+        [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S5"
+            ],
+            "holder": null,
+            "object": "ropes",
+            "relation": "gnaws",
+            "subject": "Mouse",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ],
+        [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S5"
+            ],
+            "holder": null,
+            "object": "Lion",
+            "relation": "releases",
+            "subject": "Mouse",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ],
+        [
+          {
+            "attitude": "promises",
+            "evidence_ids": [
+              "S2"
+            ],
+            "holder": "Mouse",
+            "object": "Lion",
+            "relation": "would_repay_if_spared",
+            "subject": "Mouse",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ],
+        [
+          {
+            "attitude": "reported",
+            "evidence_ids": [
+              "S6"
+            ],
+            "holder": "Mouse",
+            "object": "Lion",
+            "relation": "can_help",
+            "subject": "Mouse",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ],
+        [
+          {
+            "attitude": "reported",
+            "evidence_ids": [
+              "S6"
+            ],
+            "holder": "Mouse",
+            "object": "Mouse",
+            "relation": "ridicules_help_from",
+            "subject": "Lion",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ]
+      ],
+      "holmes": [
+        [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "Holmes",
+            "relation": "visits",
+            "subject": "Watson",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ],
+        [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "Wilson",
+            "relation": "converses_with",
+            "subject": "Holmes",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ],
+        [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S2"
+            ],
+            "holder": null,
+            "object": "Watson",
+            "relation": "pulls",
+            "subject": "Holmes",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ],
+        [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S2"
+            ],
+            "holder": null,
+            "object": "door",
+            "relation": "closes",
+            "subject": "Holmes",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ],
+        [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S8"
+            ],
+            "holder": null,
+            "object": "chair",
+            "relation": "rises_from",
+            "subject": "Wilson",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ],
+        [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S8"
+            ],
+            "holder": null,
+            "object": "Watson",
+            "relation": "greets",
+            "subject": "Wilson",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ],
+        [
+          {
+            "attitude": "believes",
+            "evidence_ids": [
+              "S4"
+            ],
+            "holder": "Watson",
+            "object": "engaged",
+            "relation": "is",
+            "subject": "Holmes",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ],
+        [
+          {
+            "attitude": "reported",
+            "evidence_ids": [
+              "S5"
+            ],
+            "holder": "Holmes",
+            "object": "engaged",
+            "relation": "is",
+            "subject": "Holmes",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ],
+        [
+          {
+            "attitude": "reported",
+            "evidence_ids": [
+              "S7"
+            ],
+            "holder": "Holmes",
+            "object": "Holmes",
+            "relation": "partner_of",
+            "subject": "Watson",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ],
+        [
+          {
+            "attitude": "reported",
+            "evidence_ids": [
+              "S7"
+            ],
+            "holder": "Holmes",
+            "object": "Holmes",
+            "relation": "helper_of",
+            "subject": "Watson",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ],
+        [
+          {
+            "attitude": "believes",
+            "evidence_ids": [
+              "S7"
+            ],
+            "holder": "Holmes",
+            "object": "Wilson's case",
+            "relation": "expected_useful_in",
+            "subject": "Watson",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ]
+      ]
+    },
+    "ambiguity": "Alice rhetorical usefulness question does not establish uselessness. Daisy-chain consideration is not a decision. Holmes addresses Wilson while describing Watson as this gentleman; past collaboration remains Holmes-reported. Wilson greeting target is a contextual pronoun inference; disclose sensitivity.",
+    "attitudes": {
+      "believes": [
+        "believes",
+        "believed",
+        "belief"
+      ],
+      "considers": [
+        "considers",
+        "considered"
+      ],
+      "promises": [
+        "promises",
+        "promised"
+      ],
+      "questions": [
+        "questions",
+        "questioned"
+      ],
+      "reported": [
+        "reported",
+        "reports",
+        "says",
+        "said"
+      ]
+    },
+    "author": "Codex; not independent human review",
+    "manual_rubric": {
+      "authorship": "Every manual judgment is by Codex after output, using this frozen rubric, not independent review; response-hash-bound and same for both methods.",
+      "component_credit": "Report supported/partial/unsupported/contradicted/unresolved records, qualification and relevance separately. A composite record may explicitly cover multiple reference concepts, but receives at most one supported-record credit. Semantic coverage is unique explicit supported concept IDs, with the original target denominator. No semantic F1 is required; strict F1 remains untouched.",
+      "coverage": "Map to frozen concept indices only if semantically equivalent. Recall counts unique covered targets. Preserve unmatched supported relevant claims as reference-coverage flags; do not add targets after results.",
+      "qualification": "Full semantic credit requires source-supported modality/holder, no belief as world truth, and no invented numerical validity. Sentence-valued believed proposition can retain meaning if believer, proposition and attitude are explicit, while still failing strict structure.",
+      "relationship": "1 only when participants/direction/predicate meaning are explicit or entailed by the supplied text; 0 for contradiction or invented fact; unresolved for ambiguous support. No credit from lack of contradiction.",
+      "relevance": "Evaluate the whole claim against the frozen question; supported extras stay in precision denominator. Relevance 1,0,unresolved separately from factual support.",
+      "reporting": "Report relationship and qualified semantic support counts and unresolved denominators, not just perfect-output acceptance. Any manual semantic F1 uses all predictions and the original reference count.",
+      "support": "Citations must actually support the claim; valid ID alone is not support. Relevant supported alternative absent from references is a coverage limitation, not falsehood."
+    },
+    "relations": {
+      "awakens": [
+        "awakens",
+        "awakened",
+        "wakes",
+        "woke",
+        "woke_up"
+      ],
+      "bound_by": [
+        "bound_by",
+        "tied_by",
+        "bound_with",
+        "tied_with"
+      ],
+      "can_help": [
+        "can_help",
+        "can_benefit",
+        "can_confer_benefits_on"
+      ],
+      "catches": [
+        "catches",
+        "caught",
+        "captures",
+        "captured"
+      ],
+      "closes": [
+        "closes",
+        "closed",
+        "shuts",
+        "shut"
+      ],
+      "considers_making": [
+        "considers_making",
+        "considered_making",
+        "thinks_about_making"
+      ],
+      "converses_with": [
+        "converses_with",
+        "in_conversation_with",
+        "talks_with",
+        "talking_with",
+        "talks_to",
+        "talking_to"
+      ],
+      "expected_useful_in": [
+        "expected_useful_in",
+        "will_be_useful_in",
+        "would_be_useful_in",
+        "will_help_with"
+      ],
+      "gnaws": [
+        "gnaws",
+        "gnawed",
+        "gnawed_through",
+        "gnaws_through"
+      ],
+      "greets": [
+        "greets",
+        "greeted",
+        "gave_greeting_to",
+        "bobs_greeting_to"
+      ],
+      "helper_of": [
+        "helper_of",
+        "helps",
+        "helped",
+        "assists",
+        "assisted",
+        "is_helper_of"
+      ],
+      "is": [
+        "is",
+        "was",
+        "is_in_state"
+      ],
+      "is_useful_to": [
+        "is_useful_to",
+        "useful_to"
+      ],
+      "lacks": [
+        "lacks",
+        "has_no",
+        "contains_no",
+        "does_not_have",
+        "without"
+      ],
+      "located_on": [
+        "located_on",
+        "on",
+        "sits_on",
+        "sitting_on",
+        "sat_on",
+        "is_on"
+      ],
+      "makes": [
+        "makes",
+        "making"
+      ],
+      "partner_of": [
+        "partner_of",
+        "is_partner_of",
+        "has_been_partner_of"
+      ],
+      "peeps_into": [
+        "peeps_into",
+        "peeped_into",
+        "looks_into",
+        "looked_into",
+        "inspects",
+        "inspected"
+      ],
+      "pulls": [
+        "pulls",
+        "pulled",
+        "pulled_into_room",
+        "pulls_into_room"
+      ],
+      "questions_usefulness_of": [
+        "questions_usefulness_of",
+        "wonders_about_use_of"
+      ],
+      "reads": [
+        "reads",
+        "read",
+        "reading",
+        "was_reading"
+      ],
+      "releases": [
+        "releases",
+        "released",
+        "lets_go",
+        "let_go",
+        "freed",
+        "frees",
+        "set_free",
+        "spares",
+        "spared"
+      ],
+      "ridicules_help_from": [
+        "ridicules_help_from",
+        "ridiculed_help_from",
+        "ridiculed_ability_of"
+      ],
+      "rises_from": [
+        "rises_from",
+        "rose_from",
+        "half_rose_from",
+        "half_rises_from"
+      ],
+      "runs_over": [
+        "runs_over",
+        "ran_over",
+        "running_over"
+      ],
+      "runs_past": [
+        "runs_past",
+        "ran_past",
+        "runs_near",
+        "ran_near",
+        "ran_close_by",
+        "runs_close_by"
+      ],
+      "sits_by": [
+        "sits_by",
+        "sat_by",
+        "sitting_by",
+        "sits_beside",
+        "sitting_beside",
+        "sat_beside"
+      ],
+      "visits": [
+        "visits",
+        "visited",
+        "called_upon",
+        "calls_upon",
+        "called_on",
+        "calls_on"
+      ],
+      "would_repay_if_spared": [
+        "would_repay_if_spared",
+        "repay_if_spared",
+        "repays_if_spared"
+      ]
+    },
+    "scope": "Question-target references, not exhaustive annotation of every possible assertion. Query-blind recall is against their union. Strict precision is scoped reference-match precision, not a factual-truth rate.",
+    "selection": {
+      "alice": {
+        "actions": [
+          "sit",
+          "sat",
+          "beside",
+          "read",
+          "peep",
+          "look",
+          "inspect",
+          "run",
+          "ran",
+          "near",
+          "locat",
+          "on_bank"
+        ],
+        "claims": [
+          "lack",
+          "contain",
+          "has_no",
+          "have_no",
+          "without",
+          "think",
+          "thought",
+          "consider",
+          "wonder",
+          "question",
+          "useful",
+          "daisy"
+        ]
+      },
+      "fable": {
+        "actions": [
+          "run",
+          "ran",
+          "wake",
+          "waken",
+          "catch",
+          "caught",
+          "captur",
+          "bind",
+          "bound",
+          "tie",
+          "gnaw",
+          "free",
+          "releas",
+          "let_go",
+          "spare"
+        ],
+        "claims": [
+          "catch",
+          "caught",
+          "captur",
+          "free",
+          "releas",
+          "let_go",
+          "spare",
+          "repay",
+          "help",
+          "benefit",
+          "promis",
+          "claim",
+          "say",
+          "said",
+          "ridicul"
+        ]
+      },
+      "holmes": {
+        "actions": [
+          "visit",
+          "call",
+          "convers",
+          "talk",
+          "pull",
+          "close",
+          "rose",
+          "rise",
+          "greet",
+          "bob"
+        ],
+        "claims": [
+          "engag",
+          "partner",
+          "help",
+          "use",
+          "afraid",
+          "believ",
+          "say",
+          "said",
+          "report",
+          "claim",
+          "assist"
+        ]
+      }
+    },
+    "strict": "One-to-one maximum matching over frozen alternatives; all predictions in denominator. Exact cited span set, normalized endpoints/predicate, all eight fields and correct qualifiers required.",
+    "temporal": "No numeric intrinsic validity in these excerpts. Once, shortly after, one day in autumn, past cases, and future modality are not numeric intervals. Compact null loses narrative order/duration; report source phrases.",
+    "version": "published-prose-poc-v1"
+  }
+}

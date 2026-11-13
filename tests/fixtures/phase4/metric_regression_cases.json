@@ -1,0 +1,169 @@
+{
+  "suite_revision": "phase4-six-case-regression-v1",
+  "public_synthetic_fixture": true,
+  "cases": [
+    {
+      "case_id": "fixed-friendly-c0-perfect",
+      "condition": "C0",
+      "fixed_ontology_friendly": true,
+      "output_valid": true,
+      "inputs": {
+        "nodes": {"true_positives": 2, "predicted_count": 2, "gold_count": 2},
+        "assertions": {"true_positives": 1, "predicted_count": 1, "gold_count": 1},
+        "gold_decisions": [],
+        "predicted_decisions": [],
+        "rare_annotations": [],
+        "strictly_matched_assertion_target_ids": []
+      },
+      "expected_case_hash": "8e7be5757065e88f90c8f86be16fbb240dbdaa19356cce6427b83925d13b08c6",
+      "expected_metric_rows": [
+        {"metric_name": "contextual_node_f1", "status": "value", "value": 1.0, "numerator": 2, "denominator": null, "content_hash": "ec5f3ea750d1fc37c52c2e1e8263ce5fd0a7ec9a8151a004c58e14e749733280"},
+        {"metric_name": "strict_qualified_assertion_f1", "status": "value", "value": 1.0, "numerator": 1, "denominator": null, "content_hash": "6c0bba57d152e109ca69e5c7d131bcfff53661f01eaa68d3e3c1ff29a592bd0f"},
+        {"metric_name": "ontology_decision_macro_f1", "status": "not_applicable", "value": null, "numerator": null, "denominator": 0, "content_hash": "0752a107a79fc8fbd96c6df000306c530c9e2f9c36e90b62ded3f4a10881a5d3"},
+        {"metric_name": "rare_pivotal_qualified_assertion_recall", "status": "not_applicable", "value": null, "numerator": 0, "denominator": 0, "content_hash": "31b77b4188511fbfdfc65881ed8add803b50f891f6b1f734b2e9806717c20024"},
+        {"metric_name": "rare_pivotal_support_path_survival", "status": "not_applicable", "value": null, "numerator": 0, "denominator": 0, "content_hash": "3cedefb0f0f992606c532a51325376a78ac0e75bf3dbce6204494af1b972a141"}
+      ]
+    },
+    {
+      "case_id": "c1-overinclusive",
+      "condition": "C1",
+      "fixed_ontology_friendly": false,
+      "output_valid": true,
+      "inputs": {
+        "nodes": {"true_positives": 2, "predicted_count": 4, "gold_count": 2},
+        "assertions": {"true_positives": 1, "predicted_count": 3, "gold_count": 2},
+        "gold_decisions": [
+          {"slot_key": "abstraction/root", "family": "abstraction", "operator": "abstraction", "anchor_ids": ["ev-a"], "semantic_signature": "state-a"},
+          {"slot_key": "qualification/time", "family": "temporal_epistemic_qualification", "operator": "temporal_qualification", "anchor_ids": ["ev-t"], "semantic_signature": "state-t"}
+        ],
+        "predicted_decisions": [
+          {"slot_key": "abstraction/root", "family": "abstraction", "operator": "abstraction", "anchor_ids": ["ev-a"], "semantic_signature": "state-a"},
+          {"slot_key": "schema/extra", "family": "schema_relation", "operator": "schema_relation", "anchor_ids": ["ev-x"], "semantic_signature": "state-x"}
+        ],
+        "rare_annotations": [],
+        "strictly_matched_assertion_target_ids": []
+      },
+      "expected_case_hash": "0c2bb35d9132d7b188970f84b2e8fa584aa9eb5c97aec3450d544f42d735e4a6",
+      "expected_metric_rows": [
+        {"metric_name": "contextual_node_f1", "status": "value", "value": 0.6666666666666666, "numerator": 2, "denominator": null, "content_hash": "9c314845e12fa7912a124a0d8e343d57c2ed743e3472b36b18979b1cfbbdbf12"},
+        {"metric_name": "strict_qualified_assertion_f1", "status": "value", "value": 0.4, "numerator": 1, "denominator": null, "content_hash": "61247ded8dba07ba01efb29b0e1742dba0d5eab32e0abcda8651e4d62b5ee835"},
+        {"metric_name": "ontology_decision_macro_f1", "status": "value", "value": 0.3333333333333333, "numerator": null, "denominator": 3, "content_hash": "ac60f82c9723aedfd739b3afc9d6bea99019f5834c88d2154f7c3f898a2b167f"},
+        {"metric_name": "rare_pivotal_qualified_assertion_recall", "status": "not_applicable", "value": null, "numerator": 0, "denominator": 0, "content_hash": "3c84577a12ead84a380fb172b4fca9a1db803bffb5d3263bfd511f7643774387"},
+        {"metric_name": "rare_pivotal_support_path_survival", "status": "not_applicable", "value": null, "numerator": 0, "denominator": 0, "content_hash": "9eae0ff4f6a143c5f310282dd9e15b7467873fdeb8b24fd24629ff58cb686acf"}
+      ]
+    },
+    {
+      "case_id": "c2-contextual-perfect",
+      "condition": "C2",
+      "fixed_ontology_friendly": false,
+      "output_valid": true,
+      "inputs": {
+        "nodes": {"true_positives": 3, "predicted_count": 3, "gold_count": 3},
+        "assertions": {"true_positives": 2, "predicted_count": 2, "gold_count": 2},
+        "gold_decisions": [
+          {"slot_key": "identity/split", "family": "merge_split", "operator": "split", "anchor_ids": ["m-a", "m-b"], "semantic_signature": "state-split"},
+          {"slot_key": "event/focal", "family": "event_reification", "operator": "event_reification", "anchor_ids": ["ev-event"], "semantic_signature": "state-event"},
+          {"slot_key": "qualification/report", "family": "temporal_epistemic_qualification", "operator": "epistemic_qualification", "anchor_ids": ["ev-report"], "semantic_signature": "state-report"}
+        ],
+        "predicted_decisions": [
+          {"slot_key": "identity/split", "family": "merge_split", "operator": "split", "anchor_ids": ["m-a", "m-b"], "semantic_signature": "state-split"},
+          {"slot_key": "event/focal", "family": "event_reification", "operator": "event_reification", "anchor_ids": ["ev-event"], "semantic_signature": "state-event"},
+          {"slot_key": "qualification/report", "family": "temporal_epistemic_qualification", "operator": "epistemic_qualification", "anchor_ids": ["ev-report"], "semantic_signature": "state-report"}
+        ],
+        "rare_annotations": [
+          {"assertion_target_id": "assert-outcome", "is_rare": false, "is_pivotal": true, "support_path_assertion_target_ids": []},
+          {"assertion_target_id": "assert-rare", "is_rare": true, "is_pivotal": true, "support_path_assertion_target_ids": ["assert-rare", "assert-outcome"]}
+        ],
+        "strictly_matched_assertion_target_ids": ["assert-outcome", "assert-rare"]
+      },
+      "expected_case_hash": "ebff2821bb355d9ea6c18e306ff3fd6a2a4a90b934776f404a4bb303e2a13e34",
+      "expected_metric_rows": [
+        {"metric_name": "contextual_node_f1", "status": "value", "value": 1.0, "numerator": 3, "denominator": null, "content_hash": "aa8b9c5c923bbccf6bdbd403abc0be2693571fd4c0b9f34f0a18fb6f210b548d"},
+        {"metric_name": "strict_qualified_assertion_f1", "status": "value", "value": 1.0, "numerator": 2, "denominator": null, "content_hash": "f634af4d6f5761c04e69a8861172208435ff128d3200dbb1aaed1a94325b9698"},
+        {"metric_name": "ontology_decision_macro_f1", "status": "value", "value": 1.0, "numerator": null, "denominator": 3, "content_hash": "ba8433379058602fd8fb949575f57802e0b907d7e638df395af9e9e241c182ff"},
+        {"metric_name": "rare_pivotal_qualified_assertion_recall", "status": "value", "value": 1.0, "numerator": 1, "denominator": 1, "content_hash": "4c8c4e57fc046179bba118436025b9e384aa7bf3a402b2146abda76ebba5f799"},
+        {"metric_name": "rare_pivotal_support_path_survival", "status": "value", "value": 1.0, "numerator": 1, "denominator": 1, "content_hash": "b3bbf17ce1ce657a6504ec77fe64a2f52b18f363ec62f09f1c992313412b9111"}
+      ]
+    },
+    {
+      "case_id": "c2-timeout-intention-to-treat",
+      "condition": "C2",
+      "fixed_ontology_friendly": false,
+      "output_valid": false,
+      "inputs": {
+        "nodes": {"true_positives": 0, "predicted_count": 0, "gold_count": 2},
+        "assertions": {"true_positives": 0, "predicted_count": 0, "gold_count": 1},
+        "gold_decisions": [
+          {"slot_key": "schema/needed", "family": "schema_relation", "operator": "schema_relation", "anchor_ids": ["ev-needed"], "semantic_signature": "state-needed"}
+        ],
+        "predicted_decisions": [],
+        "rare_annotations": [
+          {"assertion_target_id": "assert-rare", "is_rare": true, "is_pivotal": true, "support_path_assertion_target_ids": ["assert-rare"]}
+        ],
+        "strictly_matched_assertion_target_ids": []
+      },
+      "expected_case_hash": "c49ce6d0ed64c8939040dd701b149fbce49b302bb033d5fdaf77d66db3280658",
+      "expected_metric_rows": [
+        {"metric_name": "contextual_node_f1", "status": "value", "value": 0.0, "numerator": 0, "denominator": null, "content_hash": "1abf2606318e6ea7991a82e8118c351686dea94ed48c8491f6b950bc6a18fe25"},
+        {"metric_name": "strict_qualified_assertion_f1", "status": "value", "value": 0.0, "numerator": 0, "denominator": null, "content_hash": "ecde7a507ce0753acf4f61c51dfd9ec23ffa1579c4a4954ed302479489d34629"},
+        {"metric_name": "ontology_decision_macro_f1", "status": "value", "value": 0.0, "numerator": null, "denominator": 1, "content_hash": "e72b26ce7fb18e5765bb8013d1c2fa7aeddaaf0e89fddce648e5edd1c8646f42"},
+        {"metric_name": "rare_pivotal_qualified_assertion_recall", "status": "value", "value": 0.0, "numerator": 0, "denominator": 1, "content_hash": "2db5d8d01d6fe3ea2b5e1bad932527aae1b08c3a60e6c52d698303cd17e7bf33"},
+        {"metric_name": "rare_pivotal_support_path_survival", "status": "value", "value": 0.0, "numerator": 0, "denominator": 1, "content_hash": "7c71edf2410b9528b10fb57ccff6345ae00ea2eade30d48315625a4329856681"}
+      ]
+    },
+    {
+      "case_id": "fixed-select-selection-only",
+      "condition": "A-FixedSelect",
+      "fixed_ontology_friendly": false,
+      "output_valid": true,
+      "inputs": {
+        "nodes": {"true_positives": 3, "predicted_count": 3, "gold_count": 3},
+        "assertions": {"true_positives": 1, "predicted_count": 2, "gold_count": 2},
+        "gold_decisions": [
+          {"slot_key": "identity/merge", "family": "merge_split", "operator": "merge", "anchor_ids": ["m-a", "m-b"], "semantic_signature": "state-merge"},
+          {"slot_key": "schema/context", "family": "schema_relation", "operator": "schema_relation", "anchor_ids": ["ev-schema"], "semantic_signature": "state-schema"}
+        ],
+        "predicted_decisions": [],
+        "rare_annotations": [
+          {"assertion_target_id": "assert-rare", "is_rare": true, "is_pivotal": true, "support_path_assertion_target_ids": ["assert-rare"]}
+        ],
+        "strictly_matched_assertion_target_ids": ["assert-rare"]
+      },
+      "expected_case_hash": "fe2e788fd657ac467e6f73d2d60083a741bb523dd77a24e1df58ade2c825b4f1",
+      "expected_metric_rows": [
+        {"metric_name": "contextual_node_f1", "status": "value", "value": 1.0, "numerator": 3, "denominator": null, "content_hash": "acf1065cd5961c7ea161884d9e06ccf7c4048db9a8d6738c6b9fa15e3da620f8"},
+        {"metric_name": "strict_qualified_assertion_f1", "status": "value", "value": 0.5, "numerator": 1, "denominator": null, "content_hash": "4b209570b84e1483bbbb4b53e7016709a59c3ba931683614a5343b248fcf4764"},
+        {"metric_name": "ontology_decision_macro_f1", "status": "value", "value": 0.0, "numerator": null, "denominator": 2, "content_hash": "1b95dc69aab2f6d150b817e2c27902b495d4082eadc06f099fcba77fb26ba62d"},
+        {"metric_name": "rare_pivotal_qualified_assertion_recall", "status": "value", "value": 1.0, "numerator": 1, "denominator": 1, "content_hash": "2f7268999e5c3bf41fdff582aa9a6f56091b10d512de5c2cdc58498dc163ddce"},
+        {"metric_name": "rare_pivotal_support_path_survival", "status": "value", "value": 1.0, "numerator": 1, "denominator": 1, "content_hash": "c96adbe79e7bf50d21a366481d79dfad97b25aa31c51dcb7b02e3db865fd2e4d"}
+      ]
+    },
+    {
+      "case_id": "c2-spurious-construction",
+      "condition": "C2",
+      "fixed_ontology_friendly": false,
+      "output_valid": true,
+      "inputs": {
+        "nodes": {"true_positives": 2, "predicted_count": 3, "gold_count": 2},
+        "assertions": {"true_positives": 1, "predicted_count": 2, "gold_count": 1},
+        "gold_decisions": [
+          {"slot_key": "type/needed", "family": "contextual_type", "operator": "contextual_type", "anchor_ids": ["ev-type"], "semantic_signature": "state-type"}
+        ],
+        "predicted_decisions": [
+          {"slot_key": "type/needed", "family": "contextual_type", "operator": "contextual_type", "anchor_ids": ["ev-type"], "semantic_signature": "state-type"},
+          {"slot_key": "event/spurious", "family": "event_reification", "operator": "event_reification", "anchor_ids": ["ev-extra"], "semantic_signature": "state-extra"}
+        ],
+        "rare_annotations": [],
+        "strictly_matched_assertion_target_ids": []
+      },
+      "expected_case_hash": "1522794d59b5723a3c454d10030fd71ef3a2fa51c89f4db089a0fc6b5b2a8ef9",
+      "expected_metric_rows": [
+        {"metric_name": "contextual_node_f1", "status": "value", "value": 0.8, "numerator": 2, "denominator": null, "content_hash": "16a647861eae353ee06eb374162d8d77248957267b3d3b1738c06efe1afa4263"},
+        {"metric_name": "strict_qualified_assertion_f1", "status": "value", "value": 0.6666666666666666, "numerator": 1, "denominator": null, "content_hash": "13a8c85323141848466c172667f20890e44bba7eefdd06fa3ed25ff187506c2c"},
+        {"metric_name": "ontology_decision_macro_f1", "status": "value", "value": 0.5, "numerator": null, "denominator": 2, "content_hash": "3e5fa9b6248f6695121f78b8a2d0f65ebe59ea40bbaba4039ed234ed43c83f42"},
+        {"metric_name": "rare_pivotal_qualified_assertion_recall", "status": "not_applicable", "value": null, "numerator": 0, "denominator": 0, "content_hash": "2d867e471a0ec4b2e7d50f626e5689604470c473f8bb1c561c577a618dd36368"},
+        {"metric_name": "rare_pivotal_support_path_survival", "status": "not_applicable", "value": null, "numerator": 0, "denominator": 0, "content_hash": "833c247f3806bf18aea30997eec612a80e7104c7ec7ea24edf2f27d4aebd8921"}
+      ]
+    }
+  ]
+}

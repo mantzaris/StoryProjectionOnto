@@ -1,0 +1,19 @@
+{
+  "branch": "implementation/query-dependent-temporal-ontology",
+  "byte_identity_checks": [
+    "Local and remote manifest JSON bytes are identical.",
+    "Both declared source-tree hashes were independently recomputed from their inventories."
+  ],
+  "git_commit": "ef0b5dcfb9e24c28359dc5d83f821769c5fc4aab",
+  "kind": "local_remote_source_tree_association",
+  "local_manifest": "source_tree_fallback_development.local.json",
+  "local_manifest_file_sha256": "498b704bb6ba21397425f3690246da7f9dedb8c01beed1c4ea7f260ef04ad626",
+  "local_tree_sha256": "a69013e65cf5449e92cf9b1b4422979329c475f13f3c2c2c324dcde92702b1e1",
+  "manifest_sha256": "fa6b3375d8b8f4ff0adcf5692178561d99c4d32794844c65b4934a9702af24ef",
+  "recorded_at": "2026-09-04T07:56:18Z",
+  "remote_manifest": "source_tree_fallback_development.remote.json",
+  "remote_manifest_file_sha256": "498b704bb6ba21397425f3690246da7f9dedb8c01beed1c4ea7f260ef04ad626",
+  "remote_tree_sha256": "a69013e65cf5449e92cf9b1b4422979329c475f13f3c2c2c324dcde92702b1e1",
+  "revision_label": "ef0b5dcfb9e24c28359dc5d83f821769c5fc4aab+fallback-development-freeze",
+  "schema_version": "1.0.0"
+}

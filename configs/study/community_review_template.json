@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0.0",
+  "template_id": "condition-blind-community-review-v1",
+  "condition_blind": true,
+  "rubric_revision": "community-coherence-rubric-v1",
+  "allowed_scores": [1, 2, 3, 4, 5],
+  "dimensions": [
+    "semantic_coherence",
+    "interpretability",
+    "evidence_support"
+  ],
+  "reviews": []
+}

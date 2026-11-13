@@ -1,0 +1,372 @@
+{
+  "budget_accounting": {
+    "assertions_used": 2,
+    "display_assertions_used": 2,
+    "display_nodes_used": 5,
+    "input_tokens": 0,
+    "nodes_used": 5,
+    "output_tokens": 0
+  },
+  "contextual_interpretation": "The query needs separate courier and mechanic identities and Mara's report.",
+  "decisions": [
+    {
+      "created_object_ids": [
+        "assert-c2-report"
+      ],
+      "decided_at": "2026-09-03T12:00:11Z",
+      "decision_id": "d-c2-include",
+      "evidence_ids": [
+        "ev-05"
+      ],
+      "operator": "include_exclude",
+      "rationale": "Include the attributed report."
+    },
+    {
+      "created_object_ids": [
+        "ent-c2-lio",
+        "ent-c2-ash-mechanic"
+      ],
+      "decided_at": "2026-09-03T12:00:12Z",
+      "decision_id": "d-c2-split",
+      "evidence_ids": [
+        "ev-02",
+        "ev-03"
+      ],
+      "input_object_ids": [
+        "m-ash-courier",
+        "m-ash-mechanic"
+      ],
+      "operator": "split",
+      "rationale": "Separate courier and mechanic."
+    },
+    {
+      "created_object_ids": [
+        "t-c2"
+      ],
+      "decided_at": "2026-09-03T12:00:13Z",
+      "decision_id": "d-c2-type",
+      "evidence_ids": [
+        "ev-04"
+      ],
+      "operator": "contextual_type",
+      "rationale": "Create context-specific roles."
+    },
+    {
+      "created_object_ids": [
+        "s-c2"
+      ],
+      "decided_at": "2026-09-03T12:00:14Z",
+      "decision_id": "d-c2-abstraction",
+      "evidence_ids": [
+        "ev-04"
+      ],
+      "operator": "abstraction",
+      "rationale": "Use causal-chain abstraction."
+    },
+    {
+      "created_object_ids": [
+        "prop-c2-bridge-safe",
+        "assert-c2-report"
+      ],
+      "decided_at": "2026-09-03T12:00:15Z",
+      "decision_id": "d-c2-epistemic",
+      "evidence_ids": [
+        "ev-05"
+      ],
+      "operator": "epistemic_qualification",
+      "rationale": "Keep the claim holder-attributed."
+    }
+  ],
+  "instance_graph": {
+    "assertions": [
+      {
+        "assertion_id": "assert-c2-distinct",
+        "confidence": 1,
+        "contextual_relevance": 1,
+        "evidence_ids": [
+          "ev-02",
+          "ev-03"
+        ],
+        "narrative_commitment": "world_committed",
+        "object_id": "ent-c2-lio",
+        "predicate_id": "p-c2-distinct",
+        "provenance": [
+          {
+            "confidence": 1,
+            "evidence_id": "ev-02",
+            "extraction_method": "hand fixture",
+            "locator": "ev-02",
+            "provenance_id": "v-c2-distinct-02"
+          },
+          {
+            "confidence": 1,
+            "evidence_id": "ev-03",
+            "extraction_method": "hand fixture",
+            "locator": "ev-03",
+            "provenance_id": "v-c2-distinct-03"
+          }
+        ],
+        "subject_id": "ent-c2-ash-mechanic",
+        "temporal_scope": {
+          "discourse_position": {
+            "passage_order": 3
+          },
+          "revelation_position": {
+            "revelation_order": 3
+          },
+          "story_time": {
+            "kind": "unknown",
+            "reason": "Evidence gives no story-world coordinate."
+          },
+          "validity_time": {
+            "kind": "unknown",
+            "reason": "Evidence gives no validity interval."
+          }
+        },
+        "why_matters": "Prevents identity collapse.",
+        "why_matters_evidence_ids": [
+          "ev-02"
+        ]
+      },
+      {
+        "assertion_id": "assert-c2-report",
+        "confidence": 1,
+        "contextual_relevance": 1,
+        "epistemic_scope": {
+          "attitude": "reported",
+          "evidence_ids": [
+            "ev-05"
+          ],
+          "holder_id": "ent-c2-mara",
+          "holder_relative_time": {
+            "kind": "unknown",
+            "reason": "Evidence gives no holder-relative time."
+          },
+          "proposition_content_id": "prop-c2-bridge-safe"
+        },
+        "evidence_ids": [
+          "ev-05"
+        ],
+        "narrative_commitment": "holder_attributed",
+        "object_id": "ent-c2-safe",
+        "predicate_id": "p-c2-status",
+        "proposition_content_id": "prop-c2-bridge-safe",
+        "provenance": [
+          {
+            "confidence": 1,
+            "evidence_id": "ev-05",
+            "extraction_method": "hand fixture",
+            "locator": "ev-05",
+            "provenance_id": "v-c2-report-05"
+          }
+        ],
+        "subject_id": "ent-c2-bridge",
+        "temporal_scope": {
+          "discourse_position": {
+            "passage_order": 5
+          },
+          "revelation_position": {
+            "revelation_order": 5
+          },
+          "story_time": {
+            "kind": "unknown",
+            "reason": "Evidence gives no story-world coordinate."
+          },
+          "validity_time": {
+            "kind": "unknown",
+            "reason": "Evidence gives no validity interval."
+          }
+        },
+        "why_matters": "Does not assert bridge safety.",
+        "why_matters_evidence_ids": [
+          "ev-05"
+        ]
+      }
+    ],
+    "entities": [
+      {
+        "abstraction": "collective_causal_chain",
+        "confidence": 1,
+        "contextual_role": "credential courier",
+        "contextual_type_id": "t-c2",
+        "description": "Courier identity distinct from the mechanic.",
+        "description_assertion_ids": [
+          "assert-c2-distinct"
+        ],
+        "entity_id": "ent-c2-lio",
+        "evidence_ids": [
+          "ev-02"
+        ],
+        "label": "Lio",
+        "supported_mention_candidate_ids": [
+          "m-ash-courier"
+        ],
+        "temporal_state": {
+          "kind": "unknown",
+          "reason": "Evidence gives no story-world coordinate."
+        },
+        "uncertainty": "known"
+      },
+      {
+        "abstraction": "collective_causal_chain",
+        "confidence": 1,
+        "contextual_role": "separate mechanic",
+        "contextual_type_id": "t-c2",
+        "description": "Mechanic identity distinct from the courier.",
+        "description_assertion_ids": [
+          "assert-c2-distinct"
+        ],
+        "entity_id": "ent-c2-ash-mechanic",
+        "evidence_ids": [
+          "ev-03"
+        ],
+        "label": "Ash the mechanic",
+        "supported_mention_candidate_ids": [
+          "m-ash-mechanic"
+        ],
+        "temporal_state": {
+          "kind": "unknown",
+          "reason": "Evidence gives no story-world coordinate."
+        },
+        "uncertainty": "known"
+      },
+      {
+        "abstraction": "collective_causal_chain",
+        "confidence": 1,
+        "contextual_role": "report holder",
+        "contextual_type_id": "t-c2",
+        "description": "Holder of the bridge report.",
+        "description_assertion_ids": [
+          "assert-c2-report"
+        ],
+        "entity_id": "ent-c2-mara",
+        "evidence_ids": [
+          "ev-05"
+        ],
+        "label": "Mara",
+        "supported_mention_candidate_ids": [
+          "m-mara-05"
+        ],
+        "temporal_state": {
+          "kind": "unknown",
+          "reason": "Evidence gives no story-world coordinate."
+        },
+        "uncertainty": "known"
+      },
+      {
+        "abstraction": "collective_causal_chain",
+        "confidence": 1,
+        "contextual_role": "reported infrastructure",
+        "contextual_type_id": "t-c2",
+        "description": "Safe only inside Mara's report.",
+        "description_assertion_ids": [
+          "assert-c2-report"
+        ],
+        "entity_id": "ent-c2-bridge",
+        "evidence_ids": [
+          "ev-05"
+        ],
+        "label": "Bridge",
+        "supported_mention_candidate_ids": [
+          "m-bridge-05"
+        ],
+        "temporal_state": {
+          "kind": "unknown",
+          "reason": "Evidence gives no story-world coordinate."
+        },
+        "uncertainty": "known"
+      },
+      {
+        "abstraction": "collective_causal_chain",
+        "confidence": 1,
+        "contextual_role": "reported state",
+        "contextual_type_id": "t-c2",
+        "description": "Safety state inside Mara's report.",
+        "description_assertion_ids": [
+          "assert-c2-report"
+        ],
+        "entity_id": "ent-c2-safe",
+        "evidence_ids": [
+          "ev-05"
+        ],
+        "label": "Safe state",
+        "supported_mention_candidate_ids": [
+          "m-safe-05"
+        ],
+        "temporal_state": {
+          "kind": "unknown",
+          "reason": "Evidence gives no story-world coordinate."
+        },
+        "uncertainty": "known"
+      }
+    ],
+    "events": [],
+    "proposition_contents": [
+      {
+        "evidence_ids": [
+          "ev-05"
+        ],
+        "object_id": "ent-c2-safe",
+        "predicate_id": "p-c2-status",
+        "proposition_content_id": "prop-c2-bridge-safe",
+        "subject_id": "ent-c2-bridge",
+        "temporal_content": {
+          "discourse_position": {
+            "passage_order": 5
+          },
+          "revelation_position": {
+            "revelation_order": 5
+          },
+          "story_time": {
+            "kind": "unknown",
+            "reason": "Evidence gives no story-world coordinate."
+          },
+          "validity_time": {
+            "kind": "unknown",
+            "reason": "Evidence gives no validity interval."
+          }
+        }
+      }
+    ]
+  },
+  "local_schema": {
+    "abstraction": "collective_causal_chain",
+    "contextual_types": [
+      {
+        "abstraction": "collective_causal_chain",
+        "definition": "A context-specific narrative role.",
+        "evidence_ids": [
+          "ev-02",
+          "ev-05"
+        ],
+        "label": "Role",
+        "parent_upper_type": "entity",
+        "type_id": "t-c2"
+      }
+    ],
+    "predicates": [
+      {
+        "arity": 2,
+        "definition": "Separate identity assemblies.",
+        "evidence_ids": [
+          "ev-02",
+          "ev-03"
+        ],
+        "label": "distinct",
+        "parent_upper_relation": "related_to",
+        "predicate_id": "p-c2-distinct"
+      },
+      {
+        "arity": 2,
+        "definition": "Safety content attributed by a holder.",
+        "evidence_ids": [
+          "ev-05"
+        ],
+        "label": "reported status",
+        "parent_upper_relation": "has_status",
+        "predicate_id": "p-c2-status"
+      }
+    ],
+    "schema_id": "s-c2"
+  }
+}

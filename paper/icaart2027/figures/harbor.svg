@@ -1,0 +1,308 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:ns2="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:xlink="http://www.w3.org/1999/xlink" width="447.912pt" height="450.3pt" viewBox="0 0 447.912 450.3" version="1.1">
+ <metadata>
+  <rdf:RDF>
+   <ns2:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <ns2:Agent>
+      <dc:title>Matplotlib</dc:title>
+     </ns2:Agent>
+    </dc:creator>
+   </ns2:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ <style>@font-face{font-family:'Times New Roman';font-weight:normal;src:local('Times New Roman'),local('TimesNewRomanPSMT');}@font-face{font-family:'Times New Roman';font-weight:bold;src:local('Times New Roman Bold'),local('TimesNewRomanPS-BoldMT');}</style></defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 450.3  L 447.912 450.3  L 447.912 0  L 0 0  z " style="fill: #ffffff" />
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 367.912 115.25  L 404.912 115.25  L 404.912 326.25  L 367.912 326.25  z " clip-path="url(#p56b44930cf)" style="fill: #e1e9f2" />
+   </g>
+   <g id="patch_3">
+    <path d="M 9 135.25  L 67 135.25  Q 71 135.25 71 139.25  L 71 153.25  Q 71 157.25 67 157.25  L 9 157.25  Q 5 157.25 5 153.25  L 5 139.25  Q 5 135.25 9 135.25  z " clip-path="url(#p56b44930cf)" style="fill: #f4f7f8; stroke: #d8e0e5; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_4">
+    <path d="M 245.912 135.25  L 309.912 135.25  Q 313.912 135.25 313.912 139.25  L 313.912 153.25  Q 313.912 157.25 309.912 157.25  L 245.912 157.25  Q 241.912 157.25 241.912 153.25  L 241.912 139.25  Q 241.912 135.25 245.912 135.25  z " clip-path="url(#p56b44930cf)" style="fill: #f4f7f8; stroke: #d8e0e5; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_5">
+    <path d="M 9 183.25  L 67 183.25  Q 71 183.25 71 187.25  L 71 201.25  Q 71 205.25 67 205.25  L 9 205.25  Q 5 205.25 5 201.25  L 5 187.25  Q 5 183.25 9 183.25  z " clip-path="url(#p56b44930cf)" style="fill: #f4f7f8; stroke: #d8e0e5; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_6">
+    <path d="M 245.912 183.25  L 309.912 183.25  Q 313.912 183.25 313.912 187.25  L 313.912 201.25  Q 313.912 205.25 309.912 205.25  L 245.912 205.25  Q 241.912 205.25 241.912 201.25  L 241.912 187.25  Q 241.912 183.25 245.912 183.25  z " clip-path="url(#p56b44930cf)" style="fill: #f4f7f8; stroke: #d8e0e5; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_7">
+    <path d="M 9 231.25  L 67 231.25  Q 71 231.25 71 235.25  L 71 249.25  Q 71 253.25 67 253.25  L 9 253.25  Q 5 253.25 5 249.25  L 5 235.25  Q 5 231.25 9 231.25  z " clip-path="url(#p56b44930cf)" style="fill: #f4f7f8; stroke: #d8e0e5; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_8">
+    <path d="M 245.912 231.25  L 309.912 231.25  Q 313.912 231.25 313.912 235.25  L 313.912 249.25  Q 313.912 253.25 309.912 253.25  L 245.912 253.25  Q 241.912 253.25 241.912 249.25  L 241.912 235.25  Q 241.912 231.25 245.912 231.25  z " clip-path="url(#p56b44930cf)" style="fill: #f4f7f8; stroke: #d8e0e5; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_9">
+    <path d="M 9 279.25  L 67 279.25  Q 71 279.25 71 283.25  L 71 297.25  Q 71 301.25 67 301.25  L 9 301.25  Q 5 301.25 5 297.25  L 5 283.25  Q 5 279.25 9 279.25  z " clip-path="url(#p56b44930cf)" style="fill: #f4f7f8; stroke: #d8e0e5; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_10">
+    <path d="M 245.912 279.25  L 309.912 279.25  Q 313.912 279.25 313.912 283.25  L 313.912 297.25  Q 313.912 301.25 309.912 301.25  L 245.912 301.25  Q 241.912 301.25 241.912 297.25  L 241.912 283.25  Q 241.912 279.25 245.912 279.25  z " clip-path="url(#p56b44930cf)" style="fill: #f4f7f8; stroke: #d8e0e5; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_11">
+    <path d="M 9 353.25  L 67 353.25  Q 71 353.25 71 357.25  L 71 371.25  Q 71 375.25 67 375.25  L 9 375.25  Q 5 375.25 5 371.25  L 5 357.25  Q 5 353.25 9 353.25  z " clip-path="url(#p56b44930cf)" style="fill: #f4f7f8; stroke: #d8e0e5; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_12">
+    <path d="M 256.912 353.25  L 348.912 353.25  Q 352.912 353.25 352.912 357.25  L 352.912 371.25  Q 352.912 375.25 348.912 375.25  L 256.912 375.25  Q 252.912 375.25 252.912 371.25  L 252.912 357.25  Q 252.912 353.25 256.912 353.25  z " clip-path="url(#p56b44930cf)" style="fill: #f4f7f8; stroke: #d8e0e5; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_13">
+    <path d="M 9 395.25  L 67 395.25  Q 71 395.25 71 399.25  L 71 413.25  Q 71 417.25 67 417.25  L 9 417.25  Q 5 417.25 5 413.25  L 5 399.25  Q 5 395.25 9 395.25  z " clip-path="url(#p56b44930cf)" style="fill: #f4f7f8; stroke: #d8e0e5; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_14">
+    <path d="M 256.912 395.25  L 348.912 395.25  Q 352.912 395.25 352.912 399.25  L 352.912 413.25  Q 352.912 417.25 348.912 417.25  L 256.912 417.25  Q 252.912 417.25 252.912 413.25  L 252.912 399.25  Q 252.912 395.25 256.912 395.25  z " clip-path="url(#p56b44930cf)" style="fill: #f4f7f8; stroke: #d8e0e5; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="edge-harbor-harbor_A_locations-1-0" data-record="edge-harbor-harbor_A_locations-1" role="button" tabindex="0">
+    <path d="M 74.999297 152.25  Q 156.455392 152.25 236.793453 152.25  " clip-path="url(#p56b44930cf)" style="fill: none; stroke: #14776e; stroke-linecap: round" />
+    <path d="M 233.193453 150.45  L 236.793453 152.25  L 233.193453 154.05  z " clip-path="url(#p56b44930cf)" style="fill: #14776e; stroke: #14776e; stroke-linecap: round" />
+   <title>supported: {"attitude": null, "evidence_ids": ["S5"], "holder": null, "object": "North Hall", "relation": "located_in", "subject": "Lena", "valid_from": 1, "valid_until": 5}. Citation link only. correct_complete_fact</title></g>
+   <g id="edge-harbor-harbor_A_locations-2-0" data-record="edge-harbor-harbor_A_locations-2" role="button" tabindex="0">
+    <path d="M 74.999297 200.25  Q 156.455392 200.25 236.793453 200.25  " clip-path="url(#p56b44930cf)" style="fill: none; stroke: #14776e; stroke-linecap: round" />
+    <path d="M 233.193453 198.45  L 236.793453 200.25  L 233.193453 202.05  z " clip-path="url(#p56b44930cf)" style="fill: #14776e; stroke: #14776e; stroke-linecap: round" />
+   <title>supported: {"attitude": null, "evidence_ids": ["S6"], "holder": null, "object": "East Garden", "relation": "located_in", "subject": "Omar", "valid_from": 0, "valid_until": 3}. Citation link only. correct_complete_fact</title></g>
+   <g id="edge-harbor-harbor_A_locations-3-0" data-record="edge-harbor-harbor_A_locations-3" role="button" tabindex="0">
+    <path d="M 74.999297 248.25  Q 156.455392 248.25 236.793453 248.25  " clip-path="url(#p56b44930cf)" style="fill: none; stroke: #14776e; stroke-linecap: round" />
+    <path d="M 233.193453 246.45  L 236.793453 248.25  L 233.193453 250.05  z " clip-path="url(#p56b44930cf)" style="fill: #14776e; stroke: #14776e; stroke-linecap: round" />
+   <title>supported: {"attitude": null, "evidence_ids": ["S7"], "holder": null, "object": "Stone Shed", "relation": "located_in", "subject": "Priya", "valid_from": 3, "valid_until": 6}. Citation link only. correct_complete_fact</title></g>
+   <g id="edge-harbor-harbor_A_locations-4-0" data-record="edge-harbor-harbor_A_locations-4" role="button" tabindex="0">
+    <path d="M 74.999297 296.25  Q 156.455392 296.25 236.793453 296.25  " clip-path="url(#p56b44930cf)" style="fill: none; stroke: #14776e; stroke-linecap: round" />
+    <path d="M 233.193453 294.45  L 236.793453 296.25  L 233.193453 298.05  z " clip-path="url(#p56b44930cf)" style="fill: #14776e; stroke: #14776e; stroke-linecap: round" />
+   <title>supported: {"attitude": null, "evidence_ids": ["S8"], "holder": null, "object": "West Pier", "relation": "located_in", "subject": "Silver Flute", "valid_from": 2, "valid_until": 4}. Citation link only. correct_complete_fact</title></g>
+   <g id="edge-harbor-harbor_B_locations-1-0" data-record="edge-harbor-harbor_B_locations-1" role="button" tabindex="0">
+    <path d="M 75.00075 370.25  Q 161.956513 370.25 247.794242 370.25  " clip-path="url(#p56b44930cf)" style="fill: none; stroke-dasharray: 7,3; stroke-dashoffset: 0; stroke: #606b79; stroke-linecap: round" />
+    <path d="M 244.194242 368.45  L 247.794242 370.25  L 244.194242 372.05  z " clip-path="url(#p56b44930cf)" style="fill: #606b79; stroke-dasharray: 7,3; stroke-dashoffset: 0; stroke: #606b79; stroke-linecap: round" />
+   <title>irrelevant: {"attitude": null, "evidence_ids": ["S3"], "holder": null, "object": "Cobalt Compass", "relation": "carries", "subject": "Priya", "valid_from": 0, "valid_until": 6}. Citation link only. supported_but_irrelevant</title></g>
+   <g id="edge-harbor-harbor_B_locations-2-0" data-record="edge-harbor-harbor_B_locations-2" role="button" tabindex="0">
+    <path d="M 75.00075 412.25  Q 161.956513 412.25 247.794242 412.25  " clip-path="url(#p56b44930cf)" style="fill: none; stroke-dasharray: 7,3; stroke-dashoffset: 0; stroke: #606b79; stroke-linecap: round" />
+    <path d="M 244.194242 410.45  L 247.794242 412.25  L 244.194242 414.05  z " clip-path="url(#p56b44930cf)" style="fill: #606b79; stroke-dasharray: 7,3; stroke-dashoffset: 0; stroke: #606b79; stroke-linecap: round" />
+   <title>irrelevant: {"attitude": null, "evidence_ids": ["S4"], "holder": null, "object": "Amber Lantern", "relation": "carries", "subject": "Lena", "valid_from": 1, "valid_until": 5}. Citation link only. supported_but_irrelevant</title></g>
+   <g id="line2d_1">
+    <path d="M 349.412 149.25  L 423.412 149.25  " clip-path="url(#p56b44930cf)" style="fill: none; stroke: #14776e; stroke-width: 2; stroke-linecap: square" />
+   </g>
+   <g id="line2d_2">
+    <defs>
+     <path id="mf66b20bd58" d="M 0 2  C 0.530406 2 1.03916 1.789267 1.414214 1.414214  C 1.789267 1.03916 2 0.530406 2 0  C 2 -0.530406 1.789267 -1.03916 1.414214 -1.414214  C 1.03916 -1.789267 0.530406 -2 0 -2  C -0.530406 -2 -1.03916 -1.789267 -1.414214 -1.414214  C -1.789267 -1.03916 -2 -0.530406 -2 0  C -2 0.530406 -1.789267 1.03916 -1.414214 1.414214  C -1.03916 1.789267 -0.530406 2 0 2  z " style="stroke: #14776e" />
+    </defs>
+    <g clip-path="url(#p56b44930cf)">
+     <use xlink:href="#mf66b20bd58" x="349.412" y="149.25" style="fill: #14776e; stroke: #14776e" />
+    </g>
+   </g>
+   <g id="line2d_3">
+    <defs>
+     <path id="m9352457db6" d="M 0 2  C 0.530406 2 1.03916 1.789267 1.414214 1.414214  C 1.789267 1.03916 2 0.530406 2 0  C 2 -0.530406 1.789267 -1.03916 1.414214 -1.414214  C 1.03916 -1.789267 0.530406 -2 0 -2  C -0.530406 -2 -1.03916 -1.789267 -1.414214 -1.414214  C -1.789267 -1.03916 -2 -0.530406 -2 0  C -2 0.530406 -1.789267 1.03916 -1.414214 1.414214  C -1.03916 1.789267 -0.530406 2 0 2  z " style="stroke: #14776e" />
+    </defs>
+    <g clip-path="url(#p56b44930cf)">
+     <use xlink:href="#m9352457db6" x="423.412" y="149.25" style="fill: #ffffff; stroke: #14776e" />
+    </g>
+   </g>
+   <g id="line2d_4">
+    <path d="M 330.912 197.25  L 386.412 197.25  " clip-path="url(#p56b44930cf)" style="fill: none; stroke: #14776e; stroke-width: 2; stroke-linecap: square" />
+   </g>
+   <g id="line2d_5">
+    <g clip-path="url(#p56b44930cf)">
+     <use xlink:href="#mf66b20bd58" x="330.912" y="197.25" style="fill: #14776e; stroke: #14776e" />
+    </g>
+   </g>
+   <g id="line2d_6">
+    <g clip-path="url(#p56b44930cf)">
+     <use xlink:href="#m9352457db6" x="386.412" y="197.25" style="fill: #ffffff; stroke: #14776e" />
+    </g>
+   </g>
+   <g id="line2d_7">
+    <path d="M 386.412 245.25  L 441.912 245.25  " clip-path="url(#p56b44930cf)" style="fill: none; stroke: #14776e; stroke-width: 2; stroke-linecap: square" />
+   </g>
+   <g id="line2d_8">
+    <g clip-path="url(#p56b44930cf)">
+     <use xlink:href="#mf66b20bd58" x="386.412" y="245.25" style="fill: #14776e; stroke: #14776e" />
+    </g>
+   </g>
+   <g id="line2d_9">
+    <g clip-path="url(#p56b44930cf)">
+     <use xlink:href="#m9352457db6" x="441.912" y="245.25" style="fill: #ffffff; stroke: #14776e" />
+    </g>
+   </g>
+   <g id="line2d_10">
+    <path d="M 367.912 293.25  L 404.912 293.25  " clip-path="url(#p56b44930cf)" style="fill: none; stroke: #14776e; stroke-width: 2; stroke-linecap: square" />
+   </g>
+   <g id="line2d_11">
+    <g clip-path="url(#p56b44930cf)">
+     <use xlink:href="#mf66b20bd58" x="367.912" y="293.25" style="fill: #14776e; stroke: #14776e" />
+    </g>
+   </g>
+   <g id="line2d_12">
+    <g clip-path="url(#p56b44930cf)">
+     <use xlink:href="#m9352457db6" x="404.912" y="293.25" style="fill: #ffffff; stroke: #14776e" />
+    </g>
+   </g>
+   <g id="text_1">
+    <text style="font-weight: 700; font-size: 10px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="5" y="11.124463" transform="rotate(-0 5 11.124463)">Harbor · full intervals, not clipped to the question</text>
+   </g>
+   <g id="text_2">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="5" y="29.057241" transform="rotate(-0 5 29.057241)">S5 Lena is in North Hall from day 1 up to but not including day 5.</text>
+   </g>
+   <g id="text_3">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="5" y="43.107241" transform="rotate(-0 5 43.107241)">S6 Omar is in East Garden from day 0 up to but not including day 3.</text>
+   </g>
+   <g id="text_4">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="5" y="57.157241" transform="rotate(-0 5 57.157241)">S7 Priya is in Stone Shed from day 3 up to but not including day 6.</text>
+   </g>
+   <g id="text_5">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="5" y="71.207241" transform="rotate(-0 5 71.207241)">S8 Silver Flute is in West Pier from day 2 up to but not including day 4.</text>
+   </g>
+   <g id="text_6">
+    <text style="font-weight: 700; font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="5" y="88.097825" transform="rotate(-0 5 88.097825)">Request: narrated locations overlapping [2,4), with full source intervals.</text>
+   </g>
+   <g id="text_7">
+    <text style="font-weight: 700; font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="5" y="107.147825" transform="rotate(-0 5 107.147825)">A and B: four identical location records, generated independently</text>
+   </g>
+   <g id="text_8">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="330.912" y="118.095483" transform="rotate(-0 330.912 118.095483)">0</text>
+   </g>
+   <g id="text_9">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="349.412" y="118.145288" transform="rotate(-0 349.412 118.145288)">1</text>
+   </g>
+   <g id="text_10">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="367.912" y="118.145288" transform="rotate(-0 367.912 118.145288)">2</text>
+   </g>
+   <g id="text_11">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="386.412" y="118.095483" transform="rotate(-0 386.412 118.095483)">3</text>
+   </g>
+   <g id="text_12">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="404.912" y="118.145288" transform="rotate(-0 404.912 118.145288)">4</text>
+   </g>
+   <g id="text_13">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="423.412" y="118.03771" transform="rotate(-0 423.412 118.03771)">5</text>
+   </g>
+   <g id="text_14">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="441.912" y="118.095483" transform="rotate(-0 441.912 118.095483)">6</text>
+   </g>
+   <g id="text_15">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="38" y="148.529077" transform="rotate(-0 38 148.529077)">Lena</text>
+   </g>
+   <g id="text_16">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="277.912" y="148.665874" transform="rotate(-0 277.912 148.665874)">North Hall</text>
+   </g>
+   <g id="edge-harbor-harbor_A_locations-1-1" data-record="edge-harbor-harbor_A_locations-1" role="button" tabindex="0">
+    <g id="patch_15">
+     <path d="M 135.932484 140.721436  L 176.979516 140.721436  L 176.979516 129.825  L 135.932484 129.825  z " style="fill: #ffffff" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #14776e" x="156.456" y="138.165874" transform="rotate(-0 156.456 138.165874)">+ located in</text>
+   <title>supported: {"attitude": null, "evidence_ids": ["S5"], "holder": null, "object": "North Hall", "relation": "located_in", "subject": "Lena", "valid_from": 1, "valid_until": 5}. Citation link only. correct_complete_fact</title></g>
+   <g id="edge-harbor-harbor_A_locations-1-2" data-record="edge-harbor-harbor_A_locations-1" role="button" tabindex="0">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #14776e" x="156.456" y="163.086851" transform="rotate(-0 156.456 163.086851)">S5</text>
+   <title>supported: {"attitude": null, "evidence_ids": ["S5"], "holder": null, "object": "North Hall", "relation": "located_in", "subject": "Lena", "valid_from": 1, "valid_until": 5}. Citation link only. correct_complete_fact</title></g>
+   <g id="text_17">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="386.412" y="141.31521" transform="rotate(-0 386.412 141.31521)">[1,5)</text>
+   </g>
+   <g id="text_18">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="38" y="196.586851" transform="rotate(-0 38 196.586851)">Omar</text>
+   </g>
+   <g id="text_19">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="277.912" y="196.659897" transform="rotate(-0 277.912 196.659897)">East Garden</text>
+   </g>
+   <g id="edge-harbor-harbor_A_locations-2-1" data-record="edge-harbor-harbor_A_locations-2" role="button" tabindex="0">
+    <g id="patch_16">
+     <path d="M 135.932484 188.721436  L 176.979516 188.721436  L 176.979516 177.825  L 135.932484 177.825  z " style="fill: #ffffff" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #14776e" x="156.456" y="186.165874" transform="rotate(-0 156.456 186.165874)">+ located in</text>
+   <title>supported: {"attitude": null, "evidence_ids": ["S6"], "holder": null, "object": "East Garden", "relation": "located_in", "subject": "Omar", "valid_from": 0, "valid_until": 3}. Citation link only. correct_complete_fact</title></g>
+   <g id="edge-harbor-harbor_A_locations-2-2" data-record="edge-harbor-harbor_A_locations-2" role="button" tabindex="0">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #14776e" x="156.456" y="211.086851" transform="rotate(-0 156.456 211.086851)">S6</text>
+   <title>supported: {"attitude": null, "evidence_ids": ["S6"], "holder": null, "object": "East Garden", "relation": "located_in", "subject": "Omar", "valid_from": 0, "valid_until": 3}. Citation link only. correct_complete_fact</title></g>
+   <g id="text_20">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="358.662" y="189.31521" transform="rotate(-0 358.662 189.31521)">[0,3)</text>
+   </g>
+   <g id="text_21">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="38" y="243.807241" transform="rotate(-0 38 243.807241)">Priya</text>
+   </g>
+   <g id="text_22">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="277.912" y="244.659897" transform="rotate(-0 277.912 244.659897)">Stone Shed</text>
+   </g>
+   <g id="edge-harbor-harbor_A_locations-3-1" data-record="edge-harbor-harbor_A_locations-3" role="button" tabindex="0">
+    <g id="patch_17">
+     <path d="M 135.932484 236.721436  L 176.979516 236.721436  L 176.979516 225.825  L 135.932484 225.825  z " style="fill: #ffffff" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #14776e" x="156.456" y="234.165874" transform="rotate(-0 156.456 234.165874)">+ located in</text>
+   <title>supported: {"attitude": null, "evidence_ids": ["S7"], "holder": null, "object": "Stone Shed", "relation": "located_in", "subject": "Priya", "valid_from": 3, "valid_until": 6}. Citation link only. correct_complete_fact</title></g>
+   <g id="edge-harbor-harbor_A_locations-3-2" data-record="edge-harbor-harbor_A_locations-3" role="button" tabindex="0">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #14776e" x="156.456" y="259.086851" transform="rotate(-0 156.456 259.086851)">S7</text>
+   <title>supported: {"attitude": null, "evidence_ids": ["S7"], "holder": null, "object": "Stone Shed", "relation": "located_in", "subject": "Priya", "valid_from": 3, "valid_until": 6}. Citation link only. correct_complete_fact</title></g>
+   <g id="text_23">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="414.162" y="237.31521" transform="rotate(-0 414.162 237.31521)">[3,6)</text>
+   </g>
+   <g id="text_24">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="38" y="292.659897" transform="rotate(-0 38 292.659897)">Silver Flute</text>
+   </g>
+   <g id="text_25">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="277.912" y="292.659897" transform="rotate(-0 277.912 292.659897)">West Pier</text>
+   </g>
+   <g id="edge-harbor-harbor_A_locations-4-1" data-record="edge-harbor-harbor_A_locations-4" role="button" tabindex="0">
+    <g id="patch_18">
+     <path d="M 135.932484 284.721436  L 176.979516 284.721436  L 176.979516 273.825  L 135.932484 273.825  z " style="fill: #ffffff" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #14776e" x="156.456" y="282.165874" transform="rotate(-0 156.456 282.165874)">+ located in</text>
+   <title>supported: {"attitude": null, "evidence_ids": ["S8"], "holder": null, "object": "West Pier", "relation": "located_in", "subject": "Silver Flute", "valid_from": 2, "valid_until": 4}. Citation link only. correct_complete_fact</title></g>
+   <g id="edge-harbor-harbor_A_locations-4-2" data-record="edge-harbor-harbor_A_locations-4" role="button" tabindex="0">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #14776e" x="156.456" y="307.086851" transform="rotate(-0 156.456 307.086851)">S8</text>
+   <title>supported: {"attitude": null, "evidence_ids": ["S8"], "holder": null, "object": "West Pier", "relation": "located_in", "subject": "Silver Flute", "valid_from": 2, "valid_until": 4}. Citation link only. correct_complete_fact</title></g>
+   <g id="text_26">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="386.412" y="285.31521" transform="rotate(-0 386.412 285.31521)">[2,4)</text>
+   </g>
+   <g id="text_27">
+    <text style="font-weight: 700; font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="5" y="332.147825" transform="rotate(-0 5 332.147825)">B also returns two irrelevant carrying records (both still scored)</text>
+   </g>
+   <g id="text_28">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="38" y="365.807241" transform="rotate(-0 38 365.807241)">Priya</text>
+   </g>
+   <g id="text_29">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="302.912" y="365.81521" transform="rotate(-0 302.912 365.81521)">Cobalt Compass</text>
+   </g>
+   <g id="edge-harbor-harbor_B_locations-1-1" data-record="edge-harbor-harbor_B_locations-1" role="button" tabindex="0">
+    <g id="patch_19">
+     <path d="M 147.728461 358.721436  L 176.183539 358.721436  L 176.183539 347.825  L 147.728461 347.825  z " style="fill: #ffffff" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #606b79" x="161.956" y="356.165874" transform="rotate(-0 161.956 356.165874)">I carries</text>
+   <title>irrelevant: {"attitude": null, "evidence_ids": ["S3"], "holder": null, "object": "Cobalt Compass", "relation": "carries", "subject": "Priya", "valid_from": 0, "valid_until": 6}. Citation link only. supported_but_irrelevant</title></g>
+   <g id="edge-harbor-harbor_B_locations-1-2" data-record="edge-harbor-harbor_B_locations-1" role="button" tabindex="0">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #606b79" x="161.956" y="381.086851" transform="rotate(-0 161.956 381.086851)">S3</text>
+   <title>irrelevant: {"attitude": null, "evidence_ids": ["S3"], "holder": null, "object": "Cobalt Compass", "relation": "carries", "subject": "Priya", "valid_from": 0, "valid_until": 6}. Citation link only. supported_but_irrelevant</title></g>
+   <g id="text_30">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="364.912" y="369.31521" transform="rotate(-0 364.912 369.31521)">[0,6)</text>
+   </g>
+   <g id="text_31">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="38" y="408.529077" transform="rotate(-0 38 408.529077)">Lena</text>
+   </g>
+   <g id="text_32">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="302.912" y="408.665874" transform="rotate(-0 302.912 408.665874)">Amber Lantern</text>
+   </g>
+   <g id="edge-harbor-harbor_B_locations-2-1" data-record="edge-harbor-harbor_B_locations-2" role="button" tabindex="0">
+    <g id="patch_20">
+     <path d="M 147.728461 400.721436  L 176.183539 400.721436  L 176.183539 389.825  L 147.728461 389.825  z " style="fill: #ffffff" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #606b79" x="161.956" y="398.165874" transform="rotate(-0 161.956 398.165874)">I carries</text>
+   <title>irrelevant: {"attitude": null, "evidence_ids": ["S4"], "holder": null, "object": "Amber Lantern", "relation": "carries", "subject": "Lena", "valid_from": 1, "valid_until": 5}. Citation link only. supported_but_irrelevant</title></g>
+   <g id="edge-harbor-harbor_B_locations-2-2" data-record="edge-harbor-harbor_B_locations-2" role="button" tabindex="0">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #606b79" x="161.956" y="423.086851" transform="rotate(-0 161.956 423.086851)">S4</text>
+   <title>irrelevant: {"attitude": null, "evidence_ids": ["S4"], "holder": null, "object": "Amber Lantern", "relation": "carries", "subject": "Lena", "valid_from": 1, "valid_until": 5}. Citation link only. supported_but_irrelevant</title></g>
+   <g id="text_33">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="364.912" y="411.31521" transform="rotate(-0 364.912 411.31521)">[1,5)</text>
+   </g>
+   <g id="text_34">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="5" y="439.307241" transform="rotate(-0 5 439.307241)">+ supported I irrelevant; all holder/attitude values null. Shading = query window; filled start / open end = source validity.</text>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p56b44930cf">
+   <rect x="0" y="0" width="447.912" height="450.3" />
+  </clipPath>
+ </defs>
+<metadata>Conference figure. Searchable Times New Roman text requires the local font. No font software is redistributed in this SVG. PDF embeds document subsets.</metadata></svg>

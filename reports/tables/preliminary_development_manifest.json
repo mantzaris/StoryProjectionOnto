@@ -1,0 +1,11 @@
+{
+  "files": {
+    "PRELIMINARY_DEVELOPMENT_RESULTS.md": "036af2c1f2117ac18b1fdd4c73555046a5a49dd7d3525490f8837e8fd5ac040d",
+    "figures/preliminary_development_comparison.html": "9fb2078443fc6df0a12075302e84bbc584a2a4056d566d54c0f06fc2cf4b568f",
+    "tables/preliminary_development_graphs.json": "f3e1eb32e9c58552cc0898d69b836026f2fab6c76dbc3cea271cc8f433006a55",
+    "tables/preliminary_development_results.csv": "f1a09a59dac50bd8e1cde9daaee6bb2652a732ee6b1e3f98440d41159566208b",
+    "tables/preliminary_development_results.json": "8c190b413b25eb770440012f672d50cd4c3f602f07326c65b8005dbf5a770bbc"
+  },
+  "input_terminal_sha256": "416cdcda31d10cbf12239b6350d8b22cdb31338a2d8f05b09a6bccc944238782",
+  "run_id": "run-20260908T212351589288"
+}

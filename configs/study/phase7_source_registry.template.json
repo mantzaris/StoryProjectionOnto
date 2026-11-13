@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0.0",
+  "registry_id": "phase7-input-template-not-a-study-result",
+  "compiled_at_utc": "2026-09-04T00:00:00Z",
+  "study_id": "query-dependent-temporal-ontology-conference-study",
+  "status_reason": "TEMPLATE ONLY: no predecessor result artifacts are registered; no scientific result can be compiled.",
+  "code_revision": "0000000000000000000000000000000000000000",
+  "dirty_worktree": true,
+  "model_repository": null,
+  "model_revision": null,
+  "predecessors": [
+    {"family": "fallback", "status": "incomplete", "reason": "TEMPLATE ONLY: fallback gate not registered.", "artifacts": []},
+    {"family": "development", "status": "incomplete", "reason": "TEMPLATE ONLY: development artifacts not registered.", "artifacts": []},
+    {"family": "heldout", "status": "incomplete", "reason": "TEMPLATE ONLY: held-out artifacts not registered.", "artifacts": []},
+    {"family": "ablations", "status": "incomplete", "reason": "TEMPLATE ONLY: ablation artifacts not registered.", "artifacts": []},
+    {"family": "feedback", "status": "incomplete", "reason": "TEMPLATE ONLY: feedback artifacts not registered.", "artifacts": []},
+    {"family": "case_study", "status": "blocked", "reason": "TEMPLATE ONLY: lawful narrative study artifact not registered.", "artifacts": []},
+    {"family": "runtime", "status": "incomplete", "reason": "TEMPLATE ONLY: final runtime artifact not registered.", "artifacts": []},
+    {"family": "storage", "status": "incomplete", "reason": "TEMPLATE ONLY: final storage artifact not registered.", "artifacts": []}
+  ],
+  "phases": [
+    {"phase_id": "phase_1", "status": "incomplete", "reason": "TEMPLATE ONLY: phase not registered.", "source_artifact_ids": []},
+    {"phase_id": "phase_2", "status": "incomplete", "reason": "TEMPLATE ONLY: phase not registered.", "source_artifact_ids": []},
+    {"phase_id": "phase_3", "status": "incomplete", "reason": "TEMPLATE ONLY: phase not registered.", "source_artifact_ids": []},
+    {"phase_id": "phase_4", "status": "incomplete", "reason": "TEMPLATE ONLY: phase not registered.", "source_artifact_ids": []},
+    {"phase_id": "phase_5", "status": "incomplete", "reason": "TEMPLATE ONLY: phase not registered.", "source_artifact_ids": []},
+    {"phase_id": "phase_6", "status": "blocked", "reason": "TEMPLATE ONLY: lawful narrative study artifact not registered.", "source_artifact_ids": []},
+    {"phase_id": "phase_7", "status": "incomplete", "reason": "TEMPLATE ONLY: final report inputs not registered.", "source_artifact_ids": []}
+  ],
+  "tables": [
+    {"table_id": "study_status", "status": "complete", "reason": "Exact template phase states; not a study outcome.", "scope": "interim", "source_artifact_ids": [], "source_table_artifact_id": null, "source_row_count": null, "output_row_count": null, "row_filters": []},
+    {"table_id": "primary_c2_vs_c1", "status": "incomplete", "reason": "TEMPLATE ONLY: primary analysis is absent.", "scope": "final", "source_artifact_ids": [], "source_table_artifact_id": null, "source_row_count": null, "output_row_count": null, "row_filters": []},
+    {"table_id": "secondary_c2_vs_c0", "status": "incomplete", "reason": "TEMPLATE ONLY: secondary analysis is absent.", "scope": "final", "source_artifact_ids": [], "source_table_artifact_id": null, "source_row_count": null, "output_row_count": null, "row_filters": []},
+    {"table_id": "mechanism_c2_vs_fixed", "status": "incomplete", "reason": "TEMPLATE ONLY: mechanism analysis is absent.", "scope": "final", "source_artifact_ids": [], "source_table_artifact_id": null, "source_row_count": null, "output_row_count": null, "row_filters": []},
+    {"table_id": "rare_pivotal", "status": "incomplete", "reason": "TEMPLATE ONLY: rare-pivotal analysis is absent.", "scope": "final", "source_artifact_ids": [], "source_table_artifact_id": null, "source_row_count": null, "output_row_count": null, "row_filters": []},
+    {"table_id": "entropy_clutter", "status": "incomplete", "reason": "TEMPLATE ONLY: entropy/clutter analysis is absent.", "scope": "final", "source_artifact_ids": [], "source_table_artifact_id": null, "source_row_count": null, "output_row_count": null, "row_filters": []},
+    {"table_id": "community", "status": "incomplete", "reason": "TEMPLATE ONLY: community analysis is absent.", "scope": "final", "source_artifact_ids": [], "source_table_artifact_id": null, "source_row_count": null, "output_row_count": null, "row_filters": []},
+    {"table_id": "paraphrase_contrastive", "status": "incomplete", "reason": "TEMPLATE ONLY: paraphrase/contrastive analysis is absent.", "scope": "final", "source_artifact_ids": [], "source_table_artifact_id": null, "source_row_count": null, "output_row_count": null, "row_filters": []},
+    {"table_id": "ablations", "status": "incomplete", "reason": "TEMPLATE ONLY: reduced ablation analysis is absent.", "scope": "final", "source_artifact_ids": [], "source_table_artifact_id": null, "source_row_count": null, "output_row_count": null, "row_filters": []},
+    {"table_id": "feedback", "status": "incomplete", "reason": "TEMPLATE ONLY: feedback analysis is absent.", "scope": "final", "source_artifact_ids": [], "source_table_artifact_id": null, "source_row_count": null, "output_row_count": null, "row_filters": []},
+    {"table_id": "novel_case", "status": "blocked", "reason": "TEMPLATE ONLY: lawful narrative results are absent.", "scope": "final", "source_artifact_ids": [], "source_table_artifact_id": null, "source_row_count": null, "output_row_count": null, "row_filters": []},
+    {"table_id": "failure_accounting", "status": "incomplete", "reason": "TEMPLATE ONLY: final failure accounting is absent.", "scope": "final", "source_artifact_ids": [], "source_table_artifact_id": null, "source_row_count": null, "output_row_count": null, "row_filters": []},
+    {"table_id": "resource_accounting", "status": "incomplete", "reason": "TEMPLATE ONLY: final resource accounting is absent.", "scope": "final", "source_artifact_ids": [], "source_table_artifact_id": null, "source_row_count": null, "output_row_count": null, "row_filters": []},
+    {"table_id": "qualitative_examples", "status": "incomplete", "reason": "TEMPLATE ONLY: frozen-rule candidate set is absent.", "scope": "final", "source_artifact_ids": [], "source_table_artifact_id": null, "source_row_count": null, "output_row_count": null, "row_filters": []}
+  ],
+  "qualitative_candidate_set_artifact_id": null,
+  "public_artifact_ids": [],
+  "manifest_sha256": "d3cc2279cde9086b410f1601b0faae8e57ffc4dff189870b3de0c5be52ca99e6"
+}

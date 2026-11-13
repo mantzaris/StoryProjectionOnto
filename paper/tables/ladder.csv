@@ -1,0 +1,9 @@
+case_id,complete,f1,finish_reason,input_tokens,json_parseable,level,output_allowance,output_tokens,precision,predicted,recall,reference_count,request_seconds,true_positive
+1,True,1.0,stop,108,True,direct,384,94,1.0,3,1.0,3,2.745414980687201,3
+2,True,1.0,stop,109,True,direct,384,92,1.0,3,1.0,3,1.914726939983666,3
+3,True,1.0,stop,121,True,selection,384,62,1.0,2,1.0,2,1.81387007702142,2
+4,True,1.0,stop,122,True,selection,384,63,1.0,2,1.0,2,1.6986475884914398,2
+5,True,1.0,stop,164,True,temporal,512,88,1.0,2,1.0,2,2.1638763044029474,2
+6,True,0.0,stop,152,True,epistemic,512,69,0.0,2,0.0,2,1.9063770323991776,0
+7,True,0.0,stop,283,True,ontology_contrast,1024,204,0.0,4,0.0,4,4.2032150169834495,0
+8,True,0.5,stop,285,True,ontology_contrast,1024,176,0.5,4,0.5,4,3.588080083951354,2

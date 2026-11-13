@@ -1,0 +1,13 @@
+after_syntax_recovery,approach,citations_valid,complete,contradicted,executed,finish,format_compliant,metric_status,partially_supported,predictions,qualification_errors,references,relationship_f1,relationship_precision,relationship_recall,semantic_coverage,semantic_targets_covered,semantically_supported,source_call,source_input_tokens,source_output_tokens,source_request_seconds,story,strict_json,strict_qualified_f1,strict_qualified_precision,strict_qualified_recall,supported_irrelevant,syntax_recovered,task,unresolved,unsupported
+True,A pre-extract/select,2,True,0,True,stop,2,scored,0,2,0,5,0.28571428571428575,0.5,0.2,0.6,3,2,2,701,381,7.268172011710703,alice,True,0.28571428571428575,0.5,0.2,0,False,actions,0,0
+True,B contextual,5,True,0,True,stop,5,scored,1,5,0,5,0.4000000000000001,0.4,0.4,0.6,3,3,6,711,208,3.8374315928667784,alice,True,0.4000000000000001,0.4,0.4,0,False,actions,0,1
+True,A pre-extract/select,4,True,0,True,stop,4,scored,2,4,0,4,0,0.0,0.0,0.25,1,2,2,701,381,7.268172011710703,alice,True,0,0.0,0.0,0,False,claims,0,0
+True,B contextual,3,True,0,True,stop,2,scored,0,3,1,4,0,0.0,0.0,0.75,3,2,7,726,148,3.673451028764248,alice,True,0,0.0,0.0,0,False,claims,1,0
+True,A pre-extract/select,8,True,0,True,stop,7,scored,1,8,1,8,0.625,0.625,0.625,0.75,6,6,1,747,554,10.233250940218568,fable,True,0.625,0.625,0.625,0,False,actions,1,0
+True,B contextual,5,True,0,True,stop,5,scored,1,5,0,8,0.3076923076923077,0.4,0.25,0.5,4,4,4,761,209,3.8829634031280875,fable,True,0.3076923076923077,0.4,0.25,0,False,actions,0,0
+True,A pre-extract/select,1,True,0,True,stop,1,scored,0,1,0,5,0,0.0,0.0,0.4,2,1,1,747,554,10.233250940218568,fable,True,0,0.0,0.0,0,False,claims,0,0
+True,B contextual,4,True,0,True,stop,4,scored,3,4,2,5,0,0.0,0.0,0.0,0,1,5,767,170,3.4285581819713116,fable,True,0,0.0,0.0,0,False,claims,0,0
+False,A pre-extract/select,0,True,0,True,stop,0,unavailable_parse_failure,0,,0,6,,,,,,0,3,785,651,12.695497162640095,holmes,False,,,,0,False,actions,0,0
+False,B contextual,0,True,0,True,stop,0,unavailable_parse_failure,0,,0,6,,,,,,0,8,793,467,8.778309401124716,holmes,False,,,,0,False,actions,0,0
+False,A pre-extract/select,0,True,0,True,stop,0,unavailable_parse_failure,0,,0,5,,,,,,0,3,785,651,12.695497162640095,holmes,False,,,,0,False,claims,0,0
+True,B contextual,3,True,0,True,stop,3,scored,1,3,2,5,0,0.0,0.0,0.0,0,0,9,811,139,3.441626865416765,holmes,True,0,0.0,0.0,0,False,claims,2,0

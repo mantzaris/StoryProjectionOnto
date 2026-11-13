@@ -1,0 +1,328 @@
+{
+  "$defs": {
+    "FallbackV8LeaseRepairAccessControl": {
+      "additionalProperties": false,
+      "description": "The already-audited ordinary/FUSE protection proof under a V8 name.",
+      "properties": {
+        "chmod_0600_noop_verified": {
+          "title": "Chmod 0600 Noop Verified",
+          "type": "boolean"
+        },
+        "fixed_mode_fuse_verified": {
+          "title": "Fixed Mode Fuse Verified",
+          "type": "boolean"
+        },
+        "mechanism": {
+          "enum": [
+            "posix_mode_0600",
+            "root_owned_fixed_mode_mfs_fuse_0666"
+          ],
+          "title": "Mechanism",
+          "type": "string"
+        },
+        "mount_identity_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Mount Identity Sha256"
+        },
+        "observed_file_mode": {
+          "enum": [
+            "0600",
+            "0666"
+          ],
+          "title": "Observed File Mode",
+          "type": "string"
+        },
+        "posix_mode_0600_verified": {
+          "title": "Posix Mode 0600 Verified",
+          "type": "boolean"
+        },
+        "protected_file_count": {
+          "const": 3,
+          "title": "Protected File Count",
+          "type": "integer"
+        },
+        "root_effective_user_verified": {
+          "title": "Root Effective User Verified",
+          "type": "boolean"
+        },
+        "root_ownership_verified": {
+          "title": "Root Ownership Verified",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "mechanism",
+        "protected_file_count",
+        "observed_file_mode",
+        "posix_mode_0600_verified",
+        "fixed_mode_fuse_verified",
+        "root_effective_user_verified",
+        "root_ownership_verified",
+        "chmod_0600_noop_verified",
+        "mount_identity_sha256"
+      ],
+      "title": "FallbackV8LeaseRepairAccessControl",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Restricted, self-hashed proof of the exact V8 lease-only transition.",
+  "properties": {
+    "access_control": {
+      "$ref": "#/$defs/FallbackV8LeaseRepairAccessControl"
+    },
+    "accounting_rows_added": {
+      "const": 0,
+      "title": "Accounting Rows Added",
+      "type": "integer"
+    },
+    "classified_event_microseconds": {
+      "const": 227686586,
+      "title": "Classified Event Microseconds",
+      "type": "integer"
+    },
+    "configuration_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Configuration Hash",
+      "type": "string"
+    },
+    "configuration_manifest_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Configuration Manifest Sha256",
+      "type": "string"
+    },
+    "damaged_lease_file_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Damaged Lease File Sha256",
+      "type": "string"
+    },
+    "damaged_lease_manifest_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Damaged Lease Manifest Sha256",
+      "type": "string"
+    },
+    "gpu_events_added": {
+      "const": 0,
+      "title": "Gpu Events Added",
+      "type": "integer"
+    },
+    "inference_attempts_added": {
+      "const": 0,
+      "title": "Inference Attempts Added",
+      "type": "integer"
+    },
+    "inference_calls_added": {
+      "const": 0,
+      "title": "Inference Calls Added",
+      "type": "integer"
+    },
+    "kind": {
+      "const": "fallback_v8_terminal_lease_repair_receipt",
+      "title": "Kind",
+      "type": "string"
+    },
+    "ledger_bytes_unchanged": {
+      "const": true,
+      "title": "Ledger Bytes Unchanged",
+      "type": "boolean"
+    },
+    "ledger_file_sha256_after": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Ledger File Sha256 After",
+      "type": "string"
+    },
+    "ledger_file_sha256_before": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Ledger File Sha256 Before",
+      "type": "string"
+    },
+    "ledger_size_bytes": {
+      "exclusiveMinimum": 0,
+      "title": "Ledger Size Bytes",
+      "type": "integer"
+    },
+    "manifest_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Manifest Sha256",
+      "type": "string"
+    },
+    "model_repository": {
+      "const": "Qwen/Qwen3-8B-AWQ",
+      "title": "Model Repository",
+      "type": "string"
+    },
+    "model_revision": {
+      "const": "4da05a8edb55c6046cce958586c33b61da07bb79",
+      "title": "Model Revision",
+      "type": "string"
+    },
+    "overhead_microseconds": {
+      "const": 845730152,
+      "title": "Overhead Microseconds",
+      "type": "integer"
+    },
+    "process_identity_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Process Identity Sha256",
+      "type": "string"
+    },
+    "repaired_at": {
+      "format": "date-time",
+      "title": "Repaired At",
+      "type": "string"
+    },
+    "restored_lease_file_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Restored Lease File Sha256",
+      "type": "string"
+    },
+    "restored_lease_manifest_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Restored Lease Manifest Sha256",
+      "type": "string"
+    },
+    "restored_lease_state": {
+      "const": "stopped_verified",
+      "title": "Restored Lease State",
+      "type": "string"
+    },
+    "run_id": {
+      "const": "fallback-qwen3-8b-awq-development-v8",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1.0.0",
+      "default": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "served_model_name": {
+      "const": "qwen3-8b-awq-fallback",
+      "title": "Served Model Name",
+      "type": "string"
+    },
+    "service_event_id": {
+      "const": "fallback-qwen3-8b-awq-development-v8-service-start-001",
+      "title": "Service Event Id",
+      "type": "string"
+    },
+    "service_microseconds": {
+      "const": 1073416738,
+      "title": "Service Microseconds",
+      "type": "integer"
+    },
+    "service_session_id": {
+      "const": "fallback-qwen3-8b-awq-development-v8",
+      "title": "Service Session Id",
+      "type": "string"
+    },
+    "source_incident_file_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Source Incident File Sha256",
+      "type": "string"
+    },
+    "source_incident_kind": {
+      "const": "fallback_gpu_acceptance_v8_runtime_incident",
+      "title": "Source Incident Kind",
+      "type": "string"
+    },
+    "source_incident_manifest_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Source Incident Manifest Sha256",
+      "type": "string"
+    },
+    "stop_intent_file_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Stop Intent File Sha256",
+      "type": "string"
+    },
+    "stop_intent_manifest_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Stop Intent Manifest Sha256",
+      "type": "string"
+    },
+    "terminal_allocated_microseconds": {
+      "const": 2581267703,
+      "title": "Terminal Allocated Microseconds",
+      "type": "integer"
+    },
+    "terminal_gpu_compute_absence_revalidated": {
+      "const": true,
+      "title": "Terminal Gpu Compute Absence Revalidated",
+      "type": "boolean"
+    },
+    "terminal_process_absence_revalidated": {
+      "const": true,
+      "title": "Terminal Process Absence Revalidated",
+      "type": "boolean"
+    },
+    "terminal_service_record_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Terminal Service Record Sha256",
+      "type": "string"
+    },
+    "verified_snapshot_manifest_file_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Verified Snapshot Manifest File Sha256",
+      "type": "string"
+    },
+    "verified_snapshot_manifest_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Verified Snapshot Manifest Sha256",
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "run_id",
+    "source_incident_kind",
+    "source_incident_manifest_sha256",
+    "source_incident_file_sha256",
+    "stop_intent_manifest_sha256",
+    "stop_intent_file_sha256",
+    "model_repository",
+    "model_revision",
+    "served_model_name",
+    "verified_snapshot_manifest_sha256",
+    "verified_snapshot_manifest_file_sha256",
+    "configuration_hash",
+    "configuration_manifest_sha256",
+    "access_control",
+    "service_session_id",
+    "service_event_id",
+    "process_identity_sha256",
+    "terminal_service_record_sha256",
+    "service_microseconds",
+    "classified_event_microseconds",
+    "overhead_microseconds",
+    "terminal_allocated_microseconds",
+    "ledger_size_bytes",
+    "ledger_file_sha256_before",
+    "ledger_file_sha256_after",
+    "ledger_bytes_unchanged",
+    "gpu_events_added",
+    "accounting_rows_added",
+    "inference_attempts_added",
+    "inference_calls_added",
+    "damaged_lease_manifest_sha256",
+    "damaged_lease_file_sha256",
+    "restored_lease_manifest_sha256",
+    "restored_lease_file_sha256",
+    "restored_lease_state",
+    "terminal_process_absence_revalidated",
+    "terminal_gpu_compute_absence_revalidated",
+    "repaired_at",
+    "manifest_sha256"
+  ],
+  "title": "FallbackV8LeaseRepairReceipt",
+  "type": "object"
+}

@@ -1,0 +1,9 @@
+case_id,citation_valid,cohort,complete_correct,conditional_format_unresolved,f1,finish_reason,format_compliant,input_tokens,original_case,output_allowance,output_tokens,parseable,precision,predictions,recall,reference_count,request_seconds,shape_compliant,task,underlying_correct,underlying_f1,underlying_precision,underlying_recall
+1,3,regression,3,0,1.0,stop,3,262,1,384,73,True,1.0,3,1.0,3,2.6100895991548896,3,direct,3,1.0,1.0,1.0
+2,2,regression,2,0,1.0,stop,2,278,5,512,68,True,1.0,2,1.0,2,1.8040885096415877,2,temporal,2,1.0,1.0,1.0
+3,2,original-revised,2,0,1.0,stop,2,269,6,512,57,True,1.0,2,1.0,2,1.7494779024273157,2,epistemic,2,1.0,1.0,1.0
+4,2,fresh,2,0,1.0,stop,2,271,,512,60,True,1.0,2,1.0,2,1.655859287828207,2,epistemic,2,1.0,1.0,1.0
+5,4,original-revised,0,2,0.0,stop,0,377,7,1024,167,True,0.0,4,0.0,4,3.1795816170051694,4,office-person,2,0.5,0.5,0.5
+6,4,original-revised,0,2,0.0,stop,0,379,8,1024,179,True,0.0,4,0.0,4,3.6932344883680344,2,office-continuity,0,0.0,0.0,0.0
+7,4,fresh,2,0,0.5,stop,2,378,,1024,242,True,0.5,4,0.5,4,4.403235085308552,4,office-person,4,1.0,1.0,1.0
+8,4,fresh,2,0,0.5,stop,2,380,,1024,151,True,0.5,4,0.5,4,3.355600142851472,2,office-continuity,2,0.5,0.5,0.5

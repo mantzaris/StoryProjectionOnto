@@ -1,0 +1,36 @@
+{
+  "acceptance_plan": {
+    "file": "phase1_acceptance_plan.json",
+    "file_sha256": "2ff4aabc1b1a4c0e10af4c3ddeeda604afbf8d6067934371455ad77885d03839",
+    "manifest_sha256": "e9039835cadf28f33220c5590e01e529b63b777c8e8c1bad27f36f9a39822a8a"
+  },
+  "branch": "implementation/query-dependent-temporal-ontology",
+  "byte_identity_checks": [
+    "A local-to-RunPod rsync checksum dry run over the exact source-manifest allowlist reported no file-content changes.",
+    "An independent local reconstruction matched all 140 file entries and the source-tree hash."
+  ],
+  "git_commit": "cc574d955a2710ed964cf37936186c571680f5a6",
+  "kind": "local_remote_source_tree_association",
+  "local_manifest": "source_tree_phase1_pilot_v2.local.json",
+  "local_manifest_file_sha256": "f606e4b80aed4a36c30470ee970b6bb0b452c98ee08bacc95315bab06fe92956",
+  "local_tree_sha256": "fc0b0743a003c20ab3b39f6344541dcd6464323ec06d86548b0c727ee70c5f8e",
+  "manifest_sha256": "9f511376794473bde8d6dec7ee29d59cce2a9b8f29fa41f1018b89773beab29e",
+  "recorded_at": "2026-09-04T02:14:22Z",
+  "remote_manifest": "source_tree_phase1_pilot_v2.remote.json",
+  "remote_manifest_file_sha256": "f606e4b80aed4a36c30470ee970b6bb0b452c98ee08bacc95315bab06fe92956",
+  "remote_tree_sha256": "fc0b0743a003c20ab3b39f6344541dcd6464323ec06d86548b0c727ee70c5f8e",
+  "revision_label": "cc574d9+phase4-working-tree-v2-launch",
+  "schema_version": "1.0.0",
+  "synthetic_benchmark_manifest_sha256": "bcee17afb0b8011f95bdeb455880cc7343161462bcb4b4cf5629942f2eab6e0c",
+  "v1_incident": {
+    "file": "phase1_gpu_acceptance_v1_incident.json",
+    "file_sha256": "9cf4bd184c72d06afe8dec73f8faa25e996ca89c67d057e69badd07fc2b2b744",
+    "manifest_sha256": "259e11c74fd0b6d9fd6c1e01af39ffdbeaede5f0a1b819611f10b5e111b8cc40"
+  },
+  "validation": {
+    "phase1_cpu_tests": "186 passed in 36.99s",
+    "ruff": "All checks passed",
+    "tokenizer_snapshot_enabled": true
+  },
+  "working_tree_note": "Uncommitted Phase-4 metric modules are included in the content hash but are not imported by the Phase-1 runner."
+}

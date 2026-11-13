@@ -1,0 +1,6041 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import signal
+import subprocess
+import sys
+import threading
+import time
+from collections.abc import Callable
+from contextlib import suppress
+from dataclasses import dataclass, field, replace
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from types import SimpleNamespace
+from typing import cast
+
+import pytest
+
+import story_projection_onto.gpu_runtime as gpu_runtime
+from story_projection_onto.contracts import ConditionName, canonical_json, canonical_sha256
+from story_projection_onto.experiment import (
+    AllocatedGPUMeter,
+    ForecastAdmissionError,
+    ResourceLimits,
+)
+from story_projection_onto.gpu_runtime import (
+    FALLBACK_MODEL_REPOSITORY,
+    FALLBACK_MODEL_REVISION,
+    FALLBACK_SERVED_MODEL_NAME,
+    MODEL_CANDIDATES,
+    PINNED_MODEL_REPOSITORY,
+    PINNED_MODEL_REVISION,
+    SERVED_MODEL_NAME,
+    ChatMessage,
+    GenerationResult,
+    GuidedJSONRequest,
+    ProcessTreeUsage,
+    ResourceSampler,
+    ResourceWatchdog,
+    RuntimeConfigurationError,
+    RuntimeResourceLimitExceeded,
+    RuntimeTransportError,
+    RuntimeWatchdogTimeout,
+    ServiceState,
+    ServiceUptime,
+    TokenizerManifest,
+    VLLMGuidedJSONClient,
+    VLLMLaunchConfiguration,
+    VLLMService,
+    capture_gpu_hardware_identity,
+    capture_runtime_stack,
+    capture_tokenizer_manifest,
+    public_runtime_manifest,
+    restricted_transport_failure_details,
+    sample_gpu_vram,
+    sample_process_tree,
+)
+from story_projection_onto.llm import DecodingManifest, PackingReport, PackingSection
+from story_projection_onto.phase1_acceptance import (
+    ACCEPTANCE_IMPLEMENTATION_FILES,
+    EXPECTED_ACCEPTANCE_COUNTS,
+    AcceptanceRunner,
+    acceptance_plan_manifest,
+    build_acceptance_request,
+    phase1_acceptance_calls,
+    validate_acceptance_calls,
+    validate_acceptance_generation,
+    validate_verified_model_manifest,
+)
+from story_projection_onto.phase1_acceptance import (
+    main as acceptance_main,
+)
+from story_projection_onto.phase1_legacy_provenance import (
+    Phase1LegacyEvidenceProvenanceBridge,
+)
+from story_projection_onto.store import (
+    ArtifactStore,
+    BlobStore,
+    Compression,
+    DuplicateConflictError,
+    GpuAllocationJournalState,
+    GpuBudgetExceeded,
+    GpuEventKind,
+    GpuServiceJournalState,
+    Ledger,
+    ReleaseClass,
+    StorageBudget,
+    StoragePreflight,
+)
+
+HASH_A = "a" * 64
+HASH_B = "b" * 64
+ROOT = Path(__file__).parents[2]
+
+
+def limits(**changes: object) -> ResourceLimits:
+    values: dict[str, object] = {
+        "schema_version": "1.0.0",
+        "maximum_cpu_workers": 8,
+        "maximum_process_ram_bytes": 25_000_000_000,
+        "maximum_peak_vram_bytes": 23 * 1024**3,
+        "maximum_project_occupied_bytes": 25_000_000_000,
+        "minimum_storage_headroom_bytes": 5_000_000_000,
+        "maximum_project_allocation_bytes": 30_000_000_000,
+        "scheduled_gpu_seconds": 32_400,
+        "preferred_forecast_gpu_seconds": 29_700,
+        "hard_gpu_seconds": 36_000,
+        "model_cpu_offload_allowed": False,
+        "generation_concurrency": 1,
+    }
+    values.update(changes)
+    return ResourceLimits.from_mapping(values)
+
+
+@pytest.fixture
+def launch_configuration(tmp_path: Path) -> VLLMLaunchConfiguration:
+    cache = tmp_path / "cache"
+    snapshot = cache / "hub" / "models--Qwen--Qwen3-14B-AWQ" / "snapshots" / PINNED_MODEL_REVISION
+    snapshot.mkdir(parents=True)
+    return VLLMLaunchConfiguration(snapshot_path=snapshot, shared_cache=cache)
+
+
+def test_whitespace_repair_changes_only_explicit_decoder_flag_and_identity(launch_configuration):
+    from dataclasses import replace
+
+    repaired = replace(launch_configuration, guided_decoding_disable_any_whitespace=True)
+    assert repaired.command() == (
+        *launch_configuration.command(),
+        "--guided-decoding-disable-any-whitespace",
+    )
+    assert repaired.configuration_hash != launch_configuration.configuration_hash
+    assert "guided_decoding_disable_any_whitespace" not in launch_configuration.public_manifest()
+    assert repaired.maximum_model_length == launch_configuration.maximum_model_length == 12288
+
+
+def test_launcher_is_pinned_local_concurrency_one_and_no_offload(
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    command = launch_configuration.command("/controlled/python")
+    environment = launch_configuration.environment(
+        {
+            "PATH": "/bin",
+            "LD_LIBRARY_PATH": "/cuda/lib",
+            "CUDA_VISIBLE_DEVICES": "0",
+            "HF_HOME": "/uncontrolled/hf",
+            "VLLM_ATTENTION_BACKEND": "unfrozen",
+            "PYTHONPATH": "/uncontrolled/python",
+            "HTTPS_PROXY": "https://proxy.invalid",
+        }
+    )
+
+    assert command[:3] == (
+        "/controlled/python",
+        "-m",
+        "vllm.entrypoints.openai.api_server",
+    )
+    for flag, value in {
+        "--tensor-parallel-size": "1",
+        "--max-model-len": "12288",
+        "--gpu-memory-utilization": "0.88",
+        "--cpu-offload-gb": "0",
+        "--max-num-seqs": "1",
+        "--dtype": "half",
+    }.items():
+        assert command[command.index(flag) + 1] == value
+    assert "--no-enable-prefix-caching" in command
+    assert command[command.index("--guided-decoding-backend") + 1] == "xgrammar"
+    assert "--guided-decoding-disable-fallback" in command
+    assert "--no-enable-log-requests" in command
+    assert "--disable-log-requests" not in command
+    assert not any("speculative" in argument for argument in command)
+    assert environment["HF_HUB_OFFLINE"] == "1"
+    assert environment["TRANSFORMERS_OFFLINE"] == "1"
+    assert environment["HF_HOME"] == str(launch_configuration.shared_cache)
+    assert environment["LD_LIBRARY_PATH"] == "/cuda/lib"
+    assert environment["CUDA_VISIBLE_DEVICES"] == "0"
+    assert environment["TMPDIR"] == str(launch_configuration.shared_cache)
+    assert environment["XDG_CACHE_HOME"] == str(launch_configuration.shared_cache)
+    assert environment["TORCH_HOME"] == str(launch_configuration.shared_cache)
+    assert environment["TORCHINDUCTOR_CACHE_DIR"] == str(
+        launch_configuration.shared_cache / "torchinductor"
+    )
+    assert environment["TRITON_CACHE_DIR"] == str(launch_configuration.shared_cache / "triton")
+    assert environment["CUDA_CACHE_PATH"] == str(launch_configuration.shared_cache / "cuda")
+    assert environment["PYTHONNOUSERSITE"] == "1"
+    assert environment["PYTHONSAFEPATH"] == "1"
+    assert "VLLM_ATTENTION_BACKEND" not in environment
+    assert "PYTHONPATH" not in environment
+    assert "HTTPS_PROXY" not in environment
+    assert {
+        environment[name]
+        for name in ("HF_HOME", "HF_HUB_CACHE", "TRANSFORMERS_CACHE", "VLLM_CACHE_ROOT")
+    } == {str(launch_configuration.shared_cache)}
+    assert environment["OMP_NUM_THREADS"] == "8"
+    public = launch_configuration.public_manifest()
+    assert not any(
+        str(launch_configuration.snapshot_path) in str(value) for value in public.values()
+    )
+    assert public["cpu_offload_gb"] == 0
+    assert public["prefix_caching"] is False
+    assert public["speculative_decoding"] is False
+    assert public["enforce_eager"] is True
+    assert "--enforce-eager" in launch_configuration.command("python")
+    assert public["guided_decoding_backend"] == "xgrammar"
+    assert public["guided_decoding_fallback"] is False
+    assert public["runtime_environment_policy"] == "explicit_os_cuda_allowlist"
+
+    with pytest.raises(RuntimeConfigurationError, match="cpu_offload_gb"):
+        VLLMLaunchConfiguration(
+            snapshot_path=launch_configuration.snapshot_path,
+            shared_cache=launch_configuration.shared_cache,
+            cpu_offload_gb=1,
+        )
+    with pytest.raises(RuntimeConfigurationError, match="enforce_eager"):
+        VLLMLaunchConfiguration(
+            snapshot_path=launch_configuration.snapshot_path,
+            shared_cache=launch_configuration.shared_cache,
+            enforce_eager=False,
+        )
+
+
+def test_launcher_supports_exactly_primary_and_symmetric_fallback_candidates(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    fallback_snapshot = (
+        launch_configuration.shared_cache
+        / "hub"
+        / "models--Qwen--Qwen3-8B-AWQ"
+        / "snapshots"
+        / FALLBACK_MODEL_REVISION
+    )
+    fallback_snapshot.mkdir(parents=True)
+    fallback = VLLMLaunchConfiguration.from_model_configuration(
+        snapshot_path=fallback_snapshot,
+        shared_cache=launch_configuration.shared_cache,
+        model_configuration_path=ROOT / "configs/study/model.json",
+        model_candidate="fallback",
+    )
+
+    assert len(MODEL_CANDIDATES) == 2
+    assert launch_configuration.model_candidate == "primary"
+    assert launch_configuration.public_manifest()["model_candidate"] == "primary"
+    assert fallback.model_candidate == "fallback"
+    assert fallback.public_manifest()["model_candidate"] == "fallback"
+    assert fallback.configuration_hash != launch_configuration.configuration_hash
+    with pytest.raises(RuntimeConfigurationError, match="runtime tokenizer identity"):
+        public_runtime_manifest(launcher=fallback, tokenizer=_tokenizer_manifest())
+    assert fallback.command()[fallback.command().index("--model") + 1] == str(fallback_snapshot)
+    assert fallback.command()[fallback.command().index("--served-model-name") + 1] == (
+        FALLBACK_SERVED_MODEL_NAME
+    )
+
+    def normalize(command: tuple[str, ...]) -> tuple[str, ...]:
+        values = list(command)
+        for flag in ("--model", "--tokenizer", "--served-model-name"):
+            values[values.index(flag) + 1] = "<candidate>"
+        return tuple(values)
+
+    assert normalize(fallback.command()) == normalize(launch_configuration.command())
+
+    unknown_revision = "f" * 40
+    unknown_snapshot = tmp_path / unknown_revision
+    unknown_snapshot.mkdir()
+    with pytest.raises(RuntimeConfigurationError, match="allowlisted candidate"):
+        VLLMLaunchConfiguration(
+            snapshot_path=unknown_snapshot,
+            shared_cache=tmp_path,
+            repository="Qwen/third-model",
+            revision=unknown_revision,
+            served_model_name="third-model",
+        )
+    with pytest.raises(RuntimeConfigurationError, match="allowlisted candidate"):
+        VLLMLaunchConfiguration(
+            snapshot_path=fallback_snapshot,
+            shared_cache=launch_configuration.shared_cache,
+            repository=PINNED_MODEL_REPOSITORY,
+            revision=FALLBACK_MODEL_REVISION,
+            served_model_name=FALLBACK_SERVED_MODEL_NAME,
+        )
+    with pytest.raises(RuntimeConfigurationError, match=r"primary.*fallback"):
+        VLLMLaunchConfiguration.from_model_configuration(
+            snapshot_path=fallback_snapshot,
+            shared_cache=launch_configuration.shared_cache,
+            model_configuration_path=ROOT / "configs/study/model.json",
+            model_candidate="third",
+        )
+    misplaced_snapshot = (
+        launch_configuration.shared_cache
+        / "hub"
+        / "wrong-repository"
+        / "snapshots"
+        / FALLBACK_MODEL_REVISION
+    )
+    misplaced_snapshot.mkdir(parents=True)
+    with pytest.raises(RuntimeConfigurationError, match="selected repository and revision"):
+        VLLMLaunchConfiguration(
+            snapshot_path=misplaced_snapshot,
+            shared_cache=launch_configuration.shared_cache,
+            repository=FALLBACK_MODEL_REPOSITORY,
+            revision=FALLBACK_MODEL_REVISION,
+            served_model_name=FALLBACK_SERVED_MODEL_NAME,
+        )
+
+
+class FakeTokenizer:
+    eos_token_id = 7
+    unk_token_id = 0
+    chat_template = "{{ messages }}<|im_end|>{% if enable_thinking %}think{% endif %}"
+
+    def convert_tokens_to_ids(self, token: str) -> int:
+        return {"<|im_end|>": 8}.get(token, 0)
+
+    def encode(self, text: str, **kwargs: object) -> list[int]:
+        return list(range(len(text.split())))
+
+    def apply_chat_template(self, conversation: object, **kwargs: object) -> str | list[int]:
+        assert kwargs["enable_thinking"] is False
+        assert isinstance(conversation, (list, tuple))
+        contents = [str(message["content"]) for message in conversation]
+        rendered = " chat_turn ".join(("chat_start", *contents, "assistant_start", "chat_end"))
+        if kwargs["tokenize"]:
+            return list(range(len(rendered.split())))
+        return rendered
+
+
+def test_tokenizer_capture_is_local_exact_nonthinking_and_public_safe(tmp_path: Path) -> None:
+    snapshot = tmp_path / PINNED_MODEL_REVISION
+    snapshot.mkdir()
+    (snapshot / "tokenizer.json").write_text("{}")
+    (snapshot / "tokenizer_config.json").write_text("{}")
+    observed: dict[str, object] = {}
+
+    def loader(path: str, **kwargs: object) -> FakeTokenizer:
+        observed.update({"path": path, **kwargs})
+        return FakeTokenizer()
+
+    manifest = capture_tokenizer_manifest(snapshot, tokenizer_loader=loader)
+
+    assert observed["local_files_only"] is True
+    assert observed["trust_remote_code"] is False
+    assert observed["revision"] == PINNED_MODEL_REVISION
+    assert manifest.eos_token_id == 7
+    assert manifest.end_of_turn_token_ids == (8,)
+    assert manifest.stop_token_ids == (7, 8)
+    assert [name for name, _ in manifest.tokenizer_file_sha256] == [
+        "tokenizer.json",
+        "tokenizer_config.json",
+    ]
+    assert manifest.enable_thinking is False
+    assert (
+        manifest.chat_template_sha256
+        == hashlib.sha256(FakeTokenizer.chat_template.encode()).hexdigest()
+    )
+    public = manifest.public_manifest()
+    assert "chat_template" not in public
+    assert "nonthinking_probe" not in public
+    assert public["manifest_sha256"] == manifest.manifest_sha256
+
+
+def test_tokenizer_capture_accepts_only_an_exact_candidate_pair(tmp_path: Path) -> None:
+    snapshot = tmp_path / FALLBACK_MODEL_REVISION
+    snapshot.mkdir()
+    (snapshot / "tokenizer.json").write_text("{}")
+    (snapshot / "tokenizer_config.json").write_text("{}")
+
+    manifest = capture_tokenizer_manifest(
+        snapshot,
+        repository=FALLBACK_MODEL_REPOSITORY,
+        revision=FALLBACK_MODEL_REVISION,
+        tokenizer_loader=lambda *args, **kwargs: FakeTokenizer(),
+    )
+    assert manifest.repository == FALLBACK_MODEL_REPOSITORY
+    assert manifest.revision == FALLBACK_MODEL_REVISION
+
+    with pytest.raises(RuntimeConfigurationError, match="allowlisted model candidate"):
+        capture_tokenizer_manifest(
+            snapshot,
+            repository=PINNED_MODEL_REPOSITORY,
+            revision=FALLBACK_MODEL_REVISION,
+            tokenizer_loader=lambda *args, **kwargs: FakeTokenizer(),
+        )
+
+
+def test_runtime_stack_capture_enforces_exact_installed_versions() -> None:
+    versions = {"vllm": "0.10.2", "transformers": "4.55.2"}
+    torch = SimpleNamespace(
+        __version__="2.8.0+cu128",
+        version=SimpleNamespace(cuda="12.8"),
+    )
+    manifest = capture_runtime_stack(
+        version_reader=versions.__getitem__,
+        module_importer=lambda name: torch,
+    )
+    assert manifest.vllm_version == "0.10.2"
+    assert manifest.torch_cuda_version == "12.8"
+
+    versions["vllm"] = "0.10.3"
+    with pytest.raises(RuntimeConfigurationError, match="vllm_version"):
+        capture_runtime_stack(
+            version_reader=versions.__getitem__,
+            module_importer=lambda name: torch,
+        )
+
+
+def test_gpu_hardware_identity_requires_one_exact_manifest_match_and_links_runtime(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    environment_path = tmp_path / "environment.json"
+    environment_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0.0",
+                "gpu": {
+                    "count": 1,
+                    "name": "NVIDIA GeForce RTX 4090",
+                    "memory_mib": 24564,
+                    "driver_version": "580.173.02",
+                    "pci_bus_id": "00000000:01:00.0",
+                },
+            }
+        )
+    )
+
+    def runner(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        del args, kwargs
+        return subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout="NVIDIA GeForce RTX 4090, 24564, 580.173.02, 00000000:01:00.0\n",
+            stderr="",
+        )
+
+    hardware = capture_gpu_hardware_identity(environment_path, runner=runner)
+    assert hardware.memory_mib == 24564
+    assert (
+        hardware.environment_manifest_sha256
+        == hashlib.sha256(environment_path.read_bytes()).hexdigest()
+    )
+    runtime = public_runtime_manifest(
+        launcher=launch_configuration,
+        tokenizer=_tokenizer_manifest(),
+        gpu_hardware=hardware,
+    )
+    assert runtime["gpu_hardware"] == hardware.public_manifest()
+
+    def wrong_memory(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        completed = runner(*args, **kwargs)
+        return subprocess.CompletedProcess(
+            args=completed.args,
+            returncode=0,
+            stdout=completed.stdout.replace("24564", "24565"),
+            stderr="",
+        )
+
+    with pytest.raises(RuntimeConfigurationError, match="memory_mib"):
+        capture_gpu_hardware_identity(environment_path, runner=wrong_memory)
+
+    def two_gpus(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        completed = runner(*args, **kwargs)
+        return subprocess.CompletedProcess(
+            args=completed.args,
+            returncode=0,
+            stdout=completed.stdout * 2,
+            stderr="",
+        )
+
+    with pytest.raises(RuntimeConfigurationError, match="exactly one GPU"):
+        capture_gpu_hardware_identity(environment_path, runner=two_gpus)
+
+
+def _tokenizer_manifest() -> TokenizerManifest:
+    return TokenizerManifest(
+        schema_version="1.0.0",
+        repository="Qwen/Qwen3-14B-AWQ",
+        revision=PINNED_MODEL_REVISION,
+        tokenizer_class="tests.FakeTokenizer",
+        tokenizer_revision=PINNED_MODEL_REVISION,
+        tokenizer_file_sha256=(("tokenizer.json", HASH_A),),
+        eos_token_id=7,
+        end_of_turn_token_ids=(8,),
+        stop_token_ids=(7, 8),
+        chat_template_sha256=HASH_A,
+        nonthinking_probe_sha256=HASH_B,
+        nonthinking_probe_token_count=10,
+        local_files_only=True,
+        trust_remote_code=False,
+        enable_thinking=False,
+    )
+
+
+def _acceptance_execution_plan_hash(
+    launch_configuration: VLLMLaunchConfiguration,
+) -> str:
+    return canonical_sha256(
+        {
+            "acceptance_plan_manifest_sha256": acceptance_plan_manifest(ROOT)["manifest_sha256"],
+            "launcher_configuration_sha256": launch_configuration.configuration_hash,
+            "tokenizer_manifest_sha256": _tokenizer_manifest().manifest_sha256,
+            "legacy_evidence_provenance_certificate_sha256": (
+                Phase1LegacyEvidenceProvenanceBridge.load(ROOT).manifest_sha256
+            ),
+            "runtime_stack_manifest_sha256": None,
+            "gpu_hardware_manifest_sha256": None,
+        }
+    )
+
+
+def _guided_request(
+    *,
+    repair: bool = False,
+    model_name: str = SERVED_MODEL_NAME,
+    tokenizer_revision: str = PINNED_MODEL_REVISION,
+) -> GuidedJSONRequest:
+    schema = {"type": "object", "properties": {"ok": {"type": "boolean"}}}
+    constructor = DecodingManifest.repair if repair else DecodingManifest.first_pass
+    decoding = constructor(
+        seed=11,
+        eos_token_id=7,
+        end_of_turn_token_ids=(8,),
+        chat_template_hash=HASH_A,
+        output_schema_hash=canonical_sha256(schema),
+        structured_decoder="vllm-0.10.2-guided_json",
+        tokenizer_revision=tokenizer_revision,
+    )
+    required = ("system_prompt", "output_schema", "upper_ontology", "evidence_snapshot")
+    sections = tuple(
+        PackingSection(name=name, section_content_hash=HASH_A, token_count=2) for name in required
+    )
+    packing = PackingReport.build(
+        condition=ConditionName.C1_LLM_PRE,
+        tokenizer_revision=tokenizer_revision,
+        maximum_model_tokens=12_288,
+        maximum_input_tokens=decoding.maximum_input_tokens,
+        reserved_output_tokens=decoding.maximum_output_tokens,
+        sections=sections,
+        required_section_names=required,
+        complete_evidence_snapshot=True,
+    )
+    return GuidedJSONRequest(
+        request_id="request-1",
+        model_name=model_name,
+        condition=ConditionName.C1_LLM_PRE,
+        messages=(
+            ChatMessage(role="system", content="system"),
+            ChatMessage(role="user", content="user"),
+        ),
+        output_schema=schema,
+        decoding=decoding,
+        packing=packing,
+        rendered_input_token_count=8,
+    )
+
+
+def test_guided_json_client_sends_complete_decoding_and_parses_one_object() -> None:
+    observed: dict[str, object] = {}
+
+    def transport(
+        url: str, payload: bytes | None, timeout: float
+    ) -> tuple[int, bytes, dict[str, str]]:
+        observed.update(url=url, payload=payload, timeout=timeout)
+        body = {
+            "id": "server-private-id",
+            "choices": [{"message": {"content": '{"ok":true}'}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 12, "completion_tokens": 4},
+        }
+        return 200, json.dumps(body).encode(), {}
+
+    client = VLLMGuidedJSONClient("http://127.0.0.1:8000", transport=transport)
+    result = client.generate(_guided_request(), watchdog_seconds=90)
+    wire = json.loads(observed["payload"])
+
+    assert observed["url"] == "http://127.0.0.1:8000/v1/chat/completions"
+    assert wire["guided_json"]["type"] == "object"
+    assert wire["chat_template_kwargs"] == {"enable_thinking": False}
+    assert wire["temperature"] == 0.7
+    assert wire["top_p"] == 0.8
+    assert wire["top_k"] == 20
+    assert wire["min_p"] == 0.0
+    assert wire["repetition_penalty"] == 1.0
+    assert wire["stop_token_ids"] == [7, 8]
+    assert result.parsed_object == {"ok": True}
+    assert result.prompt_tokens == 12
+    assert "server-private-id" not in str(result.public_manifest())
+
+    with pytest.raises(RuntimeConfigurationError, match="loopback"):
+        VLLMGuidedJSONClient("https://example.test:8000", transport=transport)
+    with pytest.raises(RuntimeConfigurationError, match="tokenizer revision"):
+        _guided_request(model_name=FALLBACK_SERVED_MODEL_NAME)
+
+
+def test_client_requires_usage_and_checks_exact_served_model() -> None:
+    def transport(
+        url: str, payload: bytes | None, timeout: float
+    ) -> tuple[int, bytes, dict[str, str]]:
+        del payload, timeout
+        if url.endswith("/health"):
+            return 200, b"", {}
+        if url.endswith("/v1/models"):
+            return (
+                200,
+                json.dumps(
+                    {
+                        "data": [
+                            {"id": SERVED_MODEL_NAME},
+                            {"id": FALLBACK_SERVED_MODEL_NAME},
+                        ]
+                    }
+                ).encode(),
+                {},
+            )
+        return 200, b'{"choices":[{"message":{"content":"{\\"ok\\":true}"}}]}', {}
+
+    client = VLLMGuidedJSONClient("http://127.0.0.1:8000", transport=transport)
+    assert client.ready()
+    assert client.ready(model_name=FALLBACK_SERVED_MODEL_NAME)
+    with pytest.raises(RuntimeConfigurationError, match="allowlisted served-model alias"):
+        client.ready(model_name="unplanned-model")
+    with pytest.raises(RuntimeTransportError, match="guided JSON"):
+        client.generate(_guided_request(), watchdog_seconds=90)
+
+    wrong_model = VLLMGuidedJSONClient(
+        "http://127.0.0.1:8000",
+        transport=lambda url, *_: (
+            (200, b"", {})
+            if url.endswith("/health")
+            else (200, b'{"data":[{"id":"not-the-pinned-model"}]}', {})
+        ),
+    )
+    assert not wrong_model.ready()
+
+
+def test_client_reports_timeout_and_invalid_guided_response() -> None:
+    def timeout_transport(
+        url: str, payload: bytes | None, timeout: float
+    ) -> tuple[int, bytes, dict[str, str]]:
+        raise RuntimeWatchdogTimeout("expired")
+
+    client = VLLMGuidedJSONClient("http://localhost:8000", transport=timeout_transport)
+    with pytest.raises(RuntimeWatchdogTimeout):
+        client.generate(_guided_request(), watchdog_seconds=90)
+
+    invalid = VLLMGuidedJSONClient(
+        "http://localhost:8000",
+        transport=lambda *_: (200, b'{"choices":[]}', {}),
+    )
+    with pytest.raises(RuntimeTransportError, match="guided JSON"):
+        invalid.generate(_guided_request(), watchdog_seconds=90)
+
+
+def test_client_retains_bounded_non_200_diagnostics_outside_public_message() -> None:
+    private_marker = "/work" + "space/private/schema.json"
+    body = json.dumps(
+        {
+            "error": {
+                "message": f"schema conversion failed\n{private_marker}",
+                "type": "BadRequestError",
+                "code": 400,
+            }
+        }
+    ).encode()
+    client = VLLMGuidedJSONClient(
+        "http://localhost:8000",
+        transport=lambda *_: (400, body, {"content-type": "application/json"}),
+    )
+
+    with pytest.raises(RuntimeTransportError, match="HTTP 400") as raised:
+        client.generate(_guided_request(), watchdog_seconds=90)
+
+    assert private_marker not in str(raised.value)
+    details = restricted_transport_failure_details(raised.value)
+    assert details == {
+        "http_status": 400,
+        "response_sha256": hashlib.sha256(body).hexdigest(),
+        "response_size_bytes": len(body),
+        "response_json_object": True,
+        "error_type": "BadRequestError",
+        "error_message": f"schema conversion failed {private_marker}",
+        "error_code": 400,
+    }
+    assert restricted_transport_failure_details(RuntimeError("not transport")) is None
+
+
+def test_generation_watchdog_is_total_wall_time_and_retains_concurrency_lock() -> None:
+    entered = threading.Event()
+    release = threading.Event()
+    transport_returned = threading.Event()
+
+    def trickling_transport(
+        url: str, payload: bytes | None, timeout: float
+    ) -> tuple[int, bytes, dict[str, str]]:
+        del url, payload, timeout
+        entered.set()
+        release.wait(1)
+        transport_returned.set()
+        return (
+            200,
+            json.dumps(
+                {
+                    "choices": [{"message": {"content": '{"ok":true}'}, "finish_reason": "stop"}],
+                    "usage": {"prompt_tokens": 1, "completion_tokens": 1},
+                }
+            ).encode(),
+            {},
+        )
+
+    client = VLLMGuidedJSONClient(
+        "http://127.0.0.1:8000",
+        transport=trickling_transport,
+    )
+    started = time.monotonic()
+    try:
+        with pytest.raises(RuntimeWatchdogTimeout, match="total wall time"):
+            client.generate(_guided_request(), watchdog_seconds=0.02)
+        assert time.monotonic() - started < 0.25
+        assert entered.is_set()
+        with pytest.raises(RuntimeConfigurationError, match="concurrent"):
+            client.generate(_guided_request(), watchdog_seconds=0.02)
+    finally:
+        release.set()
+    assert transport_returned.wait(0.5)
+
+
+def _write_process(proc_root: Path, pid: int, rss_kib: int, children: str = "") -> None:
+    task = proc_root / str(pid) / "task" / str(pid)
+    task.mkdir(parents=True)
+    (proc_root / str(pid) / "status").write_text(f"Name:\ttest\nVmRSS:\t{rss_kib} kB\n")
+    (task / "children").write_text(children)
+
+
+def test_process_tree_and_gpu_vram_sampling_are_scoped_to_controlled_pids(
+    tmp_path: Path,
+) -> None:
+    proc = tmp_path / "proc"
+    _write_process(proc, 10, 100, "11 12")
+    _write_process(proc, 11, 200)
+    _write_process(proc, 12, 300)
+
+    usage = sample_process_tree(10, proc_root=proc)
+    assert usage.pids == {10, 11, 12}
+    assert usage.rss_bytes == 600 * 1024
+
+    completed = subprocess.CompletedProcess(
+        args=[],
+        returncode=0,
+        stdout="10, 100\n12, 300\n99, 900\n",
+        stderr="",
+    )
+    assert sample_gpu_vram(usage.pids, runner=lambda *args, **kwargs: completed) == 400 * 1024**2
+
+
+def test_resource_sampler_records_then_raises_on_hard_limit(tmp_path: Path) -> None:
+    storage = StoragePreflight(
+        tmp_path,
+        budget=StorageBudget(
+            total_allocation_bytes=30_000_000_000,
+            max_occupied_bytes=25_000_000_000,
+            min_headroom_bytes=5_000_000_000,
+        ),
+    )
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        sampler = ResourceSampler(
+            limits=limits(maximum_process_ram_bytes=100),
+            storage=storage,
+            ledger=ledger,
+            process_sampler=lambda pid: ProcessTreeUsage(frozenset({pid}), 100),
+            system_ram_sampler=lambda: 50_000_000_000,
+            gpu_sampler=lambda pids: 1,
+            filesystem_free_sampler=lambda: 10_000_000_000,
+            wall_clock=lambda: datetime(2026, 9, 3, tzinfo=UTC),
+        )
+        with pytest.raises(RuntimeResourceLimitExceeded) as captured:
+            sampler.sample(sample_id="at-limit", root_pid=42)
+
+        assert captured.value.snapshot.violations == ("process_ram_not_below_limit",)
+        assert sampler.samples == (captured.value.snapshot,)
+        assert ledger.count_rows("resource_samples") == 1
+        storage_samples = ledger.storage_samples_with_phase_prefix("resource_sample:at-limit")
+        assert len(storage_samples) == 1
+        assert (
+            storage_samples[0].current_occupied_bytes
+            == captured.value.snapshot.project_storage_bytes
+        )
+        assert storage_samples[0].filesystem_free_bytes == 10_000_000_000
+
+
+def test_resource_watchdog_surfaces_first_violation() -> None:
+    @dataclass
+    class StubSampler:
+        calls: int = 0
+
+        def sample(self, **kwargs: object) -> object:
+            self.calls += 1
+            snapshot = object.__new__(type("Snapshot", (), {}))
+            if self.calls == 1:
+                return snapshot
+            error_snapshot = type("Snapshot", (), {"violations": ("vram",)})()
+            raise RuntimeResourceLimitExceeded(error_snapshot)
+
+    sampler = StubSampler()
+    seen: list[object] = []
+    with (
+        pytest.raises(RuntimeResourceLimitExceeded),
+        ResourceWatchdog(
+            sampler=cast(ResourceSampler, sampler),
+            root_pid=12,
+            sample_prefix="watch",
+            interval_seconds=0.001,
+            on_limit=seen.append,
+        ) as watchdog,
+    ):
+        while watchdog.sample_count < 2:
+            pass
+    assert len(seen) == 1
+
+
+def test_resource_watchdog_drains_sample_that_spans_old_two_second_join() -> None:
+    entered = threading.Event()
+    release = threading.Event()
+
+    @dataclass
+    class SlowStorageSampler:
+        def sample(self, **kwargs: object) -> object:
+            del kwargs
+            entered.set()
+            if not release.wait(5):
+                raise RuntimeError("test sampler was not released")
+            return object()
+
+    watchdog = ResourceWatchdog(
+        sampler=cast(ResourceSampler, SlowStorageSampler()),
+        root_pid=12,
+        sample_prefix="slow-storage",
+        interval_seconds=1,
+        sample_completion_timeout_seconds=3,
+    ).start()
+    assert entered.wait(0.5)
+    release_timer = threading.Timer(2.1, release.set)
+    release_timer.start()
+    started = time.monotonic()
+    try:
+        assert watchdog.stop()
+    finally:
+        release.set()
+        release_timer.cancel()
+    elapsed = time.monotonic() - started
+
+    assert elapsed >= 2
+    assert elapsed < 3
+    assert watchdog.sample_count == 1
+    assert watchdog.sample_in_flight is False
+    assert watchdog.running is False
+
+
+def test_resource_watchdog_stop_deadline_retains_in_flight_ownership() -> None:
+    entered = threading.Event()
+    release = threading.Event()
+
+    @dataclass
+    class WedgedSampler:
+        def sample(self, **kwargs: object) -> object:
+            del kwargs
+            entered.set()
+            release.wait(5)
+            return object()
+
+    watchdog = ResourceWatchdog(
+        sampler=cast(ResourceSampler, WedgedSampler()),
+        root_pid=12,
+        sample_prefix="wedged-storage",
+        interval_seconds=30,
+        sample_completion_timeout_seconds=0.02,
+    ).start()
+    assert entered.wait(0.5)
+    started = time.monotonic()
+    try:
+        assert watchdog.stop(raise_failure=False) is False
+        elapsed = time.monotonic() - started
+        assert elapsed < 0.5
+        assert watchdog.running is True
+        assert watchdog.sample_in_flight is True
+        assert isinstance(watchdog.failure, RuntimeError)
+        assert "bounded shutdown deadline" in str(watchdog.failure)
+    finally:
+        release.set()
+    deadline = time.monotonic() + 0.5
+    while watchdog.running and time.monotonic() < deadline:
+        time.sleep(0.001)
+    assert watchdog.stop(raise_failure=False) is True
+    assert watchdog.running is False
+    assert watchdog.sample_in_flight is False
+
+
+def test_resource_watchdog_dispatches_sample_limit_after_prior_drain_timeout() -> None:
+    entered = threading.Event()
+    release = threading.Event()
+    callbacks_completed = threading.Event()
+    snapshot = cast(
+        gpu_runtime.ResourceSnapshot,
+        SimpleNamespace(violations=("gpu_vram_not_below_limit",)),
+    )
+    seen_limits: list[object] = []
+    seen_failures: list[BaseException] = []
+
+    @dataclass
+    class LateFailingSampler:
+        def sample(self, **kwargs: object) -> object:
+            del kwargs
+            entered.set()
+            if not release.wait(1):
+                raise RuntimeError("test sampler was not released")
+            raise RuntimeResourceLimitExceeded(snapshot)
+
+    def record_failure(failure: BaseException) -> None:
+        seen_failures.append(failure)
+        callbacks_completed.set()
+
+    watchdog = ResourceWatchdog(
+        sampler=cast(ResourceSampler, LateFailingSampler()),
+        root_pid=12,
+        sample_prefix="late-limit",
+        interval_seconds=30,
+        sample_completion_timeout_seconds=0.02,
+        on_limit=seen_limits.append,
+        on_failure=record_failure,
+    ).start()
+    assert entered.wait(0.5)
+    assert watchdog.stop(raise_failure=False) is False
+    timeout_failure = watchdog.drain_timeout_failure
+    assert isinstance(timeout_failure, RuntimeError)
+
+    release.set()
+    assert callbacks_completed.wait(0.5)
+    deadline = time.monotonic() + 0.5
+    while watchdog.running and time.monotonic() < deadline:
+        time.sleep(0.001)
+
+    assert watchdog.stop(raise_failure=False) is True
+    assert watchdog.failure is seen_failures[0]
+    assert isinstance(watchdog.failure, RuntimeResourceLimitExceeded)
+    assert seen_limits == [snapshot]
+    assert seen_failures == [watchdog.failure]
+
+
+@dataclass
+class FakeClock:
+    monotonic_value: float = 100.0
+    wall_value: datetime = datetime(2026, 9, 3, tzinfo=UTC)
+
+    def monotonic(self) -> float:
+        return self.monotonic_value
+
+    def wall(self) -> datetime:
+        return self.wall_value
+
+    def advance(self, seconds: float) -> None:
+        self.monotonic_value += seconds
+        self.wall_value += timedelta(seconds=seconds)
+
+
+@dataclass
+class FakeProcess:
+    pid: int
+    running: bool = True
+
+    def poll(self) -> int | None:
+        return None if self.running else 0
+
+    def wait(self, timeout: float | None = None) -> int:
+        if self.running:
+            raise subprocess.TimeoutExpired("fake", timeout)
+        return 0
+
+    def terminate(self) -> None:
+        self.running = False
+
+    def kill(self) -> None:
+        self.running = False
+
+
+class FakeServiceClient:
+    def __init__(self, clock: FakeClock) -> None:
+        self.clock = clock
+        self.fail_with: BaseException | None = None
+        self.endpoint_is_live = False
+        self.endpoint_check_count = 0
+
+    def health(self, timeout_seconds: float = 2.0) -> bool:
+        return True
+
+    def ready(
+        self,
+        timeout_seconds: float = 2.0,
+        *,
+        model_name: str = SERVED_MODEL_NAME,
+    ) -> bool:
+        assert model_name in {SERVED_MODEL_NAME, FALLBACK_SERVED_MODEL_NAME}
+        return self.health(timeout_seconds)
+
+    def endpoint_live(self, timeout_seconds: float = 0.25) -> bool:
+        del timeout_seconds
+        self.endpoint_check_count += 1
+        return self.endpoint_is_live
+
+    def generate(self, request: GuidedJSONRequest, *, watchdog_seconds: float) -> GenerationResult:
+        self.clock.advance(2)
+        if self.fail_with is not None:
+            raise self.fail_with
+        raw = b'{"choices":[{"message":{"content":"{\\"ok\\":true}"}}]}'
+        return GenerationResult(
+            request_id=request.request_id,
+            request_hash=request.request_hash,
+            response_sha256="c" * 64,
+            parsed_object={"ok": True},
+            raw_response=raw,
+        )
+
+
+def _write_fake_proc_identity(
+    proc_root: Path,
+    *,
+    pid: int,
+    start_ticks: int,
+    configuration: VLLMLaunchConfiguration,
+    process_group_id: int = 0,
+    process_session_id: int = 0,
+    parent_process_id: int = 0,
+    process_state: str = "S",
+    service_instance_token: str | None = None,
+    command: tuple[str, ...] | None = None,
+) -> None:
+    process_root = proc_root / str(pid)
+    process_root.mkdir(parents=True)
+    fields = [process_state, *(["0"] * 18), str(start_ticks)]
+    fields[1] = str(parent_process_id)
+    fields[2] = str(process_group_id)
+    fields[3] = str(process_session_id)
+    (process_root / "stat").write_text(
+        f"{pid} (vllm worker) {' '.join(fields)}\n",
+        encoding="ascii",
+    )
+    encoded_command = b"\0".join(
+        argument.encode("utf-8")
+        for argument in (configuration.command() if command is None else command)
+    )
+    (process_root / "cmdline").write_bytes(encoded_command + b"\0")
+    if service_instance_token is not None:
+        (process_root / "environ").write_bytes(
+            (f"{gpu_runtime.SERVICE_INSTANCE_ENVIRONMENT_KEY}={service_instance_token}\0").encode(
+                "ascii"
+            )
+        )
+
+
+def _seed_token_bound_live_lease(
+    service: VLLMService,
+    *,
+    clock: FakeClock,
+    process: FakeProcess,
+    proc_root: Path,
+    start_ticks: int,
+    observed_command: tuple[str, ...],
+) -> tuple[str, str]:
+    instance_token = "unit-test-vllm-instance-token"
+    instance_token_sha256 = hashlib.sha256(instance_token.encode("ascii")).hexdigest()
+    expected_command_sha256 = canonical_sha256(list(service.configuration.command()))
+    _write_fake_proc_identity(
+        proc_root,
+        pid=process.pid,
+        start_ticks=start_ticks,
+        configuration=service.configuration,
+        process_group_id=process.pid,
+        process_session_id=process.pid,
+        service_instance_token=instance_token,
+        command=observed_command,
+    )
+    service._acquire_service_lock()
+    service._session_id = "pilot"
+    service._accounting_session_id = "load"
+    service._started_at = clock.wall()
+    service._allocated_at_start = service.meter.actual_allocated_gpu_seconds
+    service._last_service_pid = process.pid
+    service._last_process_start_ticks = start_ticks
+    service._last_process_command_sha256 = expected_command_sha256
+    service._last_process_group_id = process.pid
+    service._last_process_session_id = process.pid
+    service._service_instance_token_sha256 = instance_token_sha256
+    service._process_identity_proc_root = proc_root
+    service._open_service_journal()
+    service._write_service_lock_metadata(lease_state="live", service_pid=process.pid)
+    service._release_service_lock()
+    return expected_command_sha256, instance_token_sha256
+
+
+def _write_engine_core_process_group(
+    proc_root: Path,
+    configuration: VLLMLaunchConfiguration,
+    *,
+    leader_pid: int = 6100,
+    engine_pid: int = 6101,
+    engine_parent_pid: int | None = None,
+    engine_token: str | None = None,
+    engine_title: bytes = b"VLLM::EngineCore\0\0",
+    leader_token: str | None = "bound-vllm-service",
+    leader_state: str = "S",
+    leader_group: int | None = None,
+    leader_session: int | None = None,
+) -> tuple[int, int, str]:
+    group = leader_pid if leader_group is None else leader_group
+    session = leader_pid if leader_session is None else leader_session
+    _write_fake_proc_identity(
+        proc_root,
+        pid=leader_pid,
+        start_ticks=10_000,
+        configuration=configuration,
+        process_group_id=group,
+        process_session_id=session,
+        parent_process_id=1,
+        process_state=leader_state,
+        service_instance_token=leader_token,
+    )
+    _write_fake_proc_identity(
+        proc_root,
+        pid=engine_pid,
+        start_ticks=10_001,
+        configuration=configuration,
+        process_group_id=leader_pid,
+        process_session_id=leader_pid,
+        parent_process_id=(leader_pid if engine_parent_pid is None else engine_parent_pid),
+        service_instance_token=engine_token,
+    )
+    engine_root = proc_root / str(engine_pid)
+    (engine_root / "cmdline").write_bytes(engine_title)
+    if engine_token is None:
+        (engine_root / "environ").write_bytes(b"")
+    expected_token_sha256 = hashlib.sha256(b"bound-vllm-service").hexdigest()
+    return leader_pid, engine_pid, expected_token_sha256
+
+
+def test_bound_group_accepts_only_exact_tokenless_engine_core_child(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    proc_root = tmp_path / "proc"
+    leader_pid, engine_pid, token_sha256 = _write_engine_core_process_group(
+        proc_root,
+        launch_configuration,
+    )
+
+    assert gpu_runtime._bound_process_group_members(
+        leader_pid,
+        leader_pid,
+        token_sha256,
+        proc_root=proc_root,
+    ) == (leader_pid, engine_pid)
+
+
+@pytest.mark.parametrize(
+    ("changes", "expected_message"),
+    (
+        ({"engine_token": "different-token"}, "unbound process"),
+        ({"engine_title": b"python\0"}, "unbound process"),
+        ({"engine_title": b"VLLM::EngineCore"}, "unbound process"),
+        ({"engine_title": b"VLLM::EngineCore\0--extra\0"}, "unbound process"),
+        ({"engine_parent_pid": 6099}, "unbound process"),
+        ({"leader_token": None}, "cannot verify a service process-group member"),
+        ({"leader_state": "Z"}, "unbound process"),
+        ({"leader_group": 6098}, "unbound process"),
+        ({"leader_session": 6097}, "process from another session"),
+    ),
+)
+def test_bound_group_rejects_engine_core_identity_near_misses(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+    changes: dict[str, object],
+    expected_message: str,
+) -> None:
+    proc_root = tmp_path / "proc"
+    leader_pid, _, token_sha256 = _write_engine_core_process_group(
+        proc_root,
+        launch_configuration,
+        **changes,
+    )
+
+    with pytest.raises(RuntimeConfigurationError, match=expected_message):
+        gpu_runtime._bound_process_group_members(
+            leader_pid,
+            leader_pid,
+            token_sha256,
+            proc_root=proc_root,
+        )
+
+
+def test_bound_group_rejects_engine_core_when_leader_is_absent(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    proc_root = tmp_path / "proc"
+    leader_pid, _, token_sha256 = _write_engine_core_process_group(
+        proc_root,
+        launch_configuration,
+    )
+    leader_root = proc_root / str(leader_pid)
+    for path in tuple(leader_root.iterdir()):
+        path.unlink()
+    leader_root.rmdir()
+
+    with pytest.raises(
+        RuntimeConfigurationError,
+        match="cannot verify a tokenless vLLM EngineCore",
+    ):
+        gpu_runtime._bound_process_group_members(
+            leader_pid,
+            leader_pid,
+            token_sha256,
+            proc_root=proc_root,
+        )
+
+
+def test_bound_group_rejects_engine_core_identity_race(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    proc_root = tmp_path / "proc"
+    leader_pid, engine_pid, token_sha256 = _write_engine_core_process_group(
+        proc_root,
+        launch_configuration,
+    )
+    original_reader = gpu_runtime._process_lineage_identity
+    engine_reads = 0
+
+    def racing_reader(
+        pid: int,
+        root: Path = gpu_runtime.PROC_ROOT,
+    ) -> tuple[str, int, int, int, int]:
+        nonlocal engine_reads
+        identity = original_reader(pid, root)
+        if pid == engine_pid:
+            engine_reads += 1
+            if engine_reads == 2:
+                return (*identity[:4], identity[4] + 1)
+        return identity
+
+    monkeypatch.setattr(gpu_runtime, "_process_lineage_identity", racing_reader)
+    with pytest.raises(RuntimeConfigurationError, match="identity changed"):
+        gpu_runtime._bound_process_group_members(
+            leader_pid,
+            leader_pid,
+            token_sha256,
+            proc_root=proc_root,
+        )
+
+
+def _seed_terminal_journal_and_null_lease(
+    *,
+    configuration: VLLMLaunchConfiguration,
+    meter: AllocatedGPUMeter,
+    clock: FakeClock,
+) -> None:
+    started_at = clock.wall()
+    meter.open_service_journal(
+        service_session_id="load",
+        session_id="pilot",
+        configuration_hash=configuration.configuration_hash,
+        started_at=started_at,
+        ledger_allocated_seconds_before_session=meter.actual_allocated_gpu_seconds,
+    )
+    clock.advance(4)
+    meter.observe_service_journal(
+        service_session_id="load",
+        elapsed_seconds=4,
+        observed_at=clock.wall(),
+        process_stopped=True,
+    )
+    meter.reconcile_service_session(
+        service_session_id="load",
+        session_id="pilot",
+        service_seconds=4,
+        classified_event_seconds=0,
+        started_at=started_at,
+        ended_at=clock.wall(),
+        details={"fixture": "terminal-before-null-lease"},
+    )
+    damaging_controller = VLLMService(
+        configuration=configuration,
+        client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+        meter=meter,
+        monotonic_clock=clock.monotonic,
+        wall_clock=clock.wall,
+    )
+    damaging_controller._acquire_service_lock()
+    damaging_controller._write_service_lock_metadata(
+        lease_state="shutdown_unverified",
+        service_pid=None,
+    )
+    damaging_controller._release_service_lock()
+
+
+def _live_process_command_sha256(pid: int) -> str:
+    raw = (Path("/proc") / str(pid) / "cmdline").read_bytes()
+    arguments = raw.split(b"\0")
+    if arguments and arguments[-1] == b"":
+        arguments.pop()
+    return canonical_sha256([argument.decode("utf-8") for argument in arguments])
+
+
+def _assert_process_group_is_gone(process_group: int) -> None:
+    with pytest.raises(ProcessLookupError):
+        os.killpg(process_group, 0)
+
+
+def _published_emergency_thread(
+    service: VLLMService,
+    *,
+    timeout_seconds: float = 0.5,
+) -> threading.Thread:
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        with service._emergency_stop_lock:
+            thread = service._emergency_stop_thread
+        if thread is not None:
+            return thread
+        time.sleep(0.001)
+    raise AssertionError("emergency-stop coordinator was not safely published")
+
+
+def test_default_cpu_affinity_sampler_uses_current_process_sentinel(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=AllocatedGPUMeter(
+                ledger,
+                monotonic_clock=clock.monotonic,
+                wall_clock=clock.wall,
+            ),
+        )
+        available = service.available_cpu_sampler()
+
+    assert available
+    assert all(isinstance(cpu, int) and cpu >= 0 for cpu in available)
+
+
+def test_service_start_deadline_signals_before_legacy_startup_sample_drains(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    entered = threading.Event()
+    release = threading.Event()
+    process = FakeProcess(999)
+    signals: list[int] = []
+
+    @dataclass
+    class BlockingStartupSampler:
+        def sample(self, **kwargs: object) -> object:
+            del kwargs
+            entered.set()
+            release.wait(5)
+            return object()
+
+    def signal_group(pid: int, signal_number: int) -> None:
+        del pid
+        signals.append(signal_number)
+        process.running = False
+
+    with Ledger(tmp_path / "startup-sample-ledger.sqlite3") as ledger:
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(FakeClock())),
+            meter=AllocatedGPUMeter(ledger),
+            startup_resource_sampler=cast(ResourceSampler, BlockingStartupSampler()),
+            startup_sample_interval_seconds=1,
+            readiness_check=lambda: entered.wait(0.5),
+            popen_factory=lambda *args, **kwargs: process,
+            process_group_signaler=signal_group,
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        started = time.monotonic()
+        with pytest.raises(RuntimeError, match=r"could not be stopped|cleanup incomplete"):
+            service.start(
+                session_id="pilot",
+                event_id="slow-startup-sample",
+                watchdog_seconds=0.1,
+            )
+        elapsed = time.monotonic() - started
+
+        assert elapsed < 0.5
+        assert process.running is False
+        assert signals == [signal.SIGTERM]
+        assert service._service_lock_stream is not None
+        assert service._startup_resource_watchdog is not None
+        assert service._startup_resource_watchdog.sample_in_flight is True
+
+        release.set()
+        deadline = time.monotonic() + 0.5
+        while service._startup_resource_watchdog.running and time.monotonic() < deadline:
+            time.sleep(0.001)
+        uptime = service.shutdown(shutdown_seconds=0.1)
+        assert uptime is not None
+        assert process.running is False
+        assert signals
+        assert service._startup_resource_watchdog is None
+        assert ledger.unresolved_gpu_service_journals() == ()
+
+
+def test_service_start_absolute_deadline_includes_endpoint_preflight(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    spawned: list[FakeProcess] = []
+
+    def slow_preflight() -> bool:
+        clock.advance(0.2)
+        return False
+
+    with Ledger(tmp_path / "preflight-deadline.sqlite3") as ledger:
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=AllocatedGPUMeter(
+                ledger,
+                monotonic_clock=clock.monotonic,
+                wall_clock=clock.wall,
+            ),
+            preflight_endpoint_check=slow_preflight,
+            popen_factory=lambda *args, **kwargs: spawned.append(FakeProcess(1_090)),
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            sleep=clock.advance,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        with pytest.raises(RuntimeWatchdogTimeout, match="during endpoint preflight"):
+            service.start(session_id="pilot", event_id="load", watchdog_seconds=0.1)
+
+        assert spawned == []
+        assert service._service_lock_stream is None
+
+
+def test_durable_exec_wait_is_clipped_to_absolute_service_start_deadline(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = FakeClock()
+    with Ledger(tmp_path / "durable-exec-deadline.sqlite3") as ledger:
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=AllocatedGPUMeter(
+                ledger,
+                monotonic_clock=clock.monotonic,
+                wall_clock=clock.wall,
+            ),
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            sleep=clock.advance,
+        )
+        service._process = FakeProcess(1_096)
+        service._last_process_command_sha256 = "a" * 64
+        monkeypatch.setattr(
+            gpu_runtime,
+            "_process_start_ticks",
+            lambda pid, proc_root=gpu_runtime.PROC_ROOT: 71_021,
+        )
+        monkeypatch.setattr(
+            gpu_runtime,
+            "_process_command_sha256",
+            lambda pid, proc_root=gpu_runtime.PROC_ROOT: "b" * 64,
+        )
+
+        with pytest.raises(RuntimeWatchdogTimeout, match="service-start wall deadline"):
+            service._wait_for_durable_exec(
+                1_096,
+                71_021,
+                startup_deadline=clock.monotonic() + 0.03,
+            )
+
+        assert clock.monotonic() < 100.1
+
+
+@pytest.mark.parametrize("caller_path", ("fallback", "phase1"))
+def test_periodic_watchdog_drain_timeout_does_not_block_physical_shutdown(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+    caller_path: str,
+) -> None:
+    entered = threading.Event()
+    release = threading.Event()
+    process = FakeProcess(1_091)
+    signals: list[int] = []
+    proc_root = tmp_path / f"proc-{caller_path}"
+
+    @dataclass
+    class BlockingPeriodicSampler:
+        def sample(self, **kwargs: object) -> object:
+            del kwargs
+            entered.set()
+            release.wait(2)
+            return object()
+
+    def signal_group(pid: int, signal_number: int) -> None:
+        assert pid == process.pid
+        signals.append(signal_number)
+        process.running = False
+
+    with Ledger(tmp_path / f"{caller_path}-periodic.sqlite3") as ledger:
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(FakeClock())),
+            meter=AllocatedGPUMeter(ledger),
+            popen_factory=lambda *args, **kwargs: process,
+            process_group_signaler=signal_group,
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        service.start(session_id="pilot", event_id="load", watchdog_seconds=1)
+
+        instance_token = f"{caller_path}-periodic-token"
+        token_sha256 = hashlib.sha256(instance_token.encode("ascii")).hexdigest()
+        _write_fake_proc_identity(
+            proc_root,
+            pid=process.pid,
+            start_ticks=71_020,
+            configuration=launch_configuration,
+            process_group_id=process.pid,
+            process_session_id=process.pid,
+            service_instance_token=instance_token,
+        )
+        service._last_process_start_ticks = 71_020
+        service._last_process_command_sha256 = canonical_sha256(
+            list(launch_configuration.command())
+        )
+        service._last_process_group_id = process.pid
+        service._last_process_session_id = process.pid
+        service._service_instance_token_sha256 = token_sha256
+        service._process_identity_proc_root = proc_root
+        service._write_service_lock_metadata(lease_state="live", service_pid=process.pid)
+
+        watchdog = ResourceWatchdog(
+            sampler=cast(ResourceSampler, BlockingPeriodicSampler()),
+            root_pid=process.pid,
+            sample_prefix=f"{caller_path}-periodic",
+            interval_seconds=30,
+            sample_completion_timeout_seconds=0.02,
+        )
+        service.start_periodic_resource_watchdog(watchdog)
+        assert entered.wait(0.5)
+
+        # Both registered runners now use this service-owned stop before their
+        # finally-block shutdown. A timeout may retain accounting ownership,
+        # but cannot prevent the verified owned service from being terminated.
+        assert service.stop_periodic_resource_watchdog(watchdog, raise_failure=False) is False
+        with pytest.raises(RuntimeError, match=r"could not be stopped|cleanup incomplete"):
+            service.shutdown(shutdown_seconds=0.1)
+
+        assert signals == [signal.SIGTERM]
+        assert process.running is False
+        assert service._service_lock_stream is not None
+        assert service._periodic_resource_watchdog is watchdog
+        lease = service.read_authoritative_service_lease()
+        assert lease is not None
+        assert lease["lease_state"] == "accounting_pending"
+        assert lease["service_pid"] == process.pid
+        assert lease["process_start_ticks"] == 71_020
+        assert lease["process_group_id"] == process.pid
+        assert lease["process_session_id"] == process.pid
+        assert lease["service_instance_token_sha256"] == token_sha256
+
+        release.set()
+        deadline = time.monotonic() + 0.5
+        while watchdog.running and time.monotonic() < deadline:
+            time.sleep(0.001)
+        uptime = service.shutdown(shutdown_seconds=0.1)
+
+        assert uptime is not None
+        assert signals == [signal.SIGTERM]
+        assert process.running is False
+        assert service._periodic_resource_watchdog is None
+        assert ledger.unresolved_gpu_service_journals() == ()
+
+
+def test_periodic_watchdog_callback_cannot_unregister_its_own_live_thread(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    process = FakeProcess(1_092)
+    callback_completed = threading.Event()
+    callback_results: list[bool] = []
+    holder: dict[str, ResourceWatchdog] = {}
+
+    with Ledger(tmp_path / "callback-ownership.sqlite3") as ledger:
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(FakeClock())),
+            meter=AllocatedGPUMeter(ledger),
+            popen_factory=lambda *args, **kwargs: process,
+            process_group_signaler=lambda pid, signal_number: setattr(
+                process,
+                "running",
+                False,
+            ),
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        service.start(session_id="pilot", event_id="load", watchdog_seconds=1)
+
+        @dataclass
+        class FailingSampler:
+            def sample(self, **kwargs: object) -> object:
+                del kwargs
+                raise RuntimeError("periodic sample failed")
+
+        def callback(failure: BaseException) -> None:
+            del failure
+            callback_results.append(
+                service.stop_periodic_resource_watchdog(
+                    holder["watchdog"],
+                    raise_failure=False,
+                )
+            )
+            callback_completed.set()
+
+        watchdog = ResourceWatchdog(
+            sampler=cast(ResourceSampler, FailingSampler()),
+            root_pid=process.pid,
+            sample_prefix="callback-owner",
+            interval_seconds=30,
+            on_failure=callback,
+        )
+        holder["watchdog"] = watchdog
+        service.start_periodic_resource_watchdog(watchdog)
+        assert callback_completed.wait(0.5)
+
+        assert callback_results == [False]
+        assert service._periodic_resource_watchdog is watchdog
+        deadline = time.monotonic() + 0.5
+        while watchdog.running and time.monotonic() < deadline:
+            time.sleep(0.001)
+        assert service.stop_periodic_resource_watchdog(watchdog, raise_failure=False) is True
+        assert service._periodic_resource_watchdog is None
+        service.shutdown(shutdown_seconds=0.1)
+
+
+def test_heartbeat_failure_signals_even_while_legacy_periodic_sample_is_stuck(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    entered = threading.Event()
+    release = threading.Event()
+    process = FakeProcess(1_093)
+    signals: list[int] = []
+
+    @dataclass
+    class BlockingPeriodicSampler:
+        def sample(self, **kwargs: object) -> object:
+            del kwargs
+            entered.set()
+            release.wait(2)
+            return object()
+
+    def signal_group(pid: int, signal_number: int) -> None:
+        del pid
+        signals.append(signal_number)
+        process.running = False
+
+    with Ledger(tmp_path / "heartbeat-periodic.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(ledger)
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(FakeClock())),
+            meter=meter,
+            service_heartbeat_interval_seconds=0.01,
+            popen_factory=lambda *args, **kwargs: process,
+            process_group_signaler=signal_group,
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        service.start(session_id="pilot", event_id="load", watchdog_seconds=1)
+        watchdog = ResourceWatchdog(
+            sampler=cast(ResourceSampler, BlockingPeriodicSampler()),
+            root_pid=process.pid,
+            sample_prefix="heartbeat-blocked",
+            interval_seconds=30,
+            sample_completion_timeout_seconds=0.05,
+        )
+        service.start_periodic_resource_watchdog(watchdog)
+        assert entered.wait(0.5)
+
+        # Force the next heartbeat through the protected hard-stop margin.
+        meter.hard_limit_seconds = 1
+        deadline = time.monotonic() + 0.5
+        while service._service_heartbeat_failure is None and time.monotonic() < deadline:
+            time.sleep(0.001)
+        assert service._service_heartbeat_failure is not None
+        emergency_thread = _published_emergency_thread(service)
+        emergency_thread.join(timeout=0.5)
+
+        assert emergency_thread.is_alive() is False
+        assert isinstance(service._emergency_stop_failure, RuntimeError)
+        assert signals == [signal.SIGTERM]
+        assert process.running is False
+        assert service._service_lock_stream is not None
+        assert service._periodic_resource_watchdog is watchdog
+
+        meter.hard_limit_seconds = 36_000
+        release.set()
+        deadline = time.monotonic() + 0.5
+        while watchdog.running and time.monotonic() < deadline:
+            time.sleep(0.001)
+        with pytest.raises(RuntimeError, match="heartbeat failed"):
+            service.shutdown(shutdown_seconds=0.1)
+
+        assert signals == [signal.SIGTERM]
+        assert process.running is False
+        assert service.state is ServiceState.STOPPED
+        assert ledger.unresolved_gpu_service_journals() == ()
+
+
+def test_emergency_coordinator_is_started_before_publication_and_blocks_handoff(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    process = FakeProcess(1_097)
+    coordinator_start_entered = threading.Event()
+    allow_coordinator_start = threading.Event()
+    coordinator_body_entered = threading.Event()
+    allow_coordinator_finish = threading.Event()
+    detach_failures: list[BaseException] = []
+
+    with Ledger(tmp_path / "coordinator-publication.sqlite3") as ledger:
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(FakeClock())),
+            meter=AllocatedGPUMeter(ledger),
+            popen_factory=lambda *args, **kwargs: process,
+            process_group_signaler=lambda pid, signal_number: setattr(
+                process,
+                "running",
+                False,
+            ),
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        service.start(session_id="pilot", event_id="load", watchdog_seconds=1)
+        original_thread_start = threading.Thread.start
+
+        def delayed_thread_start(thread: threading.Thread) -> None:
+            if thread.name.startswith("vllm-emergency-stop-"):
+                coordinator_start_entered.set()
+                if not allow_coordinator_start.wait(1):
+                    raise RuntimeError("test did not release coordinator start")
+            original_thread_start(thread)
+
+        def delayed_emergency_stop(self: VLLMService) -> None:
+            del self
+            coordinator_body_entered.set()
+            if not allow_coordinator_finish.wait(1):
+                raise RuntimeError("test did not release coordinator body")
+
+        with monkeypatch.context() as scoped:
+            scoped.setattr(threading.Thread, "start", delayed_thread_start)
+            scoped.setattr(VLLMService, "emergency_stop", delayed_emergency_stop)
+            requester = threading.Thread(target=service.request_emergency_stop)
+            requester.start()
+            assert coordinator_start_entered.wait(0.5)
+            # The coordinator is deliberately between construction and start;
+            # it must not yet be visible outside the publication lock.
+            assert service._emergency_stop_thread is None
+
+            def attempt_detach() -> None:
+                try:
+                    service.detach_for_controller_restart(tmp_path / "race.checkpoint.json")
+                except BaseException as exc:
+                    detach_failures.append(exc)
+
+            detacher = threading.Thread(target=attempt_detach)
+            detacher.start()
+            time.sleep(0.02)
+            assert detacher.is_alive() is True
+
+            allow_coordinator_start.set()
+            assert coordinator_body_entered.wait(0.5)
+            requester.join(timeout=0.5)
+            detacher.join(timeout=0.5)
+            assert requester.is_alive() is False
+            assert detacher.is_alive() is False
+            assert len(detach_failures) == 1
+            assert "coordinator forbids controller detach" in str(detach_failures[0])
+            with pytest.raises(RuntimeError, match="coordinator forbids controller handoff"):
+                service.handoff_resume(tmp_path / "race-handoff.json")
+
+            coordinator = _published_emergency_thread(service)
+            # Publication implies Python has accepted Thread.start(), so join
+            # can never raise "cannot join thread before it is started".
+            allow_coordinator_finish.set()
+            coordinator.join(timeout=0.5)
+            assert coordinator.is_alive() is False
+
+        assert not (tmp_path / "race.checkpoint.json").exists()
+        assert not (tmp_path / "race-handoff.json").exists()
+        service.shutdown(shutdown_seconds=0.1)
+
+
+def test_periodic_failure_callback_and_runner_shutdown_serialize_one_signal(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    entered = threading.Event()
+    release = threading.Event()
+    process = FakeProcess(1_094)
+    signals: list[int] = []
+    runner_results: list[ServiceUptime | None] = []
+    runner_failures: list[BaseException] = []
+
+    @dataclass
+    class BlockingFailureSampler:
+        def sample(self, **kwargs: object) -> object:
+            del kwargs
+            entered.set()
+            if not release.wait(2):
+                raise RuntimeError("test sampler was not released")
+            raise RuntimeError("late periodic failure")
+
+    def signal_group(pid: int, signal_number: int) -> None:
+        del pid
+        signals.append(signal_number)
+        process.running = False
+
+    with Ledger(tmp_path / "concurrent-periodic-shutdown.sqlite3") as ledger:
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(FakeClock())),
+            meter=AllocatedGPUMeter(ledger),
+            popen_factory=lambda *args, **kwargs: process,
+            process_group_signaler=signal_group,
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        service.start(session_id="pilot", event_id="load", watchdog_seconds=1)
+        watchdog = ResourceWatchdog(
+            sampler=cast(ResourceSampler, BlockingFailureSampler()),
+            root_pid=process.pid,
+            sample_prefix="concurrent-shutdown",
+            interval_seconds=30,
+            sample_completion_timeout_seconds=1,
+            on_failure=lambda failure: service.request_emergency_stop(),
+        )
+        service.start_periodic_resource_watchdog(watchdog)
+        assert entered.wait(0.5)
+
+        def runner_shutdown() -> None:
+            try:
+                runner_results.append(service.shutdown(shutdown_seconds=0.1))
+            except BaseException as exc:
+                runner_failures.append(exc)
+
+        runner_thread = threading.Thread(target=runner_shutdown)
+        runner_thread.start()
+        time.sleep(0.01)
+        assert signals == [signal.SIGTERM]
+        release.set()
+        runner_thread.join(timeout=1)
+        assert runner_thread.is_alive() is False
+        emergency_thread = _published_emergency_thread(service)
+        emergency_thread.join(timeout=1)
+
+        assert emergency_thread.is_alive() is False
+        assert runner_failures == []
+        assert len(runner_results) == 1
+        assert runner_results[0] is not None
+        assert signals == [signal.SIGTERM]
+        assert service.state is ServiceState.STOPPED
+        assert ledger.unresolved_gpu_service_journals() == ()
+
+
+def test_controller_handoff_rejects_owned_periodic_watchdog(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    entered = threading.Event()
+    release = threading.Event()
+    process = FakeProcess(1_095)
+
+    @dataclass
+    class BlockingSampler:
+        def sample(self, **kwargs: object) -> object:
+            del kwargs
+            entered.set()
+            release.wait(1)
+            return object()
+
+    with Ledger(tmp_path / "handoff-watchdog.sqlite3") as ledger:
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(FakeClock())),
+            meter=AllocatedGPUMeter(ledger),
+            popen_factory=lambda *args, **kwargs: process,
+            process_group_signaler=lambda pid, signal_number: setattr(
+                process,
+                "running",
+                False,
+            ),
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        service.start(session_id="pilot", event_id="load", watchdog_seconds=1)
+        watchdog = ResourceWatchdog(
+            sampler=cast(ResourceSampler, BlockingSampler()),
+            root_pid=process.pid,
+            sample_prefix="handoff-owned",
+            interval_seconds=30,
+        )
+        service.start_periodic_resource_watchdog(watchdog)
+        assert entered.wait(0.5)
+
+        with pytest.raises(RuntimeError, match="must stop before controller detach"):
+            service.detach_for_controller_restart(tmp_path / "detached-service.checkpoint.json")
+        assert not (tmp_path / "detached-service.checkpoint.json").exists()
+        with pytest.raises(RuntimeError, match="must stop before controller handoff"):
+            service.handoff_resume(tmp_path / "service.checkpoint.json")
+        assert not (tmp_path / "service.checkpoint.json").exists()
+
+        release.set()
+        assert service.stop_periodic_resource_watchdog(watchdog, raise_failure=False)
+        service.shutdown(shutdown_seconds=0.1)
+
+
+def test_service_meters_mutually_exclusive_lifecycle_and_safe_shutdown(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    processes: list[FakeProcess] = []
+
+    def popen(*args: object, **kwargs: object) -> FakeProcess:
+        process = FakeProcess(pid=1000 + len(processes))
+        processes.append(process)
+        assert kwargs["start_new_session"] is True
+        return process
+
+    def signal_group(pid: int, signal_number: int) -> None:
+        process = next(item for item in processes if item.pid == pid)
+        assert signal_number in {signal.SIGTERM, signal.SIGKILL}
+        process.running = False
+
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        client = FakeServiceClient(clock)
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, client),
+            meter=meter,
+            popen_factory=popen,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            sleep=lambda seconds: clock.advance(seconds),
+            process_group_signaler=signal_group,
+            process_group_liveness_check=lambda pid: (
+                next(item for item in processes if item.pid == pid).running
+            ),
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        service.start(session_id="pilot", event_id="load", watchdog_seconds=180)
+        fallback_request = _guided_request(
+            model_name=FALLBACK_SERVED_MODEL_NAME,
+            tokenizer_revision=FALLBACK_MODEL_REVISION,
+        )
+        with pytest.raises(RuntimeConfigurationError, match="controlled service"):
+            service.generate(
+                fallback_request,
+                event_id="wrong-model",
+                watchdog_seconds=90,
+            )
+        service.run_warmup(lambda: clock.advance(1), event_id="warm", watchdog_seconds=10)
+        service.run_schema_probe(lambda: clock.advance(1), event_id="schema", watchdog_seconds=10)
+        result = service.generate(_guided_request(), event_id="inference", watchdog_seconds=90)
+        service.restart(event_id="restart", watchdog_seconds=30)
+        uptime = service.shutdown()
+
+        assert result.parsed_object == {"ok": True}
+        assert service.state is ServiceState.STOPPED
+        assert all(not process.running for process in processes)
+        assert uptime is not None
+        assert uptime.service_seconds == pytest.approx(4)
+        summary = ledger.gpu_summary()
+        assert summary.event_count == 5
+        assert {kind for kind, _ in summary.by_kind_microseconds} == {
+            GpuEventKind.GPU_SESSION_START,
+            GpuEventKind.WARM_UP,
+            GpuEventKind.SCHEMA_PROBE,
+            GpuEventKind.INFERENCE,
+            GpuEventKind.RESTART,
+        }
+        latest_journal = ledger.latest_gpu_service_journal("load")
+        assert latest_journal is not None
+        assert latest_journal.state.value == "closed"
+        assert ledger.count_rows("gpu_service_journal") == 3
+
+
+def test_service_start_contingency_is_paired_audited_and_does_not_unlock_calls(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(1998)
+    spawned: list[int] = []
+
+    def popen(*args: object, **kwargs: object) -> FakeProcess:
+        del args, kwargs
+        spawned.append(process.pid)
+        return process
+
+    with Ledger(tmp_path / "service-start-contingency.sqlite3") as ledger:
+        ledger.record_gpu_event(
+            event_id="prior-allocation",
+            event_kind=GpuEventKind.INFERENCE,
+            allocated_seconds=8,
+            started_at=clock.wall(),
+            ended_at=clock.wall() + timedelta(seconds=8),
+            succeeded=True,
+        )
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=AllocatedGPUMeter(
+                ledger,
+                scheduled_limit_seconds=9,
+                hard_limit_seconds=189,
+                monotonic_clock=clock.monotonic,
+                wall_clock=clock.wall,
+            ),
+            popen_factory=popen,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            sleep=clock.advance,
+            process_group_signaler=lambda pid, sig: setattr(process, "running", False),
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+
+        with pytest.raises(ForecastAdmissionError, match="scheduled"):
+            service.start(
+                session_id="recovery",
+                event_id="ordinary-start",
+                watchdog_seconds=0.5,
+                admission_forecast_seconds=0.6,
+                remaining_required_seconds=0.5,
+            )
+        with pytest.raises(RuntimeConfigurationError, match="paired unlock"):
+            service.start(
+                session_id="recovery",
+                event_id="half-authorized-start",
+                watchdog_seconds=0.5,
+                admission_forecast_seconds=0.6,
+                remaining_required_seconds=0.5,
+                contingency_unlocked=True,
+            )
+        with pytest.raises(RuntimeConfigurationError, match="exact booleans"):
+            service.start(
+                session_id="recovery",
+                event_id="non-boolean-start",
+                watchdog_seconds=0.5,
+                admission_forecast_seconds=0.6,
+                remaining_required_seconds=0.5,
+                contingency_unlocked=cast(bool, 1),
+                essential_recovery=True,
+            )
+        assert spawned == []
+
+        service.start(
+            session_id="recovery",
+            event_id="essential-recovery-start",
+            watchdog_seconds=0.5,
+            admission_forecast_seconds=0.6,
+            remaining_required_seconds=0.5,
+            contingency_unlocked=True,
+            essential_recovery=True,
+        )
+        start_event = ledger.gpu_events_with_prefix("essential-recovery-start")[-1]
+        start_details = json.loads(start_event.details_json)
+        assert start_event.event_kind is GpuEventKind.GPU_SESSION_START
+        assert start_details["service_start_watchdog_seconds"] == 0.5
+        assert start_details["admission_forecast_seconds"] == 0.6
+        assert start_details["admitted_maximum_seconds"] == 0.5
+        assert start_details["contingency_unlocked"] is True
+        assert start_details["essential_recovery"] is True
+
+        # Start-only authority is not retained on the service or propagated to
+        # inference/restart: their ordinary scheduled forecast remains strict.
+        with pytest.raises(ForecastAdmissionError, match="scheduled"):
+            service.generate(
+                _guided_request(),
+                event_id="forbidden-contingency-inference",
+                watchdog_seconds=0.5,
+                remaining_required_seconds=0.6,
+            )
+        with pytest.raises(ForecastAdmissionError, match="scheduled"):
+            service.restart(
+                event_id="forbidden-contingency-restart",
+                watchdog_seconds=0.5,
+                remaining_required_seconds=0.6,
+            )
+
+        # The independent sampler-drain/shutdown reserve is still protected.
+        with pytest.raises(GpuBudgetExceeded, match="hard GPU-service limit"):
+            service.run_warmup(
+                lambda: None,
+                event_id="protected-reserve",
+                watchdog_seconds=1,
+            )
+        assert spawned == [process.pid]
+        service.shutdown(shutdown_seconds=0.1)
+
+
+def test_service_start_uses_distinct_authoritative_allocation_proxy_for_admission(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(1999)
+    spawned: list[int] = []
+
+    def popen(*args: object, **kwargs: object) -> FakeProcess:
+        del args, kwargs
+        spawned.append(process.pid)
+        return process
+
+    with Ledger(tmp_path / "service-start-proxy.sqlite3") as ledger:
+        consumed_seconds = 2581.267703
+        remaining_mandatory_seconds = 29_459.0
+        startup_watchdog_seconds = 300.0
+        service_allocation_proxy_seconds = 391.40054529582005
+        ledger.record_gpu_event(
+            event_id="recovered-consumption",
+            event_kind=GpuEventKind.FAILURE,
+            allocated_seconds=consumed_seconds,
+            started_at=clock.wall(),
+            ended_at=clock.wall() + timedelta(seconds=consumed_seconds),
+            succeeded=False,
+        )
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=AllocatedGPUMeter(
+                ledger,
+                scheduled_limit_seconds=32_400,
+                hard_limit_seconds=36_000,
+                monotonic_clock=clock.monotonic,
+                wall_clock=clock.wall,
+            ),
+            popen_factory=popen,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            sleep=clock.advance,
+            process_group_signaler=lambda pid, sig: setattr(process, "running", False),
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+
+        # The 300-second startup watchdog alone would project 32,340.267703s
+        # and incorrectly pass. The distinct service-allocation proxy projects
+        # 32,431.668248s and therefore fails the ordinary scheduled gate.
+        with pytest.raises(ForecastAdmissionError, match="scheduled"):
+            service.start(
+                session_id="v9-recovery",
+                event_id="ordinary-v9-start",
+                watchdog_seconds=startup_watchdog_seconds,
+                admission_forecast_seconds=service_allocation_proxy_seconds,
+                remaining_required_seconds=remaining_mandatory_seconds,
+            )
+        assert spawned == []
+
+        service.start(
+            session_id="v9-recovery",
+            event_id="authorized-v9-start",
+            watchdog_seconds=startup_watchdog_seconds,
+            admission_forecast_seconds=service_allocation_proxy_seconds,
+            remaining_required_seconds=remaining_mandatory_seconds,
+            contingency_unlocked=True,
+            essential_recovery=True,
+        )
+        event = ledger.gpu_events_with_prefix("authorized-v9-start")[-1]
+        details = json.loads(event.details_json)
+        journal = tuple(
+            row
+            for row in ledger.gpu_allocation_journal_records()
+            if row.allocation_id == "authorized-v9-start"
+        )
+        assert details["service_start_watchdog_seconds"] == startup_watchdog_seconds
+        assert details["admission_forecast_seconds"] == service_allocation_proxy_seconds
+        assert details["admitted_maximum_seconds"] == startup_watchdog_seconds
+        assert journal[0].maximum_microseconds == int(startup_watchdog_seconds * 1_000_000)
+        assert spawned == [process.pid]
+        service.shutdown(shutdown_seconds=0.1)
+
+
+def test_service_start_contingency_cannot_cross_strict_hard_stop(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    spawned: list[int] = []
+    with Ledger(tmp_path / "service-start-hard-stop.sqlite3") as ledger:
+        ledger.record_gpu_event(
+            event_id="prior-allocation",
+            event_kind=GpuEventKind.INFERENCE,
+            allocated_seconds=9.5,
+            started_at=clock.wall(),
+            ended_at=clock.wall() + timedelta(seconds=9.5),
+            succeeded=True,
+        )
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=AllocatedGPUMeter(
+                ledger,
+                scheduled_limit_seconds=9,
+                hard_limit_seconds=10,
+                monotonic_clock=clock.monotonic,
+                wall_clock=clock.wall,
+            ),
+            popen_factory=lambda *args, **kwargs: spawned.append(2001),
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            sleep=clock.advance,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+
+        with pytest.raises(GpuBudgetExceeded, match="reach/cross hard limit"):
+            service.start(
+                session_id="recovery",
+                event_id="hard-stop-start",
+                watchdog_seconds=0.5,
+                contingency_unlocked=True,
+                essential_recovery=True,
+            )
+
+        assert spawned == []
+        assert tuple(event.event_id for event in ledger.gpu_events()) == ("prior-allocation",)
+        assert ledger.unresolved_gpu_allocations() == ()
+
+
+def test_project_service_lock_prevents_duplicate_launch_and_releases_after_shutdown(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    processes: dict[int, FakeProcess] = {}
+
+    def popen(*args: object, **kwargs: object) -> FakeProcess:
+        del args, kwargs
+        process = FakeProcess(6000 + len(processes))
+        processes[process.pid] = process
+        return process
+
+    def signal_group(pid: int, signal_number: int) -> None:
+        assert signal_number in {signal.SIGTERM, signal.SIGKILL}
+        processes[pid].running = False
+
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+
+        def service() -> VLLMService:
+            return VLLMService(
+                configuration=launch_configuration,
+                client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+                meter=meter,
+                popen_factory=popen,
+                monotonic_clock=clock.monotonic,
+                wall_clock=clock.wall,
+                sleep=clock.advance,
+                process_group_signaler=signal_group,
+                process_group_liveness_check=lambda pid: processes[pid].running,
+                available_cpu_sampler=lambda: set(range(16)),
+                affinity_setter=lambda pid, cpus: None,
+            )
+
+        first = service()
+        contender = service()
+        first.start(session_id="pilot", event_id="load-1", watchdog_seconds=180)
+        lock_path = launch_configuration.shared_cache / ".story-projection-onto-vllm.lock"
+        live_lease = json.loads(lock_path.read_text())
+        assert live_lease["lease_state"] == "live"
+        assert live_lease["service_started_at"] == clock.wall().isoformat()
+        assert live_lease["service_pid"] == first.pid
+        with pytest.raises(RuntimeConfigurationError, match="exclusive vLLM service lock"):
+            contender.start(session_id="pilot", event_id="load-duplicate", watchdog_seconds=180)
+        assert len(processes) == 1
+
+        first.shutdown()
+        contender.start(session_id="pilot", event_id="load-2", watchdog_seconds=180)
+        assert len(processes) == 2
+        contender.shutdown()
+        stopped_lease = json.loads(lock_path.read_text())
+        assert stopped_lease["lease_state"] == "stopped_verified"
+        assert stopped_lease["service_ended_at"] == clock.wall().isoformat()
+
+
+def test_production_service_reuse_resets_and_overwrites_launch_gate_identity(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = (sys.executable, "-c", "import time; time.sleep(30)")
+    monkeypatch.setattr(
+        VLLMLaunchConfiguration,
+        "command",
+        lambda self, python_executable=sys.executable: target,
+    )
+    original_write = VLLMService._write_service_lock_metadata
+    pending_leases: list[dict[str, object]] = []
+    live_leases: list[dict[str, object]] = []
+    lock_path = launch_configuration.shared_cache / ".story-projection-onto-vllm.lock"
+
+    def record_launch_leases(
+        self: VLLMService,
+        *,
+        lease_state: str,
+        service_pid: int | None = None,
+        ended_at: datetime | None = None,
+    ) -> None:
+        original_write(
+            self,
+            lease_state=lease_state,
+            service_pid=service_pid,
+            ended_at=ended_at,
+        )
+        if lease_state == "launch_supervisor_pending":
+            pending_leases.append(json.loads(lock_path.read_text(encoding="utf-8")))
+        elif lease_state == "live":
+            live_leases.append(json.loads(lock_path.read_text(encoding="utf-8")))
+
+    monkeypatch.setattr(
+        VLLMService,
+        "_write_service_lock_metadata",
+        record_launch_leases,
+    )
+    with Ledger(tmp_path / "exec-gate-reuse.sqlite3") as ledger:
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(FakeClock())),
+            meter=AllocatedGPUMeter(ledger),
+            available_cpu_sampler=lambda: set(range(8)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        service.start(session_id="pilot", event_id="load-1", watchdog_seconds=5)
+        service.shutdown(shutdown_seconds=1)
+        service.start(session_id="pilot", event_id="load-2", watchdog_seconds=5)
+        service.shutdown(shutdown_seconds=1)
+
+        assert len(pending_leases) == 2
+        assert len(live_leases) == 2
+        for pending in pending_leases:
+            assert pending["lease_state"] == "launch_supervisor_pending"
+            assert pending["service_pid"] is None
+            assert pending["process_start_ticks"] is None
+            assert pending["launch_supervisor_command_sha256"] is None
+            assert pending["launch_protocol"] == "pipe-eof-before-exec-v1"
+            assert isinstance(pending["launch_gate_token_sha256"], str)
+        assert (
+            pending_leases[0]["launch_gate_token_sha256"]
+            != pending_leases[1]["launch_gate_token_sha256"]
+        )
+        for pending, live in zip(pending_leases, live_leases, strict=True):
+            assert live["accounting_session_id"] in {"load-1", "load-2"}
+            assert live["launch_gate_token_sha256"] == pending["launch_gate_token_sha256"]
+            assert isinstance(live["launch_supervisor_command_sha256"], str)
+            assert isinstance(live["service_pid"], int)
+            assert isinstance(live["process_start_ticks"], int)
+        assert ledger.unresolved_gpu_service_journals() == ()
+
+
+def test_atomic_lease_snapshot_recovers_torn_lock_after_target_exec(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = (sys.executable, "-c", "import time; time.sleep(30)")
+    monkeypatch.setattr(
+        VLLMLaunchConfiguration,
+        "command",
+        lambda self, python_executable=sys.executable: target,
+    )
+    lock_path = launch_configuration.shared_cache / ".story-projection-onto-vllm.lock"
+    snapshot_path = lock_path.with_name(".story-projection-onto-vllm.lease.json")
+    signaled_groups: list[tuple[int, int]] = []
+
+    def terminate_exact_group(process_group: int, signal_number: int) -> None:
+        assert os.getpgid(process_group) == process_group
+        signaled_groups.append((process_group, signal_number))
+        os.killpg(process_group, signal_number)
+
+    with Ledger(tmp_path / "torn-lock-recovery.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(ledger)
+        original = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(FakeClock())),
+            meter=meter,
+            available_cpu_sampler=lambda: set(range(8)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        original.start(session_id="pilot", event_id="load", watchdog_seconds=5)
+        process = cast(subprocess.Popen[bytes], original._process)
+        try:
+            snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
+            snapshot_hash = snapshot.pop("lease_manifest_sha256")
+            assert snapshot_hash == canonical_sha256(snapshot)
+            assert snapshot["lease_state"] == "live"
+            assert snapshot["service_pid"] == process.pid
+            assert snapshot["process_command_sha256"] == canonical_sha256(list(target))
+
+            original._stop_service_heartbeat()
+            original._release_service_lock()
+            lock_path.write_bytes(b'{"lease_state":"live"')
+
+            recovering = VLLMService(
+                configuration=launch_configuration,
+                client=cast(VLLMGuidedJSONClient, FakeServiceClient(FakeClock())),
+                meter=meter,
+                process_group_signaler=terminate_exact_group,
+                available_cpu_sampler=lambda: set(range(8)),
+                affinity_setter=lambda pid, cpus: None,
+            )
+            assert recovering.resume_live_service_lease(
+                expected_session_id="pilot",
+                expected_event_id="load",
+                watchdog_seconds=5,
+                adopted_factory=lambda pid: process,
+                cleanup_only=True,
+            )
+            uptime = recovering.shutdown(shutdown_seconds=1)
+
+            assert uptime is not None
+            assert signaled_groups and all(
+                process_group == process.pid for process_group, _ in signaled_groups
+            )
+            assert process.poll() is not None
+            _assert_process_group_is_gone(process.pid)
+            assert ledger.unresolved_gpu_service_journals() == ()
+            assert ledger.get_gpu_service_session("load") is not None
+            terminal_snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
+            terminal_hash = terminal_snapshot.pop("lease_manifest_sha256")
+            assert terminal_hash == canonical_sha256(terminal_snapshot)
+            assert terminal_snapshot["lease_state"] == "stopped_verified"
+        finally:
+            if process.poll() is None:
+                with suppress(ProcessLookupError):
+                    os.killpg(process.pid, signal.SIGKILL)
+                process.wait(timeout=1)
+
+
+def test_cleanup_adopts_token_bound_group_after_service_leader_exits(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A hard-stop owner can kill exact orphan workers without PID guesswork."""
+
+    ready_path = tmp_path / "orphan-worker.ready"
+    release_path = tmp_path / "release-service-leader"
+    child_program = (
+        "import signal,time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(30)"
+    )
+    leader_program = (
+        "import pathlib,subprocess,sys,time; "
+        f"child=subprocess.Popen([sys.executable,'-c',{child_program!r}],"
+        "stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,"
+        "stderr=subprocess.DEVNULL); "
+        f"pathlib.Path({str(ready_path)!r}).write_text(str(child.pid)); "
+        f"release=pathlib.Path({str(release_path)!r}); "
+        "\nwhile not release.exists(): time.sleep(0.01)"
+    )
+    command = (sys.executable, "-c", leader_program)
+    monkeypatch.setattr(
+        VLLMLaunchConfiguration,
+        "command",
+        lambda self, python_executable=sys.executable: command,
+    )
+    leader: subprocess.Popen[bytes] | None = None
+    child_pid: int | None = None
+
+    with Ledger(tmp_path / "orphan-group.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(ledger)
+        original = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(FakeClock())),
+            meter=meter,
+        )
+        original._acquire_service_lock()
+        original._session_id = "pilot"
+        original._accounting_session_id = "load"
+        original._started_at = datetime.now(UTC)
+        original._started_monotonic = time.monotonic()
+        original._allocated_at_start = meter.actual_allocated_gpu_seconds
+        original._prepare_service_instance_token()
+        leader = subprocess.Popen(
+            command,
+            env=original._service_environment(),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        try:
+            original._process = leader
+            original._last_service_pid = leader.pid
+            original._last_process_start_ticks = gpu_runtime._process_start_ticks(leader.pid)
+            original._last_process_command_sha256 = canonical_sha256(list(command))
+            original._capture_process_group_identity(leader.pid, required=True)
+            original._open_service_journal()
+            original._write_service_lock_metadata(
+                lease_state="live",
+                service_pid=leader.pid,
+            )
+            original._process = None
+            original._release_service_lock()
+
+            deadline = time.monotonic() + 5
+            while not ready_path.exists() and time.monotonic() < deadline:
+                time.sleep(0.01)
+            assert ready_path.exists()
+            child_pid = int(ready_path.read_text(encoding="utf-8"))
+            release_path.touch()
+            assert leader.wait(timeout=2) == 0
+            assert not original.process_liveness_check(leader.pid)
+            assert original.process_group_liveness_check(leader.pid)
+
+            recovering = VLLMService(
+                configuration=launch_configuration,
+                client=cast(VLLMGuidedJSONClient, FakeServiceClient(FakeClock())),
+                meter=meter,
+            )
+            assert recovering.resume_live_service_lease(
+                expected_session_id="pilot",
+                expected_event_id="load",
+                watchdog_seconds=180,
+                cleanup_only=True,
+            )
+            uptime = recovering.shutdown(shutdown_seconds=0.2)
+
+            assert uptime is not None
+            assert not recovering.process_group_liveness_check(leader.pid)
+            assert ledger.unresolved_gpu_service_journals() == ()
+            assert ledger.get_gpu_service_session("load") is not None
+            lease = recovering.read_authoritative_service_lease()
+            assert lease is not None
+            assert lease["lease_state"] == "stopped_verified"
+            assert lease["process_group_id"] == leader.pid
+            assert lease["process_session_id"] == leader.pid
+            assert isinstance(lease["service_instance_token_sha256"], str)
+        finally:
+            release_path.touch(exist_ok=True)
+            if leader.poll() is None:
+                with suppress(ProcessLookupError):
+                    os.killpg(leader.pid, signal.SIGKILL)
+                leader.wait(timeout=2)
+            if child_pid is not None and original.process_group_liveness_check(leader.pid):
+                with suppress(ProcessLookupError):
+                    os.killpg(leader.pid, signal.SIGKILL)
+
+
+def test_cleanup_only_adopts_token_bound_service_after_argv_drift(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(6011)
+    proc_root = tmp_path / "proc"
+    drifted_command = (sys.executable, "renamed-vllm-process-title")
+    with Ledger(tmp_path / "argv-drift-cleanup.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        original = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        expected_command_sha256, instance_token_sha256 = _seed_token_bound_live_lease(
+            original,
+            clock=clock,
+            process=process,
+            proc_root=proc_root,
+            start_ticks=71_001,
+            observed_command=drifted_command,
+        )
+        # setproctitle-style padding can leave an empty argv element rather than
+        # merely a different valid argv hash.
+        (proc_root / str(process.pid) / "cmdline").write_bytes(b"VLLM::EngineCore\0\0")
+        clock.advance(3)
+
+        def signal_group(pid: int, signal_number: int) -> None:
+            assert pid == process.pid
+            assert signal_number in {signal.SIGTERM, signal.SIGKILL}
+            process.running = False
+
+        recovering = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            sleep=clock.advance,
+            process_group_signaler=signal_group,
+            process_liveness_check=lambda pid: process.running,
+            process_group_liveness_check=lambda pid: process.running,
+        )
+        assert recovering.resume_live_service_lease(
+            expected_session_id="pilot",
+            expected_event_id="load",
+            watchdog_seconds=180,
+            proc_root=proc_root,
+            adopted_factory=lambda pid: process,
+            cleanup_only=True,
+        )
+        assert recovering.state is ServiceState.FAILED
+        assert recovering._last_process_start_ticks == 71_001
+        assert recovering._last_process_command_sha256 == expected_command_sha256
+        assert recovering._last_process_group_id == process.pid
+        assert recovering._last_process_session_id == process.pid
+        assert recovering._service_instance_token_sha256 == instance_token_sha256
+
+        uptime = recovering.shutdown(shutdown_seconds=0.1)
+        assert uptime is not None
+        assert uptime.service_seconds == 3
+        assert process.running is False
+        assert ledger.unresolved_gpu_service_journals() == ()
+
+
+def test_scientific_adoption_remains_strict_after_argv_drift(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(6012)
+    proc_root = tmp_path / "proc"
+    with Ledger(tmp_path / "argv-drift-scientific.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        original = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        expected_command_sha256, _ = _seed_token_bound_live_lease(
+            original,
+            clock=clock,
+            process=process,
+            proc_root=proc_root,
+            start_ticks=71_002,
+            observed_command=(sys.executable, "renamed-vllm-process-title"),
+        )
+        recovering = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_liveness_check=lambda pid: process.running,
+            process_group_liveness_check=lambda pid: process.running,
+        )
+
+        with pytest.raises(RuntimeConfigurationError, match="command line changed"):
+            recovering.resume_live_service_lease(
+                expected_session_id="pilot",
+                expected_event_id="load",
+                watchdog_seconds=180,
+                proc_root=proc_root,
+                adopted_factory=lambda pid: process,
+            )
+        lease = recovering.read_authoritative_service_lease()
+        assert lease is not None
+        assert lease["process_command_sha256"] == expected_command_sha256
+        assert recovering._process is None
+        assert recovering._session_id is None
+
+        process.running = False
+        recovering.shutdown(shutdown_seconds=0.1)
+
+
+def test_failed_cleanup_adoption_and_emergency_stop_preserve_exact_lease_identity(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(6013)
+    proc_root = tmp_path / "proc"
+    signaled: list[tuple[int, int]] = []
+    with Ledger(tmp_path / "failed-cleanup-adoption.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        original = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        command_sha256, token_sha256 = _seed_token_bound_live_lease(
+            original,
+            clock=clock,
+            process=process,
+            proc_root=proc_root,
+            start_ticks=71_003,
+            observed_command=(sys.executable, "renamed-vllm-process-title"),
+        )
+        clock.advance(2)
+        recovering = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            sleep=clock.advance,
+            process_group_signaler=lambda pid, signal_number: signaled.append((pid, signal_number)),
+            process_liveness_check=lambda pid: process.running,
+            process_group_liveness_check=lambda pid: process.running,
+        )
+
+        with pytest.raises(RuntimeError, match="simulated adopter failure"):
+            recovering.resume_live_service_lease(
+                expected_session_id="pilot",
+                expected_event_id="load",
+                watchdog_seconds=180,
+                proc_root=proc_root,
+                adopted_factory=lambda pid: (_ for _ in ()).throw(
+                    RuntimeError("simulated adopter failure")
+                ),
+                cleanup_only=True,
+            )
+        with pytest.raises(RuntimeError, match="still live: process_group"):
+            recovering.emergency_stop()
+
+        lease = recovering.read_authoritative_service_lease()
+        assert lease is not None
+        assert lease["lease_state"] == "shutdown_unverified"
+        assert lease["session_id"] == "pilot"
+        assert lease["accounting_session_id"] == "load"
+        assert lease["service_pid"] == process.pid
+        assert lease["process_start_ticks"] == 71_003
+        assert lease["process_command_sha256"] == command_sha256
+        assert lease["process_group_id"] == process.pid
+        assert lease["process_session_id"] == process.pid
+        assert lease["service_instance_token_sha256"] == token_sha256
+        assert signaled == [
+            (process.pid, signal.SIGKILL),
+        ]
+
+        process.running = False
+        recovering.shutdown(shutdown_seconds=0.1)
+        assert ledger.unresolved_gpu_service_journals() == ()
+
+
+def test_failed_prebind_adoption_emergency_never_nulls_prior_exact_lease(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(6014)
+    proc_root = tmp_path / "proc"
+    with Ledger(tmp_path / "prebind-emergency.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        original = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        command_sha256, token_sha256 = _seed_token_bound_live_lease(
+            original,
+            clock=clock,
+            process=process,
+            proc_root=proc_root,
+            start_ticks=71_004,
+            observed_command=launch_configuration.command(),
+        )
+        client = FakeServiceClient(clock)
+        client.endpoint_is_live = True
+        recovering = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, client),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            sleep=clock.advance,
+            process_liveness_check=lambda pid: process.running,
+            process_group_liveness_check=lambda pid: process.running,
+        )
+        with pytest.raises(RuntimeConfigurationError, match="activation identity"):
+            recovering.resume_live_service_lease(
+                expected_session_id="different-pilot",
+                expected_event_id="load",
+                watchdog_seconds=180,
+                proc_root=proc_root,
+                cleanup_only=True,
+            )
+        with pytest.raises(RuntimeError, match="still live: endpoint"):
+            recovering.emergency_stop()
+
+        lease = recovering.read_authoritative_service_lease()
+        assert lease is not None
+        assert lease["lease_state"] == "shutdown_unverified"
+        assert lease["session_id"] == "pilot"
+        assert lease["accounting_session_id"] == "load"
+        assert lease["service_pid"] == process.pid
+        assert lease["process_start_ticks"] == 71_004
+        assert lease["process_command_sha256"] == command_sha256
+        assert lease["process_group_id"] == process.pid
+        assert lease["process_session_id"] == process.pid
+        assert lease["service_instance_token_sha256"] == token_sha256
+
+        client.endpoint_is_live = False
+        process.running = False
+        recovering._release_service_lock()
+
+
+def test_mismatched_configuration_emergency_failure_cannot_hybridize_exact_lease(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(6_015)
+    proc_root = tmp_path / "proc"
+
+    class FailingEndpointClient(FakeServiceClient):
+        def endpoint_live(self, timeout_seconds: float = 0.25) -> bool:
+            del timeout_seconds
+            raise RuntimeError("simulated endpoint probe failure")
+
+    with Ledger(tmp_path / "configuration-carry-forward.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        original = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        command_sha256, token_sha256 = _seed_token_bound_live_lease(
+            original,
+            clock=clock,
+            process=process,
+            proc_root=proc_root,
+            start_ticks=71_005,
+            observed_command=launch_configuration.command(),
+        )
+        original_configuration_hash = launch_configuration.configuration_hash
+        mismatched_configuration = replace(
+            launch_configuration,
+            verified_snapshot_manifest_sha256="f" * 64,
+        )
+        assert mismatched_configuration.configuration_hash != original_configuration_hash
+        recovering = VLLMService(
+            configuration=mismatched_configuration,
+            client=cast(VLLMGuidedJSONClient, FailingEndpointClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        recovering._acquire_service_lock()
+
+        with pytest.raises(RuntimeError, match="endpoint probe failure"):
+            recovering.emergency_stop()
+
+        lease = recovering.read_authoritative_service_lease()
+        assert lease is not None
+        assert lease["lease_state"] == "shutdown_unverified"
+        assert lease["configuration_hash"] == original_configuration_hash
+        assert lease["session_id"] == "pilot"
+        assert lease["accounting_session_id"] == "load"
+        assert lease["service_pid"] == process.pid
+        assert lease["process_start_ticks"] == 71_005
+        assert lease["process_command_sha256"] == command_sha256
+        assert lease["process_group_id"] == process.pid
+        assert lease["process_session_id"] == process.pid
+        assert lease["service_instance_token_sha256"] == token_sha256
+
+        process.running = False
+        recovering._release_service_lock()
+
+
+def test_atomic_lease_snapshot_rejects_hash_inconsistent_metadata(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(6010)
+    snapshot_path = launch_configuration.shared_cache / (".story-projection-onto-vllm.lease.json")
+    with Ledger(tmp_path / "tampered-lease-snapshot.sqlite3") as ledger:
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=AllocatedGPUMeter(
+                ledger,
+                monotonic_clock=clock.monotonic,
+                wall_clock=clock.wall,
+            ),
+            popen_factory=lambda *args, **kwargs: process,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            sleep=clock.advance,
+            process_group_signaler=lambda pid, signal_number: setattr(
+                process,
+                "running",
+                False,
+            ),
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        service.start(session_id="pilot", event_id="load", watchdog_seconds=5)
+        service.shutdown(shutdown_seconds=0.1)
+        tampered = json.loads(snapshot_path.read_text(encoding="utf-8"))
+        tampered["accounting_session_id"] = "different-load"
+        snapshot_path.write_text(json.dumps(tampered), encoding="utf-8")
+
+        recovering = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=service.meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        with pytest.raises(RuntimeConfigurationError, match="snapshot hash is invalid"):
+            recovering.recover_stale_service_lease()
+
+
+def test_service_journal_heartbeats_while_process_is_allocated(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(6025)
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=AllocatedGPUMeter(
+                ledger,
+                monotonic_clock=clock.monotonic,
+                wall_clock=clock.wall,
+            ),
+            service_heartbeat_interval_seconds=0.01,
+            popen_factory=lambda *args, **kwargs: process,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            sleep=clock.advance,
+            process_group_signaler=lambda pid, signal_number: setattr(process, "running", False),
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        service.start(session_id="pilot", event_id="load", watchdog_seconds=180)
+        # FakeClock advances monotonic and wall fields in two assignments. Do
+        # not let the real heartbeat thread observe that artificial half-step.
+        service._stop_service_heartbeat()
+        clock.advance(2)
+        service._start_service_heartbeat()
+        deadline = time.monotonic() + 1
+        latest = ledger.latest_gpu_service_journal("load")
+        while latest is None or latest.elapsed_microseconds < 2_000_000:
+            assert time.monotonic() < deadline
+            time.sleep(0.001)
+            latest = ledger.latest_gpu_service_journal("load")
+
+        assert latest is not None
+        assert latest.state.value == "heartbeat"
+        assert latest.elapsed_microseconds == 2_000_000
+        service.shutdown(shutdown_seconds=0.1)
+        latest = ledger.latest_gpu_service_journal("load")
+        assert latest is not None
+        assert latest.state.value == "closed"
+
+
+def test_stale_service_recovery_requires_absence_and_charges_through_recovery(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(6030)
+    lock_path = launch_configuration.shared_cache / ".story-projection-onto-vllm.lock"
+    checked: list[tuple[str, int]] = []
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        original = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            popen_factory=lambda *args, **kwargs: process,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_group_signaler=lambda pid, signal_number: None,
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        original.start(session_id="pilot", event_id="load", watchdog_seconds=180)
+        original._last_process_start_ticks = 60_300
+        original._last_process_command_sha256 = canonical_sha256(
+            list(launch_configuration.command())
+        )
+        original._write_service_lock_metadata(
+            lease_state="live",
+            service_pid=process.pid,
+        )
+        original._stop_service_heartbeat()
+        original._release_service_lock()
+        process.running = False
+        clock.advance(7)
+
+        recovery_client = FakeServiceClient(clock)
+        recovering = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, recovery_client),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_liveness_check=lambda pid: checked.append(("pid", pid)) or False,
+            process_group_liveness_check=lambda pid: (
+                checked.append(("process_group", pid)) or False
+            ),
+        )
+        record = recovering.recover_stale_service_lease()
+
+        assert record is not None
+        assert record.service_seconds == 7
+        assert record.overhead_seconds == 7
+        assert checked == [("pid", process.pid), ("process_group", process.pid)]
+        assert recovery_client.endpoint_check_count == 1
+        assert ledger.unresolved_gpu_service_journals() == ()
+        latest = ledger.latest_gpu_service_journal("load")
+        assert latest is not None
+        assert latest.state.value == "recovered"
+        assert json.loads(lock_path.read_text())["lease_state"] == "stopped_verified"
+        recovered_identity = recovering.last_recovered_process_identity
+        assert recovered_identity is not None
+        assert recovered_identity.pid == process.pid
+        assert recovered_identity.process_start_ticks == 60_300
+        assert recovered_identity.accounting_session_id == "load"
+
+        replaying = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        replayed_record = replaying.recover_stale_service_lease()
+
+        assert replayed_record == record
+        assert replaying.last_recovered_process_identity == recovered_identity
+
+
+def test_stale_service_recovery_accepts_exact_current_lease_manifest(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(6031)
+    snapshot_path = launch_configuration.shared_cache / (".story-projection-onto-vllm.lease.json")
+    with Ledger(tmp_path / "manifest-pinned-recovery.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        original = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            popen_factory=lambda *args, **kwargs: process,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_group_signaler=lambda pid, signal_number: None,
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        original.start(session_id="pilot", event_id="load", watchdog_seconds=180)
+        original._stop_service_heartbeat()
+        original._release_service_lock()
+        expected_manifest = json.loads(snapshot_path.read_text(encoding="utf-8"))[
+            "lease_manifest_sha256"
+        ]
+        process.running = False
+        clock.advance(3)
+
+        recovering = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_liveness_check=lambda pid: False,
+            process_group_liveness_check=lambda pid: False,
+        )
+        record = recovering.recover_stale_service_lease(
+            expected_current_lease_manifest_sha256=expected_manifest,
+        )
+
+        assert record is not None
+        assert record.service_seconds == 3
+        assert ledger.unresolved_gpu_service_journals() == ()
+        assert (
+            json.loads(snapshot_path.read_text(encoding="utf-8"))["lease_state"]
+            == "stopped_verified"
+        )
+
+
+def test_stale_service_recovery_rejects_current_lease_manifest_drift_under_lock(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(6032)
+    snapshot_path = launch_configuration.shared_cache / (".story-projection-onto-vllm.lease.json")
+    with Ledger(tmp_path / "manifest-drift-recovery.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        original = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            popen_factory=lambda *args, **kwargs: process,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_group_signaler=lambda pid, signal_number: None,
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        original.start(session_id="pilot", event_id="load", watchdog_seconds=180)
+        original._stop_service_heartbeat()
+        original._release_service_lock()
+        expected_manifest = json.loads(snapshot_path.read_text(encoding="utf-8"))[
+            "lease_manifest_sha256"
+        ]
+        drifted = json.loads(snapshot_path.read_text(encoding="utf-8"))
+        drifted["controller_pid"] += 1
+        drifted_payload = {
+            key: value for key, value in drifted.items() if key != "lease_manifest_sha256"
+        }
+        drifted["lease_manifest_sha256"] = canonical_sha256(drifted_payload)
+        snapshot_path.write_text(canonical_json(drifted) + "\n", encoding="utf-8")
+        snapshot_bytes = snapshot_path.read_bytes()
+        process.running = False
+        checked: list[str] = []
+
+        recovering = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_liveness_check=lambda pid: checked.append("pid") or False,
+            process_group_liveness_check=lambda pid: checked.append("group") or False,
+        )
+        with pytest.raises(
+            RuntimeConfigurationError,
+            match="lease manifest SHA-256 differs",
+        ):
+            recovering.recover_stale_service_lease(
+                expected_current_lease_manifest_sha256=expected_manifest,
+            )
+
+        assert snapshot_path.read_bytes() == snapshot_bytes
+        assert ledger.get_gpu_service_session("load") is None
+        assert checked == []
+        assert recovering._service_lock_stream is None
+
+
+@pytest.mark.parametrize("expected_manifest", ["f" * 63, "F" * 64, True])
+def test_stale_service_recovery_rejects_invalid_expected_lease_manifest(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+    expected_manifest: object,
+) -> None:
+    with Ledger(tmp_path / "invalid-expected-manifest.sqlite3") as ledger:
+        recovering = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(FakeClock())),
+            meter=AllocatedGPUMeter(ledger),
+        )
+
+        with pytest.raises(RuntimeConfigurationError, match="manifest SHA-256 is invalid"):
+            recovering.recover_stale_service_lease(
+                expected_current_lease_manifest_sha256=cast(str, expected_manifest),
+            )
+
+        assert recovering._service_lock_stream is None
+
+
+def test_stale_service_recovery_rejects_absent_expected_current_lease(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    with Ledger(tmp_path / "absent-expected-lease.sqlite3") as ledger:
+        recovering = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(FakeClock())),
+            meter=AllocatedGPUMeter(ledger),
+        )
+
+        with pytest.raises(
+            RuntimeConfigurationError,
+            match="expected current service lease is absent",
+        ):
+            recovering.recover_stale_service_lease(
+                expected_current_lease_manifest_sha256="f" * 64,
+            )
+
+        assert recovering._service_lock_stream is None
+
+
+def test_terminal_null_lease_restoration_requires_absence_and_exact_accounting(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    service_pid = 60_310
+    command_sha256 = canonical_sha256(list(launch_configuration.command()))
+    token_sha256 = "d" * 64
+    lock_path = launch_configuration.shared_cache / ".story-projection-onto-vllm.lock"
+    with Ledger(tmp_path / "terminal-null-lease.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        _seed_terminal_journal_and_null_lease(
+            configuration=launch_configuration,
+            meter=meter,
+            clock=clock,
+        )
+        damaged_lease = json.loads(lock_path.read_text(encoding="utf-8"))
+        assert damaged_lease["lease_state"] == "shutdown_unverified"
+        assert damaged_lease["service_pid"] is None
+        assert damaged_lease["process_start_ticks"] is None
+        assert damaged_lease["process_group_id"] is None
+        assert damaged_lease["service_instance_token_sha256"] is None
+
+        recovering = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_liveness_check=lambda pid: False,
+            process_group_liveness_check=lambda pid: False,
+        )
+        record = recovering.restore_terminal_service_lease_from_identity(
+            expected_session_id="pilot",
+            expected_event_id="load",
+            service_pid=service_pid,
+            process_start_ticks=71_010,
+            observed_process_command_sha256="a" * 64,
+            process_group_id=service_pid,
+            process_session_id=service_pid,
+            service_instance_token_sha256=token_sha256,
+        )
+
+        assert record == ledger.get_gpu_service_session("load")
+        assert ledger.unresolved_gpu_allocations() == ()
+        assert ledger.unresolved_gpu_service_journals() == ()
+        restored_lease = json.loads(lock_path.read_text(encoding="utf-8"))
+        assert restored_lease["lease_state"] == "stopped_verified"
+        assert restored_lease["session_id"] == "pilot"
+        assert restored_lease["accounting_session_id"] == "load"
+        assert restored_lease["service_pid"] == service_pid
+        assert restored_lease["process_start_ticks"] == 71_010
+        assert restored_lease["process_command_sha256"] == command_sha256
+        assert restored_lease["process_group_id"] == service_pid
+        assert restored_lease["process_session_id"] == service_pid
+        assert restored_lease["service_instance_token_sha256"] == token_sha256
+        assert datetime.fromisoformat(restored_lease["service_started_at"]) == (
+            datetime.fromisoformat(record.started_at)
+        )
+        assert datetime.fromisoformat(restored_lease["service_ended_at"]) == (
+            datetime.fromisoformat(record.ended_at)
+        )
+        assert restored_lease["ledger_allocated_seconds_before_session"] == 0
+        recovered_identity = recovering.last_recovered_process_identity
+        assert recovered_identity is not None
+        assert recovered_identity.pid == service_pid
+        assert recovered_identity.process_start_ticks == 71_010
+
+        replaying = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        assert replaying.recover_stale_service_lease() == record
+
+
+def test_terminal_null_lease_restoration_rejects_live_or_unresolved_state(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    service_pid = 60_311
+    with Ledger(tmp_path / "terminal-null-rejections.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        _seed_terminal_journal_and_null_lease(
+            configuration=launch_configuration,
+            meter=meter,
+            clock=clock,
+        )
+        live = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_liveness_check=lambda pid: True,
+            process_group_liveness_check=lambda pid: False,
+        )
+        with pytest.raises(RuntimeConfigurationError, match="live service state: pid"):
+            live.restore_terminal_service_lease_from_identity(
+                expected_session_id="pilot",
+                expected_event_id="load",
+                service_pid=service_pid,
+                process_start_ticks=71_011,
+                observed_process_command_sha256="a" * 64,
+                process_group_id=service_pid,
+                process_session_id=service_pid,
+                service_instance_token_sha256="e" * 64,
+            )
+
+        meter.open_service_journal(
+            service_session_id="another-load",
+            session_id="another-pilot",
+            configuration_hash=launch_configuration.configuration_hash,
+            started_at=clock.wall(),
+            ledger_allocated_seconds_before_session=meter.actual_allocated_gpu_seconds,
+        )
+        unresolved = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_liveness_check=lambda pid: False,
+            process_group_liveness_check=lambda pid: False,
+        )
+        with pytest.raises(RuntimeConfigurationError, match="unresolved service accounting"):
+            unresolved.restore_terminal_service_lease_from_identity(
+                expected_session_id="pilot",
+                expected_event_id="load",
+                service_pid=service_pid,
+                process_start_ticks=71_011,
+                observed_process_command_sha256="a" * 64,
+                process_group_id=service_pid,
+                process_session_id=service_pid,
+                service_instance_token_sha256="e" * 64,
+            )
+
+
+@pytest.mark.parametrize("corruption", ["configuration", "timestamp", "baseline"])
+def test_terminal_null_lease_restoration_rejects_inconsistent_terminal_rows(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+    corruption: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = FakeClock()
+    with Ledger(tmp_path / f"terminal-null-{corruption}.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        _seed_terminal_journal_and_null_lease(
+            configuration=launch_configuration,
+            meter=meter,
+            clock=clock,
+        )
+        journal_records = ledger.gpu_service_journal_records()
+        record = ledger.get_gpu_service_session("load")
+        assert record is not None
+        if corruption == "configuration":
+            corrupted_journals = (
+                *journal_records[:-1],
+                replace(journal_records[-1], configuration_hash="f" * 64),
+            )
+            monkeypatch.setattr(
+                ledger,
+                "gpu_service_journal_records",
+                lambda: corrupted_journals,
+            )
+            expected_message = "journal identity"
+        elif corruption == "timestamp":
+            monkeypatch.setattr(
+                ledger,
+                "get_gpu_service_session",
+                lambda service_session_id: replace(
+                    record,
+                    ended_at=(clock.wall() + timedelta(seconds=1)).isoformat(),
+                ),
+            )
+            expected_message = "timestamps"
+        else:
+            corrupted_journals = (
+                *journal_records[:-1],
+                replace(
+                    journal_records[-1],
+                    ledger_allocated_microseconds_before_session=1,
+                ),
+            )
+            monkeypatch.setattr(
+                ledger,
+                "gpu_service_journal_records",
+                lambda: corrupted_journals,
+            )
+            expected_message = "journal identity"
+        recovering = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_liveness_check=lambda pid: False,
+            process_group_liveness_check=lambda pid: False,
+        )
+
+        with pytest.raises(RuntimeConfigurationError, match=expected_message):
+            recovering.restore_terminal_service_lease_from_identity(
+                expected_session_id="pilot",
+                expected_event_id="load",
+                service_pid=60_312,
+                process_start_ticks=71_012,
+                observed_process_command_sha256="a" * 64,
+                process_group_id=60_312,
+                process_session_id=60_312,
+                service_instance_token_sha256="e" * 64,
+            )
+
+
+def test_stale_service_recovery_refuses_a_still_live_pid(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(6040)
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        original = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            popen_factory=lambda *args, **kwargs: process,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_group_signaler=lambda pid, signal_number: None,
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        original.start(session_id="pilot", event_id="load", watchdog_seconds=180)
+        original._stop_service_heartbeat()
+        original._release_service_lock()
+
+        recovering = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_liveness_check=lambda pid: True,
+            process_group_liveness_check=lambda pid: True,
+        )
+        with pytest.raises(RuntimeConfigurationError, match="still live: pid"):
+            recovering.recover_stale_service_lease()
+
+        assert ledger.get_gpu_service_session("load") is None
+        assert len(ledger.unresolved_gpu_service_journals()) == 1
+
+
+def test_stale_recovery_uses_durable_verified_stop_not_later_recovery_time(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(6045)
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            popen_factory=lambda *args, **kwargs: process,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            sleep=clock.advance,
+            process_group_signaler=lambda pid, signal_number: setattr(process, "running", False),
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        service.start(session_id="pilot", event_id="load", watchdog_seconds=180)
+        clock.advance(3)
+        meter.reconcile_service_session = (  # type: ignore[method-assign]
+            lambda **kwargs: (_ for _ in ()).throw(RuntimeError("controller crash"))
+        )
+        with pytest.raises(RuntimeError, match="controller crash"):
+            service.shutdown(shutdown_seconds=0.1)
+        stopped = ledger.latest_gpu_service_journal("load")
+        assert stopped is not None
+        assert stopped.state.value == "process_stopped"
+        service._release_service_lock()
+        clock.advance(10)
+
+        recovering = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_liveness_check=lambda pid: False,
+            process_group_liveness_check=lambda pid: False,
+        )
+        record = recovering.recover_stale_service_lease()
+
+        assert record is not None
+        assert record.service_seconds == 3
+        assert record.ended_at == stopped.observed_at
+        assert ledger.latest_gpu_service_journal("load").state.value == "recovered"
+
+
+def test_failed_resume_retains_project_lock_while_detached_endpoint_is_live(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    checkpoint = tmp_path / "invalid-checkpoint.json"
+    checkpoint.write_text('{"configuration_hash":"wrong"}\n')
+    clock = FakeClock()
+    live_client = FakeServiceClient(clock)
+    live_client.endpoint_is_live = True
+
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+
+        def service(client: FakeServiceClient) -> VLLMService:
+            return VLLMService(
+                configuration=launch_configuration,
+                client=cast(VLLMGuidedJSONClient, client),
+                meter=meter,
+                popen_factory=lambda *args, **kwargs: FakeProcess(6050),
+                monotonic_clock=clock.monotonic,
+                wall_clock=clock.wall,
+                sleep=clock.advance,
+                process_group_signaler=lambda pid, signal_number: None,
+                process_group_liveness_check=lambda pid: False,
+                available_cpu_sampler=lambda: set(range(16)),
+                affinity_setter=lambda pid, cpus: None,
+            )
+
+        recovering = service(live_client)
+        with pytest.raises(RuntimeConfigurationError, match="configuration changed"):
+            recovering.resume_from_checkpoint(checkpoint)
+        assert recovering.state is ServiceState.FAILED
+
+        contender = service(FakeServiceClient(clock))
+        with pytest.raises(RuntimeConfigurationError, match="exclusive vLLM service lock"):
+            contender.start(
+                session_id="pilot",
+                event_id="duplicate-after-failed-resume",
+                watchdog_seconds=180,
+            )
+
+        live_client.endpoint_is_live = False
+        recovering.shutdown(shutdown_seconds=0.1)
+        assert recovering.state is ServiceState.STOPPED
+
+
+def test_shutdown_lease_stays_accounting_pending_until_durable_reconciliation(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(6060)
+    lock_path = launch_configuration.shared_cache / ".story-projection-onto-vllm.lock"
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            popen_factory=lambda *args, **kwargs: process,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            sleep=clock.advance,
+            process_group_signaler=lambda pid, signal_number: setattr(process, "running", False),
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        service.start(session_id="pilot", event_id="load", watchdog_seconds=180)
+
+        def fail_reconciliation(**kwargs: object) -> object:
+            del kwargs
+            assert json.loads(lock_path.read_text())["lease_state"] == "accounting_pending"
+            latest = ledger.latest_gpu_service_journal("load")
+            assert latest is not None
+            assert latest.state.value == "process_stopped"
+            raise RuntimeError("durable reconciliation failed")
+
+        meter.reconcile_service_session = fail_reconciliation  # type: ignore[method-assign]
+        with pytest.raises(RuntimeError, match="durable reconciliation failed"):
+            service.shutdown(shutdown_seconds=0.1)
+
+        assert json.loads(lock_path.read_text())["lease_state"] == "accounting_pending"
+        contender = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            popen_factory=lambda *args, **kwargs: FakeProcess(6061),
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_group_liveness_check=lambda pid: False,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        with pytest.raises(
+            RuntimeConfigurationError,
+            match=r"exclusive vLLM service lock|unresolved prior.*lease",
+        ):
+            contender.start(
+                session_id="pilot",
+                event_id="load-after-accounting-failure",
+                watchdog_seconds=180,
+            )
+
+
+def test_shutdown_terminalizes_journal_before_raising_hard_limit(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(6070)
+    lock_path = launch_configuration.shared_cache / ".story-projection-onto-vllm.lock"
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=AllocatedGPUMeter(
+                ledger,
+                scheduled_limit_seconds=1,
+                hard_limit_seconds=2,
+                monotonic_clock=clock.monotonic,
+                wall_clock=clock.wall,
+            ),
+            popen_factory=lambda *args, **kwargs: process,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            sleep=clock.advance,
+            process_group_signaler=lambda pid, signal_number: setattr(process, "running", False),
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        service.start(session_id="pilot", event_id="load", watchdog_seconds=0.1)
+        clock.advance(2)
+        with pytest.raises(GpuBudgetExceeded, match="strict hard-stop"):
+            service.shutdown(shutdown_seconds=0.1)
+
+        latest = ledger.latest_gpu_service_journal("load")
+        assert latest is not None
+        assert latest.state.value == "closed"
+        assert ledger.get_gpu_service_session("load") is not None
+        assert json.loads(lock_path.read_text())["lease_state"] == "stopped_verified"
+        assert service.state is ServiceState.STOPPED
+
+
+def test_unresolved_starting_lease_blocks_relaunch_before_endpoint_is_ready(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    lock_path = launch_configuration.shared_cache / ".story-projection-onto-vllm.lock"
+    lock_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0.0",
+                "configuration_hash": launch_configuration.configuration_hash,
+                "lease_state": "starting",
+                "service_started_at": "2026-09-03T00:00:00+00:00",
+            }
+        )
+    )
+    clock = FakeClock()
+    spawned: list[FakeProcess] = []
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=AllocatedGPUMeter(
+                ledger,
+                monotonic_clock=clock.monotonic,
+                wall_clock=clock.wall,
+            ),
+            popen_factory=lambda *args, **kwargs: spawned.append(FakeProcess(6075)),
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            sleep=clock.advance,
+            process_group_signaler=lambda pid, signal_number: None,
+            process_group_liveness_check=lambda pid: False,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        with pytest.raises(RuntimeConfigurationError, match=r"unresolved prior.*lease"):
+            service.start(
+                session_id="pilot",
+                event_id="duplicate-during-detached-load",
+                watchdog_seconds=180,
+            )
+
+    assert spawned == []
+    assert json.loads(lock_path.read_text())["lease_state"] == "starting"
+
+
+def test_shutdown_kills_remaining_process_group_before_releasing_lock(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(6100)
+    group_live = True
+    signals: list[int] = []
+
+    def signal_group(pid: int, signal_number: int) -> None:
+        nonlocal group_live
+        assert pid == process.pid
+        signals.append(signal_number)
+        process.running = False
+        if signal_number == signal.SIGKILL:
+            group_live = False
+
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=AllocatedGPUMeter(
+                ledger,
+                monotonic_clock=clock.monotonic,
+                wall_clock=clock.wall,
+            ),
+            popen_factory=lambda *args, **kwargs: process,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            sleep=clock.advance,
+            process_group_signaler=signal_group,
+            process_group_liveness_check=lambda pid: group_live,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        service.start(session_id="pilot", event_id="load", watchdog_seconds=180)
+        service.shutdown(shutdown_seconds=0.1)
+
+    assert signals == [signal.SIGTERM, signal.SIGKILL]
+    assert service.state is ServiceState.STOPPED
+
+
+def test_shutdown_fails_closed_while_endpoint_or_process_group_remains_live(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(6200)
+    client = FakeServiceClient(clock)
+    group_live = False
+
+    def signal_group(pid: int, signal_number: int) -> None:
+        assert pid == process.pid
+        process.running = False
+
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, client),
+            meter=meter,
+            popen_factory=lambda *args, **kwargs: process,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            sleep=clock.advance,
+            process_group_signaler=signal_group,
+            process_group_liveness_check=lambda pid: group_live,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        service.start(session_id="pilot", event_id="load", watchdog_seconds=180)
+        client.endpoint_is_live = True
+        with pytest.raises(RuntimeError, match="still live: endpoint"):
+            service.shutdown(shutdown_seconds=0.1)
+        assert service.state is ServiceState.FAILED
+
+        contender = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            popen_factory=lambda *args, **kwargs: FakeProcess(6201),
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_group_signaler=lambda pid, sig: None,
+            process_group_liveness_check=lambda pid: False,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        with pytest.raises(RuntimeConfigurationError, match="exclusive vLLM service lock"):
+            contender.start(
+                session_id="pilot",
+                event_id="load-contender",
+                watchdog_seconds=180,
+            )
+
+        client.endpoint_is_live = False
+        service.shutdown(shutdown_seconds=0.1)
+        assert service.state is ServiceState.STOPPED
+
+
+def test_service_timeout_is_recorded_once_as_timeout(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(2000)
+    client = FakeServiceClient(clock)
+    client.fail_with = RuntimeWatchdogTimeout("expired")
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, client),
+            meter=AllocatedGPUMeter(
+                ledger,
+                monotonic_clock=clock.monotonic,
+                wall_clock=clock.wall,
+            ),
+            popen_factory=lambda *args, **kwargs: process,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_group_signaler=lambda pid, sig: setattr(process, "running", False),
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        service.start(session_id="pilot", event_id="load", watchdog_seconds=180)
+        with pytest.raises(RuntimeWatchdogTimeout):
+            service.generate(_guided_request(), event_id="failed-call", watchdog_seconds=90)
+        assert service.state is ServiceState.STOPPED
+        assert not process.running
+        service.shutdown()
+        summary = ledger.gpu_summary()
+        assert summary.event_count == 2
+        assert dict(summary.by_kind_microseconds)[GpuEventKind.TIMEOUT] == 2_000_000
+
+
+def test_service_resume_checks_pid_start_and_command_without_duplicate_load(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(3456)
+    proc = tmp_path / "proc" / str(process.pid)
+    proc.mkdir(parents=True)
+    # Fields 3..22; index 19 is the start tick used by the runtime.
+    fields = ["S", *(["0"] * 18), "98765"]
+    (proc / "stat").write_text(f"{process.pid} (vllm worker) {' '.join(fields)}\n")
+    command = b"\0".join(
+        (
+            b"python",
+            b"-m",
+            b"vllm.entrypoints.openai.api_server",
+            b"--model",
+            str(launch_configuration.snapshot_path).encode(),
+            b"",
+        )
+    )
+    (proc / "cmdline").write_bytes(command)
+    checkpoint = tmp_path / "service.json"
+
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        first = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            popen_factory=lambda *args, **kwargs: process,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_group_signaler=lambda pid, sig: None,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        first.start(session_id="pilot", event_id="load", watchdog_seconds=180)
+        clock.advance(3)
+        first.write_resume_checkpoint(checkpoint, proc_root=tmp_path / "proc")
+        # Simulate the original controller exiting while its detached service survives.
+        first._stop_service_heartbeat()
+        first._release_service_lock()
+        clock.advance(5)
+
+        adopted = FakeProcess(process.pid)
+        second = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_group_signaler=lambda pid, sig: setattr(adopted, "running", False),
+            process_group_liveness_check=lambda pid: adopted.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        assert second.resume_from_checkpoint(
+            checkpoint,
+            proc_root=tmp_path / "proc",
+            adopted_factory=lambda pid: adopted,
+        )
+        assert ledger.gpu_summary().event_count == 1
+        uptime = second.shutdown()
+        assert uptime is not None
+        assert uptime.service_seconds == pytest.approx(8)
+        assert ledger.gpu_summary().total_allocated_seconds == pytest.approx(8)
+        assert ledger.gpu_summary().service_session_count == 1
+        latest_journal = ledger.latest_gpu_service_journal("load")
+        assert latest_journal is not None
+        assert latest_journal.state.value == "closed"
+
+
+@pytest.mark.parametrize("probe_raises", [False, True])
+def test_checkpoint_adoption_probe_failure_stops_and_reconciles_owned_process(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+    probe_raises: bool,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(34561 if probe_raises else 34560)
+    proc_root = tmp_path / "proc"
+    _write_fake_proc_identity(
+        proc_root,
+        pid=process.pid,
+        start_ticks=98_760,
+        configuration=launch_configuration,
+    )
+    checkpoint = tmp_path / "service.json"
+    with Ledger(tmp_path / "adoption-probe.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        original = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            popen_factory=lambda *args, **kwargs: process,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_group_signaler=lambda pid, sig: None,
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        original.start(session_id="pilot", event_id="load", watchdog_seconds=180)
+        original.write_resume_checkpoint(checkpoint, proc_root=proc_root)
+        original._stop_service_heartbeat()
+        original._release_service_lock()
+
+        def failed_probe() -> bool:
+            if probe_raises:
+                raise RuntimeError("probe exploded")
+            return False
+
+        recovering = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            readiness_check=failed_probe,
+            process_group_signaler=lambda pid, sig: setattr(process, "running", False),
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        if probe_raises:
+            with pytest.raises(RuntimeError, match="probe exploded"):
+                recovering.resume_from_checkpoint(
+                    checkpoint,
+                    proc_root=proc_root,
+                    adopted_factory=lambda pid: process,
+                )
+        else:
+            assert not recovering.resume_from_checkpoint(
+                checkpoint,
+                proc_root=proc_root,
+                adopted_factory=lambda pid: process,
+            )
+        assert process.running is False
+        assert recovering.state is ServiceState.STOPPED
+        assert ledger.get_gpu_service_session("load") is not None
+        assert ledger.unresolved_gpu_service_journals() == ()
+
+
+def test_live_lease_adoption_accepts_v3_lease_without_exec_gate_fields(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(3457)
+    proc_root = tmp_path / "proc"
+    start_ticks = 98_766
+    _write_fake_proc_identity(
+        proc_root,
+        pid=process.pid,
+        start_ticks=start_ticks,
+        configuration=launch_configuration,
+    )
+    # An injected process must not accidentally resolve a real host PID when
+    # this CPU test runs outside the PID sandbox.
+    monkeypatch.setattr(
+        "story_projection_onto.gpu_runtime._process_start_ticks",
+        lambda pid, proc_root=proc_root: start_ticks,
+    )
+    monkeypatch.setattr(
+        "story_projection_onto.gpu_runtime._process_command_sha256",
+        lambda pid, proc_root=proc_root: canonical_sha256(list(launch_configuration.command())),
+    )
+    lock_path = launch_configuration.shared_cache / ".story-projection-onto-vllm.lock"
+
+    with Ledger(tmp_path / "live-lease.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        original = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            popen_factory=lambda *args, **kwargs: process,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            sleep=clock.advance,
+            process_group_signaler=lambda pid, signal_number: None,
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        original.start(session_id="pilot", event_id="load", watchdog_seconds=180)
+        original._last_process_start_ticks = start_ticks
+        original._last_process_command_sha256 = canonical_sha256(
+            list(launch_configuration.command())
+        )
+        original._write_service_lock_metadata(
+            lease_state="live",
+            service_pid=process.pid,
+        )
+        original._stop_service_heartbeat()
+        original._release_service_lock()
+        legacy_lease = json.loads(lock_path.read_text(encoding="utf-8"))
+        for field_name in (
+            "launch_protocol",
+            "launch_gate_token_sha256",
+            "launch_supervisor_command_sha256",
+            "process_group_id",
+            "process_session_id",
+            "service_instance_token_sha256",
+        ):
+            legacy_lease.pop(field_name)
+        lock_path.write_text(
+            json.dumps(legacy_lease, sort_keys=True),
+            encoding="utf-8",
+        )
+        lock_path.with_name(".story-projection-onto-vllm.lease.json").unlink()
+        assert "launch_protocol" not in json.loads(lock_path.read_text(encoding="utf-8"))
+        clock.advance(5)
+
+        spawned: list[object] = []
+        recovering = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            popen_factory=lambda *args, **kwargs: spawned.append((args, kwargs)),
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            sleep=clock.advance,
+            process_group_signaler=lambda pid, signal_number: setattr(
+                process,
+                "running",
+                False,
+            ),
+            process_liveness_check=lambda pid: process.running,
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        assert recovering.resume_live_service_lease(
+            expected_session_id="pilot",
+            expected_event_id="load",
+            watchdog_seconds=180,
+            proc_root=proc_root,
+            adopted_factory=lambda pid: process,
+        )
+        assert recovering.pid == process.pid
+        assert spawned == []
+        assert ledger.gpu_summary().event_count == 1
+        lease = json.loads(lock_path.read_text(encoding="utf-8"))
+        assert lease["process_start_ticks"] == start_ticks
+        assert lease["process_command_sha256"] == canonical_sha256(
+            list(launch_configuration.command())
+        )
+        assert lease["launch_protocol"] is None
+        assert lease["launch_gate_token_sha256"] is None
+        assert lease["launch_supervisor_command_sha256"] is None
+        assert str(launch_configuration.snapshot_path) not in lock_path.read_text(encoding="utf-8")
+        recovering.shutdown(shutdown_seconds=0.1)
+        assert process.running is False
+
+
+def test_production_exec_gate_persists_pidless_intent_before_popen(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    marker = tmp_path / "target-executed"
+    target = (
+        sys.executable,
+        "-c",
+        (
+            "from pathlib import Path; import sys; "
+            "Path(sys.argv[1]).write_text('executed', encoding='utf-8')"
+        ),
+        str(marker),
+    )
+    monkeypatch.setattr(
+        VLLMLaunchConfiguration,
+        "command",
+        lambda self, python_executable=sys.executable: target,
+    )
+    lock_path = launch_configuration.shared_cache / ".story-projection-onto-vllm.lock"
+    observed_intents: list[dict[str, object]] = []
+
+    def interrupt_before_popen(
+        self: VLLMService,
+        *,
+        startup_deadline: float,
+    ) -> None:
+        del startup_deadline
+        assert self._process is None
+        observed_intents.append(json.loads(lock_path.read_text(encoding="utf-8")))
+        raise RuntimeError("simulated controller death before Popen")
+
+    monkeypatch.setattr(VLLMService, "_spawn", interrupt_before_popen)
+    with Ledger(tmp_path / "exec-gate-pre-popen.sqlite3") as ledger:
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(FakeClock())),
+            meter=AllocatedGPUMeter(ledger),
+            available_cpu_sampler=lambda: set(range(8)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        with pytest.raises(RuntimeError, match="before Popen"):
+            service.start(session_id="pilot", event_id="load", watchdog_seconds=180)
+
+        assert len(observed_intents) == 1
+        assert observed_intents[0]["lease_state"] == "launch_supervisor_pending"
+        assert observed_intents[0]["service_pid"] is None
+        assert observed_intents[0]["process_start_ticks"] is None
+        assert observed_intents[0]["launch_supervisor_command_sha256"] is None
+        assert observed_intents[0]["launch_protocol"] == "pipe-eof-before-exec-v1"
+        assert not marker.exists()
+        service.shutdown(shutdown_seconds=0.1)
+        assert ledger.unresolved_gpu_service_journals() == ()
+
+
+def test_production_exec_gate_never_runs_target_when_supervisor_precedes_pid_lease(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    marker = tmp_path / "target-executed"
+    target = (
+        sys.executable,
+        "-c",
+        (
+            "from pathlib import Path; import sys, time; "
+            "Path(sys.argv[1]).write_text('executed', encoding='utf-8'); "
+            "time.sleep(5)"
+        ),
+        str(marker),
+    )
+    monkeypatch.setattr(
+        VLLMLaunchConfiguration,
+        "command",
+        lambda self, python_executable=sys.executable: target,
+    )
+    original_write = VLLMService._write_service_lock_metadata
+    lock_path = launch_configuration.shared_cache / ".story-projection-onto-vllm.lock"
+    observed_pidless_leases: list[dict[str, object]] = []
+    observed_pid: list[int] = []
+    observed_process: list[subprocess.Popen[bytes]] = []
+
+    def interrupt_before_pid_persistence(
+        self: VLLMService,
+        *,
+        lease_state: str,
+        service_pid: int | None = None,
+        ended_at: datetime | None = None,
+    ) -> None:
+        if lease_state == "launch_gate_pending":
+            assert service_pid is not None
+            observed_pid.append(service_pid)
+            assert self._process is not None
+            observed_process.append(cast(subprocess.Popen[bytes], self._process))
+            assert os.getpgid(service_pid) == service_pid
+            observed_pidless_leases.append(json.loads(lock_path.read_text(encoding="utf-8")))
+            raise RuntimeError("simulated controller death before PID persistence")
+        original_write(
+            self,
+            lease_state=lease_state,
+            service_pid=service_pid,
+            ended_at=ended_at,
+        )
+
+    monkeypatch.setattr(
+        VLLMService,
+        "_write_service_lock_metadata",
+        interrupt_before_pid_persistence,
+    )
+    with Ledger(tmp_path / "exec-gate.sqlite3") as ledger:
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(FakeClock())),
+            meter=AllocatedGPUMeter(ledger),
+            available_cpu_sampler=lambda: set(range(8)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        with pytest.raises(RuntimeError, match="before PID persistence"):
+            service.start(session_id="pilot", event_id="load", watchdog_seconds=180)
+        assert len(observed_pid) == 1
+        assert len(observed_process) == 1
+        assert observed_pidless_leases[0]["lease_state"] == "launch_supervisor_pending"
+        assert observed_pidless_leases[0]["service_pid"] is None
+        assert observed_pidless_leases[0]["process_start_ticks"] is None
+        assert not marker.exists()
+        assert observed_process[0].poll() is not None
+        _assert_process_group_is_gone(observed_pid[0])
+        service.shutdown(shutdown_seconds=0.1)
+        assert ledger.unresolved_gpu_service_journals() == ()
+
+
+def test_production_exec_gate_kills_exact_group_after_pid_lease_before_token(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    marker = tmp_path / "target-executed"
+    target = (
+        sys.executable,
+        "-c",
+        (
+            "from pathlib import Path; import sys, time; "
+            "Path(sys.argv[1]).write_text('executed', encoding='utf-8'); "
+            "time.sleep(30)"
+        ),
+        str(marker),
+    )
+    monkeypatch.setattr(
+        VLLMLaunchConfiguration,
+        "command",
+        lambda self, python_executable=sys.executable: target,
+    )
+    original_write = VLLMService._write_service_lock_metadata
+    lock_path = launch_configuration.shared_cache / ".story-projection-onto-vllm.lock"
+    observed_leases: list[dict[str, object]] = []
+    observed_processes: list[subprocess.Popen[bytes]] = []
+    signaled_groups: list[tuple[int, int]] = []
+
+    def interrupt_after_pid_persistence(
+        self: VLLMService,
+        *,
+        lease_state: str,
+        service_pid: int | None = None,
+        ended_at: datetime | None = None,
+    ) -> None:
+        original_write(
+            self,
+            lease_state=lease_state,
+            service_pid=service_pid,
+            ended_at=ended_at,
+        )
+        if lease_state == "launch_gate_pending":
+            assert service_pid is not None
+            assert self._process is not None
+            observed_processes.append(cast(subprocess.Popen[bytes], self._process))
+            observed_leases.append(json.loads(lock_path.read_text(encoding="utf-8")))
+            os.kill(service_pid, signal.SIGSTOP)
+            raise RuntimeError("simulated controller death before gate release")
+
+    def terminate_exact_group(process_group: int, signal_number: int) -> None:
+        assert os.getpgid(process_group) == process_group
+        signaled_groups.append((process_group, signal_number))
+        os.killpg(process_group, signal_number)
+        if signal_number == signal.SIGTERM:
+            with suppress(ProcessLookupError):
+                os.killpg(process_group, signal.SIGCONT)
+
+    monkeypatch.setattr(
+        VLLMService,
+        "_write_service_lock_metadata",
+        interrupt_after_pid_persistence,
+    )
+    with Ledger(tmp_path / "exec-gate-before-token.sqlite3") as ledger:
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(FakeClock())),
+            meter=AllocatedGPUMeter(ledger),
+            process_group_signaler=terminate_exact_group,
+            available_cpu_sampler=lambda: set(range(8)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        with pytest.raises(RuntimeError, match="before gate release"):
+            service.start(session_id="pilot", event_id="load", watchdog_seconds=180)
+
+        assert len(observed_leases) == 1
+        lease = observed_leases[0]
+        process = observed_processes[0]
+        assert lease["lease_state"] == "launch_gate_pending"
+        assert lease["service_pid"] == process.pid
+        assert isinstance(lease["process_start_ticks"], int)
+        assert lease["launch_protocol"] == "pipe-eof-before-exec-v1"
+        assert isinstance(lease["launch_gate_token_sha256"], str)
+        assert isinstance(lease["launch_supervisor_command_sha256"], str)
+        assert not marker.exists()
+        assert signaled_groups and all(pid == process.pid for pid, _ in signaled_groups)
+        assert process.poll() is not None
+        _assert_process_group_is_gone(process.pid)
+        service.shutdown(shutdown_seconds=0.1)
+        assert ledger.unresolved_gpu_service_journals() == ()
+
+
+@pytest.mark.parametrize("argv_state", ["supervisor", "target"])
+def test_production_exec_gate_kills_exact_group_after_token_release(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+    monkeypatch: pytest.MonkeyPatch,
+    argv_state: str,
+) -> None:
+    marker = tmp_path / f"target-executed-{argv_state}"
+    target = (
+        sys.executable,
+        "-c",
+        (
+            "from pathlib import Path; import sys, time; "
+            "Path(sys.argv[1]).write_text('executed', encoding='utf-8'); "
+            "time.sleep(30)"
+        ),
+        str(marker),
+    )
+    monkeypatch.setattr(
+        VLLMLaunchConfiguration,
+        "command",
+        lambda self, python_executable=sys.executable: target,
+    )
+    original_release = VLLMService._write_exec_gate_token
+    lock_path = launch_configuration.shared_cache / ".story-projection-onto-vllm.lock"
+    observed_processes: list[subprocess.Popen[bytes]] = []
+    observed_hashes: list[str] = []
+    signaled_groups: list[tuple[int, int]] = []
+    service_ref: list[VLLMService] = []
+
+    def interrupt_after_release(descriptor: int, token: bytes) -> None:
+        service = service_ref[0]
+        process = cast(subprocess.Popen[bytes], service._process)
+        if argv_state == "supervisor":
+            os.kill(process.pid, signal.SIGSTOP)
+        original_release(descriptor, token)
+        if argv_state == "target":
+            deadline = time.monotonic() + 2
+            expected_target_hash = canonical_sha256(list(target))
+            while time.monotonic() < deadline:
+                try:
+                    if _live_process_command_sha256(process.pid) == expected_target_hash:
+                        break
+                except (FileNotFoundError, ProcessLookupError):
+                    pass
+                time.sleep(0.005)
+            else:
+                raise AssertionError("target argv did not appear after gate release")
+            os.kill(process.pid, signal.SIGSTOP)
+        observed_processes.append(process)
+        observed_hashes.append(_live_process_command_sha256(process.pid))
+        lease = json.loads(lock_path.read_text(encoding="utf-8"))
+        assert lease["lease_state"] == "launch_gate_pending"
+        assert lease["service_pid"] == process.pid
+        raise RuntimeError(f"simulated controller death with {argv_state} argv")
+
+    def terminate_exact_group(process_group: int, signal_number: int) -> None:
+        assert os.getpgid(process_group) == process_group
+        signaled_groups.append((process_group, signal_number))
+        os.killpg(process_group, signal_number)
+        if signal_number == signal.SIGTERM:
+            with suppress(ProcessLookupError):
+                os.killpg(process_group, signal.SIGCONT)
+
+    monkeypatch.setattr(
+        VLLMService,
+        "_write_exec_gate_token",
+        staticmethod(interrupt_after_release),
+    )
+    with Ledger(tmp_path / f"exec-gate-after-token-{argv_state}.sqlite3") as ledger:
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(FakeClock())),
+            meter=AllocatedGPUMeter(ledger),
+            process_group_signaler=terminate_exact_group,
+            available_cpu_sampler=lambda: set(range(8)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        service_ref.append(service)
+        with pytest.raises(RuntimeError, match=f"with {argv_state} argv"):
+            service.start(session_id="pilot", event_id="load", watchdog_seconds=180)
+
+        process = observed_processes[0]
+        expected_hash = (
+            service._launch_supervisor_command_sha256
+            if argv_state == "supervisor"
+            else canonical_sha256(list(target))
+        )
+        assert observed_hashes == [expected_hash]
+        assert signaled_groups and all(pid == process.pid for pid, _ in signaled_groups)
+        assert process.poll() is not None
+        _assert_process_group_is_gone(process.pid)
+        if argv_state == "supervisor":
+            assert not marker.exists()
+        service.shutdown(shutdown_seconds=0.1)
+        assert ledger.unresolved_gpu_service_journals() == ()
+
+
+def test_pidless_preexec_lease_is_conservatively_recovered_without_launch(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    with Ledger(tmp_path / "pidless-preexec.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        interrupted = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        interrupted._acquire_service_lock()
+        interrupted._session_id = "pilot"
+        interrupted._accounting_session_id = "load"
+        interrupted._started_at = clock.wall()
+        interrupted._started_monotonic = clock.monotonic()
+        interrupted._allocated_at_start = meter.actual_allocated_gpu_seconds
+        assert interrupted._prepare_durable_exec_gate()
+        interrupted._write_service_lock_metadata(lease_state="launch_supervisor_pending")
+        interrupted._open_service_journal()
+        interrupted._release_service_lock()
+        clock.advance(3)
+
+        recovering = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        record = recovering.recover_stale_service_lease()
+
+        assert record is not None
+        assert record.service_seconds == 3
+        assert recovering.state is ServiceState.STOPPED
+        assert ledger.unresolved_gpu_service_journals() == ()
+        lease = json.loads(
+            (launch_configuration.shared_cache / ".story-projection-onto-vllm.lock").read_text()
+        )
+        assert lease["lease_state"] == "stopped_verified"
+        assert lease["service_pid"] is None
+        assert lease["launch_protocol"] == "pipe-eof-before-exec-v1"
+
+
+def test_pidless_preexec_recovery_without_service_journal_keeps_failure_allocation(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    with Ledger(tmp_path / "pidless-before-journal.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        interrupted = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        interrupted._acquire_service_lock()
+        interrupted._session_id = "pilot"
+        interrupted._accounting_session_id = "load"
+        interrupted._started_at = clock.wall()
+        interrupted._started_monotonic = clock.monotonic()
+        interrupted._allocated_at_start = meter.actual_allocated_gpu_seconds
+        assert interrupted._prepare_durable_exec_gate()
+        interrupted._write_service_lock_metadata(lease_state="launch_supervisor_pending")
+        interrupted._release_service_lock()
+        ledger.record_gpu_allocation_observation(
+            allocation_id="load",
+            state=GpuAllocationJournalState.OPENED,
+            intended_event_kind=GpuEventKind.GPU_SESSION_START,
+            elapsed_seconds=0,
+            maximum_seconds=180,
+            observed_at=clock.wall(),
+            details={"session_id": "pilot"},
+        )
+        clock.advance(4)
+        recovered_meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        recovering = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=recovered_meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+
+        assert recovering.recover_stale_service_lease() is None
+        event = ledger.gpu_events()[-1]
+        assert event.event_id == "load"
+        assert event.event_kind is GpuEventKind.FAILURE
+        assert event.allocated_seconds == 4
+        assert event.succeeded is False
+        assert ledger.get_gpu_service_session("load") is None
+        assert ledger.unresolved_gpu_allocations() == ()
+
+
+@pytest.mark.parametrize(
+    ("lease_state", "prior_stop_recorded"),
+    (("accounting_pending", True), ("shutdown_unverified", False)),
+)
+def test_cleanup_only_adopts_and_kills_live_terminalizing_pid(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+    lease_state: str,
+    prior_stop_recorded: bool,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(3459)
+    proc_root = tmp_path / "proc"
+    start_ticks = 98_767
+    _write_fake_proc_identity(
+        proc_root,
+        pid=process.pid,
+        start_ticks=start_ticks,
+        configuration=launch_configuration,
+    )
+    with Ledger(tmp_path / "terminalizing-live.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        original = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            popen_factory=lambda *args, **kwargs: process,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            sleep=clock.advance,
+            process_group_signaler=lambda pid, signal_number: None,
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        original.start(session_id="pilot", event_id="load", watchdog_seconds=180)
+        original._last_process_start_ticks = start_ticks
+        original._last_process_command_sha256 = canonical_sha256(
+            list(launch_configuration.command())
+        )
+        clock.advance(1)
+        if prior_stop_recorded:
+            meter.observe_service_journal(
+                service_session_id="load",
+                elapsed_seconds=1,
+                observed_at=clock.wall(),
+                process_stopped=True,
+                details={"first_stop_observation": True},
+            )
+            with pytest.raises(ValueError, match="process_stopped->process_stopped"):
+                meter.observe_service_journal(
+                    service_session_id="load",
+                    elapsed_seconds=2,
+                    observed_at=clock.wall() + timedelta(seconds=1),
+                    process_stopped=True,
+                    details={"prior_stop_contradicted_by_exact_live_identity": False},
+                )
+            with pytest.raises(ValueError, match="process_stopped->process_stopped"):
+                meter.observe_service_journal(
+                    service_session_id="load",
+                    elapsed_seconds=2,
+                    observed_at=clock.wall(),
+                    process_stopped=True,
+                    details={"prior_stop_contradicted_by_exact_live_identity": True},
+                )
+            with pytest.raises(ValueError, match="process_stopped->process_stopped"):
+                meter.observe_service_journal(
+                    service_session_id="load",
+                    elapsed_seconds=1,
+                    observed_at=clock.wall() + timedelta(seconds=1),
+                    process_stopped=True,
+                    details={"prior_stop_contradicted_by_exact_live_identity": True},
+                )
+            with pytest.raises(DuplicateConflictError, match="identity changed"):
+                ledger.record_gpu_service_observation(
+                    service_session_id="load",
+                    state=GpuServiceJournalState.PROCESS_STOPPED,
+                    session_id="pilot",
+                    configuration_hash="f" * 64,
+                    service_started_at=cast(datetime, original._started_at),
+                    elapsed_seconds=2,
+                    ledger_allocated_seconds_before_session=cast(
+                        float,
+                        original._allocated_at_start,
+                    ),
+                    hard_limit_seconds=meter.hard_limit_seconds,
+                    observed_at=clock.wall() + timedelta(seconds=1),
+                    details={"prior_stop_contradicted_by_exact_live_identity": True},
+                )
+        original._write_service_lock_metadata(
+            lease_state=lease_state,
+            service_pid=process.pid,
+            ended_at=clock.wall(),
+        )
+        original._stop_service_heartbeat()
+        original._release_service_lock()
+        clock.advance(2)
+
+        recovering = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            sleep=clock.advance,
+            process_group_signaler=lambda pid, signal_number: setattr(
+                process,
+                "running",
+                False,
+            ),
+            process_liveness_check=lambda pid: process.running,
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        assert recovering.resume_live_service_lease(
+            expected_session_id="pilot",
+            expected_event_id="load",
+            watchdog_seconds=180,
+            proc_root=proc_root,
+            adopted_factory=lambda pid: process,
+            cleanup_only=True,
+        )
+        assert recovering.state is ServiceState.FAILED
+        uptime = recovering.shutdown(shutdown_seconds=0.1)
+
+        assert uptime is not None
+        assert uptime.service_seconds == 3
+        assert process.running is False
+        assert ledger.unresolved_gpu_service_journals() == ()
+        observations = ledger.gpu_service_journal_records()
+        stopped = [row for row in observations if row.state.value == "process_stopped"]
+        assert len(stopped) == (2 if prior_stop_recorded else 1)
+        assert stopped[-1].elapsed_microseconds == 3_000_000
+        assert (
+            json.loads(stopped[-1].details_json)["prior_stop_contradicted_by_exact_live_identity"]
+            is prior_stop_recorded
+        )
+
+
+def test_live_lease_adoption_rejects_pid_reuse_and_retains_exclusive_lock(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(3458)
+    proc_root = tmp_path / "proc"
+    _write_fake_proc_identity(
+        proc_root,
+        pid=process.pid,
+        start_ticks=22,
+        configuration=launch_configuration,
+    )
+
+    with Ledger(tmp_path / "pid-reuse.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        original = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            popen_factory=lambda *args, **kwargs: process,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_group_signaler=lambda pid, signal_number: None,
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        original.start(session_id="pilot", event_id="load", watchdog_seconds=180)
+        original._last_process_start_ticks = 21
+        original._last_process_command_sha256 = canonical_sha256(
+            list(launch_configuration.command())
+        )
+        original._write_service_lock_metadata(
+            lease_state="live",
+            service_pid=process.pid,
+        )
+        original._stop_service_heartbeat()
+        original._release_service_lock()
+
+        recovering = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_liveness_check=lambda pid: process.running,
+            process_group_liveness_check=lambda pid: process.running,
+        )
+        with pytest.raises(RuntimeConfigurationError, match="PID was reused"):
+            recovering.resume_live_service_lease(
+                expected_session_id="pilot",
+                expected_event_id="load",
+                proc_root=proc_root,
+                adopted_factory=lambda pid: process,
+            )
+        assert recovering.state is ServiceState.FAILED
+
+        contender = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+        )
+        with pytest.raises(RuntimeConfigurationError, match="exclusive vLLM service lock"):
+            contender.start(
+                session_id="pilot",
+                event_id="duplicate",
+                watchdog_seconds=180,
+            )
+
+
+def test_explicit_controller_restart_handoff_requires_a_different_pid(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = FakeClock()
+    process = FakeProcess(3460)
+    proc = tmp_path / "proc" / str(process.pid)
+    proc.mkdir(parents=True)
+    fields = ["S", *(["0"] * 18), "98766"]
+    (proc / "stat").write_text(f"{process.pid} (vllm worker) {' '.join(fields)}\n")
+    (proc / "cmdline").write_bytes(
+        b"\0".join(
+            (
+                b"python",
+                b"-m",
+                b"vllm.entrypoints.openai.api_server",
+                b"--model",
+                str(launch_configuration.snapshot_path).encode(),
+                b"",
+            )
+        )
+    )
+    checkpoint = tmp_path / "controller-handoff.json"
+
+    with Ledger(tmp_path / "controller-handoff.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        first = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            popen_factory=lambda *args, **kwargs: process,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_group_signaler=lambda pid, sig: setattr(process, "running", False),
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        monkeypatch.setattr("story_projection_onto.gpu_runtime.os.getpid", lambda: 6001)
+        first.start(session_id="pilot", event_id="load", watchdog_seconds=180)
+        first.detach_for_controller_restart(checkpoint, proc_root=tmp_path / "proc")
+        checkpoint_value = json.loads(checkpoint.read_text(encoding="utf-8"))
+        assert checkpoint_value["controller_restart_handoff"] is True
+        assert process.running is True
+
+        second = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+            meter=meter,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+            process_group_signaler=lambda pid, sig: setattr(process, "running", False),
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(16)),
+            affinity_setter=lambda pid, cpus: None,
+        )
+        with pytest.raises(RuntimeConfigurationError, match="different controller PID"):
+            second.resume_from_checkpoint(
+                checkpoint,
+                proc_root=tmp_path / "proc",
+                adopted_factory=lambda pid: process,
+            )
+        monkeypatch.setattr("story_projection_onto.gpu_runtime.os.getpid", lambda: 6002)
+        assert second.resume_from_checkpoint(
+            checkpoint,
+            proc_root=tmp_path / "proc",
+            adopted_factory=lambda pid: process,
+        )
+        assert second.pid == process.pid
+        second.shutdown()
+        assert process.running is False
+
+
+def test_service_overhead_is_durable_nonoverlapping_and_carries_hard_budget(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = FakeClock()
+
+    def absent_fixture_pid(pid, proc_root=None):
+        raise FileNotFoundError("CPU fixture has no process identity")
+
+    monkeypatch.setattr(
+        "story_projection_onto.gpu_runtime._process_start_ticks", absent_fixture_pid
+    )
+    with Ledger(tmp_path / "durable-service-time.sqlite3") as ledger:
+        for ordinal, idle_seconds in ((1, 30), (2, 20)):
+            process = FakeProcess(5000 + ordinal)
+            meter = AllocatedGPUMeter(
+                ledger,
+                scheduled_limit_seconds=90,
+                hard_limit_seconds=100,
+                monotonic_clock=clock.monotonic,
+                wall_clock=clock.wall,
+            )
+            service = VLLMService(
+                configuration=launch_configuration,
+                client=cast(VLLMGuidedJSONClient, FakeServiceClient(clock)),
+                meter=meter,
+                popen_factory=lambda *args, _process=process, **kwargs: _process,
+                monotonic_clock=clock.monotonic,
+                wall_clock=clock.wall,
+                process_group_signaler=lambda pid, sig, _process=process: setattr(
+                    _process, "running", False
+                ),
+                process_group_liveness_check=lambda pid, _process=process: _process.running,
+                available_cpu_sampler=lambda: set(range(16)),
+                affinity_setter=lambda pid, cpus: None,
+            )
+            service.start(
+                session_id=f"session-{ordinal}",
+                event_id=f"load-{ordinal}",
+                watchdog_seconds=10,
+            )
+            clock.advance(idle_seconds)
+            uptime = service.shutdown()
+            assert uptime is not None
+            assert uptime.allocated_event_seconds == 0
+            assert uptime.unclassified_service_seconds == idle_seconds
+
+        summary = ledger.gpu_summary()
+        assert summary.event_count == 2
+        assert summary.service_session_count == 2
+        assert summary.total_allocated_seconds == 50
+        assert summary.seconds_for(GpuEventKind.SERVICE_OVERHEAD) == 50
+        assert sum(value for _, value in summary.by_kind_microseconds) == 50_000_000
+        assert ledger.count_rows("gpu_service_sessions") == 2
+
+        resumed_meter = AllocatedGPUMeter(
+            ledger,
+            scheduled_limit_seconds=90,
+            hard_limit_seconds=100,
+        )
+        assert resumed_meter.actual_allocated_gpu_seconds == 50
+        with pytest.raises(ValueError, match="session-derived"):
+            resumed_meter.allocation(
+                event_id="forbidden-overhead",
+                event_kind=GpuEventKind.SERVICE_OVERHEAD,
+                maximum_seconds=1,
+            )
+        with pytest.raises(GpuBudgetExceeded, match="reach/cross hard limit"):
+            resumed_meter.require_capacity(50)
+
+
+def test_spawn_failure_stops_child_and_preserves_restricted_log(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    process = FakeProcess(4567)
+
+    def absent_fixture_pid(pid, proc_root=None):
+        raise FileNotFoundError("CPU fixture has no process identity")
+
+    monkeypatch.setattr(
+        "story_projection_onto.gpu_runtime._process_start_ticks", absent_fixture_pid
+    )
+    log_path = tmp_path / "runtime" / "vllm.log"
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(FakeClock())),
+            meter=AllocatedGPUMeter(ledger),
+            log_path=log_path,
+            popen_factory=lambda *args, **kwargs: process,
+            process_group_signaler=lambda pid, sig: setattr(process, "running", False),
+            process_group_liveness_check=lambda pid: process.running,
+            available_cpu_sampler=lambda: set(range(8)),
+            affinity_setter=lambda pid, cpus: (_ for _ in ()).throw(OSError("affinity")),
+        )
+        with pytest.raises(OSError, match="affinity"):
+            service.start(session_id="pilot", event_id="load", watchdog_seconds=180)
+        # The failed classified start interval must be closed before service
+        # reconciliation is attempted by the outer shutdown path.
+        assert ledger.unresolved_gpu_allocations() == ()
+        pending = ledger.latest_gpu_service_journal("load")
+        assert pending is not None
+        assert pending.state.value in {"opened", "heartbeat"}
+        uptime = service.shutdown()
+        closed = ledger.latest_gpu_service_journal("load")
+        assert closed is not None
+        assert closed.state.value == "closed"
+
+    assert not process.running
+    assert service.state is ServiceState.STOPPED
+    assert uptime is not None
+    assert log_path.is_file()
+    assert log_path.stat().st_mode & 0o777 == 0o600
+
+
+def test_service_capacity_reserves_sampler_drain_and_shutdown_time(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        service = VLLMService(
+            configuration=launch_configuration,
+            client=cast(VLLMGuidedJSONClient, FakeServiceClient(FakeClock())),
+            meter=AllocatedGPUMeter(
+                ledger,
+                scheduled_limit_seconds=500,
+                hard_limit_seconds=600,
+            ),
+        )
+        assert gpu_runtime.RESOURCE_AWARE_HARD_STOP_RESERVE_SECONDS == 180
+        with pytest.raises(GpuBudgetExceeded, match="hard GPU-service limit"):
+            service.require_service_capacity(420)
+
+
+def test_exact_eight_call_plan_and_dry_cli_never_start_model(tmp_path: Path) -> None:
+    calls = phase1_acceptance_calls()
+    validate_acceptance_calls(calls)
+    counts = {
+        name: sum(call.call_class == name for call in calls) for name in EXPECTED_ACCEPTANCE_COUNTS
+    }
+    assert counts == EXPECTED_ACCEPTANCE_COUNTS
+    assert [call.watchdog_seconds for call in calls] == [180, 180, 120, 120, 120, 90, 90, 90]
+    assert sum(call.parent_call_id is not None for call in calls) == 1
+
+    plan = acceptance_plan_manifest(ROOT)
+    assert plan["call_count"] == 8
+    assert plan["executes_gpu"] is False
+    implementation_files = plan["implementation_files"]
+    assert [item["path"] for item in implementation_files] == list(ACCEPTANCE_IMPLEMENTATION_FILES)
+    assert len(ACCEPTANCE_IMPLEMENTATION_FILES) == len(set(ACCEPTANCE_IMPLEMENTATION_FILES))
+    for item in implementation_files:
+        path = ROOT / item["path"]
+        assert path.is_file()
+        assert item["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest()
+    output = tmp_path / "plan.json"
+    assert acceptance_main(["--project-root", str(ROOT), "--output", str(output)]) == 0
+    assert json.loads(output.read_text())["manifest_sha256"] == plan["manifest_sha256"]
+
+
+def test_verified_model_manifest_rehashes_exact_snapshot(tmp_path: Path) -> None:
+    cache = tmp_path / "cache"
+    snapshot = cache / "models--Qwen--Qwen3-14B-AWQ" / "snapshots" / PINNED_MODEL_REVISION
+    snapshot.mkdir(parents=True)
+    model_file = snapshot / "config.json"
+    model_file.write_text('{"model":"fixture","quantization_config":{"quant_method":"awq"}}\n')
+    model_configuration = tmp_path / "model.json"
+    model_configuration.write_text('{"runtime":"fixture"}\n')
+    payload: dict[str, object] = {
+        "schema_version": "1.0.0",
+        "repository": "Qwen/Qwen3-14B-AWQ",
+        "revision": PINNED_MODEL_REVISION,
+        "license": "Apache-2.0",
+        "quantization": "awq",
+        "single_repository_in_shared_cache": True,
+        "single_snapshot_in_shared_cache": True,
+        "incomplete_file_count": 0,
+        "file_count": 1,
+        "total_bytes": model_file.stat().st_size,
+        "model_configuration_sha256": hashlib.sha256(model_configuration.read_bytes()).hexdigest(),
+        "files": [
+            {
+                "path": "config.json",
+                "size_bytes": model_file.stat().st_size,
+                "sha256": hashlib.sha256(model_file.read_bytes()).hexdigest(),
+            }
+        ],
+    }
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(json.dumps({**payload, "manifest_sha256": canonical_sha256(payload)}))
+
+    validated = validate_verified_model_manifest(
+        manifest,
+        snapshot_path=snapshot,
+        shared_cache=cache,
+        model_configuration_path=model_configuration,
+    )
+    assert validated["file_count"] == 1
+
+    second_repository = cache / "models--Other--Model" / "snapshots" / ("f" * 40)
+    second_repository.mkdir(parents=True)
+    with pytest.raises(ValueError, match="exactly the pinned model repository"):
+        validate_verified_model_manifest(
+            manifest,
+            snapshot_path=snapshot,
+            shared_cache=cache,
+            model_configuration_path=model_configuration,
+        )
+    second_repository.rmdir()
+    second_repository.parent.rmdir()
+    second_repository.parent.parent.rmdir()
+
+    model_file.write_text("changed\n")
+    with pytest.raises(ValueError, match="size changed"):
+        validate_verified_model_manifest(
+            manifest,
+            snapshot_path=snapshot,
+            shared_cache=cache,
+            model_configuration_path=model_configuration,
+        )
+
+
+@pytest.mark.parametrize("call_index", [0, 2, 5, 7])
+def test_acceptance_fixture_packing_is_complete_and_uses_captured_tokenizer(
+    call_index: int,
+) -> None:
+    call = phase1_acceptance_calls()[call_index]
+    request = build_acceptance_request(
+        root=ROOT,
+        call=call,
+        tokenizer=FakeTokenizer(),
+        tokenizer_manifest=_tokenizer_manifest(),
+    )
+
+    assert request.packing.truncation_applied is False
+    assert request.packing.omitted_section_names == ()
+    assert request.packing.input_token_count == request.rendered_input_token_count
+    assert request.rendered_input_token_count <= request.decoding.maximum_input_tokens
+    assert request.wire_payload()["chat_template_kwargs"] == {"enable_thinking": False}
+    assert request.wire_payload()["guided_json"] == request.output_schema
+    user_payload = json.loads(request.messages[1].content)
+    assert "output_schema" not in user_payload
+    schema_section = next(
+        section for section in request.packing.sections if section.name == "output_schema"
+    )
+    assert schema_section.section_content_hash == canonical_sha256(request.output_schema)
+    assert schema_section.token_count == 0
+    assert request.decoding.maximum_output_tokens == (1_536 if call_index == 7 else 2_048)
+    assert request.decoding.structured_decoder == "vllm-0.10.2-xgrammar-no-fallback"
+    if call.condition is ConditionName.A_FIXED_SELECT:
+        assert request.packing.complete_sealed_ontology is True
+    if call_index == 7:
+        original = json.loads((ROOT / "tests/fixtures/phase1/c2_query_request.json").read_text())
+        repair = json.loads((ROOT / "tests/fixtures/phase1/invalid_repair_case.json").read_text())
+        assert user_payload["upper_ontology"] == original["upper_ontology"]
+        assert user_payload["query_context"] == original["context"]
+        assert user_payload["evidence_packet"] == original["packet"]
+        assert user_payload["semantic_controls"] == {
+            "condition": original["condition"],
+            "budgets": original["budgets"],
+            "capabilities": original["capabilities"],
+        }
+        assert user_payload["invalid_draft"] == repair["base_draft"]
+        assert user_payload["validation_diagnostics"] == repair["validation_report"]
+        assert "runtime" not in user_payload
+        assert "request_id" not in user_payload
+    else:
+        runtime = user_payload["request_envelope"]["runtime"]
+        assert runtime["model_revision"] == PINNED_MODEL_REVISION
+        assert runtime["tokenizer_hash"] == _tokenizer_manifest().manifest_sha256
+        assert (
+            runtime["prompt_hash"]
+            == hashlib.sha256((ROOT / call.prompt_file).read_bytes()).hexdigest()
+        )
+        assert runtime["output_schema_hash"] == canonical_sha256(request.output_schema)
+        assert runtime["decoding_config_hash"] == request.decoding.content_hash
+
+
+def test_fixed_select_guided_schema_forbids_construction_and_novel_primary_ids() -> None:
+    request = build_acceptance_request(
+        root=ROOT,
+        call=phase1_acceptance_calls()[5],
+        tokenizer=FakeTokenizer(),
+        tokenizer_manifest=_tokenizer_manifest(),
+    )
+    definitions = request.output_schema["$defs"]
+    assert definitions["ConstructionOperator"]["enum"] == [
+        "compression",
+        "selection",
+        "supported_description",
+    ]
+    decision = definitions["OntologyDecision"]["properties"]
+    assert decision["created_object_ids"]["maxItems"] == 0
+    assert decision["removed_object_ids"]["maxItems"] == 0
+    allowed_entities = definitions["Entity"]["properties"]["entity_id"]["enum"]
+    assert "ent-c1-lio" in allowed_entities
+    assert "novel-entity" not in allowed_entities
+
+
+@pytest.mark.parametrize(
+    ("call_index", "output_name"),
+    [
+        (0, "c1_pre_output.json"),
+        (2, "c2_query_output.json"),
+        (5, "fixed_select_output.json"),
+    ],
+)
+def test_mechanical_acceptance_audit_validates_condition_fixtures(
+    call_index: int,
+    output_name: str,
+) -> None:
+    output = json.loads((ROOT / "tests/fixtures/phase1" / output_name).read_text())
+    bridge = Phase1LegacyEvidenceProvenanceBridge.load(ROOT)
+    call = phase1_acceptance_calls()[call_index]
+    if call.condition is not ConditionName.A_FIXED_SELECT:
+        resolved = bridge.resolve_call(
+            call_id=call.call_id,
+            condition=call.condition,
+            request_fixture=call.request_fixture,
+        )
+        source_hashes = {
+            item.evidence_id: item.provenance.source_artifact_hash for item in resolved.evidence
+        }
+        for assertion in output["instance_graph"]["assertions"]:
+            for provenance in assertion["provenance"]:
+                provenance["source_artifact_hash"] = source_hashes[provenance["evidence_id"]]
+    audit = validate_acceptance_generation(
+        root=ROOT,
+        call=call,
+        parsed_object=output,
+        legacy_provenance_bridge=bridge,
+    )
+    assert audit["schema_valid"] is True
+    assert audit["evidence_ids_valid"] is True
+    assert audit["capability_valid"] is True
+    assert audit["grounding_complete"] is True
+    assert audit["horizon_leak_count"] == 0
+
+
+def test_legacy_c1_acceptance_horizon_requires_exact_paired_evidence(
+    tmp_path: Path,
+) -> None:
+    fixture_root = tmp_path / "tests" / "fixtures" / "phase1"
+    fixture_root.mkdir(parents=True)
+    source_fixture_root = ROOT / "tests" / "fixtures" / "phase1"
+    c1_request = json.loads((source_fixture_root / "c1_pre_request.json").read_text())
+    paired_request = json.loads((source_fixture_root / "c2_query_request.json").read_text())
+    paired_request["packet"]["evidence"][0]["text"] += " altered"
+    (fixture_root / "c1_pre_request.json").write_text(json.dumps(c1_request))
+    (fixture_root / "c2_query_request.json").write_text(json.dumps(paired_request))
+    output = json.loads((source_fixture_root / "c1_pre_output.json").read_text())
+
+    with pytest.raises(ValueError, match="differs from its evidence"):
+        validate_acceptance_generation(
+            root=tmp_path,
+            call=phase1_acceptance_calls()[0],
+            parsed_object=output,
+        )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        lambda value: value["budget_accounting"].__setitem__("nodes_used", 0),
+        lambda value: value["instance_graph"]["entities"][0].__setitem__(
+            "contextual_type_id", "unknown-type"
+        ),
+        lambda value: value["instance_graph"]["entities"][0][
+            "supported_mention_candidate_ids"
+        ].append("unknown-mention"),
+        lambda value: value["instance_graph"]["assertions"][0].__setitem__(
+            "subject_id", "unknown-subject"
+        ),
+        lambda value: value["instance_graph"]["entities"][0]["description_assertion_ids"].append(
+            "unknown-assertion"
+        ),
+        lambda value: value["decisions"][1]["created_object_ids"].append("fabricated-entity"),
+        lambda value: value["instance_graph"]["assertions"][0]["temporal_scope"].__setitem__(
+            "validity_time", {"kind": "interval", "start": 4, "end": 2}
+        ),
+        lambda value: value["instance_graph"]["assertions"][-2].__setitem__(
+            "provenance", value["instance_graph"]["assertions"][-2]["provenance"][:1]
+        ),
+        lambda value: value["instance_graph"]["proposition_contents"][0].__setitem__(
+            "object_id", "ent-c2-seal"
+        ),
+    ],
+)
+def test_acceptance_structural_audit_rejects_schema_shaped_fabrication(
+    mutation: Callable[[dict[str, object]], object],
+) -> None:
+    output = json.loads((ROOT / "tests/fixtures/phase1/c2_query_output.json").read_text())
+    mutation(output)
+    with pytest.raises(ValueError):
+        validate_acceptance_generation(
+            root=ROOT,
+            call=phase1_acceptance_calls()[2],
+            parsed_object=output,
+        )
+
+
+class FixtureAcceptanceClient:
+    def __init__(self, clock: FakeClock) -> None:
+        self.clock = clock
+
+    def health(self, timeout_seconds: float = 2.0) -> bool:
+        return True
+
+    def generate(
+        self,
+        request: GuidedJSONRequest,
+        *,
+        watchdog_seconds: float,
+    ) -> GenerationResult:
+        self.clock.advance(1)
+        output_name = {
+            "c1-01": "c1_pre_output.json",
+            "c1-02": "c1_pre_output_2.json",
+            "c2-01": "c2_query_output.json",
+            "c2-02": "c2_query_output_2.json",
+            "c2-03": "c2_query_output.json",
+            "fixed-01": "fixed_select_output.json",
+            "fixed-02": "fixed_select_output.json",
+        }.get(request.request_id)
+        if output_name is None:
+            repair = json.loads(
+                (ROOT / "tests/fixtures/phase1/invalid_repair_case.json").read_text()
+            )
+            parsed = repair["corrected_draft"]
+        else:
+            parsed = json.loads((ROOT / "tests/fixtures/phase1" / output_name).read_text())
+        if request.condition is not ConditionName.A_FIXED_SELECT:
+            payload = json.loads(request.messages[1].content)
+            source_rows = payload["legacy_evidence_provenance"]["records"]
+            source_hashes = {
+                item["evidence_id"]: item["provenance"]["source_artifact_hash"]
+                for item in source_rows
+            }
+            for assertion in parsed["instance_graph"]["assertions"]:
+                for provenance in assertion["provenance"]:
+                    provenance["source_artifact_hash"] = source_hashes[provenance["evidence_id"]]
+        envelope = {
+            "id": f"private-{request.request_id}",
+            "choices": [{"message": {"content": json.dumps(parsed)}, "finish_reason": "stop"}],
+            "usage": {
+                "prompt_tokens": request.rendered_input_token_count,
+                "completion_tokens": 50,
+            },
+        }
+        raw = json.dumps(envelope).encode()
+        return GenerationResult(
+            request_id=request.request_id,
+            request_hash=request.request_hash,
+            response_sha256=hashlib.sha256(raw).hexdigest(),
+            parsed_object=parsed,
+            raw_response=raw,
+            prompt_tokens=request.rendered_input_token_count,
+            completion_tokens=50,
+            finish_reason="stop",
+            service_request_id=f"private-{request.request_id}",
+        )
+
+
+class FailingTransportAcceptanceClient(FixtureAcceptanceClient):
+    def generate(
+        self,
+        request: GuidedJSONRequest,
+        *,
+        watchdog_seconds: float,
+    ) -> GenerationResult:
+        del request, watchdog_seconds
+        self.clock.advance(2)
+        raise RuntimeTransportError(
+            "vLLM generation returned HTTP 400",
+            restricted_diagnostics={
+                "http_status": 400,
+                "response_sha256": "e" * 64,
+                "response_size_bytes": 123,
+                "response_json_object": True,
+                "error_type": "BadRequestError",
+                "error_message": "decoder rejected /work" + "space/private/schema.json",
+            },
+        )
+
+
+@dataclass
+class FakeAcceptanceService:
+    configuration: VLLMLaunchConfiguration
+    client: FixtureAcceptanceClient
+    meter: AllocatedGPUMeter
+    state: ServiceState = ServiceState.STOPPED
+    pid: int = 4321
+    resume_succeeds: bool = False
+    resume_failure_state: ServiceState | None = None
+    resume_error: BaseException | None = None
+    stale_recovery_result: object | None = None
+    shutdown_uptime: ServiceUptime | None = None
+    start_count: int = 0
+    restart_count: int = 0
+    recovery_count: int = 0
+    shutdown_count: int = 0
+    settlement_calls: list[str] = field(default_factory=list)
+    periodic_resource_watchdog: ResourceWatchdog | None = None
+    periodic_drain_allowed: bool = True
+
+    def start(self, *, event_id: str, watchdog_seconds: float, **kwargs: object) -> None:
+        self.start_count += 1
+        with self.meter.session_start(
+            event_id=event_id,
+            maximum_seconds=watchdog_seconds,
+        ):
+            self.state = ServiceState.READY
+
+    def restart(self, *, event_id: str, watchdog_seconds: float, **kwargs: object) -> None:
+        self.restart_count += 1
+        with self.meter.restart(event_id=event_id, maximum_seconds=watchdog_seconds):
+            self.state = ServiceState.READY
+
+    def resume_from_checkpoint(self, path: Path) -> bool:
+        self.settlement_calls.append("resume")
+        if self.resume_failure_state is not None:
+            self.state = self.resume_failure_state
+        if self.resume_error is not None:
+            raise self.resume_error
+        if not self.resume_succeeds:
+            return False
+        self.state = ServiceState.READY
+        return True
+
+    def recover_stale_service_lease(self) -> object | None:
+        self.settlement_calls.append("recover")
+        self.recovery_count += 1
+        return self.stale_recovery_result
+
+    def handoff_resume(self, path: Path) -> FakeAcceptanceService:
+        path.write_text('{"resumed":true}\n')
+        return self
+
+    def _operation(
+        self,
+        operation: Callable[[], object],
+        *,
+        event_kind: GpuEventKind,
+        event_id: str,
+        watchdog_seconds: float,
+        job_id: str | None = None,
+        attempt_id: str | None = None,
+        remaining_required_seconds: float = 0,
+    ) -> object:
+        context = self.meter.allocation(
+            event_id=event_id,
+            event_kind=event_kind,
+            maximum_seconds=watchdog_seconds,
+            job_id=job_id,
+            attempt_id=attempt_id,
+        )
+        with context:
+            return operation()
+
+    def run_warmup(self, operation: Callable[[], object], **kwargs: object) -> object:
+        return self._operation(
+            operation,
+            event_kind=GpuEventKind.WARM_UP,
+            **kwargs,
+        )
+
+    def run_schema_probe(self, operation: Callable[[], object], **kwargs: object) -> object:
+        return self._operation(
+            operation,
+            event_kind=GpuEventKind.SCHEMA_PROBE,
+            **kwargs,
+        )
+
+    def generate(
+        self,
+        request: GuidedJSONRequest,
+        *,
+        event_id: str,
+        watchdog_seconds: float,
+        repair: bool,
+        job_id: str | None = None,
+        attempt_id: str | None = None,
+        **kwargs: object,
+    ) -> GenerationResult:
+        return cast(
+            GenerationResult,
+            self._operation(
+                lambda: self.client.generate(request, watchdog_seconds=watchdog_seconds),
+                event_kind=GpuEventKind.REPAIR if repair else GpuEventKind.INFERENCE,
+                event_id=event_id,
+                watchdog_seconds=watchdog_seconds,
+                job_id=job_id,
+                attempt_id=attempt_id,
+            ),
+        )
+
+    def emergency_stop(self) -> None:
+        self.state = ServiceState.STOPPED
+
+    def request_emergency_stop(self) -> None:
+        self.emergency_stop()
+
+    def start_periodic_resource_watchdog(
+        self,
+        watchdog: ResourceWatchdog,
+    ) -> ResourceWatchdog:
+        if self.periodic_resource_watchdog is not None:
+            raise RuntimeError("test service already owns a resource watchdog")
+        self.periodic_resource_watchdog = watchdog
+        return watchdog.start()
+
+    def stop_periodic_resource_watchdog(
+        self,
+        watchdog: ResourceWatchdog,
+        *,
+        raise_failure: bool = True,
+        completion_timeout_seconds: float | None = None,
+    ) -> bool:
+        owned = self.periodic_resource_watchdog
+        if owned is not None and owned is not watchdog:
+            raise RuntimeError("test service does not own this resource watchdog")
+        if not self.periodic_drain_allowed:
+            watchdog._stop.set()
+            return False
+        drained = watchdog.stop(
+            raise_failure=raise_failure,
+            completion_timeout_seconds=completion_timeout_seconds,
+        )
+        if drained:
+            self.periodic_resource_watchdog = None
+        return drained
+
+    def shutdown(self) -> ServiceUptime | None:
+        self.settlement_calls.append("shutdown")
+        self.shutdown_count += 1
+        self.state = ServiceState.STOPPED
+        return self.shutdown_uptime
+
+
+def test_acceptance_runner_executes_exact_calls_lifecycle_forecast_and_gates(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        ledger.record_gpu_event(
+            event_id="prior-pilot-service-start-failure",
+            event_kind=GpuEventKind.FAILURE,
+            allocated_seconds=0.1,
+            started_at=clock.wall(),
+            ended_at=clock.wall() + timedelta(seconds=0.1),
+            succeeded=False,
+            details={"intended_event_kind": GpuEventKind.GPU_SESSION_START.value},
+        )
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        service = FakeAcceptanceService(
+            configuration=launch_configuration,
+            client=FixtureAcceptanceClient(clock),
+            meter=meter,
+            shutdown_uptime=ServiceUptime(
+                session_id="unit-pilot",
+                started_at=clock.wall(),
+                ended_at=clock.wall() + timedelta(seconds=28),
+                service_seconds=28,
+                allocated_event_seconds=8,
+            ),
+        )
+        storage = StoragePreflight(tmp_path)
+        sampler = ResourceSampler(
+            limits=limits(),
+            storage=storage,
+            ledger=ledger,
+            process_sampler=lambda pid: ProcessTreeUsage(frozenset({pid}), 10_000),
+            system_ram_sampler=lambda: 100_000_000_000,
+            gpu_sampler=lambda pids: 1_000,
+            filesystem_free_sampler=lambda: 100_000_000_000,
+            wall_clock=clock.wall,
+        )
+        result = AcceptanceRunner(
+            root=ROOT,
+            run_id="unit-pilot",
+            service=cast(VLLMService, service),
+            ledger=ledger,
+            artifacts=ArtifactStore(
+                BlobStore(tmp_path / "blobs", compression=Compression.GZIP),
+                ledger,
+            ),
+            resource_sampler=sampler,
+            tokenizer=FakeTokenizer(),
+            tokenizer_manifest=_tokenizer_manifest(),
+            checkpoint_path=tmp_path / "checkpoint.json",
+        ).run()
+
+        assert result["gate_passed"] is True, result
+        assert result["completed_call_count"] == 8
+        assert len(result["calls"]) == 8
+        assert result["operator_coverage_gate"]["c1_complete"] is True
+        assert result["operator_coverage_gate"]["c2_complete"] is True
+        assert result["grounding_horizon_gate"] is True
+        assert result["full_manifest_forecast"]["admitted"] is True
+        timings = {row["call_class"]: row for row in result["timing_by_call_class"]}
+        assert timings["gpu_session_start"]["sample_count"] == 2
+        assert timings["gpu_session_start"]["p95_seconds"] == 20
+        assert timings["acceptance_c1"]["sample_count"] == 2
+        assert timings["acceptance_c1"]["p95_seconds"] == 1
+        assert result["timing_gate"]["all_classes_observed"] is True
+        assert result["timing_gate"]["model_load_sample_count_exact"] is True
+        assert result["timing_gate"]["service_overhead_seconds_included"] == 20
+        assert result["actual_plus_remaining_forecast"]["admitted"] is True
+        assert result["actual_plus_remaining_forecast"]["consumed_gpu_session_start_slots"] == 3
+        assert result["calls"][0]["packing_report"]["truncation_applied"] is False
+        assert result["calls"][0]["decoding_manifest"]["thinking_mode"] is False
+        kinds = {kind for kind, _ in ledger.gpu_summary().by_kind_microseconds}
+        assert GpuEventKind.WARM_UP in kinds
+        assert GpuEventKind.SCHEMA_PROBE in kinds
+        assert GpuEventKind.RESTART in kinds
+        repair = result["calls"][-1]
+        assert repair["repair_lineage"]["independent_from_acceptance_c2_calls"] is True
+        assert ledger.count_rows("model_calls") == 9
+        assert service.start_count == 1
+        assert service.restart_count == 1
+
+
+def test_phase1_runner_surfaces_periodic_drain_refusal_before_shutdown(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    with Ledger(tmp_path / "phase1-drain-refusal.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        service = FakeAcceptanceService(
+            configuration=launch_configuration,
+            client=FixtureAcceptanceClient(clock),
+            meter=meter,
+            periodic_drain_allowed=False,
+        )
+        sampler = ResourceSampler(
+            limits=limits(),
+            storage=StoragePreflight(tmp_path),
+            ledger=ledger,
+            process_sampler=lambda pid: ProcessTreeUsage(frozenset({pid}), 10_000),
+            system_ram_sampler=lambda: 100_000_000_000,
+            gpu_sampler=lambda pids: 1_000,
+            filesystem_free_sampler=lambda: 100_000_000_000,
+            wall_clock=clock.wall,
+        )
+        runner = AcceptanceRunner(
+            root=ROOT,
+            run_id="phase1-drain-refusal",
+            service=cast(VLLMService, service),
+            ledger=ledger,
+            artifacts=ArtifactStore(
+                BlobStore(tmp_path / "blobs", compression=Compression.GZIP),
+                ledger,
+            ),
+            resource_sampler=sampler,
+            tokenizer=FakeTokenizer(),
+            tokenizer_manifest=_tokenizer_manifest(),
+            checkpoint_path=tmp_path / "checkpoint.json",
+        )
+
+        with pytest.raises(RuntimeError, match="periodic resource sample exceeded"):
+            runner.run()
+
+        assert service.shutdown_count == 0
+        watchdog = service.periodic_resource_watchdog
+        assert watchdog is not None
+        service.periodic_drain_allowed = True
+        assert service.stop_periodic_resource_watchdog(watchdog, raise_failure=False)
+        service.shutdown()
+
+
+def test_acceptance_failed_transport_is_accounted_but_not_a_timing_proxy(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        service = FakeAcceptanceService(
+            configuration=launch_configuration,
+            client=FailingTransportAcceptanceClient(clock),
+            meter=meter,
+            shutdown_uptime=ServiceUptime(
+                session_id="failed-transport-pilot",
+                started_at=clock.wall(),
+                ended_at=clock.wall() + timedelta(seconds=2),
+                service_seconds=2,
+                allocated_event_seconds=2,
+            ),
+        )
+        artifacts = ArtifactStore(
+            BlobStore(tmp_path / "blobs", compression=Compression.GZIP),
+            ledger,
+        )
+        sampler = ResourceSampler(
+            limits=limits(),
+            storage=StoragePreflight(tmp_path),
+            ledger=ledger,
+            process_sampler=lambda pid: ProcessTreeUsage(frozenset({pid}), 10_000),
+            system_ram_sampler=lambda: 100_000_000_000,
+            gpu_sampler=lambda pids: 1_000,
+            filesystem_free_sampler=lambda: 100_000_000_000,
+            wall_clock=clock.wall,
+        )
+
+        result = AcceptanceRunner(
+            root=ROOT,
+            run_id="failed-transport-pilot",
+            service=cast(VLLMService, service),
+            ledger=ledger,
+            artifacts=artifacts,
+            resource_sampler=sampler,
+            tokenizer=FakeTokenizer(),
+            tokenizer_manifest=_tokenizer_manifest(),
+            checkpoint_path=tmp_path / "checkpoint.json",
+        ).run()
+
+        assert result["gate_passed"] is False
+        assert result["calls"] == [
+            {
+                "call_id": "c1-01",
+                "status": "failed",
+                "exception_type": "RuntimeTransportError",
+            }
+        ]
+        timings = {row["call_class"]: row for row in result["timing_by_call_class"]}
+        assert "acceptance_c1" not in timings
+        acceptance_c1_forecast = next(
+            row
+            for row in result["full_manifest_forecast"]["rows"]
+            if row["call_class"] == "acceptance_c1"
+        )
+        assert acceptance_c1_forecast["forecast_p95_seconds"] == 180
+        assert acceptance_c1_forecast["source"] == "provisional"
+        assert result["actual_plus_remaining_forecast"]["actual_allocated_seconds"] == 2
+        assert ledger.gpu_summary().total_allocated_seconds == 2
+
+        model_call = ledger.get_model_call("failed-transport-pilot-c1-01")
+        assert model_call.successful is False
+        assert model_call.allocated_gpu_microseconds == 2_000_000
+        failure = ledger.failures_for_lineage("failed-transport-pilot-c1-01-attempt")[0]
+        assert failure.artifact_hash is not None
+        diagnostic_record = ledger.get_artifact(failure.artifact_hash)
+        assert diagnostic_record.release_class is ReleaseClass.RESTRICTED
+        diagnostic = json.loads(
+            artifacts.blobs.read_bytes(
+                diagnostic_record,
+                allow_restricted=True,
+            )
+        )
+        assert diagnostic["http_status"] == 400
+        assert diagnostic["response_sha256"] == "e" * 64
+        private_marker = "/work" + "space/private/schema.json"
+        assert private_marker in diagnostic["error_message"]
+        assert private_marker not in json.dumps(result)
+
+
+def test_acceptance_live_controller_resume_does_not_repeat_registered_restart(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    run_id = "resume-pilot"
+    checkpoint = tmp_path / "checkpoint.json"
+    service_checkpoint = checkpoint.with_name(checkpoint.name + ".service")
+    plan_hash = _acceptance_execution_plan_hash(launch_configuration)
+    checkpoint.write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0.0",
+                "run_id": run_id,
+                "plan_hash": plan_hash,
+                "completed_call_ids": [],
+                "failed_call_id": None,
+                "resume_sequence": 1,
+            }
+        )
+    )
+    service_checkpoint.write_text('{"live":true}\n')
+
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        with meter.session_start(
+            event_id=f"{run_id}-service-start-001",
+            maximum_seconds=180,
+        ):
+            pass
+        with meter.restart(
+            event_id=f"{run_id}-restart-001",
+            maximum_seconds=180,
+        ):
+            pass
+        service = FakeAcceptanceService(
+            configuration=launch_configuration,
+            client=FixtureAcceptanceClient(clock),
+            meter=meter,
+            resume_succeeds=True,
+        )
+        sampler = ResourceSampler(
+            limits=limits(),
+            storage=StoragePreflight(tmp_path),
+            ledger=ledger,
+            process_sampler=lambda pid: ProcessTreeUsage(frozenset({pid}), 10_000),
+            system_ram_sampler=lambda: 100_000_000_000,
+            gpu_sampler=lambda pids: 1_000,
+            filesystem_free_sampler=lambda: 100_000_000_000,
+            wall_clock=clock.wall,
+        )
+        result = AcceptanceRunner(
+            root=ROOT,
+            run_id=run_id,
+            service=cast(VLLMService, service),
+            ledger=ledger,
+            artifacts=ArtifactStore(
+                BlobStore(tmp_path / "blobs", compression=Compression.GZIP),
+                ledger,
+            ),
+            resource_sampler=sampler,
+            tokenizer=FakeTokenizer(),
+            tokenizer_manifest=_tokenizer_manifest(),
+            checkpoint_path=checkpoint,
+        ).run()
+
+        assert result["gate_passed"] is True, result
+        assert result["resumed_live_service"] is True
+        assert result["timing_gate"]["model_load_sample_count"] == 2
+        assert service.start_count == 0
+        assert service.restart_count == 0
+        assert service.recovery_count == 0
+
+
+@pytest.mark.parametrize("service_checkpoint_exists", [False, True])
+def test_acceptance_resume_recovers_stale_allocation_without_reloading(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+    service_checkpoint_exists: bool,
+) -> None:
+    clock = FakeClock()
+    run_id = "stale-resume-pilot"
+    checkpoint = tmp_path / "checkpoint.json"
+    service_checkpoint = checkpoint.with_name(checkpoint.name + ".service")
+    plan_hash = _acceptance_execution_plan_hash(launch_configuration)
+    checkpoint.write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0.0",
+                "run_id": run_id,
+                "plan_hash": plan_hash,
+                "completed_call_ids": [],
+                "failed_call_id": None,
+                "resume_sequence": 1,
+            }
+        )
+    )
+    if service_checkpoint_exists:
+        service_checkpoint.write_text('{"stale":true}\n')
+
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        service = FakeAcceptanceService(
+            configuration=launch_configuration,
+            client=FixtureAcceptanceClient(clock),
+            meter=meter,
+            stale_recovery_result=SimpleNamespace(service_session_id="recovered"),
+        )
+        sampler = ResourceSampler(
+            limits=limits(),
+            storage=StoragePreflight(tmp_path),
+            ledger=ledger,
+            process_sampler=lambda pid: ProcessTreeUsage(frozenset({pid}), 10_000),
+            system_ram_sampler=lambda: 100_000_000_000,
+            gpu_sampler=lambda pids: 1_000,
+            filesystem_free_sampler=lambda: 100_000_000_000,
+            wall_clock=clock.wall,
+        )
+        runner = AcceptanceRunner(
+            root=ROOT,
+            run_id=run_id,
+            service=cast(VLLMService, service),
+            ledger=ledger,
+            artifacts=ArtifactStore(
+                BlobStore(tmp_path / "blobs", compression=Compression.GZIP),
+                ledger,
+            ),
+            resource_sampler=sampler,
+            tokenizer=FakeTokenizer(),
+            tokenizer_manifest=_tokenizer_manifest(),
+            checkpoint_path=checkpoint,
+        )
+
+        with pytest.raises(
+            RuntimeError,
+            match="cannot recover a stale/missing service checkpoint",
+        ):
+            runner.run()
+
+        assert service.shutdown_count == 1
+        assert service.recovery_count == 1
+        assert service.start_count == 0
+        assert service.restart_count == 0
+        expected_prefix = ["resume"] if service_checkpoint_exists else []
+        assert service.settlement_calls == [*expected_prefix, "shutdown", "recover"]
+
+
+def test_acceptance_resume_failure_stops_adopted_service_before_propagating(
+    tmp_path: Path,
+    launch_configuration: VLLMLaunchConfiguration,
+) -> None:
+    clock = FakeClock()
+    run_id = "failed-adoption-pilot"
+    checkpoint = tmp_path / "checkpoint.json"
+    service_checkpoint = checkpoint.with_name(checkpoint.name + ".service")
+    plan_hash = _acceptance_execution_plan_hash(launch_configuration)
+    checkpoint.write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0.0",
+                "run_id": run_id,
+                "plan_hash": plan_hash,
+                "completed_call_ids": [],
+                "failed_call_id": None,
+                "resume_sequence": 1,
+            }
+        )
+    )
+    service_checkpoint.write_text('{"live":true}\n')
+
+    with Ledger(tmp_path / "ledger.sqlite3") as ledger:
+        meter = AllocatedGPUMeter(
+            ledger,
+            monotonic_clock=clock.monotonic,
+            wall_clock=clock.wall,
+        )
+        service = FakeAcceptanceService(
+            configuration=launch_configuration,
+            client=FixtureAcceptanceClient(clock),
+            meter=meter,
+            resume_failure_state=ServiceState.FAILED,
+            resume_error=RuntimeTransportError("adopted service failed health check"),
+            shutdown_uptime=ServiceUptime(
+                session_id=run_id,
+                started_at=clock.wall(),
+                ended_at=clock.wall(),
+                service_seconds=0,
+                allocated_event_seconds=0,
+            ),
+        )
+        sampler = ResourceSampler(
+            limits=limits(),
+            storage=StoragePreflight(tmp_path),
+            ledger=ledger,
+            process_sampler=lambda pid: ProcessTreeUsage(frozenset({pid}), 10_000),
+            system_ram_sampler=lambda: 100_000_000_000,
+            gpu_sampler=lambda pids: 1_000,
+            filesystem_free_sampler=lambda: 100_000_000_000,
+            wall_clock=clock.wall,
+        )
+        runner = AcceptanceRunner(
+            root=ROOT,
+            run_id=run_id,
+            service=cast(VLLMService, service),
+            ledger=ledger,
+            artifacts=ArtifactStore(
+                BlobStore(tmp_path / "blobs", compression=Compression.GZIP),
+                ledger,
+            ),
+            resource_sampler=sampler,
+            tokenizer=FakeTokenizer(),
+            tokenizer_manifest=_tokenizer_manifest(),
+            checkpoint_path=checkpoint,
+        )
+
+        with pytest.raises(RuntimeTransportError, match="failed health check"):
+            runner.run()
+
+        assert service.state is ServiceState.STOPPED
+        assert service.shutdown_count == 1
+        assert service.recovery_count == 0
+        assert service.start_count == 0
+        assert service.restart_count == 0
+        assert service.settlement_calls == ["resume", "shutdown"]

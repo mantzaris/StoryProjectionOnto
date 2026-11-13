@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0.0",
+  "configuration_id": "phase5-visualization-v2",
+  "layout_name": "preset-anchor-hash-v2",
+  "coordinate_rule": "sha256-layout-seed-anchor-grid-v2",
+  "layout_seed": 6022297464128677293,
+  "seed_manifest_hash": "686e53aba40973b053bd6acee64367afeeffa6c829eb6ae752b695b11bdfc1ca",
+  "layout_seed_entry_hash": "6868972dcf74c6eb2e7fac2f46a676f797d423877efd335c78f7be4bce485743",
+  "viewport": {
+    "schema_version": "1.0.0",
+    "center_x": 0.0,
+    "center_y": 0.0,
+    "zoom": 1.0,
+    "width": 1200,
+    "height": 800
+  },
+  "style_name": "phase5-study-v2",
+  "progressive_disclosure": true,
+  "font_family": "system-ui,sans-serif",
+  "font_base_px": 14,
+  "max_retained_screenshots": 12
+}

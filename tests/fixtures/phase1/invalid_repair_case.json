@@ -1,0 +1,387 @@
+{
+  "base_attempt_id": "phase1-c2-invalid-base",
+  "base_draft": {
+    "budget_accounting": {
+      "assertions_used": 1,
+      "display_assertions_used": 1,
+      "display_nodes_used": 2,
+      "input_tokens": 0,
+      "nodes_used": 2,
+      "output_tokens": 0
+    },
+    "contextual_interpretation": "A rare seal mark enables the gate opening.",
+    "decisions": [
+      {
+        "created_object_ids": [
+          "assert-c2-enabled"
+        ],
+        "decided_at": "2026-09-03T12:00:15Z",
+        "decision_id": "decision-repair-rare",
+        "evidence_ids": [
+          "ev-06"
+        ],
+        "input_object_ids": [
+          "m-mark-06"
+        ],
+        "operator": "rare_preservation",
+        "rationale": "Retain the one-off enabling mark."
+      }
+    ],
+    "instance_graph": {
+      "assertions": [
+        {
+          "assertion_id": "assert-c2-enabled",
+          "confidence": 1,
+          "contextual_relevance": 1,
+          "evidence_ids": [
+            "ev-08"
+          ],
+          "narrative_commitment": "world_committed",
+          "object_id": "ent-repair-gate",
+          "predicate_id": "pred-repair-enabled",
+          "provenance": [
+            {
+              "confidence": 1,
+              "evidence_id": "ev-08",
+              "extraction_method": "hand fixture",
+              "locator": "ev-08",
+              "provenance_id": "v-repair-enabled-08"
+            }
+          ],
+          "subject_id": "ent-repair-seal",
+          "temporal_scope": {
+            "discourse_position": {
+              "passage_order": 6
+            },
+            "revelation_position": {
+              "revelation_order": 8
+            },
+            "story_time": {
+              "kind": "point",
+              "label": "day 2",
+              "point": 2
+            },
+            "validity_time": {
+              "kind": "point",
+              "label": "day 2",
+              "point": 2
+            }
+          },
+          "why_matters": "The rare mark explains opening.",
+          "why_matters_evidence_ids": [
+            "ev-08"
+          ]
+        }
+      ],
+      "entities": [
+        {
+          "abstraction": "collective_causal_chain",
+          "confidence": 1,
+          "contextual_role": "rare credential",
+          "contextual_type_id": "type-repair-object",
+          "description": "Its mark enables operation.",
+          "description_assertion_ids": [
+            "assert-c2-enabled"
+          ],
+          "entity_id": "ent-repair-seal",
+          "evidence_ids": [
+            "ev-04",
+            "ev-06"
+          ],
+          "label": "Marked seal",
+          "supported_mention_candidate_ids": [
+            "m-seal-04",
+            "m-mark-06"
+          ],
+          "temporal_state": {
+            "kind": "point",
+            "label": "day 2",
+            "point": 2
+          },
+          "uncertainty": "known"
+        },
+        {
+          "abstraction": "collective_causal_chain",
+          "confidence": 1,
+          "contextual_role": "enabled infrastructure",
+          "contextual_type_id": "type-repair-object",
+          "description": "The credential enables its opening.",
+          "description_assertion_ids": [
+            "assert-c2-enabled"
+          ],
+          "entity_id": "ent-repair-gate",
+          "evidence_ids": [
+            "ev-04",
+            "ev-06"
+          ],
+          "label": "Gate",
+          "supported_mention_candidate_ids": [
+            "m-floodgate-04"
+          ],
+          "temporal_state": {
+            "kind": "point",
+            "label": "day 2",
+            "point": 2
+          },
+          "uncertainty": "known"
+        }
+      ],
+      "events": []
+    },
+    "local_schema": {
+      "abstraction": "collective_causal_chain",
+      "contextual_types": [
+        {
+          "abstraction": "collective_causal_chain",
+          "definition": "An object in the credential chain.",
+          "evidence_ids": [
+            "ev-06"
+          ],
+          "label": "Operational object",
+          "parent_upper_type": "entity",
+          "type_id": "type-repair-object"
+        }
+      ],
+      "predicates": [
+        {
+          "arity": 2,
+          "definition": "A rare credential feature enabled operation.",
+          "evidence_ids": [
+            "ev-06"
+          ],
+          "label": "enabled",
+          "parent_upper_relation": "causes",
+          "predicate_id": "pred-repair-enabled"
+        }
+      ],
+      "schema_id": "schema-repair"
+    }
+  },
+  "corrected_draft": {
+    "budget_accounting": {
+      "assertions_used": 1,
+      "display_assertions_used": 1,
+      "display_nodes_used": 2,
+      "input_tokens": 0,
+      "nodes_used": 2,
+      "output_tokens": 0
+    },
+    "contextual_interpretation": "A rare seal mark enables the gate opening.",
+    "decisions": [
+      {
+        "created_object_ids": [
+          "assert-c2-enabled"
+        ],
+        "decided_at": "2026-09-03T12:00:15Z",
+        "decision_id": "decision-repair-rare",
+        "evidence_ids": [
+          "ev-06"
+        ],
+        "input_object_ids": [
+          "m-mark-06"
+        ],
+        "operator": "rare_preservation",
+        "rationale": "Retain the one-off enabling mark."
+      }
+    ],
+    "instance_graph": {
+      "assertions": [
+        {
+          "assertion_id": "assert-c2-enabled",
+          "confidence": 1,
+          "contextual_relevance": 1,
+          "evidence_ids": [
+            "ev-04",
+            "ev-06"
+          ],
+          "narrative_commitment": "world_committed",
+          "object_id": "ent-repair-gate",
+          "predicate_id": "pred-repair-enabled",
+          "provenance": [
+            {
+              "confidence": 1,
+              "evidence_id": "ev-04",
+              "extraction_method": "hand fixture",
+              "locator": "ev-04",
+              "provenance_id": "v-repair-enabled-04"
+            },
+            {
+              "confidence": 1,
+              "evidence_id": "ev-06",
+              "extraction_method": "hand fixture",
+              "locator": "ev-06",
+              "provenance_id": "v-repair-enabled-06"
+            }
+          ],
+          "subject_id": "ent-repair-seal",
+          "temporal_scope": {
+            "discourse_position": {
+              "passage_order": 6
+            },
+            "revelation_position": {
+              "revelation_order": 6
+            },
+            "story_time": {
+              "kind": "point",
+              "label": "day 2",
+              "point": 2
+            },
+            "validity_time": {
+              "kind": "point",
+              "label": "day 2",
+              "point": 2
+            }
+          },
+          "why_matters": "The rare mark explains opening.",
+          "why_matters_evidence_ids": [
+            "ev-04",
+            "ev-06"
+          ]
+        }
+      ],
+      "entities": [
+        {
+          "abstraction": "collective_causal_chain",
+          "confidence": 1,
+          "contextual_role": "rare credential",
+          "contextual_type_id": "type-repair-object",
+          "description": "Its mark enables operation.",
+          "description_assertion_ids": [
+            "assert-c2-enabled"
+          ],
+          "entity_id": "ent-repair-seal",
+          "evidence_ids": [
+            "ev-04",
+            "ev-06"
+          ],
+          "label": "Marked seal",
+          "supported_mention_candidate_ids": [
+            "m-seal-04",
+            "m-mark-06"
+          ],
+          "temporal_state": {
+            "kind": "point",
+            "label": "day 2",
+            "point": 2
+          },
+          "uncertainty": "known"
+        },
+        {
+          "abstraction": "collective_causal_chain",
+          "confidence": 1,
+          "contextual_role": "enabled infrastructure",
+          "contextual_type_id": "type-repair-object",
+          "description": "The credential enables its opening.",
+          "description_assertion_ids": [
+            "assert-c2-enabled"
+          ],
+          "entity_id": "ent-repair-gate",
+          "evidence_ids": [
+            "ev-04",
+            "ev-06"
+          ],
+          "label": "Gate",
+          "supported_mention_candidate_ids": [
+            "m-floodgate-04"
+          ],
+          "temporal_state": {
+            "kind": "point",
+            "label": "day 2",
+            "point": 2
+          },
+          "uncertainty": "known"
+        }
+      ],
+      "events": []
+    },
+    "local_schema": {
+      "abstraction": "collective_causal_chain",
+      "contextual_types": [
+        {
+          "abstraction": "collective_causal_chain",
+          "definition": "An object in the credential chain.",
+          "evidence_ids": [
+            "ev-06"
+          ],
+          "label": "Operational object",
+          "parent_upper_type": "entity",
+          "type_id": "type-repair-object"
+        }
+      ],
+      "predicates": [
+        {
+          "arity": 2,
+          "definition": "A rare credential feature enabled operation.",
+          "evidence_ids": [
+            "ev-06"
+          ],
+          "label": "enabled",
+          "parent_upper_relation": "causes",
+          "predicate_id": "pred-repair-enabled"
+        }
+      ],
+      "schema_id": "schema-repair"
+    }
+  },
+  "prompt_path": "prompts/repair/prompt_v1.md",
+  "repair_attempt_id": "phase1-c2-repair-1",
+  "repair_lineage": {
+    "allowed_changes": [
+      "validation_diagnostics",
+      "maximum_output_tokens"
+    ],
+    "base_attempt_id": "phase1-c2-invalid-base",
+    "base_output_hash": "6b2379675594f6f27ace72e05b6b109d96296e68e9d20574f4e5f58b65aba5cb",
+    "diagnostic_codes": [
+      "evidence_outside_snapshot",
+      "evidence_outside_packet",
+      "horizon_rejected_evidence",
+      "revelation_horizon_leak"
+    ],
+    "repair_attempt_id": "phase1-c2-repair-1",
+    "repair_number": 1,
+    "root_attempt_id": "phase1-c2-invalid-base",
+    "semantic_request_hash": "fc7e0b43487fe1e717ce8622067134a854acff1367c13e5edab96cdf60aca94e",
+    "validation_record_hash": "01a6f344530ecf4cc6c6db5ad719a74184be09f79daa1dc8ee7db79d78eaece3"
+  },
+  "validation_report": {
+    "diagnostics": [
+      {
+        "code": "evidence_outside_snapshot",
+        "message": "A citation is absent from the sealed snapshot.",
+        "path": "instance_graph.assertions",
+        "related_ids": [
+          "assert-c2-enabled",
+          "ev-08"
+        ]
+      },
+      {
+        "code": "evidence_outside_packet",
+        "message": "A citation is absent from the frozen packet.",
+        "path": "instance_graph.assertions",
+        "related_ids": [
+          "assert-c2-enabled",
+          "ev-08"
+        ]
+      },
+      {
+        "code": "horizon_rejected_evidence",
+        "message": "A citation is recorded as horizon-withheld.",
+        "path": "instance_graph.assertions",
+        "related_ids": [
+          "assert-c2-enabled",
+          "ev-08"
+        ]
+      },
+      {
+        "code": "revelation_horizon_leak",
+        "message": "The revelation coordinate exceeds the horizon.",
+        "path": "instance_graph.assertions",
+        "related_ids": [
+          "assert-c2-enabled"
+        ]
+      }
+    ],
+    "validation_status": "rejected"
+  }
+}

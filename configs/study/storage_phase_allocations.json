@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0.0",
+  "reservations": {
+    "phase_1": {
+      "declared_growth_bytes": 750000000,
+      "largest_atomic_temporary_bytes": 67108864,
+      "quarantine_allowance_bytes": 134217728,
+      "release_staging_bytes": 134217728
+    },
+    "phase_2": {
+      "declared_growth_bytes": 500000000,
+      "largest_atomic_temporary_bytes": 134217728,
+      "quarantine_allowance_bytes": 134217728,
+      "release_staging_bytes": 134217728
+    },
+    "phase_3": {
+      "declared_growth_bytes": 2500000000,
+      "largest_atomic_temporary_bytes": 268435456,
+      "quarantine_allowance_bytes": 268435456,
+      "release_staging_bytes": 268435456
+    },
+    "phase_4": {
+      "declared_growth_bytes": 500000000,
+      "largest_atomic_temporary_bytes": 134217728,
+      "quarantine_allowance_bytes": 134217728,
+      "release_staging_bytes": 268435456
+    },
+    "phase_5": {
+      "declared_growth_bytes": 500000000,
+      "largest_atomic_temporary_bytes": 134217728,
+      "quarantine_allowance_bytes": 134217728,
+      "release_staging_bytes": 268435456
+    },
+    "phase_6": {
+      "declared_growth_bytes": 1500000000,
+      "largest_atomic_temporary_bytes": 268435456,
+      "quarantine_allowance_bytes": 268435456,
+      "release_staging_bytes": 268435456
+    },
+    "phase_7": {
+      "declared_growth_bytes": 2000000000,
+      "largest_atomic_temporary_bytes": 1000000000,
+      "quarantine_allowance_bytes": 500000000,
+      "release_staging_bytes": 1000000000
+    }
+  }
+}

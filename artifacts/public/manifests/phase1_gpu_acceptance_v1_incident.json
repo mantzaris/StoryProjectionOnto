@@ -1,0 +1,83 @@
+{
+  "accounting": {
+    "allocated_microseconds": 96330,
+    "event_id": "phase1-qwen3-14b-awq-v1-service-start-001",
+    "event_kind": "failure",
+    "intended_event_kind": "gpu_session_start",
+    "registered_gpu_session_start_slots": 8,
+    "remaining_gpu_session_start_slots_after_v2_start_and_restart": 5,
+    "retry_policy": "The v2 retry reuses the same append-only ledger and consumes two additional registered lifecycle slots.",
+    "service_session_id": "phase1-qwen3-14b-awq-v1-service-start-001",
+    "v1_consumed_gpu_session_start_slots": 1,
+    "v2_planned_gpu_session_start_slots": 2
+  },
+  "diagnosis": {
+    "classification": "controller_startup_bug_before_model_load",
+    "contemporaneous_exception_message_retained": false,
+    "exception_type": "TypeError",
+    "inference": "The default CPU-affinity sampler invoked sched_getaffinity without its required current-process sentinel.",
+    "inference_basis": "The immutable failure stage and type were compared with the byte-identified v1 source; no verbatim error text was reconstructed.",
+    "model_call_count": 0
+  },
+  "kind": "phase1_gpu_acceptance_incident_association",
+  "manifest_sha256": "259e11c74fd0b6d9fd6c1e01af39ffdbeaede5f0a1b819611f10b5e111b8cc40",
+  "provenance": {
+    "acceptance_checkpoint_plan_sha256": "9d7faef4400ec05baf36f5b3388d283495ad8b50931e2088d53a4b76e719d77a",
+    "acceptance_plan": {
+      "file": "phase1_acceptance_plan_v1_failed.json",
+      "file_sha256": "8ef8d135673ed12976681937b5c488582dfa4b3a144ac6d67abff6be90592cf1",
+      "manifest_sha256": "77eb5ed2d50d348b737d463e312955203298d328b8a86914627a911bf8c0e6ab"
+    },
+    "failed_result": {
+      "file": "../results/phase1_gpu_acceptance_v1_failed.json",
+      "file_sha256": "c978e75cef00ba7276055538c69d50b1a5396e628463ec25546b4bc97bd53ab9",
+      "manifest_sha256": "7bb9584798b519c8a8db0a331e051eb255365117454583d1c77607d35949b5f4"
+    },
+    "source_tree": {
+      "association_file": "source_tree_phase1_pilot.association.json",
+      "association_file_sha256": "075108c4051e8e3d078688db9d0f18fa07758f1a01f3292fa6d7ea492a94ac5a",
+      "tree_sha256": "b2fd2ba2979656821780465d8185b59eb516e4f67706cd52ee2925003a6c9485"
+    }
+  },
+  "recorded_at": "2026-09-04T02:07:53Z",
+  "restricted_evidence": {
+    "checkpoint": {
+      "sha256": "48039395e5e1677727f0481bef732e5071ef689eec1bdde753d731e95ee04da2",
+      "snapshot_name": "phase1-qwen3-14b-awq-v1.json"
+    },
+    "ledger": {
+      "integrity_check": "ok",
+      "schema_version": 5,
+      "sha256": "330e5c91fb460b8ddb33b98d643ff19cc413dc524ac54877386333898da65e0d",
+      "snapshot_name": "phase1_acceptance.sqlite"
+    },
+    "service_lease": {
+      "lease_state": "stopped_verified",
+      "sha256": "82cd098cf1b9dc1a1c6767df734ccb3900c7cf553a17d733eb102fffc71efc19",
+      "snapshot_name": ".story-projection-onto-vllm.lock"
+    },
+    "vllm_log": {
+      "byte_count": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "snapshot_name": "phase1-qwen3-14b-awq-v1.vllm.log"
+    }
+  },
+  "run_id": "phase1-qwen3-14b-awq-v1",
+  "schema_version": "1.0.0",
+  "terminal_state": {
+    "allocation_journal_states": [
+      "opened",
+      "closed"
+    ],
+    "failure_row_count": 0,
+    "model_call_count": 0,
+    "service_journal_states": [
+      "opened",
+      "process_stopped",
+      "closed"
+    ],
+    "unresolved_allocation_count": 0,
+    "unresolved_service_journal_count": 0,
+    "vllm_service_stopped": true
+  }
+}

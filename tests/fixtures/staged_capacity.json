@@ -1,0 +1,940 @@
+{
+  "contextual_interpretation": "Authored ten-node packing stress only, not an expected graph or model result.",
+  "local_schema": {
+    "schema_id": "nS1",
+    "abstraction": "actor",
+    "contextual_types": [
+      {
+        "type_id": "nT1",
+        "label": "Courier",
+        "definition": "Courier",
+        "parent_upper_type": "person",
+        "abstraction": "actor",
+        "evidence_ids": [
+          "ev-01"
+        ]
+      },
+      {
+        "type_id": "nT2",
+        "label": "Gate",
+        "definition": "Gate",
+        "parent_upper_type": "place",
+        "abstraction": "actor",
+        "evidence_ids": [
+          "ev-01"
+        ]
+      },
+      {
+        "type_id": "nT3",
+        "label": "Arrival",
+        "definition": "Arrival event",
+        "parent_upper_type": "event",
+        "abstraction": "event_role",
+        "evidence_ids": [
+          "ev-01"
+        ]
+      },
+      {
+        "type_id": "nT4",
+        "label": "Artifact",
+        "definition": "Artifact",
+        "parent_upper_type": "artifact",
+        "abstraction": "actor",
+        "evidence_ids": [
+          "ev-01"
+        ]
+      },
+      {
+        "type_id": "nT101",
+        "label": "Courier",
+        "definition": "Courier",
+        "parent_upper_type": "person",
+        "abstraction": "actor",
+        "evidence_ids": [
+          "ev-01"
+        ]
+      },
+      {
+        "type_id": "nT102",
+        "label": "Gate",
+        "definition": "Gate",
+        "parent_upper_type": "place",
+        "abstraction": "actor",
+        "evidence_ids": [
+          "ev-01"
+        ]
+      },
+      {
+        "type_id": "nT103",
+        "label": "Arrival",
+        "definition": "Arrival event",
+        "parent_upper_type": "event",
+        "abstraction": "event_role",
+        "evidence_ids": [
+          "ev-01"
+        ]
+      },
+      {
+        "type_id": "nT104",
+        "label": "Artifact",
+        "definition": "Artifact",
+        "parent_upper_type": "artifact",
+        "abstraction": "actor",
+        "evidence_ids": [
+          "ev-01"
+        ]
+      },
+      {
+        "type_id": "nT201",
+        "label": "Courier",
+        "definition": "Courier",
+        "parent_upper_type": "person",
+        "abstraction": "actor",
+        "evidence_ids": [
+          "ev-01"
+        ]
+      },
+      {
+        "type_id": "nT202",
+        "label": "Gate",
+        "definition": "Gate",
+        "parent_upper_type": "place",
+        "abstraction": "actor",
+        "evidence_ids": [
+          "ev-01"
+        ]
+      }
+    ],
+    "predicates": [
+      {
+        "predicate_id": "nR1",
+        "label": "arrival agent",
+        "definition": "Person acting as agent in an arrival event.",
+        "arity": 2,
+        "domain_type_ids": [
+          "nT1"
+        ],
+        "range_type_ids": [
+          "nT3"
+        ],
+        "role_names": [
+          "agent",
+          "event"
+        ],
+        "parent_upper_relation": "participates_in",
+        "evidence_ids": [
+          "ev-01"
+        ]
+      },
+      {
+        "predicate_id": "nR2",
+        "label": "arrival location",
+        "definition": "Place serving as location of an arrival event.",
+        "arity": 2,
+        "domain_type_ids": [
+          "nT2"
+        ],
+        "range_type_ids": [
+          "nT3"
+        ],
+        "role_names": [
+          "location",
+          "event"
+        ],
+        "parent_upper_relation": "participates_in",
+        "evidence_ids": [
+          "ev-01"
+        ]
+      },
+      {
+        "predicate_id": "nR3",
+        "label": "carries",
+        "definition": "A person carries an object.",
+        "arity": 2,
+        "domain_type_ids": [
+          "nT1"
+        ],
+        "range_type_ids": [
+          "nT4"
+        ],
+        "role_names": [
+          "carrier",
+          "theme"
+        ],
+        "parent_upper_relation": "related_to",
+        "evidence_ids": [
+          "ev-01"
+        ]
+      },
+      {
+        "predicate_id": "nR101",
+        "label": "arrival agent",
+        "definition": "Person acting as agent in an arrival event.",
+        "arity": 2,
+        "domain_type_ids": [
+          "nT101"
+        ],
+        "range_type_ids": [
+          "nT103"
+        ],
+        "role_names": [
+          "agent",
+          "event"
+        ],
+        "parent_upper_relation": "participates_in",
+        "evidence_ids": [
+          "ev-01"
+        ]
+      },
+      {
+        "predicate_id": "nR102",
+        "label": "arrival location",
+        "definition": "Place serving as location of an arrival event.",
+        "arity": 2,
+        "domain_type_ids": [
+          "nT102"
+        ],
+        "range_type_ids": [
+          "nT103"
+        ],
+        "role_names": [
+          "location",
+          "event"
+        ],
+        "parent_upper_relation": "participates_in",
+        "evidence_ids": [
+          "ev-01"
+        ]
+      },
+      {
+        "predicate_id": "nR103",
+        "label": "carries",
+        "definition": "A person carries an object.",
+        "arity": 2,
+        "domain_type_ids": [
+          "nT101"
+        ],
+        "range_type_ids": [
+          "nT104"
+        ],
+        "role_names": [
+          "carrier",
+          "theme"
+        ],
+        "parent_upper_relation": "related_to",
+        "evidence_ids": [
+          "ev-01"
+        ]
+      },
+      {
+        "predicate_id": "nR201",
+        "label": "arrived at",
+        "definition": "An actor's observed arrival at a place.",
+        "arity": 2,
+        "domain_type_ids": [
+          "nT201"
+        ],
+        "range_type_ids": [
+          "nT202"
+        ],
+        "role_names": [],
+        "parent_upper_relation": "located_at",
+        "evidence_ids": [
+          "ev-01"
+        ]
+      }
+    ]
+  },
+  "instance_graph": {
+    "entities": [
+      {
+        "entity_id": "nE1",
+        "label": "Lio",
+        "supported_mention_candidate_ids": [
+          "m-lio-01"
+        ],
+        "aliases": [],
+        "contextual_type_id": "nT1",
+        "contextual_role": "arrival participant",
+        "abstraction": "actor",
+        "temporal_state": {
+          "kind": "unknown",
+          "reason": "Intrinsic duration unspecified."
+        },
+        "uncertainty": "known",
+        "confidence": 0.9,
+        "evidence_ids": [
+          "ev-01"
+        ],
+        "description": "Lio",
+        "description_assertion_ids": [
+          "nA1"
+        ]
+      },
+      {
+        "entity_id": "nE2",
+        "label": "North Gate",
+        "supported_mention_candidate_ids": [
+          "m-gate-01"
+        ],
+        "aliases": [],
+        "contextual_type_id": "nT2",
+        "contextual_role": "arrival participant",
+        "abstraction": "actor",
+        "temporal_state": {
+          "kind": "unknown",
+          "reason": "Intrinsic duration unspecified."
+        },
+        "uncertainty": "known",
+        "confidence": 0.9,
+        "evidence_ids": [
+          "ev-01"
+        ],
+        "description": "North Gate",
+        "description_assertion_ids": [
+          "nA2"
+        ]
+      },
+      {
+        "entity_id": "nE3",
+        "label": "Copper seal",
+        "supported_mention_candidate_ids": [
+          "m-seal-01"
+        ],
+        "aliases": [],
+        "contextual_type_id": "nT4",
+        "contextual_role": "arrival participant",
+        "abstraction": "actor",
+        "temporal_state": {
+          "kind": "unknown",
+          "reason": "Intrinsic duration unspecified."
+        },
+        "uncertainty": "known",
+        "confidence": 0.9,
+        "evidence_ids": [
+          "ev-01"
+        ],
+        "description": "Copper seal",
+        "description_assertion_ids": [
+          "nA3"
+        ]
+      },
+      {
+        "entity_id": "nE101",
+        "label": "Lio",
+        "supported_mention_candidate_ids": [
+          "m-lio-01"
+        ],
+        "aliases": [],
+        "contextual_type_id": "nT101",
+        "contextual_role": "arrival participant",
+        "abstraction": "actor",
+        "temporal_state": {
+          "kind": "unknown",
+          "reason": "Intrinsic duration unspecified."
+        },
+        "uncertainty": "known",
+        "confidence": 0.9,
+        "evidence_ids": [
+          "ev-01"
+        ],
+        "description": "Lio",
+        "description_assertion_ids": [
+          "nA101"
+        ]
+      },
+      {
+        "entity_id": "nE102",
+        "label": "North Gate",
+        "supported_mention_candidate_ids": [
+          "m-gate-01"
+        ],
+        "aliases": [],
+        "contextual_type_id": "nT102",
+        "contextual_role": "arrival participant",
+        "abstraction": "actor",
+        "temporal_state": {
+          "kind": "unknown",
+          "reason": "Intrinsic duration unspecified."
+        },
+        "uncertainty": "known",
+        "confidence": 0.9,
+        "evidence_ids": [
+          "ev-01"
+        ],
+        "description": "North Gate",
+        "description_assertion_ids": [
+          "nA102"
+        ]
+      },
+      {
+        "entity_id": "nE103",
+        "label": "Copper seal",
+        "supported_mention_candidate_ids": [
+          "m-seal-01"
+        ],
+        "aliases": [],
+        "contextual_type_id": "nT104",
+        "contextual_role": "arrival participant",
+        "abstraction": "actor",
+        "temporal_state": {
+          "kind": "unknown",
+          "reason": "Intrinsic duration unspecified."
+        },
+        "uncertainty": "known",
+        "confidence": 0.9,
+        "evidence_ids": [
+          "ev-01"
+        ],
+        "description": "Copper seal",
+        "description_assertion_ids": [
+          "nA103"
+        ]
+      },
+      {
+        "entity_id": "nE201",
+        "label": "Lio",
+        "supported_mention_candidate_ids": [
+          "m-lio-01"
+        ],
+        "aliases": [],
+        "contextual_type_id": "nT201",
+        "contextual_role": "arrival participant",
+        "abstraction": "actor",
+        "temporal_state": {
+          "kind": "unknown",
+          "reason": "Intrinsic duration unspecified."
+        },
+        "uncertainty": "known",
+        "confidence": 0.9,
+        "evidence_ids": [
+          "ev-01"
+        ],
+        "description": "Lio",
+        "description_assertion_ids": [
+          "nA201"
+        ]
+      },
+      {
+        "entity_id": "nE202",
+        "label": "North Gate",
+        "supported_mention_candidate_ids": [
+          "m-gate-01"
+        ],
+        "aliases": [],
+        "contextual_type_id": "nT202",
+        "contextual_role": "arrival participant",
+        "abstraction": "actor",
+        "temporal_state": {
+          "kind": "unknown",
+          "reason": "Intrinsic duration unspecified."
+        },
+        "uncertainty": "known",
+        "confidence": 0.9,
+        "evidence_ids": [
+          "ev-01"
+        ],
+        "description": "North Gate",
+        "description_assertion_ids": [
+          "nA201"
+        ]
+      }
+    ],
+    "events": [
+      {
+        "event_id": "nV1",
+        "label": "Arrival",
+        "contextual_type_id": "nT3",
+        "occurrence_time": {
+          "kind": "unknown",
+          "label": "dawn",
+          "reason": "No numeric clock."
+        },
+        "reification_reason": "Represent the arrival participants with separate roles.",
+        "uncertainty": "known",
+        "confidence": 0.9,
+        "evidence_ids": [
+          "ev-01"
+        ],
+        "description": "Lio arrived at North Gate.",
+        "description_assertion_ids": [
+          "nA1",
+          "nA2"
+        ]
+      },
+      {
+        "event_id": "nV101",
+        "label": "Arrival",
+        "contextual_type_id": "nT103",
+        "occurrence_time": {
+          "kind": "unknown",
+          "label": "dawn",
+          "reason": "No numeric clock."
+        },
+        "reification_reason": "Represent the arrival participants with separate roles.",
+        "uncertainty": "known",
+        "confidence": 0.9,
+        "evidence_ids": [
+          "ev-01"
+        ],
+        "description": "Lio arrived at North Gate.",
+        "description_assertion_ids": [
+          "nA101",
+          "nA102"
+        ]
+      }
+    ],
+    "assertions": [
+      {
+        "assertion_id": "nA1",
+        "direction": "forward",
+        "temporal_scope": "content",
+        "epistemic_scope": null,
+        "narrative_commitment": "world_committed",
+        "confidence": 0.9,
+        "evidence_ids": [
+          "ev-01"
+        ],
+        "provenance": [
+          {
+            "evidence_id": "ev-01",
+            "confidence": 0.9
+          }
+        ],
+        "contextual_relevance": 1,
+        "why_matters": "Lio arrived at North Gate.",
+        "why_matters_evidence_ids": [
+          "ev-01"
+        ],
+        "content": {
+          "form": "binary",
+          "predicate_id": "nR1",
+          "subject_id": "nE1",
+          "object_id": "nV1",
+          "temporal_content": {
+            "story_time": {
+              "kind": "unknown",
+              "label": "dawn",
+              "reason": "No numeric coordinate stated."
+            },
+            "validity_time": {
+              "kind": "unknown",
+              "reason": "Duration unspecified."
+            },
+            "discourse_position": {
+              "passage_order": 1,
+              "sentence_order": 0,
+              "token_order": 0
+            },
+            "revelation_position": {
+              "revelation_order": 1,
+              "label": null
+            }
+          },
+          "evidence_ids": [
+            "ev-01"
+          ]
+        },
+        "content_identity": null
+      },
+      {
+        "assertion_id": "nA2",
+        "direction": "forward",
+        "temporal_scope": "content",
+        "epistemic_scope": null,
+        "narrative_commitment": "world_committed",
+        "confidence": 0.9,
+        "evidence_ids": [
+          "ev-01"
+        ],
+        "provenance": [
+          {
+            "evidence_id": "ev-01",
+            "confidence": 0.9
+          }
+        ],
+        "contextual_relevance": 1,
+        "why_matters": "Lio arrived at North Gate.",
+        "why_matters_evidence_ids": [
+          "ev-01"
+        ],
+        "content": {
+          "form": "binary",
+          "predicate_id": "nR2",
+          "subject_id": "nE2",
+          "object_id": "nV1",
+          "temporal_content": {
+            "story_time": {
+              "kind": "unknown",
+              "label": "dawn",
+              "reason": "No numeric coordinate stated."
+            },
+            "validity_time": {
+              "kind": "unknown",
+              "reason": "Duration unspecified."
+            },
+            "discourse_position": {
+              "passage_order": 1,
+              "sentence_order": 0,
+              "token_order": 0
+            },
+            "revelation_position": {
+              "revelation_order": 1,
+              "label": null
+            }
+          },
+          "evidence_ids": [
+            "ev-01"
+          ]
+        },
+        "content_identity": null
+      },
+      {
+        "assertion_id": "nA3",
+        "direction": "forward",
+        "temporal_scope": "content",
+        "epistemic_scope": null,
+        "narrative_commitment": "world_committed",
+        "confidence": 0.9,
+        "evidence_ids": [
+          "ev-01"
+        ],
+        "provenance": [
+          {
+            "evidence_id": "ev-01",
+            "confidence": 0.9
+          }
+        ],
+        "contextual_relevance": 1,
+        "why_matters": "Lio carries a copper seal.",
+        "why_matters_evidence_ids": [
+          "ev-01"
+        ],
+        "content": {
+          "form": "binary",
+          "predicate_id": "nR3",
+          "subject_id": "nE1",
+          "object_id": "nE3",
+          "temporal_content": {
+            "story_time": {
+              "kind": "unknown",
+              "label": "dawn",
+              "reason": "No numeric coordinate stated."
+            },
+            "validity_time": {
+              "kind": "unknown",
+              "reason": "Duration unspecified."
+            },
+            "discourse_position": {
+              "passage_order": 1,
+              "sentence_order": 0,
+              "token_order": 0
+            },
+            "revelation_position": {
+              "revelation_order": 1,
+              "label": null
+            }
+          },
+          "evidence_ids": [
+            "ev-01"
+          ]
+        },
+        "content_identity": null
+      },
+      {
+        "assertion_id": "nA101",
+        "direction": "forward",
+        "temporal_scope": "content",
+        "epistemic_scope": null,
+        "narrative_commitment": "world_committed",
+        "confidence": 0.9,
+        "evidence_ids": [
+          "ev-01"
+        ],
+        "provenance": [
+          {
+            "evidence_id": "ev-01",
+            "confidence": 0.9
+          }
+        ],
+        "contextual_relevance": 1,
+        "why_matters": "Lio arrived at North Gate.",
+        "why_matters_evidence_ids": [
+          "ev-01"
+        ],
+        "content": {
+          "form": "binary",
+          "predicate_id": "nR101",
+          "subject_id": "nE101",
+          "object_id": "nV101",
+          "temporal_content": {
+            "story_time": {
+              "kind": "unknown",
+              "label": "dawn",
+              "reason": "No numeric coordinate stated."
+            },
+            "validity_time": {
+              "kind": "unknown",
+              "reason": "Duration unspecified."
+            },
+            "discourse_position": {
+              "passage_order": 1,
+              "sentence_order": 0,
+              "token_order": 0
+            },
+            "revelation_position": {
+              "revelation_order": 1,
+              "label": null
+            }
+          },
+          "evidence_ids": [
+            "ev-01"
+          ]
+        },
+        "content_identity": null
+      },
+      {
+        "assertion_id": "nA102",
+        "direction": "forward",
+        "temporal_scope": "content",
+        "epistemic_scope": null,
+        "narrative_commitment": "world_committed",
+        "confidence": 0.9,
+        "evidence_ids": [
+          "ev-01"
+        ],
+        "provenance": [
+          {
+            "evidence_id": "ev-01",
+            "confidence": 0.9
+          }
+        ],
+        "contextual_relevance": 1,
+        "why_matters": "Lio arrived at North Gate.",
+        "why_matters_evidence_ids": [
+          "ev-01"
+        ],
+        "content": {
+          "form": "binary",
+          "predicate_id": "nR102",
+          "subject_id": "nE102",
+          "object_id": "nV101",
+          "temporal_content": {
+            "story_time": {
+              "kind": "unknown",
+              "label": "dawn",
+              "reason": "No numeric coordinate stated."
+            },
+            "validity_time": {
+              "kind": "unknown",
+              "reason": "Duration unspecified."
+            },
+            "discourse_position": {
+              "passage_order": 1,
+              "sentence_order": 0,
+              "token_order": 0
+            },
+            "revelation_position": {
+              "revelation_order": 1,
+              "label": null
+            }
+          },
+          "evidence_ids": [
+            "ev-01"
+          ]
+        },
+        "content_identity": null
+      },
+      {
+        "assertion_id": "nA103",
+        "direction": "forward",
+        "temporal_scope": "content",
+        "epistemic_scope": null,
+        "narrative_commitment": "world_committed",
+        "confidence": 0.9,
+        "evidence_ids": [
+          "ev-01"
+        ],
+        "provenance": [
+          {
+            "evidence_id": "ev-01",
+            "confidence": 0.9
+          }
+        ],
+        "contextual_relevance": 1,
+        "why_matters": "Lio carries a copper seal.",
+        "why_matters_evidence_ids": [
+          "ev-01"
+        ],
+        "content": {
+          "form": "binary",
+          "predicate_id": "nR103",
+          "subject_id": "nE101",
+          "object_id": "nE103",
+          "temporal_content": {
+            "story_time": {
+              "kind": "unknown",
+              "label": "dawn",
+              "reason": "No numeric coordinate stated."
+            },
+            "validity_time": {
+              "kind": "unknown",
+              "reason": "Duration unspecified."
+            },
+            "discourse_position": {
+              "passage_order": 1,
+              "sentence_order": 0,
+              "token_order": 0
+            },
+            "revelation_position": {
+              "revelation_order": 1,
+              "label": null
+            }
+          },
+          "evidence_ids": [
+            "ev-01"
+          ]
+        },
+        "content_identity": null
+      },
+      {
+        "assertion_id": "nA201",
+        "direction": "forward",
+        "temporal_scope": "content",
+        "epistemic_scope": null,
+        "narrative_commitment": "world_committed",
+        "confidence": 0.9,
+        "evidence_ids": [
+          "ev-01"
+        ],
+        "provenance": [
+          {
+            "evidence_id": "ev-01",
+            "confidence": 0.9
+          }
+        ],
+        "contextual_relevance": 1,
+        "why_matters": "Lio arrived at North Gate.",
+        "why_matters_evidence_ids": [
+          "ev-01"
+        ],
+        "content": {
+          "form": "binary",
+          "predicate_id": "nR201",
+          "subject_id": "nE201",
+          "object_id": "nE202",
+          "temporal_content": {
+            "story_time": {
+              "kind": "unknown",
+              "label": "dawn",
+              "reason": "No numeric coordinate stated."
+            },
+            "validity_time": {
+              "kind": "unknown",
+              "reason": "Duration unspecified."
+            },
+            "discourse_position": {
+              "passage_order": 1,
+              "sentence_order": 0,
+              "token_order": 0
+            },
+            "revelation_position": {
+              "revelation_order": 1,
+              "label": null
+            }
+          },
+          "evidence_ids": [
+            "ev-01"
+          ]
+        },
+        "content_identity": null
+      }
+    ],
+    "unasserted_contents": []
+  },
+  "decisions": [
+    {
+      "decision_id": "nD1",
+      "operator": "schema_relation",
+      "evidence_ids": [
+        "ev-01"
+      ],
+      "rationale": "Represent the explicit arrival relation.",
+      "input_object_ids": [
+        "relation-candidate-arrived-at"
+      ],
+      "created_object_ids": [
+        "nR1",
+        "nR2",
+        "nR3"
+      ],
+      "removed_object_ids": []
+    },
+    {
+      "decision_id": "nD2",
+      "operator": "event_reification",
+      "evidence_ids": [
+        "ev-01"
+      ],
+      "rationale": "Reify the arrival to represent participant roles.",
+      "input_object_ids": [
+        "event-candidate-arrival"
+      ],
+      "created_object_ids": [
+        "nV1"
+      ],
+      "removed_object_ids": []
+    },
+    {
+      "decision_id": "nD101",
+      "operator": "schema_relation",
+      "evidence_ids": [
+        "ev-01"
+      ],
+      "rationale": "Represent the explicit arrival relation.",
+      "input_object_ids": [
+        "relation-candidate-arrived-at"
+      ],
+      "created_object_ids": [
+        "nR101",
+        "nR102",
+        "nR103"
+      ],
+      "removed_object_ids": []
+    },
+    {
+      "decision_id": "nD102",
+      "operator": "event_reification",
+      "evidence_ids": [
+        "ev-01"
+      ],
+      "rationale": "Reify the arrival to represent participant roles.",
+      "input_object_ids": [
+        "event-candidate-arrival"
+      ],
+      "created_object_ids": [
+        "nV101"
+      ],
+      "removed_object_ids": []
+    },
+    {
+      "decision_id": "nD201",
+      "operator": "schema_relation",
+      "evidence_ids": [
+        "ev-01"
+      ],
+      "rationale": "Represent the explicit arrival relation.",
+      "input_object_ids": [
+        "relation-candidate-arrived-at"
+      ],
+      "created_object_ids": [
+        "nR201"
+      ],
+      "removed_object_ids": []
+    }
+  ],
+  "omissions": [],
+  "uncertainty_and_abstentions": [
+    "Intrinsic duration unspecified."
+  ]
+}

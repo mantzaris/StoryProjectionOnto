@@ -1,0 +1,153 @@
+{
+  "$defs": {
+    "ConditionName": {
+      "enum": [
+        "C0",
+        "C1",
+        "C2",
+        "A-FixedSelect",
+        "A-NoContext",
+        "A-NoTemporalEpistemic",
+        "A-NoRareGuard"
+      ],
+      "title": "ConditionName",
+      "type": "string"
+    },
+    "PrequeryPreparationBinding": {
+      "additionalProperties": false,
+      "description": "One preparation included in an execution's query-access barrier.",
+      "properties": {
+        "completed_at": {
+          "format": "date-time",
+          "title": "Completed At",
+          "type": "string"
+        },
+        "condition": {
+          "$ref": "#/$defs/ConditionName"
+        },
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "lineage_artifact_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Lineage Artifact Hash",
+          "type": "string"
+        },
+        "preparation_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Preparation Hash",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "seed_block": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Seed Block"
+        },
+        "snapshot_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Snapshot Hash",
+          "type": "string"
+        },
+        "unit_id": {
+          "maxLength": 192,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+          "title": "Unit Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "unit_id",
+        "condition",
+        "snapshot_hash",
+        "preparation_hash",
+        "lineage_artifact_hash",
+        "completed_at"
+      ],
+      "title": "PrequeryPreparationBinding",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Seal proving all declared preparation artifacts existed before query access.",
+  "properties": {
+    "barrier_id": {
+      "maxLength": 192,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+      "title": "Barrier Id",
+      "type": "string"
+    },
+    "content_hash": {
+      "default": "",
+      "pattern": "^(?:|[0-9a-f]{64})$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "execution_id": {
+      "maxLength": 192,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+      "title": "Execution Id",
+      "type": "string"
+    },
+    "execution_manifest_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Execution Manifest Hash",
+      "type": "string"
+    },
+    "neutral_evidence_artifact_hashes": {
+      "items": {
+        "pattern": "^[0-9a-f]{64}$",
+        "type": "string"
+      },
+      "title": "Neutral Evidence Artifact Hashes",
+      "type": "array"
+    },
+    "preparation_bindings": {
+      "items": {
+        "$ref": "#/$defs/PrequeryPreparationBinding"
+      },
+      "title": "Preparation Bindings",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "1.0.0",
+      "default": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "sealed_at": {
+      "format": "date-time",
+      "title": "Sealed At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "barrier_id",
+    "execution_id",
+    "execution_manifest_hash",
+    "neutral_evidence_artifact_hashes",
+    "preparation_bindings",
+    "sealed_at"
+  ],
+  "title": "PrequeryBarrier",
+  "type": "object"
+}

@@ -1,0 +1,120 @@
+{
+  "completed_call_count": 0,
+  "failure_type": "TypeError",
+  "gate_passed": false,
+  "kind": "phase1_gpu_acceptance_result",
+  "manifest_sha256": "7bb9584798b519c8a8db0a331e051eb255365117454583d1c77607d35949b5f4",
+  "run_id": "phase1-qwen3-14b-awq-v1",
+  "runtime": {
+    "gpu_accounting": {
+      "by_kind_microseconds": {
+        "failure": 96330
+      },
+      "event_count": 1,
+      "service_session_count": 1,
+      "total_allocated_microseconds": 96330
+    },
+    "gpu_hardware": {
+      "count": 1,
+      "driver_version": "580.173.02",
+      "environment_manifest_sha256": "90bbb5279e99bc9fe39d92332e70c2e431c42e2131df3cbb816db6ba43861bef",
+      "manifest_sha256": "ac2f28ba23e17a2233241d9cddc82bcfb6709533b64456aa57d71e45436f28b1",
+      "memory_mib": 24564,
+      "name": "NVIDIA GeForce RTX 4090",
+      "pci_bus_id": "00000000:01:00.0",
+      "schema_version": "1.0.0"
+    },
+    "launcher": {
+      "cpu_offload_gb": 0,
+      "cpu_workers": 8,
+      "dtype": "float16",
+      "gpu_memory_utilization": 0.88,
+      "guided_decoding_backend": "xgrammar",
+      "guided_decoding_fallback": false,
+      "host_scope": "loopback",
+      "local_snapshot_only": true,
+      "manifest_sha256": "a5899cc3328d6a39327a57008f487072d2ccf5af34272666e27068f46bdffedc",
+      "maximum_model_length": 12288,
+      "maximum_sequences": 1,
+      "model_candidate": "primary",
+      "prefix_caching": false,
+      "repository": "Qwen/Qwen3-14B-AWQ",
+      "revision": "1a6fe1ecf891437a270cce11ad54d796c4f56ce0",
+      "runtime": "vllm",
+      "runtime_environment_passthrough": [
+        "PATH",
+        "LD_LIBRARY_PATH",
+        "CUDA_HOME",
+        "CUDA_PATH",
+        "CUDA_VISIBLE_DEVICES",
+        "NVIDIA_VISIBLE_DEVICES",
+        "NVIDIA_DRIVER_CAPABILITIES"
+      ],
+      "runtime_environment_policy": "explicit_os_cuda_allowlist",
+      "runtime_version": "0.10.2",
+      "schema_version": "1.0.0",
+      "served_model_name": "qwen3-14b-awq-pinned",
+      "shared_cache_location_sha256": "06b4e055e4531c94a4078cb42637d9935b9868dabe4dd88609de808108fd2f86",
+      "snapshot_location_sha256": "c5e4cdef238cfc261e17f5d09e3500d11ccbea0a35e6980cbb9342d28add9336",
+      "speculative_decoding": false,
+      "tensor_parallel_size": 1,
+      "verified_snapshot_manifest_sha256": "7b2bfb59175c5d5906c8ddb99a19adb8c652198f1cee210258b0f02a1b621064"
+    },
+    "manifest_sha256": "4513d38320696022f724aa87608eae9479fb8b5e4682c361ee2746af0e265455",
+    "resource_samples": [],
+    "runtime_stack": {
+      "manifest_sha256": "e43fa0c114ef63edebf617ab573f1e12b5562c11eb95572a0685a92388791bb1",
+      "python_version": "3.12.3",
+      "schema_version": "1.0.0",
+      "torch_cuda_version": "12.8",
+      "torch_version": "2.8.0+cu128",
+      "transformers_version": "4.55.2",
+      "vllm_version": "0.10.2"
+    },
+    "schema_version": "1.0.0",
+    "service_uptime": {
+      "allocated_event_seconds": 0.09633,
+      "allocated_service_seconds": 0.09633,
+      "ended_at": "2026-09-04T01:48:54.642623+00:00",
+      "schema_version": "1.0.0",
+      "service_seconds": 0.0605076989158988,
+      "session_id": "phase1-qwen3-14b-awq-v1",
+      "started_at": "2026-09-04T01:48:54.582119+00:00",
+      "unclassified_service_seconds": 0.0,
+      "unclassified_time_persisted_as_service_overhead": true
+    },
+    "tokenizer": {
+      "chat_template_sha256": "a55ee1b1660128b7098723e0abcd92caa0788061051c62d51cbe87d9cf1974d8",
+      "enable_thinking": false,
+      "end_of_turn_token_ids": [
+        151645
+      ],
+      "eos_token_id": 151645,
+      "local_files_only": true,
+      "manifest_sha256": "90b60e3b52c33d4767ef71218745b804d35bc6d2c5ba49cac442b25cfba0f98f",
+      "nonthinking_probe_sha256": "bfb15667fb5cc52e39d1e4658bcc5681c5f6fd5a42f1e895982c428609c64f1b",
+      "nonthinking_probe_token_count": 26,
+      "repository": "Qwen/Qwen3-14B-AWQ",
+      "revision": "1a6fe1ecf891437a270cce11ad54d796c4f56ce0",
+      "schema_version": "1.0.0",
+      "stop_token_ids": [
+        151645
+      ],
+      "tokenizer_class": "transformers.models.qwen2.tokenization_qwen2_fast.Qwen2TokenizerFast",
+      "tokenizer_file_sha256": [
+        [
+          "tokenizer.json",
+          "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4"
+        ],
+        [
+          "tokenizer_config.json",
+          "d5d09f07b48c3086c508b30d1c9114bd1189145b74e982a265350c923acd8101"
+        ]
+      ],
+      "tokenizer_revision": "1a6fe1ecf891437a270cce11ad54d796c4f56ce0",
+      "trust_remote_code": false
+    }
+  },
+  "schema_version": "1.0.0",
+  "vllm_service_stopped": true
+}

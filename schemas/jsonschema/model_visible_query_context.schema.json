@@ -1,0 +1,503 @@
+{
+  "$defs": {
+    "AbstractionLevel": {
+      "enum": [
+        "actor",
+        "event_role",
+        "collective_causal_chain"
+      ],
+      "title": "AbstractionLevel",
+      "type": "string"
+    },
+    "AllenRelation": {
+      "enum": [
+        "before",
+        "after",
+        "meets",
+        "met_by",
+        "overlaps",
+        "overlapped_by",
+        "starts",
+        "started_by",
+        "during",
+        "contains",
+        "finishes",
+        "finished_by",
+        "equals"
+      ],
+      "title": "AllenRelation",
+      "type": "string"
+    },
+    "DiscoursePosition": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "passage_order": {
+          "minimum": 0,
+          "title": "Passage Order",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "sentence_order": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Sentence Order",
+          "type": "integer"
+        },
+        "token_order": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Token Order",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "passage_order"
+      ],
+      "title": "DiscoursePosition",
+      "type": "object"
+    },
+    "EpistemicAttitude": {
+      "enum": [
+        "known",
+        "believed",
+        "reported",
+        "denied",
+        "uncertain"
+      ],
+      "title": "EpistemicAttitude",
+      "type": "string"
+    },
+    "EpistemicViewpoint": {
+      "additionalProperties": false,
+      "properties": {
+        "attitude_scope": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EpistemicAttitude"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "holder_id": {
+          "maxLength": 192,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+          "title": "Holder Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "holder_id"
+      ],
+      "title": "EpistemicViewpoint",
+      "type": "object"
+    },
+    "OutputBudgets": {
+      "additionalProperties": false,
+      "properties": {
+        "assertion_budget": {
+          "exclusiveMinimum": 0,
+          "title": "Assertion Budget",
+          "type": "integer"
+        },
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "display_assertion_budget": {
+          "exclusiveMinimum": 0,
+          "title": "Display Assertion Budget",
+          "type": "integer"
+        },
+        "display_node_budget": {
+          "exclusiveMinimum": 0,
+          "title": "Display Node Budget",
+          "type": "integer"
+        },
+        "node_budget": {
+          "exclusiveMinimum": 0,
+          "title": "Node Budget",
+          "type": "integer"
+        },
+        "repair_attempt_budget": {
+          "default": 1,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Repair Attempt Budget",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "node_budget",
+        "assertion_budget",
+        "display_node_budget",
+        "display_assertion_budget"
+      ],
+      "title": "OutputBudgets",
+      "type": "object"
+    },
+    "PartialOrderConstraint": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "left_id": {
+          "maxLength": 192,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+          "title": "Left Id",
+          "type": "string"
+        },
+        "relation": {
+          "$ref": "#/$defs/AllenRelation"
+        },
+        "right_id": {
+          "maxLength": 192,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+          "title": "Right Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "left_id",
+        "relation",
+        "right_id"
+      ],
+      "title": "PartialOrderConstraint",
+      "type": "object"
+    },
+    "RevelationPosition": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "revelation_order": {
+          "minimum": 0,
+          "title": "Revelation Order",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "revelation_order"
+      ],
+      "title": "RevelationPosition",
+      "type": "object"
+    },
+    "SpoilerHorizon": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "horizon_id": {
+          "maxLength": 192,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+          "title": "Horizon Id",
+          "type": "string"
+        },
+        "max_discourse_position": {
+          "$ref": "#/$defs/DiscoursePosition"
+        },
+        "max_revelation_position": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RevelationPosition"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "withheld_after_horizon": {
+          "const": true,
+          "default": true,
+          "title": "Withheld After Horizon",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "horizon_id",
+        "max_discourse_position"
+      ],
+      "title": "SpoilerHorizon",
+      "type": "object"
+    },
+    "StoryTime": {
+      "additionalProperties": false,
+      "description": "Time at which an event occurs in the story world.",
+      "properties": {
+        "anchor_id": {
+          "anyOf": [
+            {
+              "maxLength": 192,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Anchor Id"
+        },
+        "content_hash": {
+          "default": "",
+          "pattern": "^(?:|[0-9a-f]{64})$",
+          "title": "Content Hash",
+          "type": "string"
+        },
+        "end": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End"
+        },
+        "kind": {
+          "$ref": "#/$defs/TemporalKind"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "partial_order": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PartialOrderConstraint"
+          },
+          "title": "Partial Order",
+          "type": "array"
+        },
+        "point": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Point"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "relation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AllenRelation"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "schema_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "start": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Start"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "StoryTime",
+      "type": "object"
+    },
+    "TemporalKind": {
+      "enum": [
+        "point",
+        "interval",
+        "relative",
+        "partial_order",
+        "unknown",
+        "not_applicable",
+        "horizon_withheld",
+        "invalid"
+      ],
+      "title": "TemporalKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Exact query-time allowlist passed to C2 and A-FixedSelect.",
+  "properties": {
+    "abstraction": {
+      "$ref": "#/$defs/AbstractionLevel"
+    },
+    "budgets": {
+      "$ref": "#/$defs/OutputBudgets"
+    },
+    "content_hash": {
+      "default": "",
+      "pattern": "^(?:|[0-9a-f]{64})$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "lens": {
+      "minLength": 1,
+      "title": "Lens",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1.0.0",
+      "default": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "spoiler_horizon": {
+      "$ref": "#/$defs/SpoilerHorizon"
+    },
+    "story_scope": {
+      "$ref": "#/$defs/StoryTime"
+    },
+    "target": {
+      "minLength": 1,
+      "title": "Target",
+      "type": "string"
+    },
+    "viewpoint": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/EpistemicViewpoint"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "wording": {
+      "minLength": 1,
+      "title": "Wording",
+      "type": "string"
+    }
+  },
+  "required": [
+    "wording",
+    "lens",
+    "target",
+    "story_scope",
+    "spoiler_horizon",
+    "abstraction",
+    "budgets"
+  ],
+  "title": "ModelVisibleQueryContext",
+  "type": "object"
+}

@@ -1,0 +1,230 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:ns2="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" width="447.912pt" height="553.15pt" viewBox="0 0 447.912 553.15" version="1.1">
+ <metadata>
+  <rdf:RDF>
+   <ns2:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <ns2:Agent>
+      <dc:title>Matplotlib</dc:title>
+     </ns2:Agent>
+    </dc:creator>
+   </ns2:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ <style>@font-face{font-family:'Times New Roman';font-weight:normal;src:local('Times New Roman'),local('TimesNewRomanPSMT');}@font-face{font-family:'Times New Roman';font-weight:bold;src:local('Times New Roman Bold'),local('TimesNewRomanPS-BoldMT');}</style></defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 553.15  L 447.912 553.15  L 447.912 0  L 0 0  z " style="fill: #ffffff" />
+  </g>
+  <g id="axes_1">
+   <g id="edge-fable_networks-fable_A_network-1-0" data-record="edge-fable_networks-fable_A_network-1" role="button" tabindex="0">
+    <path d="M 121.131491 157.119547  Q 224.000329 19.840014 326.098163 156.091505  " clip-path="url(#p826e86f096)" style="fill: none; stroke-dasharray: 6.9,2.3,1.15,2.3; stroke-dashoffset: 0; stroke: #735094; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 325.30004 151.691165  L 326.098163 156.091505  L 322.099016 154.089799  z " clip-path="url(#p826e86f096)" style="fill: #735094; stroke-dasharray: 6.9,2.3,1.15,2.3; stroke-dashoffset: 0; stroke: #735094; stroke-width: 1.15; stroke-linecap: round" />
+   <title>unresolved: {"attitude": null, "evidence_ids": ["S1"], "holder": null, "object": "a Mouse", "relation": "awakened_from_sleep", "subject": "A LION", "valid_from": null, "valid_until": null}. Citation link only. S1 supports the Mouse waking the Lion. The predicate awakened_from_sleep lacks 'by', leaving the Mouse object's role ambiguous. Do not guess active versus passive direction; no full relationship credit.</title></g>
+   <g id="edge-fable_networks-fable_A_network-2-0" data-record="edge-fable_networks-fable_A_network-2" role="button" tabindex="0">
+    <path d="M 131.077053 157.772754  Q 223.999816 107.987344 315.789253 157.165355  " clip-path="url(#p826e86f096)" style="fill: none; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 313.207933 153.513398  L 315.789253 157.165355  L 311.318896 157.039236  z " clip-path="url(#p826e86f096)" style="fill: #14776e; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+   <title>supported: {"attitude": null, "evidence_ids": ["S2"], "holder": null, "object": "a Mouse", "relation": "caught", "subject": "A LION", "valid_from": null, "valid_until": null}. Citation link only. Frozen reference match, not independent verification.</title></g>
+   <g id="edge-fable_networks-fable_A_network-3-0" data-record="edge-fable_networks-fable_A_network-3" role="button" tabindex="0">
+    <path d="M 137.148923 168.4  Q 224.001668 168.4 309.568673 168.4  " clip-path="url(#p826e86f096)" style="fill: none; stroke-dasharray: 5.75,2.3; stroke-dashoffset: 0; stroke: #986007; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 305.568673 166.4  L 309.568673 168.4  L 305.568673 170.4  z " clip-path="url(#p826e86f096)" style="fill: #986007; stroke-dasharray: 5.75,2.3; stroke-dashoffset: 0; stroke: #986007; stroke-width: 1.15; stroke-linecap: round" />
+   <title>partial: {"attitude": null, "evidence_ids": ["S2"], "holder": null, "object": "a Mouse", "relation": "spare", "subject": "A LION", "valid until": null, "valid_from": null}. Citation link only. S2 contains a conditional request to spare, not the accomplished release (which is in S3). The answer asserts spare without the request/conditional scope and cites S2. It also spells valid_until as 'valid until'. No repair or inferred bound is applied.</title></g>
+   <g id="edge-fable_networks-fable_A_network-4-0" data-record="edge-fable_networks-fable_A_network-4" role="button" tabindex="0">
+    <path d="M 133.703849 178.912878  Q 224.001166 220.047653 313.128437 179.444841  " clip-path="url(#p826e86f096)" style="fill: none; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 308.659228 179.283076  L 313.128437 179.444841  L 310.317499 182.92315  z " clip-path="url(#p826e86f096)" style="fill: #14776e; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+   <title>supported: {"attitude": null, "evidence_ids": ["S3"], "holder": null, "object": "a Mouse", "relation": "let_go", "subject": "A LION", "valid_from": null, "valid_until": null}. Citation link only. Frozen reference match, not independent verification.</title></g>
+   <g id="edge-fable_networks-fable_A_network-5-0" data-record="edge-fable_networks-fable_A_network-5" role="button" tabindex="0">
+    <path d="M 106.65445 156.97801  Q 85.000477 118.000858 63.970913 80.147644  " clip-path="url(#p826e86f096)" style="fill: none; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 64.16517 84.615559  L 63.970913 80.147644  L 67.661799 82.672987  z " clip-path="url(#p826e86f096)" style="fill: #14776e; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+   <title>supported: {"attitude": null, "evidence_ids": ["S4"], "holder": null, "object": "some hunters", "relation": "caught_by", "subject": "A LION", "valid_from": null, "valid_until": null}. Citation link only. S4 explicitly says the Lion was caught by hunters. This passive relation preserves participants and direction; frozen strict synonyms do not include this inverse form. No graph rewriting was performed.</title></g>
+   <g id="edge-fable_networks-fable_A_network-6-0" data-record="edge-fable_networks-fable_A_network-6" role="button" tabindex="0">
+    <path d="M 107.417544 179.871399  Q 87.500989 220.797968 68.147045 260.568425  " clip-path="url(#p826e86f096)" style="fill: none; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 71.695719 257.84686  L 68.147045 260.568425  L 68.098997 256.096547  z " clip-path="url(#p826e86f096)" style="fill: #14776e; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+   <title>supported: {"attitude": null, "evidence_ids": ["S4"], "holder": null, "object": "strong ropes", "relation": "bound_by", "subject": "A LION", "valid_from": null, "valid_until": null}. Citation link only. Frozen reference match, not independent verification.</title></g>
+   <g id="edge-fable_networks-fable_A_network-7-0" data-record="edge-fable_networks-fable_A_network-7" role="button" tabindex="0">
+    <path d="M 338.319629 179.996569  Q 349.999477 220.798173 361.325482 260.363685  " clip-path="url(#p826e86f096)" style="fill: none; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 362.14743 255.967733  L 361.325482 260.363685  L 358.301889 257.068555  z " clip-path="url(#p826e86f096)" style="fill: #14776e; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+   <title>supported: {"attitude": null, "evidence_ids": ["S5"], "holder": null, "object": "the rope", "relation": "gnawed", "subject": "a Mouse", "valid_from": null, "valid_until": null}. Citation link only. Frozen reference match, not independent verification.</title></g>
+   <g id="edge-fable_networks-fable_A_network-8-0" data-record="edge-fable_networks-fable_A_network-8" role="button" tabindex="0">
+    <path d="M 325.872538 179.602802  Q 223.999752 299.27749 122.960379 180.581273  " clip-path="url(#p826e86f096)" style="fill: none; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 124.030227 184.923556  L 122.960379 180.581273  L 127.076114 182.330765  z " clip-path="url(#p826e86f096)" style="fill: #14776e; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+   <title>supported: {"attitude": null, "evidence_ids": ["S5"], "holder": null, "object": "A LION", "relation": "set_free", "subject": "a Mouse", "valid_from": null, "valid_until": null}. Citation link only. Frozen reference match, not independent verification.</title></g>
+   <g id="edge-fable_networks-fable_B_network-1-0" data-record="edge-fable_networks-fable_B_network-1" role="button" tabindex="0">
+    <path d="M 320.490626 382.337639  Q 227.498282 336.77152 135.660512 381.773562  " clip-path="url(#p826e86f096)" style="fill: none; stroke-dasharray: 5.75,2.3; stroke-dashoffset: 0; stroke: #986007; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 140.132504 381.809421  L 135.660512 381.773562  L 138.372395 378.217484  z " clip-path="url(#p826e86f096)" style="fill: #986007; stroke-dasharray: 5.75,2.3; stroke-dashoffset: 0; stroke: #986007; stroke-width: 1.15; stroke-linecap: round" />
+   <title>partial: {"attitude": null, "evidence_ids": ["S1"], "holder": null, "object": "Lion", "relation": "running_over", "subject": "Mouse", "valid_from": null, "valid_until": null}. Citation link only. S1 says running over the Lion's face. Running over Lion retains the actor and broad action but loses the explicit body-part endpoint. This receives partial support, not full coverage of the frozen face-specific target.</title></g>
+   <g id="edge-fable_networks-fable_B_network-2-0" data-record="edge-fable_networks-fable_B_network-2" role="button" tabindex="0">
+    <path d="M 105.965306 404.134446  Q 80.49998 435.800025 55.84041 466.463664  " clip-path="url(#p826e86f096)" style="fill: none; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 59.905699 464.599953  L 55.84041 466.463664  L 56.788614 462.093206  z " clip-path="url(#p826e86f096)" style="fill: #14776e; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+   <title>supported: {"attitude": null, "evidence_ids": ["S4"], "holder": null, "object": "hunters", "relation": "caught_by", "subject": "Lion", "valid_from": null, "valid_until": null}. Citation link only. S4 supports this passive capture relation exactly in meaning. The frozen strict matcher lacks the inverse caught_by alternative; its strict failure is not a falsehood judgment.</title></g>
+   <g id="edge-fable_networks-fable_B_network-3-0" data-record="edge-fable_networks-fable_B_network-3" role="button" tabindex="0">
+    <path d="M 135.673993 403.487591  Q 213.999625 443.599808 291.180859 483.125955  " clip-path="url(#p826e86f096)" style="fill: none; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 288.532226 479.52252  L 291.180859 483.125955  L 286.708931 483.0828  z " clip-path="url(#p826e86f096)" style="fill: #14776e; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+   <title>supported: {"attitude": null, "evidence_ids": ["S4"], "holder": null, "object": "ropes", "relation": "bound_by", "subject": "Lion", "valid_from": null, "valid_until": null}. Citation link only. Frozen reference match, not independent verification.</title></g>
+   <g id="edge-fable_networks-fable_B_network-4-0" data-record="edge-fable_networks-fable_B_network-4" role="button" tabindex="0">
+    <path d="M 336.909397 404.50693  Q 326.500506 443.598101 316.422443 481.446825  " clip-path="url(#p826e86f096)" style="fill: none; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 319.38433 478.096119  L 316.422443 481.446825  L 315.519011 477.066892  z " clip-path="url(#p826e86f096)" style="fill: #14776e; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+   <title>supported: {"attitude": null, "evidence_ids": ["S5"], "holder": null, "object": "ropes", "relation": "gnawed", "subject": "Mouse", "valid_from": null, "valid_until": null}. Citation link only. Frozen reference match, not independent verification.</title></g>
+   <g id="edge-fable_networks-fable_B_network-5-0" data-record="edge-fable_networks-fable_B_network-5" role="button" tabindex="0">
+    <path d="M 133.518562 403.504504  Q 227.500185 452.495592 320.341678 404.098644  " clip-path="url(#p826e86f096)" style="fill: none; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 315.87018 404.174145  L 320.341678 404.098644  L 317.719179 407.721143  z " clip-path="url(#p826e86f096)" style="fill: #14776e; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+   <title>supported: {"attitude": null, "evidence_ids": ["S5"], "holder": null, "object": "Mouse", "relation": "freed_by", "subject": "Lion", "valid_from": null, "valid_until": null}. Citation link only. S5 explicitly says the Mouse set the Lion free. Lion freed_by Mouse is the same directed meaning in passive form, outside the frozen strict synonym set.</title></g>
+   <g id="patch_2">
+    <path d="M 93.5 158.375  L 132.5 158.375  Q 135.5 158.375 135.5 161.375  L 135.5 175.425  Q 135.5 178.425 132.5 178.425  L 93.5 178.425  Q 90.5 178.425 90.5 175.425  L 90.5 161.375  Q 90.5 158.375 93.5 158.375  z " clip-path="url(#p826e86f096)" style="fill: #f1f5f7; stroke: #566573; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_3">
+    <path d="M 315.5 158.375  L 354.5 158.375  Q 357.5 158.375 357.5 161.375  L 357.5 175.425  Q 357.5 178.425 354.5 178.425  L 315.5 178.425  Q 312.5 178.425 312.5 175.425  L 312.5 161.375  Q 312.5 158.375 315.5 158.375  z " clip-path="url(#p826e86f096)" style="fill: #f1f5f7; stroke: #566573; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_4">
+    <path d="M 32.454414 57.575  L 81.545586 57.575  Q 84.545586 57.575 84.545586 60.575  L 84.545586 74.625  Q 84.545586 77.625 81.545586 77.625  L 32.454414 77.625  Q 29.454414 77.625 29.454414 74.625  L 29.454414 60.575  Q 29.454414 57.575 32.454414 57.575  z " clip-path="url(#p826e86f096)" style="fill: #f1f5f7; stroke: #566573; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_5">
+    <path d="M 39.106602 263.175  L 84.893398 263.175  Q 87.893398 263.175 87.893398 266.175  L 87.893398 280.225  Q 87.893398 283.225 84.893398 283.225  L 39.106602 283.225  Q 36.106602 283.225 36.106602 280.225  L 36.106602 266.175  Q 36.106602 263.175 39.106602 263.175  z " clip-path="url(#p826e86f096)" style="fill: #f1f5f7; stroke: #566573; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_6">
+    <path d="M 345.5 263.175  L 384.5 263.175  Q 387.5 263.175 387.5 266.175  L 387.5 280.225  Q 387.5 283.225 384.5 283.225  L 345.5 283.225  Q 342.5 283.225 342.5 280.225  L 342.5 266.175  Q 342.5 263.175 345.5 263.175  z " clip-path="url(#p826e86f096)" style="fill: #f1f5f7; stroke: #566573; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_7">
+    <path d="M 95.5 382.875  L 134.5 382.875  Q 137.5 382.875 137.5 385.875  L 137.5 399.925  Q 137.5 402.925 134.5 402.925  L 95.5 402.925  Q 92.5 402.925 92.5 399.925  L 92.5 385.875  Q 92.5 382.875 95.5 382.875  z " clip-path="url(#p826e86f096)" style="fill: #f1f5f7; stroke: #566573; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_8">
+    <path d="M 320.5 382.875  L 359.5 382.875  Q 362.5 382.875 362.5 385.875  L 362.5 399.925  Q 362.5 402.925 359.5 402.925  L 320.5 402.925  Q 317.5 402.925 317.5 399.925  L 317.5 385.875  Q 317.5 382.875 320.5 382.875  z " clip-path="url(#p826e86f096)" style="fill: #f1f5f7; stroke: #566573; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_9">
+    <path d="M 26.5 468.675  L 65.5 468.675  Q 68.5 468.675 68.5 471.675  L 68.5 485.725  Q 68.5 488.725 65.5 488.725  L 26.5 488.725  Q 23.5 488.725 23.5 485.725  L 23.5 471.675  Q 23.5 468.675 26.5 468.675  z " clip-path="url(#p826e86f096)" style="fill: #f1f5f7; stroke: #566573; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_10">
+    <path d="M 293.5 484.275  L 332.5 484.275  Q 335.5 484.275 335.5 487.275  L 335.5 501.325  Q 335.5 504.325 332.5 504.325  L 293.5 504.325  Q 290.5 504.325 290.5 501.325  L 290.5 487.275  Q 290.5 484.275 293.5 484.275  z " clip-path="url(#p826e86f096)" style="fill: #f1f5f7; stroke: #566573; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="text_1">
+    <text style="font-weight: 700; font-size: 10px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="5" y="11.124463" transform="rotate(-0 5 11.124463)">Fable actions · full networks with literal endpoint identities</text>
+   </g>
+   <g id="text_2">
+    <text style="font-weight: 700; font-size: 9px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="5" y="31.303579" transform="rotate(-0 5 31.303579)">A: fixed selection · all eight records</text>
+   </g>
+   <g id="text_3">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="113" y="170.711851" transform="rotate(-0 113 170.711851)">A LION</text>
+   </g>
+   <g id="text_4">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="335" y="170.654077" transform="rotate(-0 335 170.654077)">a Mouse</text>
+   </g>
+   <g id="text_5">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="57" y="69.990874" transform="rotate(-0 57 69.990874)">some hunters</text>
+   </g>
+   <g id="text_6">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="62" y="274.306577" transform="rotate(-0 62 274.306577)">strong ropes</text>
+   </g>
+   <g id="text_7">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="365" y="274.74021" transform="rotate(-0 365 274.74021)">the rope</text>
+   </g>
+   <g id="edge-fable_networks-fable_A_network-1-1" data-record="edge-fable_networks-fable_A_network-1" role="button" tabindex="0">
+    <g id="patch_11">
+     <path d="M 173.500273 89.611436  L 268.499727 89.611436  L 268.499727 78.035  L 173.500273 78.035  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #735094" x="221" y="85.86521" transform="rotate(-0 221 85.86521)">? awakened from sleep · S1</text>
+   <title>unresolved: {"attitude": null, "evidence_ids": ["S1"], "holder": null, "object": "a Mouse", "relation": "awakened_from_sleep", "subject": "A LION", "valid_from": null, "valid_until": null}. Citation link only. S1 supports the Mouse waking the Lion. The predicate awakened_from_sleep lacks 'by', leaving the Mouse object's role ambiguous. Do not guess active versus passive direction; no full relationship credit.</title></g>
+   <g id="edge-fable_networks-fable_A_network-2-1" data-record="edge-fable_networks-fable_A_network-2" role="button" tabindex="0">
+    <g id="patch_12">
+     <path d="M 195.771094 132.011436  L 242.228906 132.011436  L 242.228906 120.435  L 195.771094 120.435  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #14776e" x="219" y="128.257241" transform="rotate(-0 219 128.257241)">+ caught · S2</text>
+   <title>supported: {"attitude": null, "evidence_ids": ["S2"], "holder": null, "object": "a Mouse", "relation": "caught", "subject": "A LION", "valid_from": null, "valid_until": null}. Citation link only. Frozen reference match, not independent verification.</title></g>
+   <g id="edge-fable_networks-fable_A_network-3-1" data-record="edge-fable_networks-fable_A_network-3" role="button" tabindex="0">
+    <g id="patch_13">
+     <path d="M 189.282578 175.657871  L 264.717422 175.657871  L 264.717422 154.035  L 189.282578 154.035  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #986007" transform="translate(206.994453 161.792163)">~ spare · S2</text>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #986007" transform="translate(190.047578 171.903677)">valid_until MISSING</text>
+   <title>partial: {"attitude": null, "evidence_ids": ["S2"], "holder": null, "object": "a Mouse", "relation": "spare", "subject": "A LION", "valid until": null, "valid_from": null}. Citation link only. S2 contains a conditional request to spare, not the accomplished release (which is in S3). The answer asserts spare without the request/conditional scope and cites S2. It also spells valid_until as 'valid until'. No repair or inferred bound is applied.</title></g>
+   <g id="edge-fable_networks-fable_A_network-4-1" data-record="edge-fable_networks-fable_A_network-4" role="button" tabindex="0">
+    <g id="patch_14">
+     <path d="M 197.539492 206.411436  L 240.460508 206.411436  L 240.460508 194.835  L 197.539492 194.835  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #14776e" x="219" y="202.657241" transform="rotate(-0 219 202.657241)">+ let go · S3</text>
+   <title>supported: {"attitude": null, "evidence_ids": ["S3"], "holder": null, "object": "a Mouse", "relation": "let_go", "subject": "A LION", "valid_from": null, "valid_until": null}. Citation link only. Frozen reference match, not independent verification.</title></g>
+   <g id="edge-fable_networks-fable_A_network-5-1" data-record="edge-fable_networks-fable_A_network-5" role="button" tabindex="0">
+    <g id="patch_15">
+     <path d="M 52.458594 111.211436  L 109.541406 111.211436  L 109.541406 99.635  L 52.458594 99.635  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #14776e" x="81" y="107.457241" transform="rotate(-0 81 107.457241)">+ caught by · S4</text>
+   <title>supported: {"attitude": null, "evidence_ids": ["S4"], "holder": null, "object": "some hunters", "relation": "caught_by", "subject": "A LION", "valid_from": null, "valid_until": null}. Citation link only. S4 explicitly says the Lion was caught by hunters. This passive relation preserves participants and direction; frozen strict synonyms do not include this inverse form. No graph rewriting was performed.</title></g>
+   <g id="edge-fable_networks-fable_A_network-6-1" data-record="edge-fable_networks-fable_A_network-6" role="button" tabindex="0">
+    <g id="patch_16">
+     <path d="M 43.1625 236.811436  L 98.8375 236.811436  L 98.8375 225.235  L 43.1625 225.235  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #14776e" x="71" y="233.057241" transform="rotate(-0 71 233.057241)">+ bound by · S4</text>
+   <title>supported: {"attitude": null, "evidence_ids": ["S4"], "holder": null, "object": "strong ropes", "relation": "bound_by", "subject": "A LION", "valid_from": null, "valid_until": null}. Citation link only. Frozen reference match, not independent verification.</title></g>
+   <g id="edge-fable_networks-fable_A_network-7-1" data-record="edge-fable_networks-fable_A_network-7" role="button" tabindex="0">
+    <g id="patch_17">
+     <path d="M 339.8825 237.611436  L 390.1175 237.611436  L 390.1175 226.035  L 339.8825 226.035  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #14776e" x="365" y="233.857241" transform="rotate(-0 365 233.857241)">+ gnawed · S5</text>
+   <title>supported: {"attitude": null, "evidence_ids": ["S5"], "holder": null, "object": "the rope", "relation": "gnawed", "subject": "a Mouse", "valid_from": null, "valid_until": null}. Citation link only. Frozen reference match, not independent verification.</title></g>
+   <g id="edge-fable_networks-fable_A_network-8-1" data-record="edge-fable_networks-fable_A_network-8" role="button" tabindex="0">
+    <g id="patch_18">
+     <path d="M 207.712578 252.011436  L 256.287422 252.011436  L 256.287422 240.435  L 207.712578 240.435  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #14776e" x="232" y="249.105913" transform="rotate(-0 232 249.105913)">+ set free · S5</text>
+   <title>supported: {"attitude": null, "evidence_ids": ["S5"], "holder": null, "object": "A LION", "relation": "set_free", "subject": "a Mouse", "valid_from": null, "valid_until": null}. Citation link only. Frozen reference match, not independent verification.</title></g>
+   <g id="text_8">
+    <text style="font-weight: 700; font-size: 9px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="5" y="316.312017" transform="rotate(-0 5 316.312017)">B: independent contextual extraction · all five records</text>
+   </g>
+   <g id="text_9">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="115" y="395.290874" transform="rotate(-0 115 395.290874)">Lion</text>
+   </g>
+   <g id="text_10">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="340" y="395.154077" transform="rotate(-0 340 395.154077)">Mouse</text>
+   </g>
+   <g id="text_11">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="46" y="481.090874" transform="rotate(-0 46 481.090874)">hunters</text>
+   </g>
+   <g id="text_12">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="313" y="494.848101" transform="rotate(-0 313 494.848101)">ropes</text>
+   </g>
+   <g id="edge-fable_networks-fable_B_network-1-1" data-record="edge-fable_networks-fable_B_network-1" role="button" tabindex="0">
+    <g id="patch_19">
+     <path d="M 191.361914 356.131436  L 258.638086 356.131436  L 258.638086 344.555  L 191.361914 344.555  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #986007" x="225" y="352.377241" transform="rotate(-0 225 352.377241)">~ running over · S1</text>
+   <title>partial: {"attitude": null, "evidence_ids": ["S1"], "holder": null, "object": "Lion", "relation": "running_over", "subject": "Mouse", "valid_from": null, "valid_until": null}. Citation link only. S1 says running over the Lion's face. Running over Lion retains the actor and broad action but loses the explicit body-part endpoint. This receives partial support, not full coverage of the frozen face-specific target.</title></g>
+   <g id="edge-fable_networks-fable_B_network-2-1" data-record="edge-fable_networks-fable_B_network-2" role="button" tabindex="0">
+    <g id="patch_20">
+     <path d="M 35.458594 435.691436  L 92.541406 435.691436  L 92.541406 424.115  L 35.458594 424.115  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #14776e" x="64" y="431.937241" transform="rotate(-0 64 431.937241)">+ caught by · S4</text>
+   <title>supported: {"attitude": null, "evidence_ids": ["S4"], "holder": null, "object": "hunters", "relation": "caught_by", "subject": "Lion", "valid_from": null, "valid_until": null}. Citation link only. S4 supports this passive capture relation exactly in meaning. The frozen strict matcher lacks the inverse caught_by alternative; its strict failure is not a falsehood judgment.</title></g>
+   <g id="edge-fable_networks-fable_B_network-3-1" data-record="edge-fable_networks-fable_B_network-3" role="button" tabindex="0">
+    <g id="patch_21">
+     <path d="M 181.1625 459.091436  L 236.8375 459.091436  L 236.8375 447.515  L 181.1625 447.515  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #14776e" x="209" y="455.337241" transform="rotate(-0 209 455.337241)">+ bound by · S4</text>
+   <title>supported: {"attitude": null, "evidence_ids": ["S4"], "holder": null, "object": "ropes", "relation": "bound_by", "subject": "Lion", "valid_from": null, "valid_until": null}. Citation link only. Frozen reference match, not independent verification.</title></g>
+   <g id="edge-fable_networks-fable_B_network-4-1" data-record="edge-fable_networks-fable_B_network-4" role="button" tabindex="0">
+    <g id="patch_22">
+     <path d="M 318.8825 451.291436  L 369.1175 451.291436  L 369.1175 439.715  L 318.8825 439.715  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #14776e" x="344" y="447.537241" transform="rotate(-0 344 447.537241)">+ gnawed · S5</text>
+   <title>supported: {"attitude": null, "evidence_ids": ["S5"], "holder": null, "object": "ropes", "relation": "gnawed", "subject": "Mouse", "valid_from": null, "valid_until": null}. Citation link only. Frozen reference match, not independent verification.</title></g>
+   <g id="edge-fable_networks-fable_B_network-5-1" data-record="edge-fable_networks-fable_B_network-5" role="button" tabindex="0">
+    <g id="patch_23">
+     <path d="M 199.059063 435.691436  L 250.940938 435.691436  L 250.940938 424.115  L 199.059063 424.115  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #14776e" x="225" y="431.937241" transform="rotate(-0 225 431.937241)">+ freed by · S5</text>
+   <title>supported: {"attitude": null, "evidence_ids": ["S5"], "holder": null, "object": "Mouse", "relation": "freed_by", "subject": "Lion", "valid_from": null, "valid_until": null}. Citation link only. S5 explicitly says the Mouse set the Lion free. Lion freed_by Mouse is the same directed meaning in passive form, outside the frozen strict synonym set.</title></g>
+   <g id="text_13">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #142d40" transform="translate(5 520.057241)">+ supported meaning. ~ partial. ? unresolved. Exact endpoint strings remain separate: A has “strong ropes” and “the</text>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #142d40" transform="translate(5 530.103677)">rope”, whereas B uses “ropes”. All attribution and bounds null except A’s missing valid_until field on spare (literal extra</text>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #142d40" transform="translate(5 540.150112)">key “valid until”).</text>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p826e86f096">
+   <rect x="0" y="0" width="447.912" height="553.15" />
+  </clipPath>
+ </defs>
+<metadata>Conference figure. Searchable Times New Roman text requires the local font. No font software is redistributed in this SVG. PDF embeds document subsets.</metadata></svg>

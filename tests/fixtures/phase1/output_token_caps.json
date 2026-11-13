@@ -1,0 +1,85 @@
+{
+  "add_special_tokens": false,
+  "gpu_used": false,
+  "model_weights_loaded": false,
+  "outputs": {
+    "c1_pre_output.json": {
+      "compact_json_bytes": 5851,
+      "compact_json_sha256": "a9997c7f602f6e77805a51e1ab5fdcc0b512bb8dce2d3821fab4a06350f9c521",
+      "exact_token_count": 1639,
+      "maximum_output_tokens": 2048
+    },
+    "c1_pre_output_2.json": {
+      "compact_json_bytes": 6660,
+      "compact_json_sha256": "3f348d3610638d91baaf4bad5d273743eb592610926ae0d51d283cdc81829e4f",
+      "exact_token_count": 1798,
+      "maximum_output_tokens": 2048
+    },
+    "c2_query_output.json": {
+      "compact_json_bytes": 6717,
+      "compact_json_sha256": "43cc5fac524f1712a5f16ba97c58d15da652b4f9593ed091f67cd0111429bd31",
+      "exact_token_count": 1771,
+      "maximum_output_tokens": 2048
+    },
+    "c2_query_output_2.json": {
+      "compact_json_bytes": 5960,
+      "compact_json_sha256": "837fd310163c76add9b12a61639ed46ba2d9500d586600266da8785affe3c9b9",
+      "exact_token_count": 1701,
+      "maximum_output_tokens": 2048
+    },
+    "fixed_select_output.json": {
+      "compact_json_bytes": 5422,
+      "compact_json_sha256": "41e880812f2f564ddc5d27858e33cc294b58e73f3ea377e947ab51633bb2953d",
+      "exact_token_count": 1513,
+      "maximum_output_tokens": 2048
+    },
+    "invalid_repair_case.json#base_draft": {
+      "compact_json_bytes": 2661,
+      "compact_json_sha256": "6b2379675594f6f27ace72e05b6b109d96296e68e9d20574f4e5f58b65aba5cb",
+      "exact_token_count": 694,
+      "maximum_output_tokens": 1536
+    },
+    "invalid_repair_case.json#corrected_draft": {
+      "compact_json_bytes": 2807,
+      "compact_json_sha256": "7ff67e923090d79bcb9989853fb99ab77ac2a3879851abce959d47de8df50c9c",
+      "exact_token_count": 744,
+      "maximum_output_tokens": 1536
+    }
+  },
+  "schema_version": "1.0.0",
+  "serialization": "UTF-8 JSON; ensure_ascii=false; allow_nan=false; sorted keys; no spaces",
+  "tokenizer_json_sha256": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4",
+  "tokenizer_manifest": {
+    "chat_template_sha256": "a55ee1b1660128b7098723e0abcd92caa0788061051c62d51cbe87d9cf1974d8",
+    "enable_thinking": false,
+    "end_of_turn_token_ids": [
+      151645
+    ],
+    "eos_token_id": 151645,
+    "local_files_only": true,
+    "manifest_sha256": "90b60e3b52c33d4767ef71218745b804d35bc6d2c5ba49cac442b25cfba0f98f",
+    "nonthinking_probe_sha256": "bfb15667fb5cc52e39d1e4658bcc5681c5f6fd5a42f1e895982c428609c64f1b",
+    "nonthinking_probe_token_count": 26,
+    "repository": "Qwen/Qwen3-14B-AWQ",
+    "revision": "1a6fe1ecf891437a270cce11ad54d796c4f56ce0",
+    "schema_version": "1.0.0",
+    "stop_token_ids": [
+      151645
+    ],
+    "tokenizer_class": "transformers.models.qwen2.tokenization_qwen2_fast.Qwen2TokenizerFast",
+    "tokenizer_file_sha256": [
+      [
+        "tokenizer.json",
+        "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4"
+      ],
+      [
+        "tokenizer_config.json",
+        "d5d09f07b48c3086c508b30d1c9114bd1189145b74e982a265350c923acd8101"
+      ]
+    ],
+    "tokenizer_revision": "1a6fe1ecf891437a270cce11ad54d796c4f56ce0",
+    "trust_remote_code": false
+  },
+  "tokenizer_repository": "Qwen/Qwen3-14B-AWQ",
+  "tokenizer_revision": "1a6fe1ecf891437a270cce11ad54d796c4f56ce0"
+}

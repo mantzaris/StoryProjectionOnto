@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0.0",
+  "temperature": 0.7,
+  "top_p": 0.8,
+  "top_k": 20,
+  "min_p": 0.0,
+  "presence_penalty": 0.0,
+  "frequency_penalty": 0.0,
+  "repetition_penalty": 1.0,
+  "n": 1,
+  "best_of": 1,
+  "beam_search": false,
+  "first_pass_maximum_input_tokens": 10240,
+  "first_pass_maximum_output_tokens": 2048,
+  "repair_maximum_input_tokens": 10752,
+  "repair_maximum_output_tokens": 1536
+}
+

@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0.0",
+  "authoritative_plans": [
+    {
+      "path": "plan_notes/METHODOLOGICAL_PLAN_QUERY_DEPENDENT_TEMPORAL_ONTOLOGY.md",
+      "sha256": "3edb6db82b2029e8d9483ecca02097031564fc481bbfbb60995a60ddc05df21d"
+    },
+    {
+      "path": "plan_notes/IMPLEMENTATION_PLAN_QUERY_DEPENDENT_TEMPORAL_ONTOLOGY.md",
+      "sha256": "2b215f2af7a7b3475e800170510ba805fe76da619b47caba05cdb9a843f88855"
+    }
+  ],
+  "historical_provenance_only": [
+    "plan_notes/IMPLEMENTATION_PLAN_ADMISSIBILITY_CONSTRAINED_PROJECTION.md",
+    "plan_notes/IMPLEMENTATION_PLAN_ADMISSIBILITY_CONSTRAINED_PROJECTION_V2.md",
+    "plan_notes/SOLO_RESEARCHER_CONTEXTUAL_NARRATIVE_PROJECTION_PLAN_V2.md"
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "version": "paper-exploratory-figures-v1",
+  "width_mm": 178,
+  "minimum_font_pt": 8.5,
+  "png_dpi": 400,
+  "scope": "Display-only reuse of retained exploratory results. No generation, rescoring, semantic repair, registered acceptance or inference about ontology construction.",
+  "sources": {
+    "real": "reports/tables/real_text_proof_of_concept.json",
+    "synthetic": "reports/tables/compact_story_v2_results.json"
+  },
+  "selection_rationale": {
+    "fable": "User-specified accessible complete fable. The S2-S3 pre-extraction detail includes correct capture/release, an unsupported qualification and ambiguous laughter. The complete action selections retain mixed outcomes and the stronger fixed-selection score.",
+    "harbor": "Chosen over Orchard because all required explicit intervals are present in both location answers. The example isolates intact duration from relevance: contextual answers additionally return irrelevant facts. This is a display rationale based on retained results, not prospective statistical sampling.",
+    "alice": "User-specified prose with physical action and rhetorical thought. Both direct contextual outputs are shown completely, including a wrong reading participant and the undecomposed thought objects.",
+    "holmes": "User-specified failure example. Both strict syntax failures are retained; the selected usable claim illustrates locally ambiguous participant interpretation and missing attribution, not universal model inability."
+  },
+  "panels": {
+    "fable_pre_detail": {"dataset": "real", "story": "fable", "call": "1", "indices_1based": [2,3,4,5,6], "display_rule": "All pre-extraction records citing S2 or S3; 5 of 12 records. No choice based on correctness. The full output is in the supplement."},
+    "fable_A": {"dataset": "real", "story": "fable", "task": "actions", "method": "A", "display_rule": "Complete selected output, all eight predictions."},
+    "fable_B": {"dataset": "real", "story": "fable", "task": "actions", "method": "B", "display_rule": "Complete direct contextual output, all five predictions."},
+    "harbor_A_possession": {"dataset": "synthetic", "story": "harbor", "task": "possession", "method": "A", "display_rule": "Complete selected output, all five predictions."},
+    "harbor_A_locations": {"dataset": "synthetic", "story": "harbor", "task": "locations", "method": "A", "display_rule": "Complete selected output, all four predictions."},
+    "harbor_B_possession": {"dataset": "synthetic", "story": "harbor", "task": "possession", "method": "B", "display_rule": "Complete direct contextual output, all ten predictions, including five irrelevant facts."},
+    "harbor_B_locations": {"dataset": "synthetic", "story": "harbor", "task": "locations", "method": "B", "display_rule": "Complete direct contextual output, all six predictions, including two irrelevant carrying facts."},
+    "alice_B_actions": {"dataset": "real", "story": "alice", "task": "actions", "method": "B", "display_rule": "Complete direct contextual output, all five predictions."},
+    "alice_B_claims": {"dataset": "real", "story": "alice", "task": "claims", "method": "B", "display_rule": "Complete direct contextual output, all three predictions. Sentence-valued objects remain nodes, not reconstructed propositions."},
+    "holmes_B_claim_detail": {"dataset": "real", "story": "holmes", "task": "claims", "method": "B", "indices_1based": [2], "display_rule": "Second of three records: the past-partnership claim illustrates the frozen vocative ambiguity and missing attribution. All three are in the supplement."}
+  },
+  "transformations": [
+    "Only typography: wrap existing text; replace predicate underscores with spaces for display while preserving exact field values in the manifest and interactive inspector.",
+    "Evidence whitespace is reflowed; wording, punctuation, evidence IDs and complete excerpts remain in source artifacts and the interactive source panel.",
+    "No alias normalization or record deduplication. Exact endpoint strings define nodes. Across figures, analogous positions may be used without identifying different strings as one entity.",
+    "Parallel arrows are curved and labelled by record number, literal predicate, evidence badge and assessed status. Colour is redundant with symbols and line styles.",
+    "Supplementary assertion-lane diagrams repeat node glyphs for legibility. Equal endpoint strings denote the same node; each actual assertion appears once, including duplicates. No missing target is inserted as an edge.",
+    "All metrics use full retained result rows, never displayed-subgraph denominators. Existing Codex assessments and strict matches are distinct."
+  ]
+}

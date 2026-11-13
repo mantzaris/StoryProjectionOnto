@@ -1,0 +1,128 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:ns2="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" width="447.912pt" height="499.9pt" viewBox="0 0 447.912 499.9" version="1.1">
+ <metadata>
+  <rdf:RDF>
+   <ns2:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <ns2:Agent>
+      <dc:title>Matplotlib</dc:title>
+     </ns2:Agent>
+    </dc:creator>
+   </ns2:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ <style>@font-face{font-family:'Times New Roman';font-weight:normal;src:local('Times New Roman'),local('TimesNewRomanPSMT');}@font-face{font-family:'Times New Roman';font-weight:bold;src:local('Times New Roman Bold'),local('TimesNewRomanPS-BoldMT');}</style></defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 499.9  L 447.912 499.9  L 447.912 0  L 0 0  z " style="fill: #ffffff" />
+  </g>
+  <g id="axes_1">
+   <g id="edge-orchard_beliefs-orchard_belief-1-0" data-record="edge-orchard_beliefs-orchard_belief-1" role="button" tabindex="0">
+    <path d="M 109.381216 173.844447  Q 204.744217 151.268716 298.856061 128.989177  " clip-path="url(#pd0ecf3e9ad)" style="fill: none; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 294.502911 127.96444  L 298.856061 128.989177  L 295.424381 131.856855  z " clip-path="url(#pd0ecf3e9ad)" style="fill: #14776e; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+   <title>supported: {"attitude": "believes", "evidence_ids": ["S9"], "holder": "Soren", "object": "South Loft", "relation": "located_in", "subject": "Copper Book", "valid_from": null, "valid_until": null}. Citation link only. correct_complete_fact</title></g>
+   <g id="edge-orchard_beliefs-orchard_belief-2-0" data-record="edge-orchard_beliefs-orchard_belief-2" role="button" tabindex="0">
+    <path d="M 109.38457 187.756347  Q 203.446475 210.024064 296.257223 231.995588  " clip-path="url(#pd0ecf3e9ad)" style="fill: none; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 292.825543 229.12791  L 296.257223 231.995588  L 291.904073 233.020325  z " clip-path="url(#pd0ecf3e9ad)" style="fill: #14776e; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+   <title>supported: {"attitude": null, "evidence_ids": ["S10"], "holder": null, "object": "River Room", "relation": "located_in", "subject": "Copper Book", "valid_from": null, "valid_until": null}. Citation link only. correct_complete_fact</title></g>
+   <g id="edge-orchard_beliefs-orchard_belief-3-0" data-record="edge-orchard_beliefs-orchard_belief-3" role="button" tabindex="0">
+    <path d="M 104.811608 371.82496  Q 202.8592 348.213499 299.656789 324.903059  " clip-path="url(#pd0ecf3e9ad)" style="fill: none; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 295.299714 323.895138  L 299.656789 324.903059  L 296.236207 327.783966  z " clip-path="url(#pd0ecf3e9ad)" style="fill: #14776e; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+   <title>supported: {"attitude": "believes", "evidence_ids": ["S11"], "holder": "Jun", "object": "Hill Court", "relation": "located_in", "subject": "Ivory Vase", "valid_from": null, "valid_until": null}. Citation link only. correct_complete_fact</title></g>
+   <g id="edge-orchard_beliefs-orchard_belief-4-0" data-record="edge-orchard_beliefs-orchard_belief-4" role="button" tabindex="0">
+    <path d="M 104.811608 383.673768  Q 202.856179 406.88432 299.649592 429.798679  " clip-path="url(#pd0ecf3e9ad)" style="fill: none; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 296.217912 426.931002  L 299.649592 429.798679  L 295.296442 430.823417  z " clip-path="url(#pd0ecf3e9ad)" style="fill: #14776e; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+   <title>supported: {"attitude": null, "evidence_ids": ["S12"], "holder": null, "object": "Elm Dock", "relation": "located_in", "subject": "Ivory Vase", "valid_from": null, "valid_until": null}. Citation link only. correct_complete_fact</title></g>
+   <g id="patch_2">
+    <path d="M 55.216016 170.775  L 104.783984 170.775  Q 107.783984 170.775 107.783984 173.775  L 107.783984 187.825  Q 107.783984 190.825 104.783984 190.825  L 55.216016 190.825  Q 52.216016 190.825 52.216016 187.825  L 52.216016 173.775  Q 52.216016 170.775 55.216016 170.775  z " clip-path="url(#pd0ecf3e9ad)" style="fill: #fff1d4; stroke: #566573; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_3">
+    <path d="M 305.5 425.775  L 344.5 425.775  Q 347.5 425.775 347.5 428.775  L 347.5 442.825  Q 347.5 445.825 344.5 445.825  L 305.5 445.825  Q 302.5 445.825 302.5 442.825  L 302.5 428.775  Q 302.5 425.775 305.5 425.775  z " clip-path="url(#pd0ecf3e9ad)" style="fill: #f1f1f1; stroke: #566573; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_4">
+    <path d="M 305.5 308.775  L 344.5 308.775  Q 347.5 308.775 347.5 311.775  L 347.5 325.825  Q 347.5 328.825 344.5 328.825  L 305.5 328.825  Q 302.5 328.825 302.5 325.825  L 302.5 311.775  Q 302.5 308.775 305.5 308.775  z " clip-path="url(#pd0ecf3e9ad)" style="fill: #f1f1f1; stroke: #566573; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_5">
+    <path d="M 59.783437 367.775  L 100.216563 367.775  Q 103.216563 367.775 103.216563 370.775  L 103.216563 384.825  Q 103.216563 387.825 100.216563 387.825  L 59.783437 387.825  Q 56.783437 387.825 56.783437 384.825  L 56.783437 370.775  Q 56.783437 367.775 59.783437 367.775  z " clip-path="url(#pd0ecf3e9ad)" style="fill: #fff1d4; stroke: #566573; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_6">
+    <path d="M 302.104609 228.775  L 347.895391 228.775  Q 350.895391 228.775 350.895391 231.775  L 350.895391 245.825  Q 350.895391 248.825 347.895391 248.825  L 302.104609 248.825  Q 299.104609 248.825 299.104609 245.825  L 299.104609 231.775  Q 299.104609 228.775 302.104609 228.775  z " clip-path="url(#pd0ecf3e9ad)" style="fill: #f1f1f1; stroke: #566573; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_7">
+    <path d="M 304.701758 112.775  L 345.298242 112.775  Q 348.298242 112.775 348.298242 115.775  L 348.298242 129.825  Q 348.298242 132.825 345.298242 132.825  L 304.701758 132.825  Q 301.701758 132.825 301.701758 129.825  L 301.701758 115.775  Q 301.701758 112.775 304.701758 112.775  z " clip-path="url(#pd0ecf3e9ad)" style="fill: #f1f1f1; stroke: #566573; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="text_1">
+    <text style="font-weight: 700; font-size: 10px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="5" y="12.118213" transform="rotate(-0 5 12.118213)">Orchard · believed and narrated locations</text>
+   </g>
+   <g id="text_2">
+    <text style="font-size: 9px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="5" y="31.480811" transform="rotate(-0 5 31.480811)">S9 Soren believes that Copper Book is in South Loft.</text>
+   </g>
+   <g id="text_3">
+    <text style="font-size: 9px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="5" y="48.172373" transform="rotate(-0 5 48.172373)">S10 In reality, Copper Book is in River Room.</text>
+   </g>
+   <g id="text_4">
+    <text style="font-size: 9px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="5" y="64.872373" transform="rotate(-0 5 64.872373)">S11 Jun believes that Ivory Vase is in Hill Court.</text>
+   </g>
+   <g id="text_5">
+    <text style="font-size: 9px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="5" y="81.572373" transform="rotate(-0 5 81.572373)">S12 In reality, Ivory Vase is in Elm Dock.</text>
+   </g>
+   <g id="text_6">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="80" y="182.34021" transform="rotate(-0 80 182.34021)">Copper Book</text>
+   </g>
+   <g id="text_7">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="325" y="438.190874" transform="rotate(-0 325 438.190874)">Elm Dock</text>
+   </g>
+   <g id="text_8">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="325" y="321.184897" transform="rotate(-0 325 321.184897)">Hill Court</text>
+   </g>
+   <g id="text_9">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="80" y="379.195444" transform="rotate(-0 80 379.195444)">Ivory Vase</text>
+   </g>
+   <g id="text_10">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="325" y="241.190874" transform="rotate(-0 325 241.190874)">River Room</text>
+   </g>
+   <g id="text_11">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="325" y="125.184897" transform="rotate(-0 325 125.184897)">South Loft</text>
+   </g>
+   <g id="edge-orchard_beliefs-orchard_belief-1-1" data-record="edge-orchard_beliefs-orchard_belief-1" role="button" tabindex="0">
+    <g id="patch_8">
+     <path d="M 175.088789 154.657871  L 230.911211 154.657871  L 230.911211 133.035  L 175.088789 133.035  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #14776e" transform="translate(186.672695 141.709897)">+ loc · S9</text>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #14776e" transform="translate(175.853789 151.756333)">Soren / believes</text>
+   <title>supported: {"attitude": "believes", "evidence_ids": ["S9"], "holder": "Soren", "object": "South Loft", "relation": "located_in", "subject": "Copper Book", "valid_from": null, "valid_until": null}. Citation link only. correct_complete_fact</title></g>
+   <g id="edge-orchard_beliefs-orchard_belief-2-1" data-record="edge-orchard_beliefs-orchard_belief-2" role="button" tabindex="0">
+    <g id="patch_9">
+     <path d="M 183.782695 221.611436  L 222.217305 221.611436  L 222.217305 210.035  L 183.782695 210.035  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #14776e" x="203" y="218.709897" transform="rotate(-0 203 218.709897)">+ loc · S10</text>
+   <title>supported: {"attitude": null, "evidence_ids": ["S10"], "holder": null, "object": "River Room", "relation": "located_in", "subject": "Copper Book", "valid_from": null, "valid_until": null}. Citation link only. correct_complete_fact</title></g>
+   <g id="edge-orchard_beliefs-orchard_belief-3-1" data-record="edge-orchard_beliefs-orchard_belief-3" role="button" tabindex="0">
+    <g id="patch_10">
+     <path d="M 179.099727 350.657871  L 226.900273 350.657871  L 226.900273 329.035  L 179.099727 329.035  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #14776e" transform="translate(184.705078 337.709897)">+ loc · S11</text>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #14776e" transform="translate(179.864727 347.756333)">Jun / believes</text>
+   <title>supported: {"attitude": "believes", "evidence_ids": ["S11"], "holder": "Jun", "object": "Hill Court", "relation": "located_in", "subject": "Ivory Vase", "valid_from": null, "valid_until": null}. Citation link only. correct_complete_fact</title></g>
+   <g id="edge-orchard_beliefs-orchard_belief-4-1" data-record="edge-orchard_beliefs-orchard_belief-4" role="button" tabindex="0">
+    <g id="patch_11">
+     <path d="M 183.782695 416.611436  L 222.217305 416.611436  L 222.217305 405.035  L 183.782695 405.035  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #14776e" x="203" y="413.709897" transform="rotate(-0 203 413.709897)">+ loc · S12</text>
+   <title>supported: {"attitude": null, "evidence_ids": ["S12"], "holder": null, "object": "Elm Dock", "relation": "located_in", "subject": "Ivory Vase", "valid_from": null, "valid_until": null}. Citation link only. correct_complete_fact</title></g>
+   <g id="text_12">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #142d40" transform="translate(5 478.86521)">A: fixed selection from call 2. All four records on six endpoint nodes. Holder names are qualifications, not additional</text>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #142d40" transform="translate(5 488.903677)">nodes or edges. All validity bounds null. + supported under the frozen evaluation. loc = located in.</text>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="pd0ecf3e9ad">
+   <rect x="0" y="0" width="447.912" height="499.9" />
+  </clipPath>
+ </defs>
+<metadata>Conference figure. Searchable Times New Roman text requires the local font. No font software is redistributed in this SVG. PDF embeds document subsets.</metadata></svg>

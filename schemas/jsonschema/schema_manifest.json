@@ -1,0 +1,204 @@
+{
+  "generator": "scripts/generate_schemas.py",
+  "manifest_hash": "57cea3d884ef286b7bec3f02dbf92f2e7a5d4e9a5f75228d51cab288728d7a9b",
+  "schema_version": "1.0.0",
+  "schemas": [
+    {
+      "bytes": 80076,
+      "contract": "ConstructionRequest",
+      "file": "construction_request.schema.json",
+      "sha256": "870ae5bfc41a6752ab54a4b44f23fe97b335bab6bbe4c399c35e8b01df4dc0f8",
+      "surface": "model_interaction"
+    },
+    {
+      "bytes": 16941,
+      "contract": "EvidencePacket",
+      "file": "evidence_packet.schema.json",
+      "sha256": "fd62c6bc1343b1fab47b1f93e6d0a95eca4134b9a365d1ca9238428a5ef17e20",
+      "surface": "public_contract"
+    },
+    {
+      "bytes": 5192,
+      "contract": "EvidenceSnapshot",
+      "file": "evidence_snapshot.schema.json",
+      "sha256": "ffbe8b27774745e9aabd4ce77860371e01bced849b17ca0c5a37cca247803d5d",
+      "surface": "public_contract"
+    },
+    {
+      "bytes": 20597,
+      "contract": "FallbackControlPlaneIncident",
+      "file": "fallback_control_plane_incident.schema.json",
+      "sha256": "c5b8aaf051e193635a7801aedfbece74cf085b1085bb99b3021ab245cc9df43c",
+      "surface": "public_operational_contract"
+    },
+    {
+      "bytes": 26604,
+      "contract": "FallbackV5ControlPlaneIncident",
+      "file": "fallback_v5_control_plane_incident.schema.json",
+      "sha256": "1f70f6d58f678c4be873a3db89003a69b125a8aead1286e53ab1f7c36f69cc6b",
+      "surface": "public_operational_contract"
+    },
+    {
+      "bytes": 26011,
+      "contract": "FallbackV6ControlPlaneIncident",
+      "file": "fallback_v6_control_plane_incident.schema.json",
+      "sha256": "027f95630ba15ba3ee569273e62c7d312a2c85149b49c9f22b308bf404e5992c",
+      "surface": "public_operational_contract"
+    },
+    {
+      "bytes": 33011,
+      "contract": "FallbackV7RuntimeIncident",
+      "file": "fallback_v7_runtime_incident.schema.json",
+      "sha256": "631e4b47f2cd41952234723effcf6dd9ee3c574b50b0bada81fb5266e18fc719",
+      "surface": "public_operational_contract"
+    },
+    {
+      "bytes": 9219,
+      "contract": "FallbackV8LeaseRepairReceipt",
+      "file": "fallback_v8_lease_repair_receipt.schema.json",
+      "sha256": "02ccba13b82393003ea795a56752531217f2cc82adda11d9eb959dc525c4ea13",
+      "surface": "public_operational_contract"
+    },
+    {
+      "bytes": 36187,
+      "contract": "FallbackV8RuntimeIncident",
+      "file": "fallback_v8_runtime_incident.schema.json",
+      "sha256": "fbd1bb2079cfd0b2ab81d95031424dbe19c64bc261992a9ea9d848a7cf8e9a2f",
+      "surface": "public_operational_contract"
+    },
+    {
+      "bytes": 17714,
+      "contract": "ModelVisibleEvidencePacket",
+      "file": "model_visible_evidence_packet.schema.json",
+      "sha256": "b91d1d593132698152bbcfeae6ac7c090f5baf18d675e9a6b94fd0147136ff9d",
+      "surface": "model_interaction"
+    },
+    {
+      "bytes": 13674,
+      "contract": "ModelVisibleEvidenceRecord",
+      "file": "model_visible_evidence_record.schema.json",
+      "sha256": "f48ab7ddac506be4c221107417df797b413c9039f69847fb57b48869c06a91c9",
+      "surface": "model_interaction"
+    },
+    {
+      "bytes": 2534,
+      "contract": "ModelVisibleGenericConstructionContext",
+      "file": "model_visible_generic_construction_context.schema.json",
+      "sha256": "458900287a35fdad9c2aee4acef96581412bb51a57043007262543d44f2fc623",
+      "surface": "model_interaction"
+    },
+    {
+      "bytes": 11633,
+      "contract": "ModelVisibleQueryContext",
+      "file": "model_visible_query_context.schema.json",
+      "sha256": "80474e93c4d9e41a2027883aa92f616ab3321cee804db96d37329318ebcb2072",
+      "surface": "model_interaction"
+    },
+    {
+      "bytes": 12622,
+      "contract": "ModelVisibleRevision",
+      "file": "model_visible_revision.schema.json",
+      "sha256": "bccc96e36913c4271286de9b3c95861e70fe5e8803775ae862b6273d5a8b30bd",
+      "surface": "model_interaction"
+    },
+    {
+      "bytes": 26641,
+      "contract": "NoTemporalEpistemicOntologyDraft",
+      "file": "no_temporal_epistemic_ontology_draft.schema.json",
+      "sha256": "b5a5195f49cd54b0397f9ef7f44cc31dd42f2660bdae8f49abd943f523409aba",
+      "surface": "model_interaction"
+    },
+    {
+      "bytes": 43634,
+      "contract": "OntologyDraft",
+      "file": "ontology_draft.schema.json",
+      "sha256": "270d0f9acab96a7ebf1edc0606da9494799633146d293992649836283c0d5210",
+      "surface": "model_interaction"
+    },
+    {
+      "bytes": 65090,
+      "contract": "OntologyProjection",
+      "file": "ontology_projection.schema.json",
+      "sha256": "f680369aae8161496de506ad4647588c3fec9978a2b7642bce4104787394f6c5",
+      "surface": "public_contract"
+    },
+    {
+      "bytes": 2104,
+      "contract": "PacketMaterializationEvent",
+      "file": "packet_materialization_event.schema.json",
+      "sha256": "65d41927c4701270ff30d3fee813a4ff4553f6af42ce8f13a28639536d612634",
+      "surface": "public_contract"
+    },
+    {
+      "bytes": 27749,
+      "contract": "PreconstructionRequest",
+      "file": "preconstruction_request.schema.json",
+      "sha256": "7fca767fc36e52b1ba1fae8602afbd44166175845c01b1af923d3a7b4b3fb8d1",
+      "surface": "model_interaction"
+    },
+    {
+      "bytes": 3819,
+      "contract": "PrequeryBarrier",
+      "file": "prequery_barrier.schema.json",
+      "sha256": "6f8d7134242d1ee7bc419bc3d9a0a1be726f8aabd680e48c0262cffc7a1a79ca",
+      "surface": "public_contract"
+    },
+    {
+      "bytes": 21051,
+      "contract": "QualifiedAssertion",
+      "file": "qualified_assertion.schema.json",
+      "sha256": "3bf2b74dd8da429abaf4fcec9aea8d23a2a9fb3fc1549ceaa2e94ced0dbe5b47",
+      "surface": "public_contract"
+    },
+    {
+      "bytes": 2632,
+      "contract": "QueryAccessEvent",
+      "file": "query_access_event.schema.json",
+      "sha256": "78040b2f5b2684a128f96086aae0eb7fe6c61746ee6d10b0ab44dc8f446edeca",
+      "surface": "public_contract"
+    },
+    {
+      "bytes": 12305,
+      "contract": "QueryContext",
+      "file": "query_context.schema.json",
+      "sha256": "fe32fcb5336f126ad212bf5382505e4b17a91e28774ae0f6d32ebe3868434d0c",
+      "surface": "public_contract"
+    },
+    {
+      "bytes": 14167,
+      "contract": "RunManifest",
+      "file": "run_manifest.schema.json",
+      "sha256": "8dd2fec48e6c0aa539c9c065d96e44a51f6dd70a1ba8149e2195ead0d8c0f10f",
+      "surface": "public_contract"
+    },
+    {
+      "bytes": 53210,
+      "contract": "ValidatedGeneration",
+      "file": "validated_generation.schema.json",
+      "sha256": "9a41d4ef85780ccd007c7bc08f4a5e0bea0072840b45b3216fc076444c22b1cf",
+      "surface": "public_contract"
+    },
+    {
+      "bytes": 18416,
+      "contract": "VisualizationAssertion",
+      "file": "visualization_assertion.schema.json",
+      "sha256": "a505ffbc31b4c2cd61768c44ade5d09fab13fb21e691f1704ee04137d1884466",
+      "surface": "public_contract"
+    },
+    {
+      "bytes": 8494,
+      "contract": "VisualizationNode",
+      "file": "visualization_node.schema.json",
+      "sha256": "5fcdcd5c6805b778d75a642ce833be63fdc7b2d427ed0c404085263ae6693f76",
+      "surface": "public_contract"
+    },
+    {
+      "bytes": 30052,
+      "contract": "VisualizationState",
+      "file": "visualization_state.schema.json",
+      "sha256": "334ee1988b2f051e89a3755fb2cfa08be9ae54f23c1ba71251e4f2b043940b51",
+      "surface": "public_contract"
+    }
+  ],
+  "scorer_only_contracts_included": false
+}
