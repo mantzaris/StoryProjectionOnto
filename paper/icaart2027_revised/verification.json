@@ -1,0 +1,221 @@
+{
+  "baseline_files_unchanged": 92,
+  "title_unchanged": true,
+  "abstract_unchanged": true,
+  "original_result_cells_unchanged": true,
+  "original_calls_replayed": 21,
+  "original_question_answers_replayed": 30,
+  "new_filter_cases": 15,
+  "new_gpu_calls": 0,
+  "new_semantic_annotations": 0,
+  "figure_1_original_record_occurrences_unchanged": 19,
+  "figure_1_displayed_source_sentences": 10,
+  "revised_pdf": {
+    "pages": 8,
+    "sha256": "62c4e05e3f48c40c277f98d752b98b21abf2d1e640e1f9fb795ad210a0bc32ce",
+    "all_fonts_embedded": true,
+    "page_bounds_points": [
+      [
+        73.701,
+        94.663122,
+        521.617159,
+        723.274922
+      ],
+      [
+        73.701,
+        95.881489,
+        521.617512,
+        722.950922
+      ],
+      [
+        73.701,
+        97.885357,
+        521.617148,
+        723.274922
+      ],
+      [
+        73.701,
+        97.885357,
+        521.616809,
+        723.274922
+      ],
+      [
+        73.701,
+        97.882064,
+        521.616809,
+        716.062922
+      ],
+      [
+        73.701,
+        96.873725,
+        521.617512,
+        721.798922
+      ],
+      [
+        73.701,
+        97.563781,
+        521.617512,
+        721.598922
+      ],
+      [
+        73.701,
+        95.703534,
+        521.616902,
+        723.059742
+      ]
+    ],
+    "figure_captions": [
+      {
+        "page": 2,
+        "lines": 2,
+        "text": "Figure 1: Orchard input excerpts, model extraction (top network) and fixed ownership/carrying selection (bottom). Believer names qualify edges; they do not add relationships."
+      },
+      {
+        "page": 5,
+        "lines": 2,
+        "text": "Figure 2: Fable action records from fixed selection (A) and contextual extraction (B). + marks supported meaning; \u223c marks partial meaning."
+      },
+      {
+        "page": 6,
+        "lines": 2,
+        "text": "Figure 3: Alice\u2019s contextual action and thought records. + marks supported meaning, x a wrong participant, and ? an unresolved interpretation."
+      }
+    ]
+  },
+  "diff_pdf": {
+    "pages": 12,
+    "sha256": "a1f1fb2923e3602b3225ea5fdca67c04014349c5d68efda107e0c8dd45dba6e6",
+    "all_fonts_embedded": true,
+    "page_bounds_points": [
+      [
+        73.701,
+        94.663122,
+        523.189536,
+        726.70116
+      ],
+      [
+        73.701,
+        97.884357,
+        523.190402,
+        718.994922
+      ],
+      [
+        73.701,
+        95.457361,
+        523.190402,
+        715.28716
+      ],
+      [
+        73.701,
+        96.390912,
+        523.190402,
+        722.92116
+      ],
+      [
+        73.701,
+        97.774703,
+        523.190268,
+        726.24716
+      ],
+      [
+        73.701,
+        97.885357,
+        523.189939,
+        723.273922
+      ],
+      [
+        73.701,
+        96.5832,
+        523.190402,
+        725.25516
+      ],
+      [
+        73.701,
+        97.563781,
+        521.612899,
+        718.596922
+      ],
+      [
+        73.701,
+        95.703534,
+        523.190268,
+        720.275742
+      ],
+      [
+        73.701,
+        98.560781,
+        287.896134,
+        717.999922
+      ],
+      [
+        40.0,
+        29.841309,
+        498.550411,
+        562.1575
+      ],
+      [
+        40.0,
+        29.841309,
+        498.550411,
+        603.311065
+      ]
+    ],
+    "figure_captions": []
+  },
+  "source_zip": {
+    "sha256": "435fb361356a3edf621e69a82d2752c5e2f5d8d823c01a9a49f9c519ea9b4b83",
+    "isolated_compile_text_identical": true,
+    "files": [
+      "ICAART2027_revised.tex",
+      "references.bib",
+      "figure_blocks.tex",
+      "build.sh",
+      "article.cls",
+      "SCITEPRESS.sty",
+      "apalike.sty",
+      "apalike.bst",
+      "generated/numbers.tex",
+      "tables/compact.tex",
+      "tables/prose.tex",
+      "figures/orchard_network.pdf",
+      "figures/fable.pdf",
+      "figures/alice.pdf"
+    ]
+  },
+  "references_defined_and_cited": [
+    "aesop",
+    "banko2007",
+    "bhardwaj2019",
+    "carroll",
+    "caufield2024",
+    "doyle",
+    "fader2011",
+    "fokkens2017",
+    "heer2012",
+    "kwon2023",
+    "lairgi2026",
+    "mausam2012",
+    "openai2025",
+    "qwen2025",
+    "qwenmodel",
+    "schneider2017",
+    "time2017"
+  ],
+  "source_sha256": {
+    "ICAART2027_revised.tex": "4f7f54b1246699182bcd6dcd7a5f2d0670db3c528ff1623950d8d742d6d62b8a",
+    "references.bib": "2e0386868781c350d22a293199490c5e75e02937dedf62b257f6c7ad3376af89",
+    "figure_blocks.tex": "047fea6f0bae89583f0cd3babed8234b5a62daf939310a649119e410eb4ce01c",
+    "build.sh": "2a2df0211bc4c18b157129724b1e8724d891fb84d5ce31834a342d2f71dcf5ba",
+    "article.cls": "23e48b9a27539b6589503b6b5c5ff1451b58edfb245a0fa4c5847bb94392d32c",
+    "SCITEPRESS.sty": "d4a8482e5b2772a279b881012bedd813023f3c614287e02d5c648497ade3bf14",
+    "apalike.sty": "183bdccc3608e9db948dbd1cdffec3e2a476650dad223c7a3294325371fc0339",
+    "apalike.bst": "6977bea0847e4b850fd5bdc948beeaa50cd4d0c2a275e74a5fd68309a9628191",
+    "generated/numbers.tex": "a07445e41721290f29cc7b454df5d46717991cb3a4cb166b28c3f0658bcfa3a8",
+    "tables/compact.tex": "b2a513a0b9fbc04ef0b4a437386a816518a4958147fb193f48ecb8cc38f6eb43",
+    "tables/prose.tex": "de1bf247e7400578b2c6d85bb1bf268a67aecae79a0af3003c82c664bfdc64f2",
+    "figures/orchard_network.pdf": "687128366c00daf2656bc7bdd2813ccd9c87553e8dd21b295d73fd1bc3dcf59c",
+    "figures/fable.pdf": "8507ab059656cc7728c6037cb699bf09a9bf34a7ae0cb64ff2ec2a4bf8a87a83",
+    "figures/alice.pdf": "56b375ddd02b6fbcb9344438f377d3c51f404172bd2578b67a0097f2eccb74b4"
+  },
+  "visual_inspection": "See VISUAL_CHECK.md; manual inspection is separate from these automated checks."
+}

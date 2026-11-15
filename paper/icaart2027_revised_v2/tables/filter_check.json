@@ -1,0 +1,1871 @@
+{
+  "design": "Post hoc diagnostic: apply the original A selector unchanged to each B response; no new generation, scoring rules, reference answers or semantic judgments.",
+  "original_calls_replayed": 21,
+  "original_question_answers_replayed": 30,
+  "source_sha256": {
+    "reports/tables/compact_story_v2_results.json": "aa790aa69c049dd400c1ea2228b782b08ec33bbbc8c399ed51ecc16af6b8e77a",
+    "reports/tables/real_text_proof_of_concept.json": "ad118e8aca4b2b3d7ed19abda1879bdfb2f8fac4f21e3f34c541056084742e59",
+    "src/story_projection_onto/compact_story.py": "ecb453971d0194f994b416d848c73cd1cb9e1146cb2686ef8275d5c5d08b0d31",
+    "src/story_projection_onto/compact_story_v2.py": "e910b5dffad24110b6cb49b4fca06044b83253b26257b0eba6983b18b3e51af1",
+    "src/story_projection_onto/real_text_poc.py": "0a692a609e5dc0efecaebe48a6e292ea271f9176361112eb4dcdf00bbb77d5ac",
+    "src/story_projection_onto/compact_syntax.py": "a5d11b73a2b1e4400c99dc3abdd8e8dce78222fe0ff5a3d19dad2580e1307e7c",
+    "src/story_projection_onto/scorer_only/compact_story.py": "4a7992d813331888a162b2780fe603535a8777d8d60428523f7ad8ec297807a5",
+    "src/story_projection_onto/scorer_only/compact_story_v2.py": "c2fbe841b6ece55889524920d24da8468ab75964956e033abd461bd938effa97",
+    "src/story_projection_onto/scorer_only/real_text_poc.py": "316f69565aa8a15f1383395c321c377406375ba70b8389fd0ddd2d8ea40f4cb3",
+    "src/story_projection_onto/scorer_only/simple_ladder_v2.py": "7f43f127a0175fb8a32ba74955f4faa2b49b7ba4c0d703b0413e21a117858259"
+  },
+  "rows": [
+    {
+      "dataset": "synthetic",
+      "story": "harbor",
+      "question": "possession",
+      "A_predicted": 5,
+      "A_true_positive": 5,
+      "A_reference_count": 5,
+      "A_precision": 1.0,
+      "A_recall": 1.0,
+      "A_f1": 1.0,
+      "A_status": "scored",
+      "B_predicted": 10,
+      "B_true_positive": 5,
+      "B_reference_count": 5,
+      "B_precision": 0.5,
+      "B_recall": 1.0,
+      "B_f1": 0.6666666666666666,
+      "B_status": "scored",
+      "B_filter_predicted": 5,
+      "B_filter_true_positive": 5,
+      "B_filter_reference_count": 5,
+      "B_filter_precision": 1.0,
+      "B_filter_recall": 1.0,
+      "B_filter_f1": 1.0,
+      "B_filter_status": "scored"
+    },
+    {
+      "dataset": "synthetic",
+      "story": "harbor",
+      "question": "locations",
+      "A_predicted": 4,
+      "A_true_positive": 4,
+      "A_reference_count": 4,
+      "A_precision": 1.0,
+      "A_recall": 1.0,
+      "A_f1": 1.0,
+      "A_status": "scored",
+      "B_predicted": 6,
+      "B_true_positive": 4,
+      "B_reference_count": 4,
+      "B_precision": 0.6666666666666666,
+      "B_recall": 1.0,
+      "B_f1": 0.8,
+      "B_status": "scored",
+      "B_filter_predicted": 4,
+      "B_filter_true_positive": 4,
+      "B_filter_reference_count": 4,
+      "B_filter_precision": 1.0,
+      "B_filter_recall": 1.0,
+      "B_filter_f1": 1.0,
+      "B_filter_status": "scored"
+    },
+    {
+      "dataset": "synthetic",
+      "story": "harbor",
+      "question": "belief",
+      "A_predicted": 5,
+      "A_true_positive": 0,
+      "A_reference_count": 4,
+      "A_precision": 0.0,
+      "A_recall": 0.0,
+      "A_f1": 0.0,
+      "A_status": "scored",
+      "B_predicted": 14,
+      "B_true_positive": 2,
+      "B_reference_count": 4,
+      "B_precision": 0.14285714285714285,
+      "B_recall": 0.5,
+      "B_f1": 0.22222222222222224,
+      "B_status": "scored",
+      "B_filter_predicted": 5,
+      "B_filter_true_positive": 0,
+      "B_filter_reference_count": 4,
+      "B_filter_precision": 0.0,
+      "B_filter_recall": 0.0,
+      "B_filter_f1": 0.0,
+      "B_filter_status": "scored"
+    },
+    {
+      "dataset": "synthetic",
+      "story": "orchard",
+      "question": "possession",
+      "A_predicted": 5,
+      "A_true_positive": 5,
+      "A_reference_count": 5,
+      "A_precision": 1.0,
+      "A_recall": 1.0,
+      "A_f1": 1.0,
+      "A_status": "scored",
+      "B_predicted": 12,
+      "B_true_positive": 5,
+      "B_reference_count": 5,
+      "B_precision": 0.4166666666666667,
+      "B_recall": 1.0,
+      "B_f1": 0.5882352941176471,
+      "B_status": "scored",
+      "B_filter_predicted": 5,
+      "B_filter_true_positive": 5,
+      "B_filter_reference_count": 5,
+      "B_filter_precision": 1.0,
+      "B_filter_recall": 1.0,
+      "B_filter_f1": 1.0,
+      "B_filter_status": "scored"
+    },
+    {
+      "dataset": "synthetic",
+      "story": "orchard",
+      "question": "locations",
+      "A_predicted": 4,
+      "A_true_positive": 4,
+      "A_reference_count": 4,
+      "A_precision": 1.0,
+      "A_recall": 1.0,
+      "A_f1": 1.0,
+      "A_status": "scored",
+      "B_predicted": 5,
+      "B_true_positive": 3,
+      "B_reference_count": 4,
+      "B_precision": 0.6,
+      "B_recall": 0.75,
+      "B_f1": 0.6666666666666665,
+      "B_status": "scored",
+      "B_filter_predicted": 3,
+      "B_filter_true_positive": 3,
+      "B_filter_reference_count": 4,
+      "B_filter_precision": 1.0,
+      "B_filter_recall": 0.75,
+      "B_filter_f1": 0.8571428571428571,
+      "B_filter_status": "scored"
+    },
+    {
+      "dataset": "synthetic",
+      "story": "orchard",
+      "question": "belief",
+      "A_predicted": 4,
+      "A_true_positive": 4,
+      "A_reference_count": 4,
+      "A_precision": 1.0,
+      "A_recall": 1.0,
+      "A_f1": 1.0,
+      "A_status": "scored",
+      "B_predicted": 13,
+      "B_true_positive": 2,
+      "B_reference_count": 4,
+      "B_precision": 0.15384615384615385,
+      "B_recall": 0.5,
+      "B_f1": 0.23529411764705882,
+      "B_status": "scored",
+      "B_filter_predicted": 5,
+      "B_filter_true_positive": 0,
+      "B_filter_reference_count": 4,
+      "B_filter_precision": 0.0,
+      "B_filter_recall": 0.0,
+      "B_filter_f1": 0.0,
+      "B_filter_status": "scored"
+    },
+    {
+      "dataset": "synthetic",
+      "story": "museum",
+      "question": "possession",
+      "A_predicted": 5,
+      "A_true_positive": 5,
+      "A_reference_count": 5,
+      "A_precision": 1.0,
+      "A_recall": 1.0,
+      "A_f1": 1.0,
+      "A_status": "scored",
+      "B_predicted": 13,
+      "B_true_positive": 5,
+      "B_reference_count": 5,
+      "B_precision": 0.38461538461538464,
+      "B_recall": 1.0,
+      "B_f1": 0.5555555555555556,
+      "B_status": "scored",
+      "B_filter_predicted": 5,
+      "B_filter_true_positive": 5,
+      "B_filter_reference_count": 5,
+      "B_filter_precision": 1.0,
+      "B_filter_recall": 1.0,
+      "B_filter_f1": 1.0,
+      "B_filter_status": "scored"
+    },
+    {
+      "dataset": "synthetic",
+      "story": "museum",
+      "question": "locations",
+      "A_predicted": 4,
+      "A_true_positive": 4,
+      "A_reference_count": 4,
+      "A_precision": 1.0,
+      "A_recall": 1.0,
+      "A_f1": 1.0,
+      "A_status": "scored",
+      "B_predicted": 5,
+      "B_true_positive": 4,
+      "B_reference_count": 4,
+      "B_precision": 0.8,
+      "B_recall": 1.0,
+      "B_f1": 0.888888888888889,
+      "B_status": "scored",
+      "B_filter_predicted": 4,
+      "B_filter_true_positive": 4,
+      "B_filter_reference_count": 4,
+      "B_filter_precision": 1.0,
+      "B_filter_recall": 1.0,
+      "B_filter_f1": 1.0,
+      "B_filter_status": "scored"
+    },
+    {
+      "dataset": "synthetic",
+      "story": "museum",
+      "question": "belief",
+      "A_predicted": 4,
+      "A_true_positive": 0,
+      "A_reference_count": 4,
+      "A_precision": 0.0,
+      "A_recall": 0.0,
+      "A_f1": 0.0,
+      "A_status": "scored",
+      "B_predicted": 14,
+      "B_true_positive": 2,
+      "B_reference_count": 4,
+      "B_precision": 0.14285714285714285,
+      "B_recall": 0.5,
+      "B_f1": 0.22222222222222224,
+      "B_status": "scored",
+      "B_filter_predicted": 4,
+      "B_filter_true_positive": 0,
+      "B_filter_reference_count": 4,
+      "B_filter_precision": 0.0,
+      "B_filter_recall": 0.0,
+      "B_filter_f1": 0.0,
+      "B_filter_status": "scored"
+    },
+    {
+      "dataset": "prose",
+      "story": "alice",
+      "question": "actions",
+      "A_predicted": 2,
+      "A_true_positive": 1,
+      "A_reference_count": 5,
+      "A_precision": 0.5,
+      "A_recall": 0.2,
+      "A_f1": 0.28571428571428575,
+      "A_status": "scored",
+      "B_predicted": 5,
+      "B_true_positive": 2,
+      "B_reference_count": 5,
+      "B_precision": 0.4,
+      "B_recall": 0.4,
+      "B_f1": 0.4000000000000001,
+      "B_status": "scored",
+      "B_filter_predicted": 5,
+      "B_filter_true_positive": 2,
+      "B_filter_reference_count": 5,
+      "B_filter_precision": 0.4,
+      "B_filter_recall": 0.4,
+      "B_filter_f1": 0.4000000000000001,
+      "B_filter_status": "scored"
+    },
+    {
+      "dataset": "prose",
+      "story": "alice",
+      "question": "claims",
+      "A_predicted": 4,
+      "A_true_positive": 0,
+      "A_reference_count": 4,
+      "A_precision": 0.0,
+      "A_recall": 0.0,
+      "A_f1": 0,
+      "A_status": "scored",
+      "B_predicted": 3,
+      "B_true_positive": 0,
+      "B_reference_count": 4,
+      "B_precision": 0.0,
+      "B_recall": 0.0,
+      "B_f1": 0,
+      "B_status": "scored",
+      "B_filter_predicted": 3,
+      "B_filter_true_positive": 0,
+      "B_filter_reference_count": 4,
+      "B_filter_precision": 0.0,
+      "B_filter_recall": 0.0,
+      "B_filter_f1": 0,
+      "B_filter_status": "scored"
+    },
+    {
+      "dataset": "prose",
+      "story": "fable",
+      "question": "actions",
+      "A_predicted": 8,
+      "A_true_positive": 5,
+      "A_reference_count": 8,
+      "A_precision": 0.625,
+      "A_recall": 0.625,
+      "A_f1": 0.625,
+      "A_status": "scored",
+      "B_predicted": 5,
+      "B_true_positive": 2,
+      "B_reference_count": 8,
+      "B_precision": 0.4,
+      "B_recall": 0.25,
+      "B_f1": 0.3076923076923077,
+      "B_status": "scored",
+      "B_filter_predicted": 5,
+      "B_filter_true_positive": 2,
+      "B_filter_reference_count": 8,
+      "B_filter_precision": 0.4,
+      "B_filter_recall": 0.25,
+      "B_filter_f1": 0.3076923076923077,
+      "B_filter_status": "scored"
+    },
+    {
+      "dataset": "prose",
+      "story": "fable",
+      "question": "claims",
+      "A_predicted": 1,
+      "A_true_positive": 0,
+      "A_reference_count": 5,
+      "A_precision": 0.0,
+      "A_recall": 0.0,
+      "A_f1": 0,
+      "A_status": "scored",
+      "B_predicted": 4,
+      "B_true_positive": 0,
+      "B_reference_count": 5,
+      "B_precision": 0.0,
+      "B_recall": 0.0,
+      "B_f1": 0,
+      "B_status": "scored",
+      "B_filter_predicted": 3,
+      "B_filter_true_positive": 0,
+      "B_filter_reference_count": 5,
+      "B_filter_precision": 0.0,
+      "B_filter_recall": 0.0,
+      "B_filter_f1": 0,
+      "B_filter_status": "scored"
+    },
+    {
+      "dataset": "prose",
+      "story": "holmes",
+      "question": "actions",
+      "A_predicted": null,
+      "A_true_positive": null,
+      "A_reference_count": null,
+      "A_precision": null,
+      "A_recall": null,
+      "A_f1": null,
+      "A_status": "unavailable_parse_failure",
+      "B_predicted": null,
+      "B_true_positive": null,
+      "B_reference_count": null,
+      "B_precision": null,
+      "B_recall": null,
+      "B_f1": null,
+      "B_status": "unavailable_parse_failure",
+      "B_filter_predicted": null,
+      "B_filter_true_positive": null,
+      "B_filter_reference_count": null,
+      "B_filter_precision": null,
+      "B_filter_recall": null,
+      "B_filter_f1": null,
+      "B_filter_status": "unavailable_parse_failure"
+    },
+    {
+      "dataset": "prose",
+      "story": "holmes",
+      "question": "claims",
+      "A_predicted": null,
+      "A_true_positive": null,
+      "A_reference_count": null,
+      "A_precision": null,
+      "A_recall": null,
+      "A_f1": null,
+      "A_status": "unavailable_parse_failure",
+      "B_predicted": 3,
+      "B_true_positive": 0,
+      "B_reference_count": 5,
+      "B_precision": 0.0,
+      "B_recall": 0.0,
+      "B_f1": 0,
+      "B_status": "scored",
+      "B_filter_predicted": 3,
+      "B_filter_true_positive": 0,
+      "B_filter_reference_count": 5,
+      "B_filter_precision": 0.0,
+      "B_filter_recall": 0.0,
+      "B_filter_f1": 0,
+      "B_filter_status": "scored"
+    }
+  ],
+  "selection_traces": [
+    {
+      "dataset": "synthetic",
+      "story": "harbor",
+      "question": "possession",
+      "source_call": "4",
+      "response_sha256": "04e1c834fb5f2597a5edd3902f01489102d8c9fc2b45381f9806d7fdfe39ea3d",
+      "selection_trace": [
+        {
+          "source_index": 0,
+          "selected": true,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 1,
+          "selected": true,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 2,
+          "selected": true,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 3,
+          "selected": true,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 4,
+          "selected": false,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 5,
+          "selected": true,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 6,
+          "selected": false,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 7,
+          "selected": false,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 8,
+          "selected": false,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 9,
+          "selected": false,
+          "criterion": "direct ownership/carrying category"
+        }
+      ],
+      "selected_output": {
+        "facts": [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "Cobalt Compass",
+            "relation": "owns",
+            "subject": "Lena",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S2"
+            ],
+            "holder": null,
+            "object": "Amber Lantern",
+            "relation": "owns",
+            "subject": "Omar",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S3"
+            ],
+            "holder": null,
+            "object": "Cobalt Compass",
+            "relation": "carries",
+            "subject": "Priya",
+            "valid_from": 0,
+            "valid_until": 6
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S4"
+            ],
+            "holder": null,
+            "object": "Amber Lantern",
+            "relation": "carries",
+            "subject": "Lena",
+            "valid_from": 1,
+            "valid_until": 5
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S13"
+            ],
+            "holder": null,
+            "object": "Silver Flute",
+            "relation": "owns",
+            "subject": "Priya",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ]
+      }
+    },
+    {
+      "dataset": "synthetic",
+      "story": "harbor",
+      "question": "locations",
+      "source_call": "5",
+      "response_sha256": "c108d6d8b65830f4a55043ab714934fbbe38be665949bdc6bb2492108c2a0861",
+      "selection_trace": [
+        {
+          "source_index": 0,
+          "selected": false,
+          "criterion": "direct location with explicit nonempty interval overlap; original bounds retained"
+        },
+        {
+          "source_index": 1,
+          "selected": false,
+          "criterion": "direct location with explicit nonempty interval overlap; original bounds retained"
+        },
+        {
+          "source_index": 2,
+          "selected": true,
+          "criterion": "direct location with explicit nonempty interval overlap; original bounds retained"
+        },
+        {
+          "source_index": 3,
+          "selected": true,
+          "criterion": "direct location with explicit nonempty interval overlap; original bounds retained"
+        },
+        {
+          "source_index": 4,
+          "selected": true,
+          "criterion": "direct location with explicit nonempty interval overlap; original bounds retained"
+        },
+        {
+          "source_index": 5,
+          "selected": true,
+          "criterion": "direct location with explicit nonempty interval overlap; original bounds retained"
+        }
+      ],
+      "selected_output": {
+        "facts": [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S5"
+            ],
+            "holder": null,
+            "object": "North Hall",
+            "relation": "located_in",
+            "subject": "Lena",
+            "valid_from": 1,
+            "valid_until": 5
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S6"
+            ],
+            "holder": null,
+            "object": "East Garden",
+            "relation": "located_in",
+            "subject": "Omar",
+            "valid_from": 0,
+            "valid_until": 3
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S7"
+            ],
+            "holder": null,
+            "object": "Stone Shed",
+            "relation": "located_in",
+            "subject": "Priya",
+            "valid_from": 3,
+            "valid_until": 6
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S8"
+            ],
+            "holder": null,
+            "object": "West Pier",
+            "relation": "located_in",
+            "subject": "Silver Flute",
+            "valid_from": 2,
+            "valid_until": 4
+          }
+        ]
+      }
+    },
+    {
+      "dataset": "synthetic",
+      "story": "harbor",
+      "question": "belief",
+      "source_call": "6",
+      "response_sha256": "79e084f6e76c8d3ce823b7dc519405fe19445690a855972496cb8c78e874a8ad",
+      "selection_trace": [
+        {
+          "source_index": 0,
+          "selected": false,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 1,
+          "selected": false,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 2,
+          "selected": false,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 3,
+          "selected": false,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 4,
+          "selected": true,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 5,
+          "selected": true,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 6,
+          "selected": false,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 7,
+          "selected": false,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 8,
+          "selected": false,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 9,
+          "selected": true,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 10,
+          "selected": false,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 11,
+          "selected": true,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 12,
+          "selected": false,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 13,
+          "selected": true,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        }
+      ],
+      "selected_output": {
+        "facts": [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S5"
+            ],
+            "holder": null,
+            "object": "North Hall",
+            "relation": "located_in",
+            "subject": "Lena",
+            "valid_from": 1,
+            "valid_until": 5
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S6"
+            ],
+            "holder": null,
+            "object": "East Garden",
+            "relation": "located_in",
+            "subject": "Omar",
+            "valid_from": 0,
+            "valid_until": 3
+          },
+          {
+            "attitude": "believes",
+            "evidence_ids": [
+              "S9"
+            ],
+            "holder": "Lena",
+            "object": "Cobalt Compass is in North Hall",
+            "relation": "believes",
+            "subject": "Lena",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "attitude": "believes",
+            "evidence_ids": [
+              "S11"
+            ],
+            "holder": "Omar",
+            "object": "Amber Lantern is in Stone Shed",
+            "relation": "believes",
+            "subject": "Omar",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S14"
+            ],
+            "holder": null,
+            "object": "Stone Shed",
+            "relation": "located_in",
+            "subject": "Lena",
+            "valid_from": 7,
+            "valid_until": 9
+          }
+        ]
+      }
+    },
+    {
+      "dataset": "synthetic",
+      "story": "orchard",
+      "question": "possession",
+      "source_call": "7",
+      "response_sha256": "fecfba00889abab24ce1579b4c66e61827ca2b994cc24c4b28b31fdd3954a82d",
+      "selection_trace": [
+        {
+          "source_index": 0,
+          "selected": true,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 1,
+          "selected": true,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 2,
+          "selected": true,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 3,
+          "selected": true,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 4,
+          "selected": false,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 5,
+          "selected": false,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 6,
+          "selected": false,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 7,
+          "selected": false,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 8,
+          "selected": false,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 9,
+          "selected": false,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 10,
+          "selected": true,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 11,
+          "selected": false,
+          "criterion": "direct ownership/carrying category"
+        }
+      ],
+      "selected_output": {
+        "facts": [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "Copper Book",
+            "relation": "owns",
+            "subject": "Vera",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S2"
+            ],
+            "holder": null,
+            "object": "Ivory Vase",
+            "relation": "owns",
+            "subject": "Soren",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S3"
+            ],
+            "holder": null,
+            "object": "Copper Book",
+            "relation": "carries",
+            "subject": "Jun",
+            "valid_from": 9,
+            "valid_until": 17
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S4"
+            ],
+            "holder": null,
+            "object": "Ivory Vase",
+            "relation": "carries",
+            "subject": "Vera",
+            "valid_from": 10,
+            "valid_until": 16
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S13"
+            ],
+            "holder": null,
+            "object": "Jade Drum",
+            "relation": "owns",
+            "subject": "Jun",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ]
+      }
+    },
+    {
+      "dataset": "synthetic",
+      "story": "orchard",
+      "question": "locations",
+      "source_call": "8",
+      "response_sha256": "d4b0a13f90429f701ee4441ec430880079840228a53550633d6ae9052ebcc5df",
+      "selection_trace": [
+        {
+          "source_index": 0,
+          "selected": false,
+          "criterion": "direct location with explicit nonempty interval overlap; original bounds retained"
+        },
+        {
+          "source_index": 1,
+          "selected": false,
+          "criterion": "direct location with explicit nonempty interval overlap; original bounds retained"
+        },
+        {
+          "source_index": 2,
+          "selected": true,
+          "criterion": "direct location with explicit nonempty interval overlap; original bounds retained"
+        },
+        {
+          "source_index": 3,
+          "selected": true,
+          "criterion": "direct location with explicit nonempty interval overlap; original bounds retained"
+        },
+        {
+          "source_index": 4,
+          "selected": true,
+          "criterion": "direct location with explicit nonempty interval overlap; original bounds retained"
+        }
+      ],
+      "selected_output": {
+        "facts": [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S5"
+            ],
+            "holder": null,
+            "object": "River Room",
+            "relation": "located_in",
+            "subject": "Jun",
+            "valid_from": 10,
+            "valid_until": 14
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S6"
+            ],
+            "holder": null,
+            "object": "Hill Court",
+            "relation": "located_in",
+            "subject": "Soren",
+            "valid_from": 14,
+            "valid_until": 18
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S8"
+            ],
+            "holder": null,
+            "object": "Elm Dock",
+            "relation": "located_in",
+            "subject": "Jade Drum",
+            "valid_from": 12,
+            "valid_until": 15
+          }
+        ]
+      }
+    },
+    {
+      "dataset": "synthetic",
+      "story": "orchard",
+      "question": "belief",
+      "source_call": "9",
+      "response_sha256": "607406ef2300e74cb1ef2cc604ab4dd2f9a670836a7c4e0bb6b6f8bbe6bf25f3",
+      "selection_trace": [
+        {
+          "source_index": 0,
+          "selected": false,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 1,
+          "selected": false,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 2,
+          "selected": false,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 3,
+          "selected": true,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 4,
+          "selected": true,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 5,
+          "selected": false,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 6,
+          "selected": false,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 7,
+          "selected": true,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 8,
+          "selected": false,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 9,
+          "selected": true,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 10,
+          "selected": false,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 11,
+          "selected": false,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 12,
+          "selected": true,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        }
+      ],
+      "selected_output": {
+        "facts": [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S5"
+            ],
+            "holder": null,
+            "object": "River Room",
+            "relation": "located_in",
+            "subject": "Jun",
+            "valid_from": 10,
+            "valid_until": 14
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S6"
+            ],
+            "holder": null,
+            "object": "Hill Court",
+            "relation": "located_in",
+            "subject": "Soren",
+            "valid_from": 14,
+            "valid_until": 18
+          },
+          {
+            "attitude": "believes",
+            "evidence_ids": [
+              "S9"
+            ],
+            "holder": "Soren",
+            "object": "Copper Book is in South Loft",
+            "relation": "believes",
+            "subject": "Soren",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "attitude": "believes",
+            "evidence_ids": [
+              "S11"
+            ],
+            "holder": "Jun",
+            "object": "Ivory Vase is in Hill Court",
+            "relation": "believes",
+            "subject": "Jun",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S14"
+            ],
+            "holder": null,
+            "object": "South Loft",
+            "relation": "located_in",
+            "subject": "Jun",
+            "valid_from": 18,
+            "valid_until": 20
+          }
+        ]
+      }
+    },
+    {
+      "dataset": "synthetic",
+      "story": "museum",
+      "question": "possession",
+      "source_call": "10",
+      "response_sha256": "596a2336793c53815989b19d35d95c1d3c9f68bd1c2cca8f88021161a8f4822e",
+      "selection_trace": [
+        {
+          "source_index": 0,
+          "selected": false,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 1,
+          "selected": true,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 2,
+          "selected": false,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 3,
+          "selected": true,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 4,
+          "selected": false,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 5,
+          "selected": false,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 6,
+          "selected": false,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 7,
+          "selected": false,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 8,
+          "selected": true,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 9,
+          "selected": true,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 10,
+          "selected": false,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 11,
+          "selected": false,
+          "criterion": "direct ownership/carrying category"
+        },
+        {
+          "source_index": 12,
+          "selected": true,
+          "criterion": "direct ownership/carrying category"
+        }
+      ],
+      "selected_output": {
+        "facts": [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S2"
+            ],
+            "holder": null,
+            "object": "Ruby Medal",
+            "relation": "owns",
+            "subject": "Esme",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S5"
+            ],
+            "holder": null,
+            "object": "Ruby Medal",
+            "relation": "carries",
+            "subject": "Niko",
+            "valid_from": 19,
+            "valid_until": 26
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S13"
+            ],
+            "holder": null,
+            "object": "Pearl Box",
+            "relation": "carries",
+            "subject": "Esme",
+            "valid_from": 20,
+            "valid_until": 24
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S8"
+            ],
+            "holder": null,
+            "object": "Onyx Bell",
+            "relation": "owns",
+            "subject": "Dario",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S11"
+            ],
+            "holder": null,
+            "object": "Pearl Box",
+            "relation": "owns",
+            "subject": "Niko",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ]
+      }
+    },
+    {
+      "dataset": "synthetic",
+      "story": "museum",
+      "question": "locations",
+      "source_call": "11",
+      "response_sha256": "65969684792913f269028966341d874db209718bdbb8e5618f7feed5bb8d4955",
+      "selection_trace": [
+        {
+          "source_index": 0,
+          "selected": true,
+          "criterion": "direct location with explicit nonempty interval overlap; original bounds retained"
+        },
+        {
+          "source_index": 1,
+          "selected": true,
+          "criterion": "direct location with explicit nonempty interval overlap; original bounds retained"
+        },
+        {
+          "source_index": 2,
+          "selected": true,
+          "criterion": "direct location with explicit nonempty interval overlap; original bounds retained"
+        },
+        {
+          "source_index": 3,
+          "selected": true,
+          "criterion": "direct location with explicit nonempty interval overlap; original bounds retained"
+        },
+        {
+          "source_index": 4,
+          "selected": false,
+          "criterion": "direct location with explicit nonempty interval overlap; original bounds retained"
+        }
+      ],
+      "selected_output": {
+        "facts": [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S3"
+            ],
+            "holder": null,
+            "object": "Upper Court",
+            "relation": "located_in",
+            "subject": "Dario",
+            "valid_from": 20,
+            "valid_until": 23
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S6"
+            ],
+            "holder": null,
+            "object": "Cedar Gate",
+            "relation": "located_in",
+            "subject": "Onyx Bell",
+            "valid_from": 23,
+            "valid_until": 27
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S9"
+            ],
+            "holder": null,
+            "object": "Glass Room",
+            "relation": "located_in",
+            "subject": "Esme",
+            "valid_from": 21,
+            "valid_until": 25
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S12"
+            ],
+            "holder": null,
+            "object": "Brick Store",
+            "relation": "located_in",
+            "subject": "Niko",
+            "valid_from": 24,
+            "valid_until": 28
+          }
+        ]
+      }
+    },
+    {
+      "dataset": "synthetic",
+      "story": "museum",
+      "question": "belief",
+      "source_call": "12",
+      "response_sha256": "e278dc8cd3429a691efa2a319f8678048070439ef75a753f3e7a06867076f62f",
+      "selection_trace": [
+        {
+          "source_index": 0,
+          "selected": true,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 1,
+          "selected": false,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 2,
+          "selected": false,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 3,
+          "selected": false,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 4,
+          "selected": false,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 5,
+          "selected": true,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 6,
+          "selected": false,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 7,
+          "selected": false,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 8,
+          "selected": false,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 9,
+          "selected": true,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 10,
+          "selected": false,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 11,
+          "selected": true,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 12,
+          "selected": false,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        },
+        {
+          "source_index": 13,
+          "selected": false,
+          "criterion": "attributed record or narrated location of an attributed subject"
+        }
+      ],
+      "selected_output": {
+        "facts": [
+          {
+            "attitude": "believes",
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "Pearl Box is in Glass Room",
+            "relation": "believes",
+            "subject": "Niko",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "attitude": "believes",
+            "evidence_ids": [
+              "S7"
+            ],
+            "holder": null,
+            "object": "Ruby Medal is in Cedar Gate",
+            "relation": "believes",
+            "subject": "Esme",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S9"
+            ],
+            "holder": null,
+            "object": "Glass Room",
+            "relation": "is_in",
+            "subject": "Esme",
+            "valid_from": 21,
+            "valid_until": 25
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S12"
+            ],
+            "holder": null,
+            "object": "Brick Store",
+            "relation": "is_in",
+            "subject": "Niko",
+            "valid_from": 24,
+            "valid_until": 28
+          }
+        ]
+      }
+    },
+    {
+      "dataset": "prose",
+      "story": "alice",
+      "question": "actions",
+      "source_call": "6",
+      "response_sha256": "b9e29bf99176997f2fab2e5d081322e18af072b983896c2364c3991421f4d66b",
+      "selection_trace": [
+        {
+          "source_index": 0,
+          "selected": true,
+          "criterion": "frozen relation-substring category; fable claims additionally Lion subject for capture/release"
+        },
+        {
+          "source_index": 1,
+          "selected": true,
+          "criterion": "frozen relation-substring category; fable claims additionally Lion subject for capture/release"
+        },
+        {
+          "source_index": 2,
+          "selected": true,
+          "criterion": "frozen relation-substring category; fable claims additionally Lion subject for capture/release"
+        },
+        {
+          "source_index": 3,
+          "selected": true,
+          "criterion": "frozen relation-substring category; fable claims additionally Lion subject for capture/release"
+        },
+        {
+          "source_index": 4,
+          "selected": true,
+          "criterion": "frozen relation-substring category; fable claims additionally Lion subject for capture/release"
+        }
+      ],
+      "selected_output": {
+        "facts": [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "her sister",
+            "relation": "sitting_by",
+            "subject": "Alice",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "bank",
+            "relation": "sitting_by",
+            "subject": "Alice",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "the book",
+            "relation": "peeped_into",
+            "subject": "Alice",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "the book",
+            "relation": "reading",
+            "subject": "Alice",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S2"
+            ],
+            "holder": null,
+            "object": "close by her",
+            "relation": "ran",
+            "subject": "White Rabbit",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ]
+      }
+    },
+    {
+      "dataset": "prose",
+      "story": "alice",
+      "question": "claims",
+      "source_call": "7",
+      "response_sha256": "2416b29a64e53bf05b4f6d7d01d29b71b6c8c4b47bc3c75f60dc7658ae72273e",
+      "selection_trace": [
+        {
+          "source_index": 0,
+          "selected": true,
+          "criterion": "frozen relation-substring category; fable claims additionally Lion subject for capture/release"
+        },
+        {
+          "source_index": 1,
+          "selected": true,
+          "criterion": "frozen relation-substring category; fable claims additionally Lion subject for capture/release"
+        },
+        {
+          "source_index": 2,
+          "selected": true,
+          "criterion": "frozen relation-substring category; fable claims additionally Lion subject for capture/release"
+        }
+      ],
+      "selected_output": {
+        "facts": [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "pictures or conversations",
+            "relation": "lacks",
+            "subject": "book",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "use of a book without pictures or conversations is questionable",
+            "relation": "thinks",
+            "subject": "Alice",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S2"
+            ],
+            "holder": "Alice",
+            "object": "worth the trouble of getting up and picking the daisies",
+            "relation": "considered",
+            "subject": "making a daisy-chain",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ]
+      }
+    },
+    {
+      "dataset": "prose",
+      "story": "fable",
+      "question": "actions",
+      "source_call": "4",
+      "response_sha256": "5072d0032902d7f1e3d2bbfbeb08bc1a93b83d9c19c721d028139bf2679a6de4",
+      "selection_trace": [
+        {
+          "source_index": 0,
+          "selected": true,
+          "criterion": "frozen relation-substring category; fable claims additionally Lion subject for capture/release"
+        },
+        {
+          "source_index": 1,
+          "selected": true,
+          "criterion": "frozen relation-substring category; fable claims additionally Lion subject for capture/release"
+        },
+        {
+          "source_index": 2,
+          "selected": true,
+          "criterion": "frozen relation-substring category; fable claims additionally Lion subject for capture/release"
+        },
+        {
+          "source_index": 3,
+          "selected": true,
+          "criterion": "frozen relation-substring category; fable claims additionally Lion subject for capture/release"
+        },
+        {
+          "source_index": 4,
+          "selected": true,
+          "criterion": "frozen relation-substring category; fable claims additionally Lion subject for capture/release"
+        }
+      ],
+      "selected_output": {
+        "facts": [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S1"
+            ],
+            "holder": null,
+            "object": "Lion",
+            "relation": "running_over",
+            "subject": "Mouse",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S4"
+            ],
+            "holder": null,
+            "object": "hunters",
+            "relation": "caught_by",
+            "subject": "Lion",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S4"
+            ],
+            "holder": null,
+            "object": "ropes",
+            "relation": "bound_by",
+            "subject": "Lion",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S5"
+            ],
+            "holder": null,
+            "object": "ropes",
+            "relation": "gnawed",
+            "subject": "Mouse",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S5"
+            ],
+            "holder": null,
+            "object": "Mouse",
+            "relation": "freed_by",
+            "subject": "Lion",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ]
+      }
+    },
+    {
+      "dataset": "prose",
+      "story": "fable",
+      "question": "claims",
+      "source_call": "5",
+      "response_sha256": "3bb7f182da9618420f7669c3b398ea11632e568ff5ceccd4abd4786ee4ab05b2",
+      "selection_trace": [
+        {
+          "source_index": 0,
+          "selected": false,
+          "criterion": "frozen relation-substring category; fable claims additionally Lion subject for capture/release"
+        },
+        {
+          "source_index": 1,
+          "selected": true,
+          "criterion": "frozen relation-substring category; fable claims additionally Lion subject for capture/release"
+        },
+        {
+          "source_index": 2,
+          "selected": true,
+          "criterion": "frozen relation-substring category; fable claims additionally Lion subject for capture/release"
+        },
+        {
+          "source_index": 3,
+          "selected": true,
+          "criterion": "frozen relation-substring category; fable claims additionally Lion subject for capture/release"
+        }
+      ],
+      "selected_output": {
+        "facts": [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S2"
+            ],
+            "holder": null,
+            "object": "repayment",
+            "relation": "promise",
+            "subject": "Mouse",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S2"
+            ],
+            "holder": null,
+            "object": "ability_to_help",
+            "relation": "promise",
+            "subject": "Mouse",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S6"
+            ],
+            "holder": null,
+            "object": "Lion_earlier_ridicule",
+            "relation": "claim",
+            "subject": "Mouse",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ]
+      }
+    },
+    {
+      "dataset": "prose",
+      "story": "holmes",
+      "question": "actions",
+      "source_call": "8",
+      "response_sha256": "e77daade4a15fb7034896d9b5818c3462fba9cc1c05ba5101cde49d3d8abf975",
+      "selection_trace": null,
+      "selected_output": null
+    },
+    {
+      "dataset": "prose",
+      "story": "holmes",
+      "question": "claims",
+      "source_call": "9",
+      "response_sha256": "8c452945ec71a3d62a8009d1153143e11b21210c95fd182fbda4975f50ec5605",
+      "selection_trace": [
+        {
+          "source_index": 0,
+          "selected": true,
+          "criterion": "frozen relation-substring category; fable claims additionally Lion subject for capture/release"
+        },
+        {
+          "source_index": 1,
+          "selected": true,
+          "criterion": "frozen relation-substring category; fable claims additionally Lion subject for capture/release"
+        },
+        {
+          "source_index": 2,
+          "selected": true,
+          "criterion": "frozen relation-substring category; fable claims additionally Lion subject for capture/release"
+        }
+      ],
+      "selected_output": {
+        "facts": [
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S4",
+              "S5"
+            ],
+            "holder": null,
+            "object": "with Watson",
+            "relation": "is_engaged",
+            "subject": "Holmes",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S7"
+            ],
+            "holder": null,
+            "object": "with Mr. Wilson",
+            "relation": "has_past_partnership",
+            "subject": "Holmes",
+            "valid_from": null,
+            "valid_until": null
+          },
+          {
+            "attitude": null,
+            "evidence_ids": [
+              "S7"
+            ],
+            "holder": null,
+            "object": "Mr. Wilson",
+            "relation": "expects_help_from",
+            "subject": "Holmes",
+            "valid_from": null,
+            "valid_until": null
+          }
+        ]
+      }
+    }
+  ]
+}

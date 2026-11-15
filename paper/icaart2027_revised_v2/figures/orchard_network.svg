@@ -1,0 +1,374 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:ns2="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" width="447.912pt" height="530.45pt" viewBox="0 0 447.912 530.45" version="1.1">
+ <metadata>
+  <rdf:RDF>
+   <ns2:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <ns2:Agent>
+      <dc:title>Matplotlib</dc:title>
+     </ns2:Agent>
+    </dc:creator>
+   </ns2:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ <style>@font-face{font-family:'Times New Roman';font-weight:normal;src:local('Times New Roman'),local('TimesNewRomanPSMT');}@font-face{font-family:'Times New Roman';font-weight:bold;src:local('Times New Roman Bold'),local('TimesNewRomanPS-BoldMT');}</style></defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 530.45  L 447.912 530.45  L 447.912 0  L 0 0  z " style="fill: #ffffff" />
+  </g>
+  <g id="axes_1">
+   <g id="edge-orchard_network-orchard_pre-1-0" data-record="edge-orchard_network-orchard_pre-1" role="button" tabindex="0">
+    <path d="M 286.48892 222.955927  Q 255.498477 206.949213 225.650393 191.532533  " clip-path="url(#p4d7e658d73)" style="fill: none; stroke: #384b59; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 228.286518 195.145128  L 225.650393 191.532533  L 230.122144 191.59119  z " clip-path="url(#p4d7e658d73)" style="fill: #384b59; stroke: #384b59; stroke-width: 1.15; stroke-linecap: round" />
+   <title>not_assessed_in_this_view: {"attitude": null, "evidence_ids": ["S1"], "holder": null, "object": "Copper Book", "relation": "owns", "subject": "Vera", "valid_from": null, "valid_until": null}. Citation link only. Literal model pre-extraction, not a reference graph.</title></g>
+   <g id="edge-orchard_network-orchard_pre-2-0" data-record="edge-orchard_network-orchard_pre-2" role="button" tabindex="0">
+    <path d="M 387.210307 264.547079  Q 335.249061 287.340745 284.465249 309.617911  " clip-path="url(#p4d7e658d73)" style="fill: none; stroke: #384b59; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 288.931738 309.842578  L 284.465249 309.617911  L 287.324877 306.17952  z " clip-path="url(#p4d7e658d73)" style="fill: #384b59; stroke: #384b59; stroke-width: 1.15; stroke-linecap: round" />
+   <title>not_assessed_in_this_view: {"attitude": null, "evidence_ids": ["S2"], "holder": null, "object": "Ivory Vase", "relation": "owns", "subject": "Soren", "valid_from": null, "valid_until": null}. Citation link only. Literal model pre-extraction, not a reference graph.</title></g>
+   <g id="edge-orchard_network-orchard_pre-3-0" data-record="edge-orchard_network-orchard_pre-3" role="button" tabindex="0">
+    <path d="M 77.531908 237.982104  Q 129.239855 214.418549 179.77782 191.388161  " clip-path="url(#p4d7e658d73)" style="fill: none; stroke: #384b59; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 175.308591 191.226932  L 179.77782 191.388161  L 176.967299 194.866807  z " clip-path="url(#p4d7e658d73)" style="fill: #384b59; stroke: #384b59; stroke-width: 1.15; stroke-linecap: round" />
+   <title>not_assessed_in_this_view: {"attitude": null, "evidence_ids": ["S3"], "holder": null, "object": "Copper Book", "relation": "carries", "subject": "Jun", "valid_from": 9, "valid_until": 17}. Citation link only. Literal model pre-extraction, not a reference graph.</title></g>
+   <g id="edge-orchard_network-orchard_pre-4-0" data-record="edge-orchard_network-orchard_pre-4" role="button" tabindex="0">
+    <path d="M 300.80859 244.98435  Q 283.50041 276.949243 266.804438 307.783506  " clip-path="url(#p4d7e658d73)" style="fill: none; stroke: #384b59; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 270.467773 305.218361  L 266.804438 307.783506  L 266.950323 303.313751  z " clip-path="url(#p4d7e658d73)" style="fill: #384b59; stroke: #384b59; stroke-width: 1.15; stroke-linecap: round" />
+   <title>not_assessed_in_this_view: {"attitude": null, "evidence_ids": ["S4"], "holder": null, "object": "Ivory Vase", "relation": "carries", "subject": "Vera", "valid_from": 10, "valid_until": 16}. Citation link only. Literal model pre-extraction, not a reference graph.</title></g>
+   <g id="edge-orchard_network-orchard_pre-5-0" data-record="edge-orchard_network-orchard_pre-5" role="button" tabindex="0">
+    <path d="M 54.868654 236.573374  Q 54.499992 203.79925 54.145791 172.310784  " clip-path="url(#p4d7e658d73)" style="fill: none; stroke: #384b59; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 52.190909 176.333027  L 54.145791 172.310784  L 56.190656 176.288036  z " clip-path="url(#p4d7e658d73)" style="fill: #384b59; stroke: #384b59; stroke-width: 1.15; stroke-linecap: round" />
+   <title>not_assessed_in_this_view: {"attitude": null, "evidence_ids": ["S5"], "holder": null, "object": "River Room", "relation": "located_in", "subject": "Jun", "valid_from": 10, "valid_until": 14}. Citation link only. Literal model pre-extraction, not a reference graph.</title></g>
+   <g id="edge-orchard_network-orchard_pre-6-0" data-record="edge-orchard_network-orchard_pre-6" role="button" tabindex="0">
+    <path d="M 409.536981 266.218072  Q 408.000192 304.945154 406.514385 342.387509  " clip-path="url(#p4d7e658d73)" style="fill: none; stroke: #384b59; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 408.671417 338.469957  L 406.514385 342.387509  L 404.674563 338.311352  z " clip-path="url(#p4d7e658d73)" style="fill: #384b59; stroke: #384b59; stroke-width: 1.15; stroke-linecap: round" />
+   <title>not_assessed_in_this_view: {"attitude": null, "evidence_ids": ["S6"], "holder": null, "object": "Hill Court", "relation": "located_in", "subject": "Soren", "valid_from": 14, "valid_until": 18}. Citation link only. Literal model pre-extraction, not a reference graph.</title></g>
+   <g id="edge-orchard_network-orchard_pre-7-0" data-record="edge-orchard_network-orchard_pre-7" role="button" tabindex="0">
+    <path d="M 318.06201 222.458093  Q 343.999465 196.450537 369.028992 171.353362  " clip-path="url(#p4d7e658d73)" style="fill: none; stroke: #384b59; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 364.788264 172.7733  L 369.028992 171.353362  L 367.620506 175.597907  z " clip-path="url(#p4d7e658d73)" style="fill: #384b59; stroke: #384b59; stroke-width: 1.15; stroke-linecap: round" />
+   <title>not_assessed_in_this_view: {"attitude": null, "evidence_ids": ["S7"], "holder": null, "object": "South Loft", "relation": "located_in", "subject": "Vera", "valid_from": 11, "valid_until": 16}. Citation link only. Literal model pre-extraction, not a reference graph.</title></g>
+   <g id="edge-orchard_network-orchard_pre-8-0" data-record="edge-orchard_network-orchard_pre-8" role="button" tabindex="0">
+    <path d="M 73.127235 336.961454  Q 107.51471 345.325188 140.652868 353.385062  " clip-path="url(#p4d7e658d73)" style="fill: none; stroke: #384b59; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 137.238838 350.496394  L 140.652868 353.385062  L 136.293516 354.383085  z " clip-path="url(#p4d7e658d73)" style="fill: #384b59; stroke: #384b59; stroke-width: 1.15; stroke-linecap: round" />
+   <title>not_assessed_in_this_view: {"attitude": null, "evidence_ids": ["S8"], "holder": null, "object": "Elm Dock", "relation": "located_in", "subject": "Jade Drum", "valid_from": 12, "valid_until": 15}. Citation link only. Literal model pre-extraction, not a reference graph.</title></g>
+   <g id="edge-orchard_network-orchard_pre-9-0" data-record="edge-orchard_network-orchard_pre-9" role="button" tabindex="0">
+    <path d="M 233.227329 171.853911  Q 293.629587 156.434373 354.766033 158.003379  " clip-path="url(#p4d7e658d73)" style="fill: none; stroke-dasharray: 4.255,1.84; stroke-dashoffset: 0; stroke: #384b59; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 350.818661 155.901416  L 354.766033 158.003379  L 350.716039 159.900099  z " clip-path="url(#p4d7e658d73)" style="fill: #384b59; stroke-dasharray: 4.255,1.84; stroke-dashoffset: 0; stroke: #384b59; stroke-width: 1.15; stroke-linecap: round" />
+   <title>not_assessed_in_this_view: {"attitude": "believes", "evidence_ids": ["S9"], "holder": "Soren", "object": "South Loft", "relation": "located_in", "subject": "Copper Book", "valid_from": null, "valid_until": null}. Citation link only. Literal model pre-extraction, not a reference graph.</title></g>
+   <g id="edge-orchard_network-orchard_pre-10-0" data-record="edge-orchard_network-orchard_pre-10" role="button" tabindex="0">
+    <path d="M 174.585379 176.231953  Q 128.054873 169.717682 82.797688 163.381676  " clip-path="url(#p4d7e658d73)" style="fill: none; stroke: #384b59; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 86.481759 165.916951  L 82.797688 163.381676  L 87.03635 161.955584  z " clip-path="url(#p4d7e658d73)" style="fill: #384b59; stroke: #384b59; stroke-width: 1.15; stroke-linecap: round" />
+   <title>not_assessed_in_this_view: {"attitude": null, "evidence_ids": ["S10"], "holder": null, "object": "River Room", "relation": "located_in", "subject": "Copper Book", "valid_from": null, "valid_until": null}. Citation link only. Literal model pre-extraction, not a reference graph.</title></g>
+   <g id="edge-orchard_network-orchard_pre-11-0" data-record="edge-orchard_network-orchard_pre-11" role="button" tabindex="0">
+    <path d="M 284.814923 326.298783  Q 333.360225 337.936355 380.655213 349.274195  " clip-path="url(#p4d7e658d73)" style="fill: none; stroke-dasharray: 4.255,1.84; stroke-dashoffset: 0; stroke: #384b59; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 377.231665 346.396815  L 380.655213 349.274195  L 376.29918 350.286606  z " clip-path="url(#p4d7e658d73)" style="fill: #384b59; stroke-dasharray: 4.255,1.84; stroke-dashoffset: 0; stroke: #384b59; stroke-width: 1.15; stroke-linecap: round" />
+   <title>not_assessed_in_this_view: {"attitude": "believes", "evidence_ids": ["S11"], "holder": "Jun", "object": "Hill Court", "relation": "located_in", "subject": "Ivory Vase", "valid_from": null, "valid_until": null}. Citation link only. Literal model pre-extraction, not a reference graph.</title></g>
+   <g id="edge-orchard_network-orchard_pre-12-0" data-record="edge-orchard_network-orchard_pre-12" role="button" tabindex="0">
+    <path d="M 236.369279 330.204514  Q 212.75081 340.053918 190.319028 349.408448  " clip-path="url(#p4d7e658d73)" style="fill: none; stroke: #384b59; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 194.780659 349.714792  L 190.319028 349.408448  L 193.241083 346.022949  z " clip-path="url(#p4d7e658d73)" style="fill: #384b59; stroke: #384b59; stroke-width: 1.15; stroke-linecap: round" />
+   <title>not_assessed_in_this_view: {"attitude": null, "evidence_ids": ["S12"], "holder": null, "object": "Elm Dock", "relation": "located_in", "subject": "Ivory Vase", "valid_from": null, "valid_until": null}. Citation link only. Literal model pre-extraction, not a reference graph.</title></g>
+   <g id="edge-orchard_network-orchard_pre-13-0" data-record="edge-orchard_network-orchard_pre-13" role="button" tabindex="0">
+    <path d="M 54.010757 259.923067  Q 51.499635 289.554308 49.097084 317.904403  " clip-path="url(#p4d7e658d73)" style="fill: none; stroke: #384b59; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 51.427713 314.087576  L 49.097084 317.904403  L 47.442 313.749804  z " clip-path="url(#p4d7e658d73)" style="fill: #384b59; stroke: #384b59; stroke-width: 1.15; stroke-linecap: round" />
+   <title>not_assessed_in_this_view: {"attitude": null, "evidence_ids": ["S13"], "holder": null, "object": "Jade Drum", "relation": "owns", "subject": "Jun", "valid_from": null, "valid_until": null}. Citation link only. Literal model pre-extraction, not a reference graph.</title></g>
+   <g id="edge-orchard_network-orchard_pre-14-0" data-record="edge-orchard_network-orchard_pre-14" role="button" tabindex="0">
+    <path d="M 79.41346 255.675059  Q 200 292.35 337 270.65  Q 418 250.35 386.313673 172.418763  " clip-path="url(#p4d7e658d73)" style="fill: none; stroke: #384b59; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 385.967562 176.877485  L 386.313673 172.418763  L 389.672984 175.370885  z " clip-path="url(#p4d7e658d73)" style="fill: #384b59; stroke: #384b59; stroke-width: 1.15; stroke-linecap: round" />
+   <title>not_assessed_in_this_view: {"attitude": null, "evidence_ids": ["S14"], "holder": null, "object": "South Loft", "relation": "located_in", "subject": "Jun", "valid_from": 18, "valid_until": 20}. Citation link only. Literal model pre-extraction, not a reference graph.</title></g>
+   <g id="edge-orchard_network-orchard_A-1-0" data-record="edge-orchard_network-orchard_A-1" role="button" tabindex="0">
+    <path d="M 282.91544 429.730104  Q 258.139388 423.331628 234.608231 417.25465  " clip-path="url(#p4d7e658d73)" style="fill: none; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 237.981067 420.191311  L 234.608231 417.25465  L 238.981261 416.318378  z " clip-path="url(#p4d7e658d73)" style="fill: #14776e; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+   <title>supported: {"attitude": null, "evidence_ids": ["S1"], "holder": null, "object": "Copper Book", "relation": "owns", "subject": "Vera", "valid_from": null, "valid_until": null}. Citation link only. correct_complete_fact</title></g>
+   <g id="edge-orchard_network-orchard_A-2-0" data-record="edge-orchard_network-orchard_A-2" role="button" tabindex="0">
+    <path d="M 385.897716 451.736434  Q 335.358888 462.821284 286.075944 473.630676  " clip-path="url(#p4d7e658d73)" style="fill: none; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 290.411549 474.727276  L 286.075944 473.630676  L 289.554586 470.820152  z " clip-path="url(#p4d7e658d73)" style="fill: #14776e; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+   <title>supported: {"attitude": null, "evidence_ids": ["S2"], "holder": null, "object": "Ivory Vase", "relation": "owns", "subject": "Soren", "valid_from": null, "valid_until": null}. Citation link only. correct_complete_fact</title></g>
+   <g id="edge-orchard_network-orchard_A-3-0" data-record="edge-orchard_network-orchard_A-3" role="button" tabindex="0">
+    <path d="M 79.099836 437.808796  Q 126.858259 426.926927 173.363074 416.330696  " clip-path="url(#p4d7e658d73)" style="fill: none; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 169.018714 415.269308  L 173.363074 416.330696  L 169.907348 419.169351  z " clip-path="url(#p4d7e658d73)" style="fill: #14776e; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+   <title>supported: {"attitude": null, "evidence_ids": ["S3"], "holder": null, "object": "Copper Book", "relation": "carries", "subject": "Jun", "valid_from": 9, "valid_until": 17}. Citation link only. correct_complete_fact</title></g>
+   <g id="edge-orchard_network-orchard_A-4-0" data-record="edge-orchard_network-orchard_A-4" role="button" tabindex="0">
+    <path d="M 295.048955 446.985646  Q 283.497194 457.652591 272.890044 467.447278  " clip-path="url(#p4d7e658d73)" style="fill: none; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 277.185598 466.203006  L 272.890044 467.447278  L 274.471959 463.264271  z " clip-path="url(#p4d7e658d73)" style="fill: #14776e; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+   <title>supported: {"attitude": null, "evidence_ids": ["S4"], "holder": null, "object": "Ivory Vase", "relation": "carries", "subject": "Vera", "valid_from": 10, "valid_until": 16}. Citation link only. correct_complete_fact</title></g>
+   <g id="edge-orchard_network-orchard_A-5-0" data-record="edge-orchard_network-orchard_A-5" role="button" tabindex="0">
+    <path d="M 53.025171 454.951493  Q 51.500061 463.94964 50.189809 471.680128  " clip-path="url(#p4d7e658d73)" style="fill: none; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+    <path d="M 52.830119 468.07059  L 50.189809 471.680128  L 48.886365 467.402157  z " clip-path="url(#p4d7e658d73)" style="fill: #14776e; stroke: #14776e; stroke-width: 1.15; stroke-linecap: round" />
+   <title>supported: {"attitude": null, "evidence_ids": ["S13"], "holder": null, "object": "Jade Drum", "relation": "owns", "subject": "Jun", "valid_from": null, "valid_until": null}. Citation link only. correct_complete_fact</title></g>
+   <g id="patch_2">
+    <path d="M 179.216016 170.325  L 228.783984 170.325  Q 231.783984 170.325 231.783984 173.325  L 231.783984 187.375  Q 231.783984 190.375 228.783984 190.375  L 179.216016 190.375  Q 176.216016 190.375 176.216016 187.375  L 176.216016 173.325  Q 176.216016 170.325 179.216016 170.325  z " clip-path="url(#p4d7e658d73)" style="fill: #fff1d4; stroke: #566573; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_3">
+    <path d="M 146.5 349.525  L 185.5 349.525  Q 188.5 349.525 188.5 352.525  L 188.5 366.575  Q 188.5 369.575 185.5 369.575  L 146.5 369.575  Q 143.5 369.575 143.5 366.575  L 143.5 352.525  Q 143.5 349.525 146.5 349.525  z " clip-path="url(#p4d7e658d73)" style="fill: #f1f1f1; stroke: #566573; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_4">
+    <path d="M 386.5 345.325  L 425.5 345.325  Q 428.5 345.325 428.5 348.325  L 428.5 362.375  Q 428.5 365.375 425.5 365.375  L 386.5 365.375  Q 383.5 365.375 383.5 362.375  L 383.5 348.325  Q 383.5 345.325 386.5 345.325  z " clip-path="url(#p4d7e658d73)" style="fill: #f1f1f1; stroke: #566573; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_5">
+    <path d="M 239.783437 310.325  L 280.216563 310.325  Q 283.216563 310.325 283.216563 313.325  L 283.216563 327.375  Q 283.216563 330.375 280.216563 330.375  L 239.783437 330.375  Q 236.783437 330.375 236.783437 327.375  L 236.783437 313.325  Q 236.783437 310.325 239.783437 310.325  z " clip-path="url(#p4d7e658d73)" style="fill: #fff1d4; stroke: #566573; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_6">
+    <path d="M 27.47 320.825  L 68.53 320.825  Q 71.53 320.825 71.53 323.825  L 71.53 337.875  Q 71.53 340.875 68.53 340.875  L 27.47 340.875  Q 24.47 340.875 24.47 337.875  L 24.47 323.825  Q 24.47 320.825 27.47 320.825  z " clip-path="url(#p4d7e658d73)" style="fill: #fff1d4; stroke: #566573; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_7">
+    <path d="M 35.5 238.225  L 74.5 238.225  Q 77.5 238.225 77.5 241.225  L 77.5 255.275  Q 77.5 258.275 74.5 258.275  L 35.5 258.275  Q 32.5 258.275 32.5 255.275  L 32.5 241.225  Q 32.5 238.225 35.5 238.225  z " clip-path="url(#p4d7e658d73)" style="fill: #e4edf5; stroke: #566573; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_8">
+    <path d="M 31.104609 149.325  L 76.895391 149.325  Q 79.895391 149.325 79.895391 152.325  L 79.895391 166.375  Q 79.895391 169.375 76.895391 169.375  L 31.104609 169.375  Q 28.104609 169.375 28.104609 166.375  L 28.104609 152.325  Q 28.104609 149.325 31.104609 149.325  z " clip-path="url(#p4d7e658d73)" style="fill: #f1f1f1; stroke: #566573; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_9">
+    <path d="M 390.5 244.525  L 429.5 244.525  Q 432.5 244.525 432.5 247.525  L 432.5 261.575  Q 432.5 264.575 429.5 264.575  L 390.5 264.575  Q 387.5 264.575 387.5 261.575  L 387.5 247.525  Q 387.5 244.525 390.5 244.525  z " clip-path="url(#p4d7e658d73)" style="fill: #e4edf5; stroke: #566573; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_10">
+    <path d="M 360.701758 149.325  L 401.298242 149.325  Q 404.298242 149.325 404.298242 152.325  L 404.298242 166.375  Q 404.298242 169.375 401.298242 169.375  L 360.701758 169.375  Q 357.701758 169.375 357.701758 166.375  L 357.701758 152.325  Q 357.701758 149.325 360.701758 149.325  z " clip-path="url(#p4d7e658d73)" style="fill: #f1f1f1; stroke: #566573; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_11">
+    <path d="M 287.5 223.525  L 326.5 223.525  Q 329.5 223.525 329.5 226.525  L 329.5 240.575  Q 329.5 243.575 326.5 243.575  L 287.5 243.575  Q 284.5 243.575 284.5 240.575  L 284.5 226.525  Q 284.5 223.525 287.5 223.525  z " clip-path="url(#p4d7e658d73)" style="fill: #e4edf5; stroke: #566573; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_12">
+    <path d="M 179.216016 399.325  L 228.783984 399.325  Q 231.783984 399.325 231.783984 402.325  L 231.783984 416.375  Q 231.783984 419.375 228.783984 419.375  L 179.216016 419.375  Q 176.216016 419.375 176.216016 416.375  L 176.216016 402.325  Q 176.216016 399.325 179.216016 399.325  z " clip-path="url(#p4d7e658d73)" style="fill: #fff1d4; stroke: #566573; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_13">
+    <path d="M 239.783437 469.325  L 280.216563 469.325  Q 283.216563 469.325 283.216563 472.325  L 283.216563 486.375  Q 283.216563 489.375 280.216563 489.375  L 239.783437 489.375  Q 236.783437 489.375 236.783437 486.375  L 236.783437 472.325  Q 236.783437 469.325 239.783437 469.325  z " clip-path="url(#p4d7e658d73)" style="fill: #fff1d4; stroke: #566573; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_14">
+    <path d="M 27.47 474.575  L 68.53 474.575  Q 71.53 474.575 71.53 477.575  L 71.53 491.625  Q 71.53 494.625 68.53 494.625  L 27.47 494.625  Q 24.47 494.625 24.47 491.625  L 24.47 477.575  Q 24.47 474.575 27.47 474.575  z " clip-path="url(#p4d7e658d73)" style="fill: #fff1d4; stroke: #566573; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_15">
+    <path d="M 35.5 433.275  L 74.5 433.275  Q 77.5 433.275 77.5 436.275  L 77.5 450.325  Q 77.5 453.325 74.5 453.325  L 35.5 453.325  Q 32.5 453.325 32.5 450.325  L 32.5 436.275  Q 32.5 433.275 35.5 433.275  z " clip-path="url(#p4d7e658d73)" style="fill: #e4edf5; stroke: #566573; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_16">
+    <path d="M 390.5 436.425  L 429.5 436.425  Q 432.5 436.425 432.5 439.425  L 432.5 453.475  Q 432.5 456.475 429.5 456.475  L 390.5 456.475  Q 387.5 456.475 387.5 453.475  L 387.5 439.425  Q 387.5 436.425 390.5 436.425  z " clip-path="url(#p4d7e658d73)" style="fill: #e4edf5; stroke: #566573; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="patch_17">
+    <path d="M 287.5 425.925  L 326.5 425.925  Q 329.5 425.925 329.5 428.925  L 329.5 442.975  Q 329.5 445.975 326.5 445.975  L 287.5 445.975  Q 284.5 445.975 284.5 442.975  L 284.5 428.925  Q 284.5 425.925 287.5 425.925  z " clip-path="url(#p4d7e658d73)" style="fill: #e4edf5; stroke: #566573; stroke-width: 0.7; stroke-linejoin: miter" />
+   </g>
+   <g id="text_1">
+    <text style="font-weight: 700; font-size: 10px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="5" y="10.124463" transform="rotate(-0 5 10.124463)">Orchard · input excerpts and extracted relationships</text>
+   </g>
+   <g id="text_2">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="5" y="27.06521" transform="rotate(-0 5 27.06521)">S1 Vera owns Copper Book.</text>
+   </g>
+   <g id="text_3">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="5" y="40.034194" transform="rotate(-0 5 40.034194)">S2 Soren owns Ivory Vase.</text>
+   </g>
+   <g id="text_4">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #142d40" transform="translate(5 53.157241)">S3 Jun carries Copper Book from day 9 up to but not</text>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #142d40" transform="translate(5 63.203677)">including day 17.</text>
+   </g>
+   <g id="text_5">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #142d40" transform="translate(5 77.257241)">S4 Vera carries Ivory Vase from day 10 up to but not</text>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #142d40" transform="translate(5 87.303677)">including day 16.</text>
+   </g>
+   <g id="text_6">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="5" y="102.209897" transform="rotate(-0 5 102.209897)">S13 Jun owns Jade Drum.</text>
+   </g>
+   <g id="text_7">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="230.956" y="27.06521" transform="rotate(-0 230.956 27.06521)">S9 Soren believes that Copper Book is in South Loft.</text>
+   </g>
+   <g id="text_8">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="230.956" y="40.107241" transform="rotate(-0 230.956 40.107241)">S10 In reality, Copper Book is in River Room.</text>
+   </g>
+   <g id="text_9">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="230.956" y="53.157241" transform="rotate(-0 230.956 53.157241)">S11 Jun believes that Ivory Vase is in Hill Court.</text>
+   </g>
+   <g id="text_10">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="230.956" y="66.207241" transform="rotate(-0 230.956 66.207241)">S12 In reality, Ivory Vase is in Elm Dock.</text>
+   </g>
+   <g id="text_11">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #142d40" transform="translate(230.956 79.257241)">S14 Jun is in South Loft from day 18 up to but not</text>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #142d40" transform="translate(230.956 89.303677)">including day 20.</text>
+   </g>
+   <g id="text_12">
+    <text style="font-weight: 700; font-size: 9px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="5" y="121.662017" transform="rotate(-0 5 121.662017)">Model extraction before the question · 10 nodes / 14 records</text>
+   </g>
+   <g id="text_13">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="204" y="181.89021" transform="rotate(-0 204 181.89021)">Copper Book</text>
+   </g>
+   <g id="text_14">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="166" y="361.940874" transform="rotate(-0 166 361.940874)">Elm Dock</text>
+   </g>
+   <g id="text_15">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="406" y="357.734897" transform="rotate(-0 406 357.734897)">Hill Court</text>
+   </g>
+   <g id="text_16">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="260" y="321.745444" transform="rotate(-0 260 321.745444)">Ivory Vase</text>
+   </g>
+   <g id="text_17">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="48" y="333.234897" transform="rotate(-0 48 333.234897)">Jade Drum</text>
+   </g>
+   <g id="text_18">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="55" y="250.498101" transform="rotate(-0 55 250.498101)">Jun</text>
+   </g>
+   <g id="text_19">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="54" y="161.740874" transform="rotate(-0 54 161.740874)">River Room</text>
+   </g>
+   <g id="text_20">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="410" y="256.861851" transform="rotate(-0 410 256.861851)">Soren</text>
+   </g>
+   <g id="text_21">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="381" y="161.734897" transform="rotate(-0 381 161.734897)">South Loft</text>
+   </g>
+   <g id="text_22">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="307" y="235.798101" transform="rotate(-0 307 235.798101)">Vera</text>
+   </g>
+   <g id="edge-orchard_network-orchard_pre-1-1" data-record="edge-orchard_network-orchard_pre-1" role="button" tabindex="0">
+    <g id="patch_18">
+     <path d="M 245.585625 203.061436  L 280.414375 203.061436  L 280.414375 191.485  L 245.585625 191.485  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #384b59" x="263" y="200.086851" transform="rotate(-0 263 200.086851)">owns · S1</text>
+   <title>not_assessed_in_this_view: {"attitude": null, "evidence_ids": ["S1"], "holder": null, "object": "Copper Book", "relation": "owns", "subject": "Vera", "valid_from": null, "valid_until": null}. Citation link only. Literal model pre-extraction, not a reference graph.</title></g>
+   <g id="edge-orchard_network-orchard_pre-2-1" data-record="edge-orchard_network-orchard_pre-2" role="button" tabindex="0">
+    <g id="patch_19">
+     <path d="M 333.585625 299.661436  L 368.414375 299.661436  L 368.414375 288.085  L 333.585625 288.085  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #384b59" x="351" y="296.686851" transform="rotate(-0 351 296.686851)">owns · S2</text>
+   <title>not_assessed_in_this_view: {"attitude": null, "evidence_ids": ["S2"], "holder": null, "object": "Ivory Vase", "relation": "owns", "subject": "Soren", "valid_from": null, "valid_until": null}. Citation link only. Literal model pre-extraction, not a reference graph.</title></g>
+   <g id="edge-orchard_network-orchard_pre-3-1" data-record="edge-orchard_network-orchard_pre-3" role="button" tabindex="0">
+    <g id="patch_20">
+     <path d="M 112.23418 231.307871  L 151.76582 231.307871  L 151.76582 209.685  L 112.23418 209.685  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #384b59" transform="translate(112.99918 218.359897)">carries · S3</text>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #384b59" transform="translate(121.732266 227.561646)">[9,17)</text>
+   <title>not_assessed_in_this_view: {"attitude": null, "evidence_ids": ["S3"], "holder": null, "object": "Copper Book", "relation": "carries", "subject": "Jun", "valid_from": 9, "valid_until": 17}. Citation link only. Literal model pre-extraction, not a reference graph.</title></g>
+   <g id="edge-orchard_network-orchard_pre-4-1" data-record="edge-orchard_network-orchard_pre-4" role="button" tabindex="0">
+    <g id="patch_21">
+     <path d="M 249.23418 283.107871  L 288.76582 283.107871  L 288.76582 261.485  L 249.23418 261.485  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #384b59" transform="translate(249.99918 270.159897)">carries · S4</text>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #384b59" transform="translate(256.607266 279.361646)">[10,16)</text>
+   <title>not_assessed_in_this_view: {"attitude": null, "evidence_ids": ["S4"], "holder": null, "object": "Ivory Vase", "relation": "carries", "subject": "Vera", "valid_from": 10, "valid_until": 16}. Citation link only. Literal model pre-extraction, not a reference graph.</title></g>
+   <g id="edge-orchard_network-orchard_pre-5-1" data-record="edge-orchard_network-orchard_pre-5" role="button" tabindex="0">
+    <g id="patch_22">
+     <path d="M 26.366797 220.107871  L 53.633203 220.107871  L 53.633203 198.485  L 26.366797 198.485  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #384b59" transform="translate(27.131797 207.159897)">loc · S5</text>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #384b59" transform="translate(27.607266 216.361646)">[10,14)</text>
+   <title>not_assessed_in_this_view: {"attitude": null, "evidence_ids": ["S5"], "holder": null, "object": "River Room", "relation": "located_in", "subject": "Jun", "valid_from": 10, "valid_until": 14}. Citation link only. Literal model pre-extraction, not a reference graph.</title></g>
+   <g id="edge-orchard_network-orchard_pre-6-1" data-record="edge-orchard_network-orchard_pre-6" role="button" tabindex="0">
+    <g id="patch_23">
+     <path d="M 398.366797 320.907871  L 425.633203 320.907871  L 425.633203 299.285  L 398.366797 299.285  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #384b59" transform="translate(399.131797 307.959897)">loc · S6</text>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #384b59" transform="translate(399.607266 317.161646)">[14,18)</text>
+   <title>not_assessed_in_this_view: {"attitude": null, "evidence_ids": ["S6"], "holder": null, "object": "Hill Court", "relation": "located_in", "subject": "Soren", "valid_from": 14, "valid_until": 18}. Citation link only. Literal model pre-extraction, not a reference graph.</title></g>
+   <g id="edge-orchard_network-orchard_pre-7-1" data-record="edge-orchard_network-orchard_pre-7" role="button" tabindex="0">
+    <g id="patch_24">
+     <path d="M 356.366797 225.707871  L 383.633203 225.707871  L 383.633203 204.085  L 356.366797 204.085  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #384b59" transform="translate(357.131797 212.759897)">loc · S7</text>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #384b59" transform="translate(357.764648 221.961646)">[11,16)</text>
+   <title>not_assessed_in_this_view: {"attitude": null, "evidence_ids": ["S7"], "holder": null, "object": "South Loft", "relation": "located_in", "subject": "Vera", "valid_from": 11, "valid_until": 16}. Citation link only. Literal model pre-extraction, not a reference graph.</title></g>
+   <g id="edge-orchard_network-orchard_pre-8-1" data-record="edge-orchard_network-orchard_pre-8" role="button" tabindex="0">
+    <g id="patch_25">
+     <path d="M 90.366797 365.707871  L 117.633203 365.707871  L 117.633203 344.085  L 90.366797 344.085  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #384b59" transform="translate(91.131797 352.759897)">loc · S8</text>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #384b59" transform="translate(91.607266 361.961646)">[12,15)</text>
+   <title>not_assessed_in_this_view: {"attitude": null, "evidence_ids": ["S8"], "holder": null, "object": "Elm Dock", "relation": "located_in", "subject": "Jade Drum", "valid_from": 12, "valid_until": 15}. Citation link only. Literal model pre-extraction, not a reference graph.</title></g>
+   <g id="edge-orchard_network-orchard_pre-9-1" data-record="edge-orchard_network-orchard_pre-9" role="button" tabindex="0">
+    <g id="patch_26">
+     <path d="M 271.088789 167.607871  L 326.911211 167.607871  L 326.911211 145.985  L 271.088789 145.985  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #384b59" transform="translate(286.131797 154.659897)">loc · S9</text>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #384b59" transform="translate(271.853789 164.706333)">Soren / believes</text>
+   <title>not_assessed_in_this_view: {"attitude": "believes", "evidence_ids": ["S9"], "holder": "Soren", "object": "South Loft", "relation": "located_in", "subject": "Copper Book", "valid_from": null, "valid_until": null}. Citation link only. Literal model pre-extraction, not a reference graph.</title></g>
+   <g id="edge-orchard_network-orchard_pre-10-1" data-record="edge-orchard_network-orchard_pre-10" role="button" tabindex="0">
+    <g id="patch_27">
+     <path d="M 117.241797 167.361436  L 148.758203 167.361436  L 148.758203 155.785  L 117.241797 155.785  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #384b59" x="133" y="164.459897" transform="rotate(-0 133 164.459897)">loc · S10</text>
+   <title>not_assessed_in_this_view: {"attitude": null, "evidence_ids": ["S10"], "holder": null, "object": "River Room", "relation": "located_in", "subject": "Copper Book", "valid_from": null, "valid_until": null}. Citation link only. Literal model pre-extraction, not a reference graph.</title></g>
+   <g id="edge-orchard_network-orchard_pre-11-1" data-record="edge-orchard_network-orchard_pre-11" role="button" tabindex="0">
+    <g id="patch_28">
+     <path d="M 313.099727 359.407871  L 360.900273 359.407871  L 360.900273 337.785  L 313.099727 337.785  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #384b59" transform="translate(322.16418 346.459897)">loc · S11</text>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #384b59" transform="translate(313.864727 356.506333)">Jun / believes</text>
+   <title>not_assessed_in_this_view: {"attitude": "believes", "evidence_ids": ["S11"], "holder": "Jun", "object": "Hill Court", "relation": "located_in", "subject": "Ivory Vase", "valid_from": null, "valid_until": null}. Citation link only. Literal model pre-extraction, not a reference graph.</title></g>
+   <g id="edge-orchard_network-orchard_pre-12-1" data-record="edge-orchard_network-orchard_pre-12" role="button" tabindex="0">
+    <g id="patch_29">
+     <path d="M 199.241797 352.161436  L 230.758203 352.161436  L 230.758203 340.585  L 199.241797 340.585  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #384b59" x="215" y="349.259897" transform="rotate(-0 215 349.259897)">loc · S12</text>
+   <title>not_assessed_in_this_view: {"attitude": null, "evidence_ids": ["S12"], "holder": null, "object": "Elm Dock", "relation": "located_in", "subject": "Ivory Vase", "valid_from": null, "valid_until": null}. Citation link only. Literal model pre-extraction, not a reference graph.</title></g>
+   <g id="edge-orchard_network-orchard_pre-13-1" data-record="edge-orchard_network-orchard_pre-13" role="button" tabindex="0">
+    <g id="patch_30">
+     <path d="M 23.460625 296.161436  L 62.539375 296.161436  L 62.539375 284.585  L 23.460625 284.585  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #384b59" x="43" y="293.186851" transform="rotate(-0 43 293.186851)">owns · S13</text>
+   <title>not_assessed_in_this_view: {"attitude": null, "evidence_ids": ["S13"], "holder": null, "object": "Jade Drum", "relation": "owns", "subject": "Jun", "valid_from": null, "valid_until": null}. Citation link only. Literal model pre-extraction, not a reference graph.</title></g>
+   <g id="edge-orchard_network-orchard_pre-14-1" data-record="edge-orchard_network-orchard_pre-14" role="button" tabindex="0">
+    <g id="patch_31">
+     <path d="M 193.241797 297.107871  L 224.758203 297.107871  L 224.758203 275.485  L 193.241797 275.485  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #384b59" transform="translate(194.006797 284.159897)">loc · S14</text>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #384b59" transform="translate(196.607266 293.361646)">[18,20)</text>
+   <title>not_assessed_in_this_view: {"attitude": null, "evidence_ids": ["S14"], "holder": null, "object": "South Loft", "relation": "located_in", "subject": "Jun", "valid_from": 18, "valid_until": 20}. Citation link only. Literal model pre-extraction, not a reference graph.</title></g>
+   <g id="text_23">
+    <text style="font-weight: 700; font-size: 9px; font-family: 'Times New Roman'; text-anchor: start; fill: #142d40" x="5" y="387.653579" transform="rotate(-0 5 387.653579)">Fixed selection: ownership/carrying · 6 nodes / 5 records</text>
+   </g>
+   <g id="text_24">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="204" y="410.89021" transform="rotate(-0 204 410.89021)">Copper Book</text>
+   </g>
+   <g id="text_25">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="260" y="480.745444" transform="rotate(-0 260 480.745444)">Ivory Vase</text>
+   </g>
+   <g id="text_26">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="48" y="486.984897" transform="rotate(-0 48 486.984897)">Jade Drum</text>
+   </g>
+   <g id="text_27">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="55" y="445.548101" transform="rotate(-0 55 445.548101)">Jun</text>
+   </g>
+   <g id="text_28">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="410" y="448.761851" transform="rotate(-0 410 448.761851)">Soren</text>
+   </g>
+   <g id="text_29">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #142d40" x="307" y="438.198101" transform="rotate(-0 307 438.198101)">Vera</text>
+   </g>
+   <g id="edge-orchard_network-orchard_A-1-1" data-record="edge-orchard_network-orchard_A-1" role="button" tabindex="0">
+    <g id="patch_32">
+     <path d="M 242.126523 426.111436  L 283.873477 426.111436  L 283.873477 414.535  L 242.126523 414.535  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #14776e" x="263" y="423.136851" transform="rotate(-0 263 423.136851)">+ owns · S1</text>
+   <title>supported: {"attitude": null, "evidence_ids": ["S1"], "holder": null, "object": "Copper Book", "relation": "owns", "subject": "Vera", "valid_from": null, "valid_until": null}. Citation link only. correct_complete_fact</title></g>
+   <g id="edge-orchard_network-orchard_A-2-1" data-record="edge-orchard_network-orchard_A-2" role="button" tabindex="0">
+    <g id="patch_33">
+     <path d="M 330.126523 474.411436  L 371.873477 474.411436  L 371.873477 462.835  L 330.126523 462.835  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #14776e" x="351" y="471.436851" transform="rotate(-0 351 471.436851)">+ owns · S2</text>
+   <title>supported: {"attitude": null, "evidence_ids": ["S2"], "holder": null, "object": "Ivory Vase", "relation": "owns", "subject": "Soren", "valid_from": null, "valid_until": null}. Citation link only. correct_complete_fact</title></g>
+   <g id="edge-orchard_network-orchard_A-3-1" data-record="edge-orchard_network-orchard_A-3" role="button" tabindex="0">
+    <g id="patch_34">
+     <path d="M 108.775078 445.257871  L 155.224922 445.257871  L 155.224922 423.635  L 108.775078 423.635  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #14776e" transform="translate(109.540078 432.309897)">+ carries · S3</text>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #14776e" transform="translate(121.732266 441.511646)">[9,17)</text>
+   <title>supported: {"attitude": null, "evidence_ids": ["S3"], "holder": null, "object": "Copper Book", "relation": "carries", "subject": "Jun", "valid_from": 9, "valid_until": 17}. Citation link only. correct_complete_fact</title></g>
+   <g id="edge-orchard_network-orchard_A-4-1" data-record="edge-orchard_network-orchard_A-4" role="button" tabindex="0">
+    <g id="patch_35">
+     <path d="M 228.775078 461.707871  L 275.224922 461.707871  L 275.224922 440.085  L 228.775078 440.085  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #14776e" transform="translate(229.540078 448.759897)">+ carries · S4</text>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #14776e" transform="translate(239.607266 457.961646)">[10,16)</text>
+   <title>supported: {"attitude": null, "evidence_ids": ["S4"], "holder": null, "object": "Ivory Vase", "relation": "carries", "subject": "Vera", "valid_from": 10, "valid_until": 16}. Citation link only. correct_complete_fact</title></g>
+   <g id="edge-orchard_network-orchard_A-5-1" data-record="edge-orchard_network-orchard_A-5" role="button" tabindex="0">
+    <g id="patch_36">
+     <path d="M 20.001523 465.661436  L 65.998477 465.661436  L 65.998477 454.085  L 20.001523 454.085  z " style="fill: #ffffff; opacity: 0.97" />
+    </g>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; text-anchor: middle; fill: #14776e" x="43" y="462.686851" transform="rotate(-0 43 462.686851)">+ owns · S13</text>
+   <title>supported: {"attitude": null, "evidence_ids": ["S13"], "holder": null, "object": "Jade Drum", "relation": "owns", "subject": "Jun", "valid_from": null, "valid_until": null}. Citation link only. correct_complete_fact</title></g>
+   <g id="text_30">
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #142d40" transform="translate(5 511.409233)">Blue: person. Cream: object. Grey: place (display categories). loc = located in. Dashed top edges show beliefs; + marks</text>
+    <text style="font-size: 8.5px; font-family: 'Times New Roman'; fill: #142d40" transform="translate(5 521.461646)">supported selected facts. Unprinted bounds and attribution are null. Input excerpted; all 14 sentences supplied.</text>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p4d7e658d73">
+   <rect x="0" y="0" width="447.912" height="530.45" />
+  </clipPath>
+ </defs>
+<metadata>Conference figure. Searchable Times New Roman text requires the local font. No font software is redistributed in this SVG. PDF embeds document subsets.</metadata></svg>

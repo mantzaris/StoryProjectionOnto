@@ -1,0 +1,219 @@
+{
+  "v1_files_unchanged": 83,
+  "baseline_files_unchanged": 92,
+  "title_unchanged": true,
+  "abstract_unchanged": true,
+  "author": "Alexander V. Mantzaris",
+  "author_block_verified": true,
+  "figure_display_width_fraction": 0.95,
+  "original_result_cells_unchanged": true,
+  "original_calls_replayed": 21,
+  "original_question_answers_replayed": 30,
+  "new_filter_cases": 15,
+  "new_gpu_calls": 0,
+  "new_semantic_annotations": 0,
+  "figure_1_original_record_occurrences_unchanged": 19,
+  "figure_1_displayed_source_sentences": 10,
+  "revised_pdf": {
+    "pages": 8,
+    "sha256": "799012bea0267b2d7e96130bfc42de51b0683b428a0600407027bb518fe1c9bb",
+    "all_fonts_embedded": true,
+    "page_bounds_points": [
+      [
+        73.701,
+        94.663122,
+        521.617159,
+        713.398922
+      ],
+      [
+        73.701,
+        95.822312,
+        521.617512,
+        719.831922
+      ],
+      [
+        73.701,
+        97.885357,
+        521.616809,
+        720.489922
+      ],
+      [
+        73.701,
+        97.885357,
+        521.61697,
+        723.274922
+      ],
+      [
+        73.701,
+        97.721862,
+        521.616809,
+        721.160922
+      ],
+      [
+        73.701,
+        96.764756,
+        521.617512,
+        721.851922
+      ],
+      [
+        73.701,
+        97.563781,
+        521.617512,
+        714.625922
+      ],
+      [
+        73.701,
+        95.703534,
+        521.616902,
+        723.059742
+      ]
+    ],
+    "figure_captions": [
+      {
+        "page": 2,
+        "lines": 2,
+        "text": "Figure 1: Orchard input excerpts, model extraction (top network) and fixed ownership/carrying selection (bottom). Believer names qualify edges; they do not add relationships."
+      },
+      {
+        "page": 5,
+        "lines": 2,
+        "text": "Figure 2: Fable action records from fixed selection (A) and contextual extraction (B). + marks supported meaning; \u223c marks partial meaning."
+      },
+      {
+        "page": 6,
+        "lines": 2,
+        "text": "Figure 3: Alice\u2019s contextual action and thought records. + marks supported meaning, x a wrong participant, and ? an unresolved interpretation."
+      }
+    ]
+  },
+  "diff_pdf": {
+    "pages": 11,
+    "sha256": "75ca3d3ffdde749f417e76ec3c8ebfccd15ee0c600fbd351a82d8fe15b0d3599",
+    "all_fonts_embedded": true,
+    "page_bounds_points": [
+      [
+        73.701,
+        94.663122,
+        521.617159,
+        723.273922
+      ],
+      [
+        73.701,
+        97.885357,
+        523.189804,
+        723.273922
+      ],
+      [
+        73.701,
+        95.457361,
+        523.190402,
+        718.27616
+      ],
+      [
+        73.701,
+        97.884357,
+        523.189939,
+        725.30816
+      ],
+      [
+        73.701,
+        97.721862,
+        523.190402,
+        723.274922
+      ],
+      [
+        73.701,
+        97.885357,
+        523.190402,
+        723.273922
+      ],
+      [
+        73.701,
+        96.5832,
+        523.189073,
+        725.25516
+      ],
+      [
+        73.701,
+        97.563781,
+        523.189804,
+        723.274922
+      ],
+      [
+        73.701,
+        95.703534,
+        523.190402,
+        716.290742
+      ],
+      [
+        40.0,
+        29.841309,
+        498.550411,
+        562.1575
+      ],
+      [
+        40.0,
+        29.841309,
+        488.50478,
+        577.145513
+      ]
+    ],
+    "figure_captions": []
+  },
+  "source_zip": {
+    "sha256": "91bd3495c251f310fe6b1b56914bf3a55a95bafa91570f315620f9fecf847a68",
+    "isolated_compile_text_identical": true,
+    "files": [
+      "ICAART2027_revised_v2.tex",
+      "references.bib",
+      "figure_blocks.tex",
+      "build.sh",
+      "article.cls",
+      "SCITEPRESS.sty",
+      "apalike.sty",
+      "apalike.bst",
+      "generated/numbers.tex",
+      "tables/compact.tex",
+      "tables/prose.tex",
+      "figures/orchard_network.pdf",
+      "figures/fable.pdf",
+      "figures/alice.pdf"
+    ]
+  },
+  "references_defined_and_cited": [
+    "aesop",
+    "banko2007",
+    "bhardwaj2019",
+    "carroll",
+    "caufield2024",
+    "doyle",
+    "fader2011",
+    "fokkens2017",
+    "heer2012",
+    "kwon2023",
+    "lairgi2026",
+    "mausam2012",
+    "openai2025",
+    "qwen2025",
+    "qwenmodel",
+    "schneider2017",
+    "time2017"
+  ],
+  "source_sha256": {
+    "ICAART2027_revised_v2.tex": "905579ab87e9b64deec4e350648442d0159ae8e30218f37f8220715b75692365",
+    "references.bib": "2e0386868781c350d22a293199490c5e75e02937dedf62b257f6c7ad3376af89",
+    "figure_blocks.tex": "081b826e4feefd1c43d71b3de3a044d9dcb32c4f6d270654954127a247bf65d7",
+    "build.sh": "fa3d3daf7a3836a33a10e1cd6e1a73dff6f205dcea0c2f4baf7ae31fcfb93cf1",
+    "article.cls": "23e48b9a27539b6589503b6b5c5ff1451b58edfb245a0fa4c5847bb94392d32c",
+    "SCITEPRESS.sty": "d4a8482e5b2772a279b881012bedd813023f3c614287e02d5c648497ade3bf14",
+    "apalike.sty": "183bdccc3608e9db948dbd1cdffec3e2a476650dad223c7a3294325371fc0339",
+    "apalike.bst": "6977bea0847e4b850fd5bdc948beeaa50cd4d0c2a275e74a5fd68309a9628191",
+    "generated/numbers.tex": "a07445e41721290f29cc7b454df5d46717991cb3a4cb166b28c3f0658bcfa3a8",
+    "tables/compact.tex": "b2a513a0b9fbc04ef0b4a437386a816518a4958147fb193f48ecb8cc38f6eb43",
+    "tables/prose.tex": "de1bf247e7400578b2c6d85bb1bf268a67aecae79a0af3003c82c664bfdc64f2",
+    "figures/orchard_network.pdf": "687128366c00daf2656bc7bdd2813ccd9c87553e8dd21b295d73fd1bc3dcf59c",
+    "figures/fable.pdf": "8507ab059656cc7728c6037cb699bf09a9bf34a7ae0cb64ff2ec2a4bf8a87a83",
+    "figures/alice.pdf": "56b375ddd02b6fbcb9344438f377d3c51f404172bd2578b67a0097f2eccb74b4"
+  },
+  "visual_inspection": "See VISUAL_CHECK.md; manual inspection is separate from these automated checks."
+}

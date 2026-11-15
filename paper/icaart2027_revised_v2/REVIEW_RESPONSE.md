@@ -1,0 +1,37 @@
+# Response to reviews — revision v2
+
+This attempt starts from the submitted manuscript and makes local clarifications wherever possible. The title, abstract, original model outputs and A/B scores are unchanged. The same follow-up filter comparison and expanded Figure 1 used in v1 are retained. The separate AI-use section remains in its original position. Edit counts and the comparison method are in [COMPARISON.md](COMPARISON.md).
+
+## Reviewer 1
+
+- **Contribution and framing:** Section 6 identifies an exploratory workflow, not a new extraction algorithm. Section 1 defines the limited use of narrative and temporal ontology. Section 6 explicitly states that neither completeness nor logical consistency is guaranteed and explains the limits of names, belief attribution and time representation.
+- **Jun in S11 and distinction from factual assertion:** Section 3.1 adds the actual Ivory Vase → Hill Court example with holder Jun and attitude `believes`. The holder names the same character as the node without introducing an edge or identity link. S12 places the vase in Elm Dock with null attribution, distinguishing narration from Jun's belief.
+- **Repository and companion:** The Appendix supplies the public repository URL and `paper/icaart2027/` location. The revision README identifies the exact prompts, outputs, reference answers, rules and assessments, and gives CPU replay instructions. The revision package itself remains local until distributed or published.
+- **Results, validation and discussion:** Table 1 adds the original filters applied to the contextual answers (B+f). Section 5.1 reports the improvements in possession/location answers and the failures on belief/reality; prose strict F1 is unchanged where parseable. Section 6 limits these findings to retained outputs from six short texts, one model and one seed. Section 7 gives concrete advantages, disadvantages and next experiments. New references include ATOM, ReVerb and OLLIE.
+
+## Reviewer 2
+
+- **Evaluation origin, assessor and timing:** Section 4.1 states that Codex prepared study-specific reference answers before generation, rather than using a published gold standard. Alternatives and matching rules were fixed beforehand and shared by both approaches. Codex assessed outputs after generation against the source text using a previously fixed rubric. The absence of independent human validation is explicit. Section 8 correctly identifies Qwen as generating the experimental relationship records and discloses the other AI assistance.
+- **How good and bad answers were distinguished:** Section 4.2 explains the order of parsing, strict matching and separate meaning assessments. It identifies the four meaning labels and distinguishes agreement with the listed answers from correctness. It states that those judgments do not alter strict scores. The complete reference answers, rubric and per-record assessments are available through the README's evidence paths.
+- **ATOM and TextRunner:** Section 2 adds the requested ATOM paper and its observation/validity-time distinction. TextRunner, ReVerb and OLLIE are historical context, not tested baselines. The experiment compares question timing; no performance advantage over those systems is claimed.
+- **Speech acts:** Section 3.1 explains that representing a speech or mental act does not establish its content, fulfillment of a promise or a resulting legal/social state.
+- **Seed and nonzero temperature:** The original model-settings paragraph moves to Section 4.1. A short qualification distinguishes the recorded sampling setup from guaranteed identical new server responses. Saved outputs support reproducible score calculation without new inference.
+- **Figure 1:** Ten exact source sentences replace the original three, in two columns. All fourteen sentences were supplied to the model. Graph records, directions and scores remain unchanged.
+- **Story origins:** Sections 3.3 and 4.1 identify Orchard as an invented story and all three synthetic stories as created for this study.
+- **Holmes and Alice ambiguity:** Section 4.1 replaces the unexplained reference to a vocative and author review with the uncertainty about whom a phrase addresses, and distinguishes considering an action's worth from deciding that it is worthwhile. Unresolved readings receive no full coverage credit.
+- **Alternatives and F1:** Accepted alternatives are explained as permitted names or relation wordings fixed before generation. Strict matching uses the stated normalization and wording substitutions; a valid unlisted wording can fail. Section 3.1 corrects the original blanket statement about missing fields: the synthetic matcher tolerates missing nullable fields, while prose matching requires all eight fields.
+- **Parsing and recovery:** Section 4.2 defines parseable JSON and the sole permitted repair: removing a trailing comma before a closing bracket/brace outside quoted text. Neither reported batch used that repair. Parse failures remain unavailable, not empty answers with zero scores.
+- **Clearer language and conclusions:** The revision avoids new specialist terminology, preserves readable original passages, and replaces the criticized vague conclusion with observed differences and specific future work.
+
+## Reviewer 3
+
+- **Motivation and concepts:** Section 1 adds the tradeoff between irrelevant facts in a broad extraction and missing facts in question-specific extraction. It defines the implementation's narrative and temporal ontologies. Sections 3–4 explain attribution, holder, attitude, parseability, and synthetic versus prose filters where they are used.
+- **Related Work:** Section 2 explains the role of the cited extraction systems and adds ATOM. The unclear contribution sentence now says that the views compare answers and check time intervals and attribution against the source. The misplaced sentence about “cited systems” is removed.
+- **Query window:** Section 3.1 explains why a question about [3,4) retains the record valid during [2,5), without shortening its stated duration.
+- **Settings and Orchard:** Experiment settings appear in Evaluation. Orchard is introduced as an invented test story before discussing its network.
+- **Figures and captions:** All three captions fit within two rendered lines. Figure 1 expands the source text in two columns; the existing graphs are retained. Section 3.3 states plainly that figures show selected records while all predictions are scored. Original detailed caption notes remain in `FIGURE_DETAILS.md`; complete inputs and outputs remain in the public evidence files.
+- **Structure and conclusions:** The final Introduction paragraph gives the section order. The Conclusion now contrasts reuse, omissions, cleaner answers, retained thoughts, participant errors and model calls, and names independent annotation, longer unseen texts, repeated runs and external-system comparisons as next steps.
+
+## Limits of this revision
+
+The additional comparison applies unchanged selectors to all 15 saved contextual cases, retaining the unavailable Holmes action answer. It adds no model outputs or semantic annotations. This is a small comparative diagnostic, not independent validation; it cannot establish general superiority or guarantee that requests for broader experiments are fully satisfied. Those limits are stated in the paper. Fresh runs of the existing vLLM setup would need GPU support. This revision uses CPU only.

@@ -1,0 +1,16 @@
+dataset,story,question,A_predicted,A_true_positive,A_reference_count,A_precision,A_recall,A_f1,A_status,B_predicted,B_true_positive,B_reference_count,B_precision,B_recall,B_f1,B_status,B_filter_predicted,B_filter_true_positive,B_filter_reference_count,B_filter_precision,B_filter_recall,B_filter_f1,B_filter_status
+synthetic,harbor,possession,5,5,5,1.0,1.0,1.0,scored,10,5,5,0.5,1.0,0.6666666666666666,scored,5,5,5,1.0,1.0,1.0,scored
+synthetic,harbor,locations,4,4,4,1.0,1.0,1.0,scored,6,4,4,0.6666666666666666,1.0,0.8,scored,4,4,4,1.0,1.0,1.0,scored
+synthetic,harbor,belief,5,0,4,0.0,0.0,0.0,scored,14,2,4,0.14285714285714285,0.5,0.22222222222222224,scored,5,0,4,0.0,0.0,0.0,scored
+synthetic,orchard,possession,5,5,5,1.0,1.0,1.0,scored,12,5,5,0.4166666666666667,1.0,0.5882352941176471,scored,5,5,5,1.0,1.0,1.0,scored
+synthetic,orchard,locations,4,4,4,1.0,1.0,1.0,scored,5,3,4,0.6,0.75,0.6666666666666665,scored,3,3,4,1.0,0.75,0.8571428571428571,scored
+synthetic,orchard,belief,4,4,4,1.0,1.0,1.0,scored,13,2,4,0.15384615384615385,0.5,0.23529411764705882,scored,5,0,4,0.0,0.0,0.0,scored
+synthetic,museum,possession,5,5,5,1.0,1.0,1.0,scored,13,5,5,0.38461538461538464,1.0,0.5555555555555556,scored,5,5,5,1.0,1.0,1.0,scored
+synthetic,museum,locations,4,4,4,1.0,1.0,1.0,scored,5,4,4,0.8,1.0,0.888888888888889,scored,4,4,4,1.0,1.0,1.0,scored
+synthetic,museum,belief,4,0,4,0.0,0.0,0.0,scored,14,2,4,0.14285714285714285,0.5,0.22222222222222224,scored,4,0,4,0.0,0.0,0.0,scored
+prose,alice,actions,2,1,5,0.5,0.2,0.28571428571428575,scored,5,2,5,0.4,0.4,0.4000000000000001,scored,5,2,5,0.4,0.4,0.4000000000000001,scored
+prose,alice,claims,4,0,4,0.0,0.0,0,scored,3,0,4,0.0,0.0,0,scored,3,0,4,0.0,0.0,0,scored
+prose,fable,actions,8,5,8,0.625,0.625,0.625,scored,5,2,8,0.4,0.25,0.3076923076923077,scored,5,2,8,0.4,0.25,0.3076923076923077,scored
+prose,fable,claims,1,0,5,0.0,0.0,0,scored,4,0,5,0.0,0.0,0,scored,3,0,5,0.0,0.0,0,scored
+prose,holmes,actions,,,,,,,unavailable_parse_failure,,,,,,,unavailable_parse_failure,,,,,,,unavailable_parse_failure
+prose,holmes,claims,,,,,,,unavailable_parse_failure,3,0,5,0.0,0.0,0,scored,3,0,5,0.0,0.0,0,scored

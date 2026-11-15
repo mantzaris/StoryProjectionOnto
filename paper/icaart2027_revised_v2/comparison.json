@@ -1,0 +1,181 @@
+{
+  "schema_version": 1,
+  "method": {
+    "tokenization": "Each maximal non-whitespace sequence (Python regex \\S+) is one source token. Case, punctuation, TeX commands, comments and table syntax are retained.",
+    "alignment": "difflib.SequenceMatcher with autojunk=False, separately for each source file; identical method for both revisions.",
+    "counts": "Every non-equal span contributes removed original tokens and added revision tokens. Total edits = added + deleted. Moves can count as deletion plus addition.",
+    "aggregate": "Sum of main TeX, figure definitions/captions, two main tables and bibliography. Inputs are counted separately, without double-counting expanded content.",
+    "exclusions": "PDFs, figure artwork, companion, build scripts, supporting documentation and extra diagnostic tables are not included in source-token edit totals.",
+    "limitations": "These are source tokens, not linguistic word counts or changed PDF lines. The alignment is not a proof of minimum edit distance. Smaller counts do not establish readability, reviewer satisfaction, or a globally minimal revision."
+  },
+  "versions": {
+    "v1": {
+      "main_tex": {
+        "original_tokens": 2449,
+        "revision_tokens": 2727,
+        "added": 1178,
+        "deleted": 900,
+        "unchanged": 1549,
+        "total_edits": 2078
+      },
+      "figure_definitions": {
+        "original_tokens": 293,
+        "revision_tokens": 83,
+        "added": 29,
+        "deleted": 239,
+        "unchanged": 54,
+        "total_edits": 268
+      },
+      "synthetic_table": {
+        "original_tokens": 243,
+        "revision_tokens": 255,
+        "added": 38,
+        "deleted": 26,
+        "unchanged": 217,
+        "total_edits": 64
+      },
+      "prose_table": {
+        "original_tokens": 282,
+        "revision_tokens": 250,
+        "added": 7,
+        "deleted": 39,
+        "unchanged": 243,
+        "total_edits": 46
+      },
+      "bibliography": {
+        "original_tokens": 709,
+        "revision_tokens": 854,
+        "added": 145,
+        "deleted": 0,
+        "unchanged": 709,
+        "total_edits": 145
+      },
+      "aggregate": {
+        "original_tokens": 3976,
+        "revision_tokens": 4169,
+        "added": 1397,
+        "deleted": 1204,
+        "unchanged": 2772,
+        "total_edits": 2601
+      }
+    },
+    "v2": {
+      "main_tex": {
+        "original_tokens": 2449,
+        "revision_tokens": 2661,
+        "added": 734,
+        "deleted": 522,
+        "unchanged": 1927,
+        "total_edits": 1256
+      },
+      "figure_definitions": {
+        "original_tokens": 293,
+        "revision_tokens": 83,
+        "added": 32,
+        "deleted": 242,
+        "unchanged": 51,
+        "total_edits": 274
+      },
+      "synthetic_table": {
+        "original_tokens": 243,
+        "revision_tokens": 255,
+        "added": 38,
+        "deleted": 26,
+        "unchanged": 217,
+        "total_edits": 64
+      },
+      "prose_table": {
+        "original_tokens": 282,
+        "revision_tokens": 250,
+        "added": 7,
+        "deleted": 39,
+        "unchanged": 243,
+        "total_edits": 46
+      },
+      "bibliography": {
+        "original_tokens": 709,
+        "revision_tokens": 854,
+        "added": 145,
+        "deleted": 0,
+        "unchanged": 709,
+        "total_edits": 145
+      },
+      "aggregate": {
+        "original_tokens": 3976,
+        "revision_tokens": 4103,
+        "added": 956,
+        "deleted": 829,
+        "unchanged": 3147,
+        "total_edits": 1785
+      }
+    }
+  },
+  "reduction_v2_vs_v1_percent": {
+    "main_tex": 39.55726660250241,
+    "aggregate": 31.372549019607842
+  },
+  "unchanged_fields": {
+    "v1": {
+      "title": true,
+      "abstract": true
+    },
+    "v2": {
+      "title": true,
+      "abstract": true
+    }
+  },
+  "shared_artifacts": {
+    "tables/filter_check.json": {
+      "identical_between_revisions": true,
+      "sha256": {
+        "v1": "d7a2016a5a0cf99881ca9179a4d6d144c153b7adfbe024c626dc9ae52cb7f2d1",
+        "v2": "d7a2016a5a0cf99881ca9179a4d6d144c153b7adfbe024c626dc9ae52cb7f2d1"
+      }
+    },
+    "figures/orchard_network.pdf": {
+      "identical_between_revisions": true,
+      "sha256": {
+        "v1": "687128366c00daf2656bc7bdd2813ccd9c87553e8dd21b295d73fd1bc3dcf59c",
+        "v2": "687128366c00daf2656bc7bdd2813ccd9c87553e8dd21b295d73fd1bc3dcf59c"
+      }
+    },
+    "figures/fable.pdf": {
+      "identical_between_revisions": true,
+      "sha256": {
+        "v1": "8507ab059656cc7728c6037cb699bf09a9bf34a7ae0cb64ff2ec2a4bf8a87a83",
+        "v2": "8507ab059656cc7728c6037cb699bf09a9bf34a7ae0cb64ff2ec2a4bf8a87a83"
+      }
+    },
+    "figures/alice.pdf": {
+      "identical_between_revisions": true,
+      "sha256": {
+        "v1": "56b375ddd02b6fbcb9344438f377d3c51f404172bd2578b67a0097f2eccb74b4",
+        "v2": "56b375ddd02b6fbcb9344438f377d3c51f404172bd2578b67a0097f2eccb74b4"
+      }
+    },
+    "generated/numbers.tex": {
+      "identical_between_revisions": true,
+      "sha256": {
+        "v1": "a07445e41721290f29cc7b454df5d46717991cb3a4cb166b28c3f0658bcfa3a8",
+        "v2": "a07445e41721290f29cc7b454df5d46717991cb3a4cb166b28c3f0658bcfa3a8"
+      }
+    }
+  },
+  "input_sha256": {
+    "paper/icaart2027/ICAART2027_submission.tex": "f94f11a16fff49c8ca5b972aee82250caa95271ce4937b6adb9b0cc5ac91edbc",
+    "paper/icaart2027_revised/ICAART2027_revised.tex": "4f7f54b1246699182bcd6dcd7a5f2d0670db3c528ff1623950d8d742d6d62b8a",
+    "paper/icaart2027_revised_v2/ICAART2027_revised_v2.tex": "905579ab87e9b64deec4e350648442d0159ae8e30218f37f8220715b75692365",
+    "paper/icaart2027/figure_blocks.tex": "9e61bfaff35c2b4514123995ee331d5b92fe4b7a0e17776d2390ceb33068616a",
+    "paper/icaart2027_revised/figure_blocks.tex": "047fea6f0bae89583f0cd3babed8234b5a62daf939310a649119e410eb4ce01c",
+    "paper/icaart2027_revised_v2/figure_blocks.tex": "081b826e4feefd1c43d71b3de3a044d9dcb32c4f6d270654954127a247bf65d7",
+    "paper/icaart2027/tables/compact.tex": "7b89ca9579c044dfe2cc29a768e32c46a3f40401f2a5f36fb5b05ab2c18880f6",
+    "paper/icaart2027_revised/tables/compact.tex": "b2a513a0b9fbc04ef0b4a437386a816518a4958147fb193f48ecb8cc38f6eb43",
+    "paper/icaart2027_revised_v2/tables/compact.tex": "b2a513a0b9fbc04ef0b4a437386a816518a4958147fb193f48ecb8cc38f6eb43",
+    "paper/icaart2027/tables/prose.tex": "136b956a06d650b0ac65f90f8b71b67c4c94a80b3c6bdc1ac54db63315590660",
+    "paper/icaart2027_revised/tables/prose.tex": "de1bf247e7400578b2c6d85bb1bf268a67aecae79a0af3003c82c664bfdc64f2",
+    "paper/icaart2027_revised_v2/tables/prose.tex": "de1bf247e7400578b2c6d85bb1bf268a67aecae79a0af3003c82c664bfdc64f2",
+    "paper/icaart2027/references.bib": "b3751d829fe94961e805553659f7df7f2f8ecc6156dbd8e768dbb113a76b6f06",
+    "paper/icaart2027_revised/references.bib": "2e0386868781c350d22a293199490c5e75e02937dedf62b257f6c7ad3376af89",
+    "paper/icaart2027_revised_v2/references.bib": "2e0386868781c350d22a293199490c5e75e02937dedf62b257f6c7ad3376af89"
+  }
+}
